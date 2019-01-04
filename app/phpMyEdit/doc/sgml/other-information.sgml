@@ -1,0 +1,314 @@
+<!-- $Platon: phpMyEdit/doc/sgml/other-information.sgml,v 1.32 2006/09/05 08:39:24 nepto Exp $ -->
+
+<chapter id="other-information">
+<title id="other-information.title">Other information</title>
+
+<sect1 id="other-information.author-and-homepage">
+<title id="other-information.author-and-homepage.title">Authors and homepage</title>
+<para>
+
+&name; had amount of project maintainers.
+
+<itemizedlist>
+<listitem><para>
+
+John McCreesh <email>jpmcc@phpmyedit.org</email> founded project and
+developed all versions 0.x, 1.x, 2.x and&nbsp;3.x.
+
+</para></listitem>
+<listitem><para>
+
+Jim Kraai <email>jkraai@phpmyedit.org</email> maintains phpMyEdit
+versions&nbsp;4.x.
+
+</para></listitem>
+<listitem><para>
+
+Ondrej Jombik <email>nepto@phpmyedit.org</email> is current project
+maintainer. He develops version&nbsp;5.0 and&nbsp;laters.
+
+</para></listitem>
+</itemizedlist>
+
+</para>
+<para>
+
+Many thanks to various project contributors. See
+<filename>doc/ChangeLog</filename> file for credits. Special thanks belongs
+to these contributors (in&nbsp;alphabetical&nbsp;order):
+
+<itemizedlist>
+<listitem><para>Pau Aliagas <email>pau@phpmyedit.org</> who converted &name;
+to PHP class in version 3.0.</para></listitem>
+<listitem><para>Hugues Bernard <email>hbernard@phpmyedit.org</> who
+implemented some important &name; features and contributed several bugfixes.
+</para></listitem>
+<listitem><para>Adam Hammond <email>ajh@phpmyedit.org</email> who contributed
+several phpMyEdit extensions related work.
+</para></listitem>
+<listitem><para>Doug Hockinson <email>doug@phpmyedit.org</> who helped to
+create exhaustive official &name; documentation and donate <ulink
+url="http://phpMyEdit.org/">phpMyEdit.org</> domain.</para></listitem>
+<listitem><para>Michal Palenik <email>michal@phpmyedit.org</> who
+did quality testing and implemented some nice &name; features.
+</para></listitem>
+</itemizedlist>
+
+</para>
+<para>
+
+Please do not write previous maintainers support questions, suggestions, bug
+reports or patches. Use Platon.SK bug-tracking system, support forum or &name;
+mailinglist for these purposes.
+
+</para>
+<para>
+
+Copyright (c) 2002-2006 Platon Group,
+<ulink url="http://platon.sk/">http://platon.sk/</ulink>
+
+</para>
+<para>
+
+The official &name; homepage is:
+<ulink url="http://platon.sk/projects/&name;/">
+http://platon.sk/projects/&name;/</ulink>
+
+</para>
+<para>
+
+The &name; project management page is:
+<ulink url="http://platon.sk/projects/main_page.php?project_id=5">
+http://platon.sk/projects/main_page.php?project_id=5</ulink>
+
+</para>
+<para>
+
+This documentation is related to &name; version &version; which was released
+in &date-human;.
+
+</para>
+</sect1>
+
+<sect1 id="other-information.license">
+<title id="other-information.license.title">License</title>
+<para>
+
+In this section are licensing possibilities written.
+
+</para>
+<sect2 id="other-information.license-oss">
+<title id="other-information.license-oss.title">Open Source License</title>
+<para>
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the <ulink url="http://www.gnu.org/licenses/gpl.html">GNU General
+Public License</ulink> as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
+
+</para>	
+<para>
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+</para>	
+<para>
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place - Suite 330, Boston, MA 02111-1307, USA.
+
+</para>	
+</sect2>
+<sect2 id="other-information.license-commercial">
+<title id="other-information.license-commercial.title">Commercial License</title>
+<para>
+
+Using this commercial license you can use &name; in your projects and these
+projects no longer need to be an open-source software. You can also sell your
+product to the public without releasing your source codes. Basically all the
+GNU&nbsp;GPL obligations can be omitted with
+the&nbsp;"&name;&nbsp;Commercial&nbsp;License". You&nbsp;do not need to worry
+about them, anymore!
+
+</para>
+<para>
+
+See <ulink
+url="http://www.phpmyedit.org/article.php?commercial">Commercial&nbsp;section</ulink>
+at&nbsp;the&nbsp;<ulink url="http://www.phpmyedit.org/">phpMyEdit.org</ulink>
+website for conditions and pricing.
+
+</para>
+</sect2>
+</sect1>
+
+<sect1 id="other-information.support-and-feedback">
+<title id="other-information.support-and-feedback.title">Support and feedback</title>
+
+<bridgehead id="other-information.bug-tracking-system">Bug-tracking system</bridgehead>
+<para>
+
+We are happy to accept bug reports, suggestions for improvement, or improved
+code, preferably via our <ulink url="http://platon.sk/">Platon.SK</ulink>
+bug-tracking system where everyone can see them. When submitting a new bug
+report, make sure the same bug is not already submitted. If not, go straight to
+the new bug submission link and enter exhaustive details by filling out all the
+required fields. 
+
+</para>
+<para>
+
+All bugs listing page:
+<ulink url="http://platon.sk/projects/view_all_bug_page.php?project_id=5">
+http://platon.sk/projects/view_all_bug_page.php?project_id=5</ulink>
+
+</para>
+<para>
+
+New bug submission:
+<ulink url="http://platon.sk/projects/bug_report_advanced_page.php?project_id=5">
+http://platon.sk/projects/bug_report_advanced_page.php?project_id=5</ulink>
+
+
+</para>
+
+<bridgehead>Support forum</bridgehead>
+<para>
+
+A web based forum has been established to provide support for &name;. There you
+can discuss and consult general issues related to this project.  Installation,
+configuration and usage questions can be asked there. The forum is also the
+right place for brainstorming about new features, since more opinions and points
+of view can be presented. The whole matter needs to be completelly re-thought
+before it will be submitted into bug-tracking system, marked as a feature
+request and finally implemented.
+
+</para>
+<para>
+
+<ulink url="http://platon.sk/forum/projects/?c=5">
+http://platon.sk/forum/projects/?c=5</ulink>
+
+</para>
+
+<bridgehead>Feedback</bridgehead>
+<para>
+
+Feel free to correct the text of the documents and messages in this project if
+you find a mistake or typo.
+
+</para>
+<para>
+
+Usage of mentioned services is prefered, however if you need to contact authors
+directly, use the following &lt;<ulink
+url="mailto:platon@platon.sk?subject=&name;">platon@platon.sk</>&gt; e-mail
+address and write '&name;' keyword in the Subject line.
+
+</para>
+<bridgehead>Donation</bridgehead>
+<para>
+
+If you appreciate &name; application, you can send a &nbsp;donation
+to&nbsp;the&nbsp;Platon&nbsp;Group via&nbsp;PayPal. All&nbsp;the&nbsp;major
+credit cards are accepted. Please use the e-mail address &lt;<ulink
+url="mailto:platon@platon.sk">platon@platon.sk</>&gt;
+as&nbsp;the&nbsp;recipient.
+
+<mediaobject>
+<imageobject><imagedata fileref="images/paypal-logo.png" format="GIF89A"></imageobject>
+<textobject><phrase>PayPal logo</phrase></textobject>
+<!-- <caption><para>TODO</para></caption> -->
+</mediaobject>
+
+Thank you! 
+
+</para>
+<bridgehead>Translations</bridgehead>
+<para>
+
+If you don't find in <filename class=directory>lang/</filename>
+subdirectory a translation into your language, you can make one. Before spending
+time creating a translation, check
+<ulink url="http://platon.sk/cvs/cvs.php/&name;/lang/">http://platon.sk/cvs/cvs.php/&name;/lang/</>
+to see if development for that translation has already begun.
+
+</para>
+</sect1>
+
+<!--
+<sect1 id="other-information.mailinglist"><title>Mailinglist</title>
+<para>
+
+There is &name; mailinglist provided on <ulink
+url="http://sourceforge.net/">SourceForge.Net</ulink>.  Subscription is strongly
+recommended, especially if you want to discuss new features or participate on
+further ideas and thoughts.
+
+</para>
+<para>
+
+You can join this mailinglist by accessing following link
+
+</para>
+<para>
+
+<ulink url="http://lists.sourceforge.net/lists/listinfo/phpmyedit-discuss">
+http://lists.sourceforge.net/lists/listinfo/phpmyedit-discuss</ulink>
+
+</para>
+<para>
+
+Another possibility is by sending e-mail with keyword 'subscribe' in Subject
+line to following e-mail address
+
+</para>
+<para>
+
+<email>phpmyedit-discuss-request@lists.sourceforge.net</email>
+
+</para>
+</sect1>
+-->
+
+<sect1 id="other-information.cvs-access"><title>CVS access</title>
+<para>
+
+Whole &name; project is provided in <ulink
+url="http://platon.sk/">Platon&nbsp;Group</ulink> CVS repository. It is
+possible to review our CVS repository using <ulink
+url="http://platon.sk/cvs/cvs.php/&name;/">CVSweb interface</ulink>, but it is
+also possible to checkout files using anonymous access.
+
+</para>
+<para>
+
+Particular CVS instructions follows. Platon&nbsp;Group CVS&nbsp;repository can
+be checked out through anonymous (pserver) CVS with the following instruction
+set. When prompted for a password for anonymous, simply press the
+<keycap>Enter</keycap> key.
+
+</para>
+<para>
+
+<screen>
+<!-- <prompt>$</prompt> --><userinput>export CVSROOT=:pserver:anonymous@cvs.platon.sk:/home/cvs</userinput>
+<!-- <prompt>$</prompt> --><userinput>cvs login</userinput>
+<!-- <prompt>$</prompt> --><userinput>cvs checkout &name;</userinput>
+</screen>
+
+</para>
+<para>
+
+These commands should work with no problems on any UNIX-like system with cvs
+client installed. For checkouting on MS-Windows platform you can use one from
+several free available CVS client softwares.
+
+</para>
+</sect1>
+
+</chapter>
+

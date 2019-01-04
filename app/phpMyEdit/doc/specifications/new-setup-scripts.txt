@@ -1,0 +1,71 @@
+phpMyEdit setup scripts specification
+-------------------------------------
+
+Based on the ideas by Doug Hockinson <webmaster@metrodenver.org>
+                  and Ondrej Jombik <nepto@pobox.sk>
+
+18/Dec/2002
+
+--
+
+1. Remove phpMyEditSetup.php, create setup/ directory with starting
+index.php file. Can you imagine some situation when directory will not
+be desirable? I know that it is more difficult to remove directory
+using FTP command line connection, but setup scripts are not and will
+not be vulnerable (thus they can remain untouched also in production
+stable sites).
+
+2. For each configuration page (DB selection, table selection, ID
+selection) create its own script. This should results into higher
+setup scripts maintainability.
+
+3. Use some cool setup scripts design. At least with header and footer
+included from separate files. In header there can be "phpMyEdit
+Configuration Central" written (or something similary splendid :-)
+
+4. After selecting/choosing all DB parameters, menu should appear
+where user can choose several things.
+    - to write code to disk
+    - to display code on the screen
+    - option for writting/displaying heavily of less commented code
+    - more approaches can be used (for example the one that it is now,
+      or "your" with all possible options present where unused can be
+      removed/deleted later)
+
+5. After all CSS stylesheet configurator could be displayed. Maybe we
+will be able to use some from existing CSS generators coded in PHP (I
+hope that something like this exists). The compulsory condition for
+this is to have CSS classes policy finished and coded into phpMyEdit
+core class. However, now this has the biggest priority, since
+documentation is almost done and will be published soon.
+
+--
+
+As regards displaying the calling script in the web browser, I was
+reminded of something. On some javascript web site, their scripts
+appear in a TEXTAREA box. Below this box is a button labeled HIGHLIGHT
+ALL.  Clicking the button highlights the text/code in the textarea so
+the user can right-click with the mouse and copy the text. If the
+calling script appeared in a relatively small TEXTAREA may leave room
+to display some additional information.
+
+--
+
+I like this because I have shot myself in the foot several times ...
+by allowing phpMyEditSetup.php to over-write existing scripts.
+Perhaps the default setting should be No Disk Write.
+
+--
+
+Perhaps there are Theme Sets / Styles that could be gathered together.
+Perhaps the people from http://www.htmlhelp.com/ would have something
+to contribute (their work is included in the TopStyle software).
+
+The length of displayed INPUT boxes in Netscape 4.x is a concern, as
+is sometimes the display width of certain table cells. While I use and
+appreciate Netscape 4.x, it is difficult for me to to believe that
+almost all the libraries in Colorado are using Netscape 4.01 ...  and
+it is integrated into the library Card Catalog network.
+
+http://www.searchbliss.com/webmaster_tools/CSS_generator.htm
+

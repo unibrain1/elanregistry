@@ -1,0 +1,169 @@
+<!-- $Platon: phpMyEdit/doc/sgml/installation.sgml,v 1.6 2003/11/20 11:52:30 nepto Exp $ -->
+
+<chapter id="installation">
+<title>Installation</title>
+
+<para>
+In this chapter are detailed installation notes written.
+</para>
+
+<sect1 id="installation.getting-started">
+<title id="installation.getting-started.title">Getting started</title>
+<para>
+
+&name; enables PHP scripters to quickly create forms used to interact with data
+stored in a MySQL database table. The procedure described below will enable you
+to generate the <firstterm>calling script</firstterm> containing the database
+logon and a variety of options. An included file
+<filename>phpMyEdit.class.php</filename> will later manipulate MySQL records
+based on user options which are configurable in the calling script. The calling
+script essentially generates one form which facilitates actions that include add
+record, change record, copy record, view record, delete record, etc. 
+
+</para>
+<para>
+
+&name; is available for download from <ulink
+url="http://platon.sk/projects/phpMyEdit/">Platon.SK</ulink>. Extract, or
+unzip, the program files to your computer's hard disk. The download file
+includes icons and various language files which should be extracted into
+sub-folders below the file named <filename>phpMyEdit.class.php</filename>.
+
+</para>
+<important><para>
+
+Before uploading the program files to your server, make certain that your FTP
+client is not configured to force filenames to lower case letters. 
+
+</para></important>
+<para>
+
+With the program files uploaded to your server, point your web browser to the
+file named <filename>phpMyEditSetup.php</filename>. You will be prompted to
+enter your MySQL database logon (hostname, username, and password) and click the
+<GUIbutton>Submit</GUIbutton> button. The logon screen should resemble the picture below.
+
+</para>
+<para>
+
+<mediaobject>
+<imageobject><imagedata fileref="images/logon.png" format="GIF89A"></imageobject>
+<textobject><phrase>&name; logon screen</phrase></textobject>
+<!-- <caption><para>TODO</para></caption> -->
+</mediaobject>
+
+</para>
+</sect1>
+
+<sect1 id="installation.table-selection">
+<title id="installation.table-selection.title">Table selection</title>
+<para>
+
+After successfully logging on to a MySQL database, a list of MySQL tables will
+be displayed. Select a table and click the <GUIbutton>Submit</GUIbutton> button. 
+
+</para>
+<para>
+
+<mediaobject>
+<imageobject><imagedata fileref="images/table-selection.png" format="GIF89A"></imageobject>
+<textobject><phrase>&name; table selection screen</phrase></textobject>
+<!-- <caption><para>TODO</para></caption> -->
+</mediaobject>
+
+</para>
+</sect1>
+
+<sect1 id="installation.id-selection">
+<title id="installation.id-selection.title">ID selection</title>
+<para>
+
+After selecting a table, a list of its MySQL columns will be displayed. Select a
+column that is a unique numeric identifier. The unique numeric identifier is
+typically that column which is the unique auto-incremented record ID. Although
+non-numeric unique identifiers are also supported, we recommend you to use
+numeric one.
+
+</para>
+<para>
+
+Below the list of column names you will find two input boxes containing a
+suggested <GUIlabel>Page Title</GUIlabel> and suggested <GUIlabel>Base
+Filename</GUIlabel>. Either accept or change the content of the input boxes. An
+attempt will be made to generate a script, write the script to the base
+filename, and then display the script in the web browser. 
+
+</para>
+<para>
+
+<mediaobject>
+<imageobject><imagedata fileref="images/id-selection.png" format="GIF89A"></imageobject>
+<textobject><phrase>&name; ID selection screen</phrase></textobject>
+<!-- <caption><para>TODO</para></caption> -->
+</mediaobject>
+
+</para>
+</sect1>
+
+<sect1 id="installation.result-script">
+<title id="installation.result-script.title">Result script</title>
+<para>
+
+After clicking the <GUIbutton>Submit</GUIbutton> button, the script should
+appear in your web browser along with a message indicating whether or not the
+attempted disk write was successful. 
+
+</para>
+<para>
+
+Depending on your system configuration, the script may or may not have been
+written to the directory from which <filename>phpMyEditSetup.php</filename> was
+run. You will need to either open the file that was written to disk or else
+highlight and copy the script from the web browser and paste it into a blank
+document in your text editor. 
+
+</para>
+<para>
+
+<mediaobject>
+<imageobject><imagedata fileref="images/result-script.png" format="GIF89A"></imageobject>
+<textobject><phrase>&name; result script screen</phrase></textobject>
+<!-- <caption><para>TODO</para></caption> -->
+</mediaobject>
+
+</para>
+<para>
+
+If the proposed <GUIlabel>Base Filename</GUIlabel> was "employees" and the disk
+write was successful, a file named <filename>employees.php</filename> would
+exist in the directory from which <filename>phpMyEditSetup.php</filename> was
+run. 
+
+</para>
+<para>
+
+If the disk write was NOT successful and you've pasted the script into your text
+editor, save the file in the same directory which contains the phpMyEdit program
+files. Save the file with the <filename>.php</filename> extension. 
+
+</para>
+<para>
+
+Because HTML header and footer requirements vary between users, no header or
+footer is generated. Add or include appropriate HTML markup as necessary (e.g.
+&lt;HTML&gt;&lt;HEAD&gt; [headers] &lt;/HEAD&gt;&lt;BODY&gt; [script]
+&lt;/BODY&gt;&lt;/HTML&gt;). By default the table will be enclosed by &lt;div
+class="main"&gt; ... &lt;/div&gt; which offers a degree of formatting in terms
+of using CSS (cascading style sheets). 
+
+</para>
+<para>
+
+Once the header and footer are in place, there are script configuration options
+that you should review and possibly change.
+
+</para>
+</sect1>
+
+</chapter>
+
