@@ -1,0 +1,70 @@
+<!-- $Platon: phpMyEdit/doc/sgml/introduction.sgml,v 1.5 2004/11/10 17:00:14 nepto Exp $ -->
+
+<chapter id="introduction">
+<title>Introduction</title>
+
+<sect1 id="introduction.overview">
+<title id="introduction.overview.title">Overview</title>
+<para>
+
+How many times have you hand coded a MySQL table editor in PHP?  &name;
+application provides an instant table editor.
+
+</para>
+<para>
+    
+&name; generates PHP code for displaying/editing MySQL tables in HTML. All
+you need to do is to write a simple calling program (a utility to do this is
+included). It includes a huge set of table manipulation functions (record
+addition, change, view, copy, and removal), table sorting, filtering, table
+lookups, and more.
+
+</para>
+</sect1>
+
+<sect1 id="introduction.features">
+<title id="introduction.features.title">Features</title>
+<para>
+
+The most important features offered by &name; are:
+
+<itemizedlist mark=opencircle spacing=compact>
+<listitem><simpara>table manipulation code generation</simpara></listitem>
+<listitem><simpara>record addition, change, view, copy and removal</simpara></listitem>
+<listitem><simpara>table paging, sorting and filtering</simpara></listitem>
+<listitem><simpara>lookups into other tables (1:M bindings)</simpara></listitem>
+<listitem><simpara>permission configuration</simpara></listitem>
+<listitem><simpara>multiple navigation style possibilities</simpara></listitem>
+<listitem><simpara>output design control using CSS</simpara></listitem>
+<listitem><simpara>logging user actions</simpara></listitem>
+<listitem><simpara>multilanguage support</simpara></listitem>
+<listitem><simpara>ability to extend base class</simpara></listitem>
+</itemizedlist>
+
+and many others.
+
+</para>
+</sect1>
+
+<sect1 id="introduction.requirements">
+<title id="introduction.requirements.title">Requirements</title>
+<para>
+
+&name; requires web server (we recommend <productname>Apache</>),
+<productname>PHP</> interpreter without any special modules and
+<productname>MySQL</> relational database management system.
+
+</para>
+<para>
+
+Product is developed and tested using <productname>Apache 1.3.23</>,
+<productname>PHP 4.1.2</> and <productname>MySQL 3.23.47</> under
+<productname>Linux Mandrake 8.2</>. It should work well on the same or similar,
+but also some different configurations. Please notify &name; developers in
+the event you encounter problems with program's compatibilities or capabilities.
+
+</para>
+</sect1>
+
+</chapter>
+

@@ -1,0 +1,113 @@
+CSS clasess policy
+------------------
+
+Based on the ideas by Bruno Baguette <levure@baguette.net>
+                  and Ondrej Jombik <nepto@pobox.sk>
+
+29/Oct/2002 (implemented in phpMyEdit 5.3)
+
+--
+
+I think that all the phpMyEdit CSS classes should be prefixed with a
+configurable string which will have the default value of "pme_" (for
+PhpMyEdit).
+
+For example, in a listing, we should have three classes for the rows :
+
+HeaderRow : Class pme_row_headers
+Row 1 : Class pme_row_listing_one
+Row 2 : Class pme_row_listing_two
+Row 3 : Class pme_row_listing_one
+Row 4 : Class pme_row_listing_two
+Row 5 : Class pme_row_listing_one
+Row 6 : Class pme_row_listing_two
+
+This rotation between the two classes would bring more readability for
+large and long tables.
+
+I think there's two different kind of CSS classes in the case of the
+PhpMyEdit project. Some classes are common for several  generated
+files, and somes classes are unique for one kind of generated files.
+We should begin by making a list of theses classes and build a table
+with the uses of theses classes.
+
+Do you agree with that ?
+
+If you agree I can begin to make the list of the currently used classes
+and to build a table with the uses of the CSS classes in the different
+kind of generated files.
+
+--
+
+1. Basic CSS configuration will be using $opts['css'] array/hash.
+
+2. We have at least following suboptions:
+        ['prefix'] - default value is "pme_"
+        ['dividor'] - well this should have better name, but it says how
+                      many list table rows should have own number before
+                      starting counting from 0; value of -1 means every row
+                      has its own number
+        ['buttons_pos'] - if the buttons should get their class name
+                          according to possition on page name
+                          (ie. pme_button_down)
+        ['buttons_type'] - if the buttons should get their class name
+                           according to type (ie. pme_button_search)
+        ['buttons_func'] - similary functionality (pme_button_next)
+
+If more from buttons_* option is turned on, the result class name will be
+joined in one string. Example: pme_button_down_change.
+
+3. Similar booleans (they should not be letter flags?) must have other
+   elements, such as <hr>, so ['hr_pos'] = true -> pme_hr_up, pme_hr_down
+
+4. There are two types of screen: table listing and one record display.
+
+5. There are three types of buttons:
+        - table list action buttons:
+                next, prev, add, view, delete, copy, change
+        - record display action buttons:
+                save, more, cancel, delete, [apply]
+        - search buttons:
+                search, hide, cancel, query
+
+6. Every column can have new option ['css'] ($opts['fdd']['col']['css']).
+
+7. Column ['css'] has:
+        ['postfix'] - what to add to all classes that are connected with
+                      this column (so its TH class will get this postfix,
+                      also its filter input field, also its TDs); this will
+                      allow us to have for example one col hightlighted with
+                      different color what other cols; rather cool, isn't it?
+
+--
+
+I only know enough to confuse the CSS issue ... at some point I wanted
+to control the display of a page based on the current operation. Today I
+wondered if the language files could somehow play a role ... for example
+if the operation was Add (or that label's foreign language equivalent)
+then maybe <TD class="add"> ... or something along those lines.
+
+Actually, this will be taken into consideration. By default, CSS class
+names will looks like following example:
+
+<prefix>-<element>-<pagetype>-<position>-<dividor>-<postfix>
+
+prefix   - configurable by user
+element  - element name (the most problem)
+pagetype - add/change/copy/view/delete or empty for list pagetype
+position - up/down (only when applicable)
+postfix  - configurable per field by user
+
+pme-somebutton-add-top
+pme-cell-add-1-Title
+
+You will have possibility to simplify class names. In example, you want
+the same style for top and bottom buttons on the page. Than you will
+just disable <position> in stylesheet class names, and there will one
+"pme-somebutton-add" instead "pme-somebutton-add-top" and
+"pme-somebutton-add-bottom".
+
+You can actually group buttons according to page type as well. Thus no
+"pme-somebutton-add", "pme-somebutton-change", "pme-somebutton-delete",
+but only one class "pme-somebutton".
+
