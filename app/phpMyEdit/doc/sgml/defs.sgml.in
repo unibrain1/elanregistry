@@ -1,0 +1,7 @@
+<!-- $Platon: phpMyEdit/doc/sgml/defs.sgml.in,v 1.2 2003/01/31 12:05:14 nepto Exp $ -->
+
+<!ENTITY date		"@DATE@">
+<!ENTITY date-human	"@DATE_HUMAN@">
+<!ENTITY name		"@PACKAGE@">
+<!ENTITY version	"@VERSION@">
+

@@ -1,0 +1,60 @@
+Database abstraction
+--------------------
+
+Based on the ideas by <knut.pape@planet-interkom.de>
+                  and Ondrej Jombik <nepto@pobox.sk>
+                  and Ronan Paul <paulro@club-internet.fr>
+                  and Michal Palenik <michal@platon.sk>
+
+07/Jan/2002
+
+--
+
+1. Database abstraction should be done using PEAR:DB, not AdoDB. There
+are several reasons for this, the main is, that PEAR:DB is easy to
+install via PEAR installer and is part of standart PHP distribution
+(well, this was tru in future, I'm not sure about nowadays).
+
+2. Database abstraction should be considered as experimental at least
+till version 6.0 of phpMyEdit. This exactly means, that phpMyEdit will
+be still described as MySQL table editor, although it could offer also
+work with others database backends.
+
+3. Concerning to previous point, database abstraction should be
+implemented as addition into existing package, not replacement of
+existing database function calls. So in other words all current
+mysql_*() calls should remain untouched, but before every database
+operation should be such if(), whichwill determine if object is in
+database abstraction mode, and if so, particular PEAR:DB statements will
+be executed, fallback to current implementation otherwise.
+
+RP: I do agree with the main idea but I would rather suggest to change
+the code by creating a special class: replace all mysql_ calls buy calls
+to your own class. Then adding PEAR:DB will only need to extend your
+class (or just to replace it when you do not need specific mysql
+function anymore).  You should although keep in mind that PEAR does not
+support certain mysql feature (like the autoincrement field which are
+replaced by a more standard process: using specific tables which act
+like a sequence).
+
+4. We need add new $opts['dsn'] (data source name) to options and in
+constructor add this option into $this->dsn. Later in code there should
+be:
+
+if ($this->dsn) {
+	// new PEAR:DB code goes here
+} else {
+	// old mysql_*() code goes here
+}
+
+Very simple, isn't it?
+
+Changes do not need to be perfect, because as told once this will be 
+unsupported functionality for some while. The main aim of the whole issue 
+is, that none from existing functionality should not be broken.
+
+In cvs version (1.190) preparation for database abstraction was added. 
+To make phpMyEdit work with other databases, it is neccessary just to create 
+new class which will inherit all from phpMyEdit.class and replace sql_* functions
+(10 functions). It is also possible to use PEAR classes there. These new
+classes should be released as extentions. 
