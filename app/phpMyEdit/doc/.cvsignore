@@ -1,0 +1,10 @@
+.*.sw?
+phpMyEdit.out
+phpMyEdit.aux
+phpMyEdit.log
+html
+html/*
+pdf
+pdf/*
+VERSION
+
