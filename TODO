@@ -18,12 +18,12 @@
 - Map of car locations
 	* Set Lat/Lon fo Account
 
-./usersc/admin_user.php:   'max' => 25		// TODO Check the field valuidation to be consistant across inputs
-./usersc/admin_user.php:   'max' => 25		// TODO Check the field valuidation to be consistant across inputs
-./usersc/admin_user.php:   'max' => 25		// TODO Check the field valuidation to be consistant across inputs
-./usersc/user_settings.php:'max' => 25		// TODO Check the field valuidation to be consistant across inputs
-./usersc/user_settings.php:'max' => 25		// TODO Check the field valuidation to be consistant across inputs
-./usersc/user_settings.php:'max' => 25		// TODO Check the field valuidation to be consistant across inputs
+./usersc/admin_user.php:   'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/admin_user.php:   'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/admin_user.php:   'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/user_settings.php:'max' => 25		// TTODO Check the field validation to be consistent across inputs
+./usersc/user_settings.php:'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/user_settings.php:'max' => 25		// TODO Check the field validation to be consistent across inputs
 
 
 ./app/list_cars.php:		/*  TODO A Better way to do the images in the grid
