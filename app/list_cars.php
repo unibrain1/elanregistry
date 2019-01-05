@@ -37,9 +37,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
 	<div class="container-fluid">
 		<div class="row">
 			<div class="col-sm-12">
-					
-
-
+			</br></br>
 
 <?php
 
@@ -60,7 +58,7 @@ include("include/constants.php");
 	$opts['filters'] = "PMEtable0.sessions_count > 200";
 	*/
 
-	$DISPLAY_USERINFO = false; // TODO Need to figure out how to Join or dislplay user with the car information
+	$DISPLAY_USERINFO = true; // TODO Need to figure out how to Join or dislplay user with the car information
 
 // MySQL host name, user name, password, database, and table
 
@@ -70,7 +68,7 @@ $opts['un'] = $config[mysql][username];
 $opts['pw'] = $config[mysql][password];
 $opts['db'] = $config[mysql][db];
 
-$opts['tb'] = 'cars';
+$opts['tb'] = 'users_carsView';
 
 $opts['ssl'] = 0; // TODO No SSL - Need to change when I move to HTTPS 
 
@@ -205,23 +203,6 @@ appear in generated list. Here are some most used field options documented.
   descriptions fields are also possible. Check documentation for this.
 */
 
-/* ********************************************** 
- *  This field (username) needs to be first and second.
- * ********************************************** */
-
-//  TODO Need to figure out how to Join or dislplay user with the car information
-//$opts['fdd']['username'] = array(
-//  'name'     => 'Username',
-//  'options'  => 'ARH', /* L - list, F - filter, A - add, C - change, P - copy, D - delete, V - view */
-//  'values' => Array(
-//  'table' => 'users', //joined table
-//   'column' => 'username', //the joined key
-//   'description' => 'username'),
-//   'join' => '$main_table.cars = $join_table.users',
-//   'default'  => $user->data()->id,
-//  'maxlen'   => 30,
-//  'sort'     => true,
-//);
 
 /* ********************************************** 
  * CAR information
@@ -336,84 +317,58 @@ $opts['fdd']['image'] = array(
   'sql|V'		=> "IF(image = '', NULL, CONCAT('<img src=\"userimages/', image, '\">'))" ,
   'sort'     => true
   );
-/*  TODO A Better way to do the images in the grid
 
-$opts['fdd']['image'] = array(
-  	'name'     => 'Image',
-	'select'=>'T',
-	'type'=>'string',
-	'maxlen'=>100,
-	'nowrap'=>false,
-	'sort'=>true,
-    'HTML'=> '<img src="$value" height=60>',
-);
-*/
 
 
 if($DISPLAY_USERINFO){
 	/* ********************************************** 
  	* Owner Information
  	* ********************************************** */
-	$opts['fdd']['FirstName'] = array(
-  	'name' => 'Name',
+	$opts['fdd']['fname'] = array(
+  	'name' => 'First Name',
   	'select'   => 'T',
 	'tab'     => 'Owner Information',
-  	'sql' => 'PMEjoin0.FirstName',
   	'options' => 'LVFR',
   	'sort'     => true
 	);
 
-/*
-	$opts['fdd']['LastName'] = array(
-  	'name'     => 'LastName',
-  	'sql' => 'PMEjoin0.LastName',
+	$opts['fdd']['lname'] = array(
+  	'name'     => 'Last Name',
+  	'select'   => 'T',
   	'options' => 'LVFR',
   	'sort'     => true
 	);
-*/
 
-	$opts['fdd']['City'] = array(
+	$opts['fdd']['city'] = array(
   	'name'     => 'City',
   	'select'   => 'T',
-  	'sql' => 'PMEjoin0.City',
   	'options' => 'LFVR',
   	'sort'     => true
 	);
-	$opts['fdd']['State'] = array(
+	$opts['fdd']['state'] = array(
   	'name'     => 'State/Province',
   	'select'   => 'T',
-  	'sql' => 'PMEjoin0.State',
   	'options' => 'LFVR',
   	'sort'     => true
 	);
-	$opts['fdd']['Country'] = array(
+	$opts['fdd']['country'] = array(
   	'name'     => 'Country',
   	'select'   => 'T',
-  	'sql' => 'PMEjoin0.Country',
   	'options' => 'LFVR',
   	'sort'     => true
 	);
 
-	$opts['fdd']['WebSite'] = array(
+/* TODO Need to find a better way to handle NULL Url 
+	$opts['fdd']['website'] = array(
   	'name'     => 'WebSite',
   	'select'   => 'G',
-  	'sql' => 'PMEjoin0.WebSite',
    	'URL' => '$value',
    	'URLtarget' => ' _blank',
    	'URLdisp' => 'link',
   	'options' => 'LFVR',
   	'sort'     => true
 	);
-
-	$opts['fdd']['Contact'] = array(
-  	'name' => 'Contact',
-  	'select'   => 'G',
-	'sql' => 'PMEjoin0.username',
-  	'options' => 'VFR',
-  	'URL'	=> 'contact.php?id=$value',
-  	'URLdisp' => 'Contact',
-  	'sort'     => true
-	);
+*/
 }
 
 /* ********************************************** 
