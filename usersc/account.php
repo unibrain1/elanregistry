@@ -78,6 +78,8 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 		<div class="panel panel-default">
 			<div class="panel-heading"><strong>Account Information</strong></div>
 			<div class="panel-body">
+				<p><a align="left" class="btn btn-success" href=<?=$us_url_root."/users/user_settings.php"?>>Edit Account Info</a></p>
+
 				<table class="pme-main">
 				<tr ><td class="pme-cell-0"><strong>Username    :</strong><td><td class="pme-cell-0"><?=echousername($thatUser[0]->id)?></td></tr>
 				<tr ><td class="pme-cell-1"><strong>First name  :</strong><td><td class="pme-cell-1"><?=ucfirst($thatUser[0]->fname)?></td></tr>
@@ -91,7 +93,6 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 				<tr ><td class="pme-cell-1"><strong>Number of Logins:</strong><td><td class="pme-cell-1"> <?=$thatUser[0]->logins?></td></tr>
 				</table>
 			
-				<p></br><a href="../users/user_settings.php" class="btn btn-success">Edit Account Info</a></p>
 			</div>
 		</div>
 	</div> <!-- col-xs-12 col-md-6 -->
@@ -102,43 +103,45 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 			<div class="panel-body">
 			<?php
 			
-			// If the user has a car then display the car - I'm just dumping the car for now</li>
-			// Give option to EDIT car</li>
-			// 	If the user does not have a car then display the add car form</li>
 			// If there is car information then display it 
-
-   			// output data of each row.  View has both cars and users
 			$cars = $thatUser;
 			
-			foreach($cars as $car){
-			?>
-				<table class="pme-main">
-					<tr ><td class="pme-cell-0"><strong>Series :</strong><td><td class="pme-cell-0"><?=$car->series?></td></tr>
-					<tr ><td class="pme-cell-1"><strong>Variant:</strong><td><td class="pme-cell-1"><?=$car->variant?></td></tr>
-					<tr ><td class="pme-cell-0"><strong>Year :</strong><td><td class="pme-cell-0"><?=$car->year?></td></tr>
-					<tr ><td class="pme-cell-1"><strong>Type:</strong><td><td class="pme-cell-1"><?=$car->type?></td></tr>
-					<tr ><td class="pme-cell-0"><strong>Chassis :</strong><td><td class="pme-cell-0"><?=$car->chassis?></td></tr>
-					<tr ><td class="pme-cell-1"><strong>Color:</strong><td><td class="pme-cell-1"><?=$car->color?></td></tr>
-					<tr ><td class="pme-cell-0"><strong>Engine :</strong><td><td class="pme-cell-0"><?=$car->engine?></td></tr>
-					<tr ><td class="pme-cell-1"><strong>Purchase Date:</strong><td><td class="pme-cell-1"><?=$car->purchasedate?></td></tr>
-					<tr ><td class="pme-cell-0"><strong>Sold Date :</strong><td><td class="pme-cell-0"><?=$car->solddate?></td></tr>
-					<tr ><td class="pme-cell-1"><strong>Comments:</strong><td><td class="pme-cell-1"><?=$car->comments?></td></tr>
-					<?php
-					if($car->image) {
+			if( empty($cars) ) {
+					// 	If the user does not have a car then display the add car form</li>
 					?>
-						<tr ><td class="pme-cell-1"><strong>Image:</strong><td><td class="pme-cell-1"><img src=<?=$us_url_root?>app/userimages/<?=$car->image?> width='430'></td></tr>
+					<a align="center" class="btn btn-success" href=<?=$us_url_root."app/add_car.php"?> role="button">Add Car</a>
 					<?php
-					} ?>
-				</table>
-				</br>
-				<p>
-					<a align="left" class="btn btn-success " href="../app/edit_car.php" role="button">Update Car</a>
-					<a align="right" class="btn btn-default " href="../app/add_car.php" role="button">Add Car</a>
-				</p>
-			<?php
-			}
-			?>
+			} else {
+				// Else there is car information then display it 
+				foreach($cars as $car){
+   					// output data of each row.  View has both cars and users
+					?>
+					<p> <a align="left" class="btn btn-success" href=<?=$us_url_root."app/edit_car.php"?> role="button">Update Car</a> </p>
 
+					<table class="pme-main">
+						<tr ><td class="pme-cell-0"><strong>Series :</strong><td><td class="pme-cell-0"><?=$car->series?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Variant:</strong><td><td class="pme-cell-1"><?=$car->variant?></td></tr>
+						<tr ><td class="pme-cell-0"><strong>Year :</strong><td><td class="pme-cell-0"><?=$car->year?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Type:</strong><td><td class="pme-cell-1"><?=$car->type?></td></tr>
+						<tr ><td class="pme-cell-0"><strong>Chassis :</strong><td><td class="pme-cell-0"><?=$car->chassis?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Color:</strong><td><td class="pme-cell-1"><?=$car->color?></td></tr>
+						<tr ><td class="pme-cell-0"><strong>Engine :</strong><td><td class="pme-cell-0"><?=$car->engine?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Purchase Date:</strong><td><td class="pme-cell-1"><?=$car->purchasedate?></td></tr>
+						<tr ><td class="pme-cell-0"><strong>Sold Date :</strong><td><td class="pme-cell-0"><?=$car->solddate?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Comments:</strong><td><td class="pme-cell-1"><?=$car->comments?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Created:</strong><td><td class="pme-cell-1"><?=$car->ctime?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Last Modified:</strong><td><td class="pme-cell-1"><?=$car->mtime?></td></tr>
+						<?php
+						if($car->image) {
+						?>
+							<tr ><td class="pme-cell-1"><strong>Image:</strong><td>
+							<td class="pme-cell-1"><img src=<?=$us_url_root?>app/userimages/<?=$car->image?> width='430'></td></tr>
+						<?php
+						} ?>
+					</table>
+				<?php
+				} 
+			} ?>
 
 			</div> <!-- panel-body -->
 		</div> <!-- panel -->
