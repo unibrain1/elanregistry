@@ -40,10 +40,6 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
 			</br></br>
 
 <?php
-
-include("include/constants.php");
-// include("include/car_database_config.php");
-
 	// Options you wish to give the users
 	// A - add,  C - change, P - copy, V - view, D - delete,
 	// F - filter, I - initial sort suppressed
