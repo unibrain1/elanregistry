@@ -50,7 +50,7 @@ if($user->isLoggedIn() || !$user->isLoggedIn() && !checkMenu(2,$user->data()->id
 $user_id = $user->data()->id;
 
 // USER ID is in $user_id .  Use the USER ID to get the users Profile information
-$userQ = $db->query("SELECT * FROM users_carsView WHERE user_id = ?",array($user_id));
+$userQ = $db->query("SELECT * FROM users_carsview WHERE user_id = ?",array($user_id));
 if ($userQ->count() > 0) {
 	$thatUser = $userQ->results();
 }
