@@ -18,12 +18,273 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
 
 <?php
 //PHP Goes Here!
+
+// Always handy to know who I am
+$user_id = $user->data()->id;
+
+// A place to store default values and what the user entered
+$select_str = 'Please Select';
+
+$cardetails['year'] = $select_str;
+$cardetails['model'] = $select_str; 
+$cardetails['chassis'] = NULL;
+$cardetails['color'] = NULL;
+$cardetails['engine'] = NULL;
+$cardetails['purchasedate'] =  NULL;
+$cardetails['solddate'] =  NULL;
+$cardetails['comments'] = NULL;
+
+// Holding place before processing
+$fields['year'] = NULL;
+$fields['model'] = NULL;
+        	$fields['series'] = NULL;
+        	$fields['variant'] = NULL;
+        	$fields['type'] = NULL;
+$fields['chassis'] = NULL;
+$fields['color'] = NULL;
+$fields['engine'] = NULL;
+$fields['purchasedate'] =  NULL;
+$fields['solddate'] =  NULL;
+$fields['comments'] = NULL;
+
+// 'placeholder' to prompt for response.  Background text in input boxes
+$carprompt['chassis'] = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
+$carprompt['color'] = 'Enter the current color of the car';
+$carprompt['engine'] = 'Enter Engine number - LPAxxxxx';
+$carprompt['purchasedate'] =  'MM/DD/YYYY';  // Safari doesn't respext date input type so give a message and will need to validate
+$carprompt['solddate'] =  'MM/DD/YYYY';
+$carprompt['comments'] = 'Please give a brief history of your car and anything special';
+
+// A place to put some messages
+$errors=[];
+$successes=[];
+
+
+// And a Validation function
+$validation = new Validate();
+
+
+// A place to put my fields
+$fields=[];
+
+//Temporary Success Message
+$holdover = Input::get('success');
+if($holdover == 'true'){
+    bold("Account Updated");
+}
+//Forms posted now process it
+//
+// TODO - Sanatize the data!
+
+if(!empty($_POST)) {
+    $token = $_POST['csrf'];
+    if(!Token::check($token)){
+				include($abs_us_root.$us_url_root.'usersc/scripts/token_error.php');
+    } else {
+         //Update Year
+        $year = ($_POST['year']);
+        if ( strcmp($year,$select_str) ){
+	       	$fields['year'] = $year;
+            $successes[]='Year Updated';
+        } else {
+	        $errors[] = "Please select Year";
+        }
+
+		// Update 'model'
+		//
+		$model = ($_POST['model']);
+        if ( strcmp($model,$select_str) ){
+			// Model isn't really a thing.  
+			//      We need to explode it into the proper columns
+	       	$fields['model'] = $model;  // Still save it for later so we can remember what the user entered
+			list($series, $variant, $type) = explode('|',$model);
+        	/* MST value is from form, so I shouldn't have to do this but to be safe ... */
+        	$fields['series'] = filter_var ( $series, FILTER_SANITIZE_STRING );
+        	$fields['variant'] = filter_var ( $variant, FILTER_SANITIZE_STRING );
+        	$fields['type'] = filter_var ( $type, FILTER_SANITIZE_STRING );
+
+            $successes[]='Model Updated';
+        } else {
+	        $errors[] = "Please select Model";
+        }
+
+		// Update 'chassis'
+        $chassis = ($_POST['chassis']);
+		$len = strlen($chassis);
+		$fields['chassis'] = filter_var ( $chassis, FILTER_SANITIZE_STRING );
+		if ( strcmp( $fields['variant'], 'Race' ) == 0 ) { /* For the 26R let them do what they want */
+				$successes[]='Chassis Updated';
+		} elseif ($year < 1970 ) {
+           	if( $len != 4) { // Chassis number for years < 1970 are 4 digits
+               	$errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
+           	}
+       	} else if( $len != 11) { 	// Chassis number for years >= 1970 are 11 digits
+               $errors[] = "Enter Chassis Number. 70xxyy0001z";
+		} else {
+			$successes[]='Chassis Updated';
+		}
+
+		// Update 'color'
+        $color = ($_POST['color']);
+	    $fields['color'] = filter_var( $color, FILTER_SANITIZE_STRING );
+        $successes[]='Color Updated';
+
+		// Update 'engine'
+        $engine = ($_POST['engine']);
+	   	$fields['engine'] = filter_var (str_replace( " ", "", strtoupper(trim($engine) ) ), FILTER_SANITIZE_STRING );
+        $successes[]='Engine Updated';
+
+		// Update 'purchasedate'
+		$purchasedate = ($_POST['purchasedate']);
+		// Convert to SQL date format
+		if( $purchasedate = date("Y-m-d H:i:s",strtotime($purchasedate)) ){
+       		$fields['purchasedate'] = filter_var ( $purchasedate, FILTER_SANITIZE_STRING );
+        	$successes[]='Purchased  Updated';
+		}else {
+			$errors[] = "Purchase Date conversion error";
+		}
+
+		// Update 'solddate'
+        $solddate = ($_POST['solddate']);
+		if( $solddate = date("Y-m-d H:i:s",strtotime($solddate)) ){
+       		$fields['solddate'] = filter_var ( $solddate, FILTER_SANITIZE_STRING );
+        	$successes[]='Sold Date Updated';
+		}else {
+			$errors[] = "Sold Date conversion error";
+		}
+
+		// Update 'comments'
+		$comments = ($_POST['comments']);
+       	$fields['comments'] = filter_var ( $comments, FILTER_SANITIZE_STRING );
+	   	$successes[]='Comment Updated';
+		//
+		// Update 'image'
+
+      	// If there are no errors then INSERT the $fields into the DB, 
+		if( empty($errors) ) {
+			// Add a create tim
+			$fields['ctime'] = date('Y-m-d G:i:s');
+			$db->insert('cars',$fields);
+
+			if ( $db->error() ) {
+	   			$errors[]='DB ERROR'.$db->errorString();
+            	logger($user->data()->id,"User","add_car error car ".$db->errorString());
+			}  else {
+        		// Grab the id of the last insert
+				$car_id = $db->lastId();
+	   			$successes[]='Car ID: '.$car_id;
+	   			$successes[]='User ID: '.$user_id;
+        		// then log it
+            	logger($user->data()->id,"User","Added car ". $car_id);
+				// then udate the cross reference table (user_car) with the car_id and user_id,
+				$db->insert('car_user',
+					array('userid'=>$user_id,'carid'=>$car_id)
+						);
+				// then redirect to User Account Page
+				// see users/admin_page.php for example
+			}
+		} else {
+	   		$errors[]='DB Abort'.print_r($errors);
+		}
+	} // End Post with data
+} // End Post
+    
+// mod to allow edited values to be shown in form after update
+if ( isset( $fields['year'] ) ) { $cardetails['year']  = $fields['year'];}
+if ( isset( $fields['model']) ) { $cardetails['model'] = $fields['model'];}
+if ( isset( $fields['chassis']) ) { $cardetails['chassis'] = $fields['chassis'];}
+if ( isset( $fields['color']) ) { $cardetails['color'] = $fields['color'];}
+if ( isset( $fields['engine']) ) { $cardetails['engine'] = $fields['engine'];}
+if ( isset( $fields['purchasedate']) ) { $cardetails['purchasedate'] = $fields['purchasedate'];}
+if ( isset( $fields['solddate']) ) { $cardetails['solddate'] =  $fields['solddate'];}
+if ( isset( $fields['comments']) ) { $cardetails['comments'] = $fields['comments'];}
 ?>
+
 <div id="page-wrapper">
-	<div class="container-fluid">
-		<div class="row">
-			<div class="col-sm-12">
-					<h1>ADD CAR</h1>
+    <div class="container">
+        <div class="well">
+            <div class="row">
+
+                <div class="col-xs-12 col-md-10">
+                    <h1>Add a Car</h1> </br>
+					<?php if(!$errors=='') {?><div class="alert alert-danger"><?=display_errors($errors);?></div><?php } ?>
+					<?php if(!$successes=='') {?><div class="alert alert-success"><?=display_successes($successes);?></div><?php } ?>
+					
+	<!-- Here is the FORM -->
+
+	<form name="addCar" action="add_car.php" method="POST">
+		
+		<div class="form-group">
+			<label>Year</label>
+		
+   			<select name="year" onchange="populateSub(this, this.form.model);">
+				<option selected><?=$cardetails['year']?></option>
+				<option>1963</option> <option>1964</option> <option>1965</option> <option>1966</option>
+				<option>1967</option> <option>1968</option> <option>1969</option> <option>1970</option>
+				<option>1971</option> <option>1972</option> <option>1973</option> <option>1974</option>
+			</select>
+		</div>
+                 
+        <div class="form-group">
+			<label>Model</label>
+		
+			<select name="model">
+				<option selected><?=$cardetails['model']?></option>
+				<option value="">--Please Choose--</option>
+			</select>
+		</div>
+
+
+		<div class="form-group">
+			<label>Chassis</label>
+				<input  class='form-control' type='text' name='chassis' placeholder='<?=$carprompt['chassis']?>' value='<?=$cardetails['chassis']?>' />
+		</div>
+		
+		<div class="form-group">
+			<label>Color</label>
+				<input  class='form-control' type='text' name='color' placeholder='<?=$carprompt['color']?>' value='<?=$cardetails['color']?>' />
+		</div>
+
+		<div class="form-group">
+			<label>Engine Number</label>
+				<input  class='form-control' type='text' name='engine' placeholder='<?=$carprompt['engine']?>' value='<?=$cardetails['engine']?>' />
+		</div>
+ 
+ 		<div class="form-group">
+			<label>Purchase Date</label>
+				<input  class='form-control' type='date' name='purchasedate' placeholder='<?=$carprompt['purchasedate']?>' value='<?=$cardetails['purchasedate']?>' />
+		</div>                      
+  
+ 		<div class="form-group">
+			<label>Sold Date</label>
+				<input  class='form-control' type='date' name='solddate' placeholder='<?=$carprompt['solddate']?>' value='<?=$cardetails['solddate']?>' />
+		</div> 
+
+ 		<div class="form-group">
+			<label>Comment</br></label> </br>
+		</div> 
+				<textarea name='comments' rows='10' cols='60' wrap='virtual' /> <?
+					if( is_null( $cardetails['comments'] ) ){
+						echo htmlspecialchars($carprompt['comments']);
+					} else {
+						echo htmlspecialchars($cardetails['comments']);
+					} ?>
+				 </textarea>
+<!--   
+	<tr > TODO
+	<td >Upload Image (jpg only)</td>
+	<td ><input name="image_upload_box" id="image_upload_box"  size="40" type="file"  value="Choose Picture" /> </td>
+	</tr>
+-->
+
+
+<!-- And last some buttons -->
+    	<input type="hidden" name="csrf" value="<?=Token::generate();?>" />
+
+		<p><input class='btn btn-primary' type='submit' value='Update' class='submit' /></p>
+		<p><a class="btn btn-info" href="../users/account.php">Cancel</a></p>
+	</form>
+	
 					<!-- Content Goes Here. Class width can be adjusted -->
 					<?php
 					?>
