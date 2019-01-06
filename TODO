@@ -1,0 +1,57 @@
+---  TODO for first release  -----------------------  
+
+* Car Add
+* Car Update
+* Car List needs to Join with users  
+	./app/list_cars.php:		$DISPLAY_USERINFO = false; // TODO Need to figure out how to Join or dislplay user with the car information
+	./app/list_cars.php:		//  TODO Need to figure out how to Join or dislplay user with the car information
+* Import Users and link to cars
+
+* Limit country choices to a select list
+
+./app/list_cars.php:		$opts['ssl'] = 0; // TODO No SSL - Need to change when I move to HTTPS 
+
+--- WISH LIST FOR FUTURE VERSIONS ---------
+- Add columns
+   Unit Number, Chassis Number, Body Number (with a note to designate whether Bourne or Lotus bodies) and Engine Number.
+- Statistis Page
+- Map of car locations
+	* Set Lat/Lon fo Account
+
+./usersc/admin_user.php:   'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/admin_user.php:   'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/admin_user.php:   'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/user_settings.php:'max' => 25		// TTODO Check the field validation to be consistent across inputs
+./usersc/user_settings.php:'max' => 25		// TODO Check the field validation to be consistent across inputs
+./usersc/user_settings.php:'max' => 25		// TODO Check the field validation to be consistent across inputs
+
+
+./app/list_cars.php:		/*  TODO A Better way to do the images in the grid
+
+# User Register doesn't cache aadded fields when you make a mistake and have to start over
+# Password Reovery verifies email and shows.  Shouldn't
+# Car detail page has links top and bottom.  Remove one
+* Fix registry email to come from registrar (webhost)
+
+-	Field Validation - serial numbers
+-	Field Validation - No duplicate serial numbers
+-	Field validation - Dates
+-	Highlight New Entries
+-	Admin - Car with no owner report
+-	Admin - image with no car report
+-	Record delete - Clean up picture
+-	Owner history
+-	Add "change" log to bottom of "view"
+-	Add Elan +2 support
+-	Multiple Image Upload
+
+---  DONE  -----------------------  
+
+
+* Account edit screen for user - update with profile information
+* Account edit screen for admin - update with profile information
+# Display email in user details screen
+* Multiple Cars Display in account page - Change from a single car to an array of cars
+
+
+
