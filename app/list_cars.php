@@ -64,7 +64,7 @@ $opts['un'] = $config[mysql][username];
 $opts['pw'] = $config[mysql][password];
 $opts['db'] = $config[mysql][db];
 
-$opts['tb'] = 'users_carsView';
+$opts['tb'] = 'users_carsview';
 
 $opts['ssl'] = 0; // TODO No SSL - Need to change when I move to HTTPS 
 
