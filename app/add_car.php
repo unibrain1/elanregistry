@@ -283,12 +283,35 @@ if (isset($fields['comments'])) {
  
  		<div class="form-group">
 			<label>Purchase Date</label>
-				<input  class='form-control' type='date' name='purchasedate' placeholder='<?=$carprompt['purchasedate']?>' value='<?=$cardetails['purchasedate']?>' />
+                 <script>
+                  $( function() {
+                    $( "#datepicker1" ).datepicker({
+                        showOn: "button",
+                        showButtonPanel: true,
+                        buttonText: "<i class='fa fa-calendar-check-o'></i>"
+                    });
+                    $( "#datepicker1" ).datepicker( "option", "dateFormat", "yy-mm-dd"  );
+                  } );
+                </script>
+                <p><input type="text" name='purchasedate' id="datepicker1" size="30"></p>
+
 		</div>                      
   
  		<div class="form-group">
 			<label>Sold Date</label>
-				<input  class='form-control' type='date' name='solddate' placeholder='<?=$carprompt['solddate']?>' value='<?=$cardetails['solddate']?>' />
+             <script>
+                  $( function() {
+                    $( "#datepicker2" ).datepicker({
+                        showOn: "button",
+                        showButtonPanel: true,
+                        buttonText: "<i class='fa fa-calendar-check-o'></i>"
+                    });
+                    $( "#datepicker2" ).datepicker( "option", "dateFormat", "yy-mm-dd"  );
+                  } );
+                </script>
+                </script>
+              <p><input type="text" name='solddate' id="datepicker2" size="30"></p>
+
 		</div> 
 
  		<div class="form-group">

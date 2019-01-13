@@ -328,13 +328,36 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
  
  		<div class="form-group">
 			<label>Purchase Date</label>
-				<input  class='form-control' type='date' name='purchasedate' placeholder='<?=$carprompt['purchasedate']?>' value='<?=$cardetails['purchasedate']?>' />
+                 <script>
+                  $( function() {
+                    $( "#datepicker1" ).datepicker({
+                        showOn: "button",
+                        showButtonPanel: true,
+                        buttonText: "<i class='fa fa-calendar-check-o'></i>"
+                    });
+                    $( "#datepicker1" ).datepicker( "option", "dateFormat", "yy-mm-dd"  );
+                    $( "#datepicker1" ).datepicker( "setDate", "<?php echo $cardetails['purchasedate']; ?>");
+                  } );
+                </script>
+
+                <p><input type="text" name='purchasedate' id="datepicker1"  size="30"></p>
 		</div>                      
   
  		<div class="form-group">
 			<label>Sold Date</label>
-				<input  class='form-control' type='date' name='solddate' placeholder='<?=$carprompt['solddate']?>' value='<?=$cardetails['solddate']?>' />
-		</div> 
+                <script>
+                  $( function() {
+                    $( "#datepicker2" ).datepicker({
+                        showOn: "button",
+                        showButtonPanel: true,
+                        buttonText: "<i class='fa fa-calendar-check-o'></i>"
+                    });
+                    $( "#datepicker2" ).datepicker( "option", "dateFormat", "yy-mm-dd"  );
+                    $( "#datepicker2" ).datepicker( "setDate", "<?php echo $cardetails['solddate']; ?>");
+                  } );
+                </script>
+		       <p><input type="text" name='solddate' id="datepicker2" size="30"></p>
+        </div> 
 
  		<div class="form-group">
 			<label>Comment</br></label> </br>
