@@ -116,9 +116,18 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 				foreach($cars as $car){
    					// output data of each row.  View has both cars and users
 					?>
-					<p> <a align="left" class="btn btn-success" href=<?=$us_url_root."app/edit_car.php"?> role="button">Update Car</a> </p>
 
 					<table class="pme-main">
+						<tr ><td class="pme-cell-0">
+							 <form  method = 'get' action = <?=$us_url_root.'app/edit_car.php'?> >
+                  					<input class='btn btn-success' type = 'submit' value = 'Update Car' >
+    								<input type='hidden' name='car_id' value='<?=$car->id?>'>
+							</form>
+							<td>
+							<td class="pme-cell-0">
+							</td>
+						</tr>
+						<tr ><td class="pme-cell-1"><strong>Car ID :</strong><td><td class="pme-cell-1"><?=$car->id?></td></tr>
 						<tr ><td class="pme-cell-0"><strong>Series :</strong><td><td class="pme-cell-0"><?=$car->series?></td></tr>
 						<tr ><td class="pme-cell-1"><strong>Variant:</strong><td><td class="pme-cell-1"><?=$car->variant?></td></tr>
 						<tr ><td class="pme-cell-0"><strong>Year :</strong><td><td class="pme-cell-0"><?=$car->year?></td></tr>
@@ -135,7 +144,7 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 						if($car->image) {
 						?>
 							<tr ><td class="pme-cell-1"><strong>Image:</strong><td>
-							<td class="pme-cell-1"><img src=<?=$us_url_root?>app/userimages/<?=$car->image?> width='430'></td></tr>
+							<td class="pme-cell-1"><img src=<?=$us_url_root?>app/userimages/<?=$car->image?> width='390'></td></tr>
 						<?php
 						} ?>
 					</table>
