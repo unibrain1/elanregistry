@@ -85,6 +85,7 @@ if (!empty($_POST)) {
     } else {
         //Update Year
         $year = ($_POST['year']);
+        $year = Input::sanitize($year);
         if (strcmp($year, $select_str)) {
             $fields['year'] = $year;
             $successes[]='Year Updated';
@@ -95,6 +96,7 @@ if (!empty($_POST)) {
         // Update 'model'
         //
         $model = ($_POST['model']);
+        $model = Input::sanitize($model);
         if (strcmp($model, $select_str)) {
             // Model isn't really a thing.
             //      We need to explode it into the proper columns
@@ -112,6 +114,7 @@ if (!empty($_POST)) {
 
         // Update 'chassis'
         $chassis = ($_POST['chassis']);
+        $chassis = Input::sanitize($chassis);
         $len = strlen($chassis);
         $fields['chassis'] = filter_var($chassis, FILTER_SANITIZE_STRING);
         if (strcmp($fields['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
@@ -128,16 +131,19 @@ if (!empty($_POST)) {
 
         // Update 'color'
         $color = ($_POST['color']);
+        $color = Input::sanitize($color);
         $fields['color'] = filter_var($color, FILTER_SANITIZE_STRING);
         $successes[]='Color Updated';
 
         // Update 'engine'
         $engine = ($_POST['engine']);
+        $engine = Input::sanitize($engine);
         $fields['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
         $successes[]='Engine Updated';
 
         // Update 'purchasedate'
         $purchasedate = ($_POST['purchasedate']);
+        $purchasedate = Input::sanitize($purchasedate);
         // Convert to SQL date format
         if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
             $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
@@ -148,6 +154,7 @@ if (!empty($_POST)) {
 
         // Update 'solddate'
         $solddate = ($_POST['solddate']);
+        $solddate = Input::sanitize($solddate);
         if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
             $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
             $successes[]='Sold Date Updated';
@@ -156,6 +163,7 @@ if (!empty($_POST)) {
         }
 
         // Update 'comments'
+        $comments = Input::sanitize($comments);
         $comments = ($_POST['comments']);
         $fields['comments'] = filter_var($comments, FILTER_SANITIZE_STRING);
         $successes[]='Comment Updated';
@@ -187,7 +195,7 @@ if (!empty($_POST)) {
                 Redirect::to($us_url_root.'users/account.php');
             }
         } else {
-            $errors[]='DB Abort'.print_r($errors);
+            $errors[]='Cannot add record'.print_r($errors);
         }
     } // End Post with data
 } // End Post
