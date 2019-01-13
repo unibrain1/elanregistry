@@ -14,7 +14,9 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
 ?>
 
 
-<?php if (!securePage($_SERVER['PHP_SELF'])){die();} ?>
+<?php if (!securePage($_SERVER['PHP_SELF'])) {
+    die();
+} ?>
 
 <?php
 //PHP Goes Here!
@@ -26,26 +28,26 @@ $user_id = $user->data()->id;
 $select_str = 'Please Select';
 
 $cardetails['year'] = $select_str;
-$cardetails['model'] = $select_str; 
-$cardetails['chassis'] = NULL;
-$cardetails['color'] = NULL;
-$cardetails['engine'] = NULL;
-$cardetails['purchasedate'] =  NULL;
-$cardetails['solddate'] =  NULL;
-$cardetails['comments'] = NULL;
+$cardetails['model'] = $select_str;
+$cardetails['chassis'] = null;
+$cardetails['color'] = null;
+$cardetails['engine'] = null;
+$cardetails['purchasedate'] =  null;
+$cardetails['solddate'] =  null;
+$cardetails['comments'] = null;
 
 // Holding place before processing
-$fields['year'] = NULL;
-$fields['model'] = NULL;
-        	$fields['series'] = NULL;
-        	$fields['variant'] = NULL;
-        	$fields['type'] = NULL;
-$fields['chassis'] = NULL;
-$fields['color'] = NULL;
-$fields['engine'] = NULL;
-$fields['purchasedate'] =  NULL;
-$fields['solddate'] =  NULL;
-$fields['comments'] = NULL;
+$fields['year'] = null;
+$fields['model'] = null;
+            $fields['series'] = null;
+            $fields['variant'] = null;
+            $fields['type'] = null;
+$fields['chassis'] = null;
+$fields['color'] = null;
+$fields['engine'] = null;
+$fields['purchasedate'] =  null;
+$fields['solddate'] =  null;
+$fields['comments'] = null;
 
 // 'placeholder' to prompt for response.  Background text in input boxes
 $carprompt['chassis'] = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
@@ -69,135 +71,152 @@ $fields=[];
 
 //Temporary Success Message
 $holdover = Input::get('success');
-if($holdover == 'true'){
+if ($holdover == 'true') {
     bold("Account Updated");
 }
 //Forms posted now process it
 //
 // TODO - Sanatize the data!
 
-if(!empty($_POST)) {
+if (!empty($_POST)) {
     $token = $_POST['csrf'];
-    if(!Token::check($token)){
-				include($abs_us_root.$us_url_root.'usersc/scripts/token_error.php');
+    if (!Token::check($token)) {
+        include($abs_us_root.$us_url_root.'usersc/scripts/token_error.php');
     } else {
-         //Update Year
+        //Update Year
         $year = ($_POST['year']);
-        if ( strcmp($year,$select_str) ){
-	       	$fields['year'] = $year;
+        if (strcmp($year, $select_str)) {
+            $fields['year'] = $year;
             $successes[]='Year Updated';
         } else {
-	        $errors[] = "Please select Year";
+            $errors[] = "Please select Year";
         }
 
-		// Update 'model'
-		//
-		$model = ($_POST['model']);
-        if ( strcmp($model,$select_str) ){
-			// Model isn't really a thing.  
-			//      We need to explode it into the proper columns
-	       	$fields['model'] = $model;  // Still save it for later so we can remember what the user entered
-			list($series, $variant, $type) = explode('|',$model);
-        	/* MST value is from form, so I shouldn't have to do this but to be safe ... */
-        	$fields['series'] = filter_var ( $series, FILTER_SANITIZE_STRING );
-        	$fields['variant'] = filter_var ( $variant, FILTER_SANITIZE_STRING );
-        	$fields['type'] = filter_var ( $type, FILTER_SANITIZE_STRING );
+        // Update 'model'
+        //
+        $model = ($_POST['model']);
+        if (strcmp($model, $select_str)) {
+            // Model isn't really a thing.
+            //      We need to explode it into the proper columns
+               $fields['model'] = $model;  // Still save it for later so we can remember what the user entered
+            list($series, $variant, $type) = explode('|', $model);
+            /* MST value is from form, so I shouldn't have to do this but to be safe ... */
+            $fields['series'] = filter_var($series, FILTER_SANITIZE_STRING);
+            $fields['variant'] = filter_var($variant, FILTER_SANITIZE_STRING);
+            $fields['type'] = filter_var($type, FILTER_SANITIZE_STRING);
 
             $successes[]='Model Updated';
         } else {
-	        $errors[] = "Please select Model";
+            $errors[] = "Please select Model";
         }
 
-		// Update 'chassis'
+        // Update 'chassis'
         $chassis = ($_POST['chassis']);
-		$len = strlen($chassis);
-		$fields['chassis'] = filter_var ( $chassis, FILTER_SANITIZE_STRING );
-		if ( strcmp( $fields['variant'], 'Race' ) == 0 ) { /* For the 26R let them do what they want */
-				$successes[]='Chassis Updated';
-		} elseif ($year < 1970 ) {
-           	if( $len != 4) { // Chassis number for years < 1970 are 4 digits
-               	$errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
-           	}
-       	} else if( $len != 11) { 	// Chassis number for years >= 1970 are 11 digits
-               $errors[] = "Enter Chassis Number. 70xxyy0001z";
-		} else {
-			$successes[]='Chassis Updated';
-		}
+        $len = strlen($chassis);
+        $fields['chassis'] = filter_var($chassis, FILTER_SANITIZE_STRING);
+        if (strcmp($fields['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
+            $successes[]='Chassis Updated';
+        } elseif ($year < 1970) {
+            if ($len != 4) { // Chassis number for years < 1970 are 4 digits
+                $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
+            }
+        } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
+            $errors[] = "Enter Chassis Number. 70xxyy0001z";
+        } else {
+            $successes[]='Chassis Updated';
+        }
 
-		// Update 'color'
+        // Update 'color'
         $color = ($_POST['color']);
-	    $fields['color'] = filter_var( $color, FILTER_SANITIZE_STRING );
+        $fields['color'] = filter_var($color, FILTER_SANITIZE_STRING);
         $successes[]='Color Updated';
 
-		// Update 'engine'
+        // Update 'engine'
         $engine = ($_POST['engine']);
-	   	$fields['engine'] = filter_var (str_replace( " ", "", strtoupper(trim($engine) ) ), FILTER_SANITIZE_STRING );
+        $fields['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
         $successes[]='Engine Updated';
 
-		// Update 'purchasedate'
-		$purchasedate = ($_POST['purchasedate']);
-		// Convert to SQL date format
-		if( $purchasedate = date("Y-m-d H:i:s",strtotime($purchasedate)) ){
-       		$fields['purchasedate'] = filter_var ( $purchasedate, FILTER_SANITIZE_STRING );
-        	$successes[]='Purchased  Updated';
-		}else {
-			$errors[] = "Purchase Date conversion error";
-		}
+        // Update 'purchasedate'
+        $purchasedate = ($_POST['purchasedate']);
+        // Convert to SQL date format
+        if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
+            $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
+            $successes[]='Purchased  Updated';
+        } else {
+            $errors[] = "Purchase Date conversion error";
+        }
 
-		// Update 'solddate'
+        // Update 'solddate'
         $solddate = ($_POST['solddate']);
-		if( $solddate = date("Y-m-d H:i:s",strtotime($solddate)) ){
-       		$fields['solddate'] = filter_var ( $solddate, FILTER_SANITIZE_STRING );
-        	$successes[]='Sold Date Updated';
-		}else {
-			$errors[] = "Sold Date conversion error";
-		}
+        if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
+            $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
+            $successes[]='Sold Date Updated';
+        } else {
+            $errors[] = "Sold Date conversion error";
+        }
 
-		// Update 'comments'
-		$comments = ($_POST['comments']);
-       	$fields['comments'] = filter_var ( $comments, FILTER_SANITIZE_STRING );
-	   	$successes[]='Comment Updated';
-		//
-		// Update 'image'
+        // Update 'comments'
+        $comments = ($_POST['comments']);
+        $fields['comments'] = filter_var($comments, FILTER_SANITIZE_STRING);
+        $successes[]='Comment Updated';
+        //
+        // Update 'image'
 
-      	// If there are no errors then INSERT the $fields into the DB, 
-		if( empty($errors) ) {
-			// Add a create tim
-			$fields['ctime'] = date('Y-m-d G:i:s');
-			$db->insert('cars',$fields);
+        // If there are no errors then INSERT the $fields into the DB,
+        if (empty($errors)) {
+            // Add a create tim
+            $fields['ctime'] = date('Y-m-d G:i:s');
+            $db->insert('cars', $fields);
 
-			if ( $db->error() ) {
-	   			$errors[]='DB ERROR'.$db->errorString();
-            	logger($user->data()->id,"User","add_car error car ".$db->errorString());
-			}  else {
-        		// Grab the id of the last insert
-				$car_id = $db->lastId();
-	   			$successes[]='Car ID: '.$car_id;
-	   			$successes[]='User ID: '.$user_id;
-        		// then log it
-            	logger($user->data()->id,"User","Added car ". $car_id);
-				// then udate the cross reference table (user_car) with the car_id and user_id,
-				$db->insert('car_user',
-					array('userid'=>$user_id,'carid'=>$car_id)
-						);
-				// then redirect to User Account Page
-				// see users/admin_page.php for example
-			}
-		} else {
-	   		$errors[]='DB Abort'.print_r($errors);
-		}
-	} // End Post with data
+            if ($db->error()) {
+                $errors[]='DB ERROR'.$db->errorString();
+                logger($user->data()->id, "User", "add_car error car ".$db->errorString());
+            } else {
+                // Grab the id of the last insert
+                $car_id = $db->lastId();
+                $successes[]='Car ID: '.$car_id;
+                $successes[]='User ID: '.$user_id;
+                // then log it
+                logger($user->data()->id, "User", "Added car ". $car_id);
+                // then udate the cross reference table (user_car) with the car_id and user_id,
+                $db->insert(
+                    'car_user',
+                    array('userid'=>$user_id,'carid'=>$car_id)
+                        );
+                // then redirect to User Account Page
+                Redirect::to($us_url_root.'users/account.php');
+            }
+        } else {
+            $errors[]='DB Abort'.print_r($errors);
+        }
+    } // End Post with data
 } // End Post
     
 // mod to allow edited values to be shown in form after update
-if ( isset( $fields['year'] ) ) { $cardetails['year']  = $fields['year'];}
-if ( isset( $fields['model']) ) { $cardetails['model'] = $fields['model'];}
-if ( isset( $fields['chassis']) ) { $cardetails['chassis'] = $fields['chassis'];}
-if ( isset( $fields['color']) ) { $cardetails['color'] = $fields['color'];}
-if ( isset( $fields['engine']) ) { $cardetails['engine'] = $fields['engine'];}
-if ( isset( $fields['purchasedate']) ) { $cardetails['purchasedate'] = $fields['purchasedate'];}
-if ( isset( $fields['solddate']) ) { $cardetails['solddate'] =  $fields['solddate'];}
-if ( isset( $fields['comments']) ) { $cardetails['comments'] = $fields['comments'];}
+if (isset($fields['year'])) {
+    $cardetails['year']  = $fields['year'];
+}
+if (isset($fields['model'])) {
+    $cardetails['model'] = $fields['model'];
+}
+if (isset($fields['chassis'])) {
+    $cardetails['chassis'] = $fields['chassis'];
+}
+if (isset($fields['color'])) {
+    $cardetails['color'] = $fields['color'];
+}
+if (isset($fields['engine'])) {
+    $cardetails['engine'] = $fields['engine'];
+}
+if (isset($fields['purchasedate'])) {
+    $cardetails['purchasedate'] = $fields['purchasedate'];
+}
+if (isset($fields['solddate'])) {
+    $cardetails['solddate'] =  $fields['solddate'];
+}
+if (isset($fields['comments'])) {
+    $cardetails['comments'] = $fields['comments'];
+}
 ?>
 
 <div id="page-wrapper">
@@ -207,8 +226,12 @@ if ( isset( $fields['comments']) ) { $cardetails['comments'] = $fields['comments
 
                 <div class="col-xs-12 col-md-10">
                     <h1>Add a Car</h1> </br>
-					<?php if(!$errors=='') {?><div class="alert alert-danger"><?=display_errors($errors);?></div><?php } ?>
-					<?php if(!$successes=='') {?><div class="alert alert-success"><?=display_successes($successes);?></div><?php } ?>
+					<?php if (!$errors=='') {
+    ?><div class="alert alert-danger"><?=display_errors($errors); ?></div><?php
+} ?>
+					<?php if (!$successes=='') {
+        ?><div class="alert alert-success"><?=display_successes($successes); ?></div><?php
+    } ?>
 					
 	<!-- Here is the FORM -->
 
@@ -263,12 +286,12 @@ if ( isset( $fields['comments']) ) { $cardetails['comments'] = $fields['comments
  		<div class="form-group">
 			<label>Comment</br></label> </br>
 		</div> 
-				<textarea name='comments' rows='10' cols='60' wrap='virtual' /> <?
-					if( is_null( $cardetails['comments'] ) ){
-						echo htmlspecialchars($carprompt['comments']);
-					} else {
-						echo htmlspecialchars($cardetails['comments']);
-					} ?>
+				<textarea name='comments' rows='10' cols='60' wrap='virtual' /> <?php
+                    if (is_null($cardetails['comments'])) {
+                        echo htmlspecialchars($carprompt['comments']);
+                    } else {
+                        echo htmlspecialchars($cardetails['comments']);
+                    } ?>
 				 </textarea>
 <!--   
 	<tr > TODO
@@ -287,7 +310,7 @@ if ( isset( $fields['comments']) ) { $cardetails['comments'] = $fields['comments
 	
 					<!-- Content Goes Here. Class width can be adjusted -->
 					<?php
-					?>
+                    ?>
 					<!-- End of main content section -->
 			</div> <!-- /.col -->
 		</div> <!-- /.row -->
@@ -296,8 +319,8 @@ if ( isset( $fields['comments']) ) { $cardetails['comments'] = $fields['comments
 
 
 	<!-- footers -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
 
 <!-- Place any per-page javascript here -->
 
-<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html?>
