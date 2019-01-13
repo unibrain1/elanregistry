@@ -1,0 +1,20 @@
+   	// Let's check to see if this user owns this car`
+//    if ( $db->get('car_user', ['AND', ['userid','=',$user_id],['carid','=',$car_id] ]))
+ //   {
+       	// Owner
+       	// $carQ =  $db->query("SELECT * FROM cars WHERE `id` = ?", [$car_id]);
+  //      	if ($carQ->count() > 0) {
+  //          	$theCar = $carQ->results();
+  //      	}
+  //      	// Get the details from the current car
+  //      	$cardetails['id'] = $theCar[0]->id;
+  //      	$cardetails['year'] = $theCar[0]->year;
+  //      	$cardetails['model'] = $theCar[0]->model;
+  //      	$cardetails['chassis'] = $theCar[0]->chassis;
+  //      	$cardetails['color'] = $theCar[0]->color;
+  //      	$cardetails['engine'] = $theCar[0]->engine;
+  //      	$cardetails['purchasedate'] = $theCar[0]->purchasedate;
+  //      	$cardetails['solddate'] = $theCar[0]->solddate;
+  //      	$cardetails['comments'] = $theCar[0]->comments;
+  //   } else {
+   //     	$errors[]='User is not owner of car! USER '.$user_id." CAR ".$car_id." ERROR ".$db->errorString();

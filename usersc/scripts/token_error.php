@@ -12,6 +12,10 @@ body {
 </style>
 
 <br><br>
+<br><br>
+<br><br>
+<br><br>
+<br><br>
 
 <p align="center">There was an error with your form. Please go back and try again. Please note that submitting the form by refreshing the page will cause an error.</p>
 <p align="center">If this continues to happen, please contact the administrator.</p>
