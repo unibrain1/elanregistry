@@ -1,7 +1,6 @@
 <?php //DO NOT DELETE THIS FILE.
 $path=['','users/','usersc/', 'app/'];
 //Only add or remove values in the $path variable separated by commas above
-
 $abs_us_root=$_SERVER['DOCUMENT_ROOT'];
 
 $self_path=explode("/", $_SERVER['PHP_SELF']);
