@@ -39,15 +39,16 @@ $cardetails['comments'] = null;
 // Holding place before processing
 $fields['year'] = null;
 $fields['model'] = null;
-            $fields['series'] = null;
-            $fields['variant'] = null;
-            $fields['type'] = null;
+$fields['series'] = null;
+$fields['variant'] = null;
+$fields['type'] = null;
 $fields['chassis'] = null;
 $fields['color'] = null;
 $fields['engine'] = null;
 $fields['purchasedate'] =  null;
 $fields['solddate'] =  null;
 $fields['comments'] = null;
+$fields['image'] = null;
 
 // 'placeholder' to prompt for response.  Background text in input boxes
 $carprompt['chassis'] = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
@@ -163,12 +164,83 @@ if (!empty($_POST)) {
         }
 
         // Update 'comments'
-        $comments = Input::sanitize($comments);
         $comments = ($_POST['comments']);
+        $comments = Input::sanitize($comments);
         $fields['comments'] = filter_var($comments, FILTER_SANITIZE_STRING);
         $successes[]='Comment Updated';
-        //
+
         // Update 'image'
+        $successes[]='Start Image Upload';
+
+        if (isset($_FILES['uploadedFile']) && $_FILES['uploadedFile']['error'] === UPLOAD_ERR_OK) {
+            // get details of the uploaded file
+            $fileTmpPath = $_FILES['uploadedFile']['tmp_name'];
+            $fileName = $_FILES['uploadedFile']['name'];
+            $fileSize = $_FILES['uploadedFile']['size'];
+            $fileType = $_FILES['uploadedFile']['type'];
+            $fileNameCmps = explode(".", $fileName);
+            $fileExtension = strtolower(end($fileNameCmps));
+
+            // sanitize file-name and give it a random name
+            $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+
+            // check if file has one of the following extensions
+            $allowedfileExtensions = array('jpg', 'gif', 'png');
+
+            if (in_array($fileExtension, $allowedfileExtensions)) {
+                // directory in which the uploaded file will be moved
+                $uploadFileDir = './userimages/';
+                $thumbnailDir = $uploadFileDir . 'thumbs/';
+                $dest_path = $uploadFileDir . $newFileName;
+                $thumb_dest_path = $thumbnailDir . $newFileName;
+
+
+                if (move_uploaded_file($fileTmpPath, $dest_path)) {
+                    $successes[] ='File is successfully uploaded.' . $newFileName;
+
+                    // Resize the image
+
+                    list($width, $height) = getimagesize($dest_path) ;
+
+                    $modwidth = 600;  // Only 600 wide
+
+                    $diff = $width / $modwidth;
+
+                    $modheight = $height / $diff;
+                    $tn = imagecreatetruecolor($modwidth, $modheight) ;
+                    $image = imagecreatefromjpeg($dest_path) ;
+                    imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
+
+                    imagejpeg($tn, $dest_path, 100) ;
+                    $successes[]='Image Resized';
+
+                    // Create a thumbnail
+                    list($width, $height) = getimagesize($dest_path) ;
+                    $modwidth = 80;
+
+                    $diff = $width / $modwidth;
+
+                    $modheight = $height / $diff;
+                    $tn = imagecreatetruecolor($modwidth, $modheight) ;
+                    $image = imagecreatefromjpeg($dest_path) ;
+                    imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
+
+                    imagejpeg($tn, $thumb_dest_path, 80) ;
+                    $successes[]='Image Thumbnail';
+
+                    $fields['image'] = $newFileName;
+                } else {
+                    $errors[] = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
+                }
+            } else {
+                $errors[] = 'Upload failed. Allowed file types: ' . implode(',', $allowedfileExtensions);
+            }
+        } else {
+            $errors[] = 'There is some error in the file upload. Please check the following error.<br>';
+            $errors[] = 'Error:' . $_FILES['uploadedFile']['error'];
+        }
+        
+        $successes[]='End Image Upload';
 
         // If there are no errors then INSERT the $fields into the DB,
         if (empty($errors)) {
@@ -195,7 +267,7 @@ if (!empty($_POST)) {
                 Redirect::to($us_url_root.'users/account.php');
             }
         } else {
-            $errors[]='Cannot add record'.print_r($errors);
+            $errors[]='Cannot add record';
         }
     } // End Post with data
 } // End Post
@@ -243,7 +315,7 @@ if (isset($fields['comments'])) {
 					
 	<!-- Here is the FORM -->
 
-	<form name="addCar" action="add_car.php" method="POST">
+	<form name="addCar" action="add_car.php" method="POST" enctype="multipart/form-data">
 		
 		<div class="form-group">
 			<label>Year</label>
@@ -314,23 +386,31 @@ if (isset($fields['comments'])) {
 
 		</div> 
 
+        <!-- Form for the comment -->
+
  		<div class="form-group">
 			<label>Comment</br></label> </br>
 		</div> 
-				<textarea name='comments' rows='10' cols='60' wrap='virtual' /> <?php
-                    if (is_null($cardetails['comments'])) {
-                        echo htmlspecialchars($carprompt['comments']);
-                    } else {
-                        echo htmlspecialchars($cardetails['comments']);
-                    } ?>
-				 </textarea>
-<!--   
-	<tr > TODO
-	<td >Upload Image (jpg only)</td>
-	<td ><input name="image_upload_box" id="image_upload_box"  size="40" type="file"  value="Choose Picture" /> </td>
-	</tr>
--->
+    		<textarea name='comments' rows='10' cols='60' wrap='virtual' /> <?php
+                if (is_null($cardetails['comments'])) {
+                    echo htmlspecialchars($carprompt['comments']);
+                } else {
+                    echo htmlspecialchars($cardetails['comments']);
+                } ?>
+    		 </textarea>
 
+
+        <!-- Form for the 'image' -->
+
+        <div class="form-group">
+            <label>Upload a Picture:</br></label> </br>
+        </div> 
+        <div>
+          <input type="file" name="uploadedFile" />
+        </div>
+
+        <!-- Add some space -->
+         </br></br>
 
 <!-- And last some buttons -->
     	<input type="hidden" name="csrf" value="<?=Token::generate();?>" />
