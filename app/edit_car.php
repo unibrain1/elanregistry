@@ -35,6 +35,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
     $cardetails['purchasedate']=  null;
     $cardetails['solddate']    =  null;
     $cardetails['comments']    = null;
+    $cardetails['image']       = null;
     
     // Holding place before processing
     $fields['id']          = null;
@@ -49,6 +50,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
     $fields['purchasedate']=  null;
     $fields['solddate']    =  null;
     $fields['comments']    = null;
+    $fields['image']    = null;
     
     // 'placeholder' to prompt for response.  Background text in input boxes
     $carprompt['chassis']     = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
@@ -165,6 +167,82 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
             $successes[]='Comment Updated';
             //
             // Update 'image'
+
+
+            // Update 'image'
+            $successes[]='Start Image Upload';
+
+            if (isset($_FILES['uploadedFile']) && $_FILES['uploadedFile']['error'] === UPLOAD_ERR_OK) {
+                $successes[]='in Image Upload';
+
+                // get details of the uploaded file
+                $fileTmpPath = $_FILES['uploadedFile']['tmp_name'];
+                $fileName = $_FILES['uploadedFile']['name'];
+                $fileSize = $_FILES['uploadedFile']['size'];
+                $fileType = $_FILES['uploadedFile']['type'];
+                $fileNameCmps = explode(".", $fileName);
+                $fileExtension = strtolower(end($fileNameCmps));
+
+                // sanitize file-name and give it a random name
+                $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+
+                // check if file has one of the following extensions
+                $allowedfileExtensions = array('jpg', 'gif', 'png');
+
+                if (in_array($fileExtension, $allowedfileExtensions)) {
+                    // directory in which the uploaded file will be moved
+                    $uploadFileDir = './userimages/';
+                    $thumbnailDir = $uploadFileDir . 'thumbs/';
+                    $dest_path = $uploadFileDir . $newFileName;
+                    $thumb_dest_path = $thumbnailDir . $newFileName;
+
+
+                    if (move_uploaded_file($fileTmpPath, $dest_path)) {
+                        $successes[] ='File is successfully uploaded.' . $newFileName;
+
+                        // Resize the image
+
+                        list($width, $height) = getimagesize($dest_path) ;
+
+                        $modwidth = 600;  // Only 600 wide
+
+                        $diff = $width / $modwidth;
+
+                        $modheight = $height / $diff;
+                        $tn = imagecreatetruecolor($modwidth, $modheight) ;
+                        $image = imagecreatefromjpeg($dest_path) ;
+                        imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
+
+                        imagejpeg($tn, $dest_path, 100) ;
+                        $successes[]='Image Resized';
+
+                        // Create a thumbnail
+                        list($width, $height) = getimagesize($dest_path) ;
+                        $modwidth = 80;
+
+                        $diff = $width / $modwidth;
+
+                        $modheight = $height / $diff;
+                        $tn = imagecreatetruecolor($modwidth, $modheight) ;
+                        $image = imagecreatefromjpeg($dest_path) ;
+                        imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
+
+                        imagejpeg($tn, $thumb_dest_path, 80) ;
+                        $successes[]='Image Thumbnail';
+
+                        $fields['image'] = $newFileName;
+                    } else {
+                        $errors[] = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
+                    }
+                } else {
+                    $errors[] = 'Upload failed. Allowed file types: ' . implode(',', $allowedfileExtensions);
+                }
+            } else {
+                $errors[] = 'There is some error in the file upload. Please check the following error.<br>';
+                $errors[] = 'Error:' . $_FILES['uploadedFile']['error'];
+            }
+        
+            $successes[]='End Image Upload';
     
             // If there are no errors then INSERT the $fields into the DB,
             if (empty($errors)) {
@@ -218,11 +296,12 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                 $cardetails['purchasedate']= $theCar[0]->purchasedate;
                 $cardetails['solddate']    = $theCar[0]->solddate;
                 $cardetails['comments']    = $theCar[0]->comments;
+                $cardetails['image']       = $theCar[0]->image;
             } else {
                 // This should never happen unless the user is trying to do something bad.  Log it and then log them out
                 logger($user->data()->id, "User", "Not owner of car! USER ". $user_id. " CAR ". $car_id);
                 $user->logout();
-                Redirect::to($us_url_root.'index.php');
+                //  Redirect::to($us_url_root.'index.php');
 
                 exit();
             }
@@ -264,6 +343,9 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
     if (isset($fields['comments'])) {
         $cardetails['comments'] = $fields['comments'];
     }
+    if (isset($fields['image'])) {
+        $cardetails['image'] = $fields['image'];
+    }
 ?>
 	
 <div id="page-wrapper">
@@ -282,7 +364,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
 					
 	<!-- Here is the FORM -->
 
-	<form name="addCar" action="edit_car.php" method="POST">
+	<form name="addCar" action="edit_car.php" method="POST" enctype="multipart/form-data">
 	<label>Car ID:</label>  <?php echo $cardetails['id']?></br>
     <label>User ID:</label>  <?php echo $user_id?></br>
 
@@ -369,13 +451,22 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                         echo htmlspecialchars($cardetails['comments']);
                     } ?>
 				 </textarea>
-<!--   
-	<tr > TODO
-	<td >Upload Image (jpg only)</td>
-	<td ><input name="image_upload_box" id="image_upload_box"  size="40" type="file"  value="Choose Picture" /> </td>
-	</tr>
--->
 
+        <!-- Form for the 'image' -->
+        <!-- Add some space -->
+         </br>
+        <div class="form-group">
+            <label>Upload/Replace Picture: </br></label> </br>
+        </div> 
+        <div>
+          <input type="file" name="uploadedFile" />
+        </div> 
+         <!-- Add some space -->
+         </br>
+        <img src=<?=$us_url_root?>app/userimages/<?=$cardetails['image']?> width='390'>
+
+        <!-- Add some space -->
+         </br></br>
 
 <!-- And last some buttons -->
     	<input type="hidden" name="csrf" value="<?=Token::generate();?>" />
