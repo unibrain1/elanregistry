@@ -1,4 +1,8 @@
-body,html{margin:2;padding:0;color:#000;background:#eee;font:12pt Verdana,Sans;}
+/*Fix bootstrap header overwritting body*/
+body { padding-top: 75px; }
+
+/*Brought from REG v1*/
+/* body,html{margin:2;padding:0;color:#000;background:#eee;font:12pt Verdana,Sans;}*/
 #wrap{width:1024px;margin:0 auto;background:#fff;}
 #header{padding:10px 0 0 10px;float:left;}
 h1{margin:0;}
