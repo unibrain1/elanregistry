@@ -11,7 +11,7 @@ require_once '../users/init.php';
 
 $host         = 'localhost';
 $username     = 'elanregi_reg';
-$password     = 'GXMcVfliRCkFb7g1';
+$password     = 'PASSWORD';
 $db           = 'elanregi_reg';
 
 $reg_conn = new mysqli($host, $username, $password,$db) or die("Connect failed: %s\n". $reg_conn -> error);
