@@ -50,16 +50,20 @@ if($user->isLoggedIn() || !$user->isLoggedIn() && !checkMenu(2,$user->data()->id
 $user_id = $user->data()->id;
 
 // USER ID is in $user_id .  Use the USER ID to get the users Profile information
-$userQ = $db->query("SELECT * FROM users_carsview WHERE user_id = ?",array($user_id));
+$userQ = $db->query("SELECT * FROM usersview WHERE id = ?",array($user_id));
 if ($userQ->count() > 0) {
 	$thatUser = $userQ->results();
+}
+$carQ = $db->query("SELECT * FROM users_carsview WHERE user_id = ?",array($user_id));
+if ($carQ->count() > 0) {
+	$thatCar = $carQ->results();
 }
 
 ?>
 <?php
-$raw = date_parse($user->data()->join_date);
+$raw = date_parse($thatUser[0]->join_date);
 $signupdate = $raw['month']."/".$raw['day']."/".$raw['year'];
-$raw = date_parse($user->data()->last_login);
+$raw = date_parse($thatUser[0]->last_login);
 $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 ?>
 
@@ -80,24 +84,23 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 				<table class="pme-main">
 
 					<tr ><td class="pme-cell-0">
-							<a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Edit Account Info</a>
+							<a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Account Info</a>
 							<td>
 							<td class="pme-cell-0">	
-							<?php echo $abs_us_root. " ".$us_url_root;	?>
 							</td>
 						</tr>
 
 
-				<tr ><td class="pme-cell-0"><strong>Username    :</strong><td><td class="pme-cell-0"><?=echousername($user->data()->id)?></td></tr>
-				<tr ><td class="pme-cell-1"><strong>First name  :</strong><td><td class="pme-cell-1"><?=ucfirst($user->data()->fname)?></td></tr>
-				<tr ><td class="pme-cell-0"><strong>Last name   :</strong><td><td class="pme-cell-0"><?=ucfirst($user->data()->lname)?></td></tr>
-				<tr ><td class="pme-cell-1"><strong>Email       :</strong><td><td class="pme-cell-1"><?=$user->data()->email?></td></tr>
-				<tr ><td class="pme-cell-1"><strong>City        :</strong><td><td class="pme-cell-1"><?=html_entity_decode($user->data()->city);?></td></tr>
-				<tr ><td class="pme-cell-0"><strong>State       :</strong><td><td class="pme-cell-0"><?=html_entity_decode($user->data()->state);?></td></tr>
-				<tr ><td class="pme-cell-1"><strong>Country     :</strong><td><td class="pme-cell-1"><?=html_entity_decode($user->data()->country);?></td></tr>
+				<tr ><td class="pme-cell-0"><strong>Username    :</strong><td><td class="pme-cell-0"><?=echousername($thatUser[0]->id)?></td></tr>
+				<tr ><td class="pme-cell-1"><strong>First name  :</strong><td><td class="pme-cell-1"><?=ucfirst($thatUser[0]->fname)?></td></tr>
+				<tr ><td class="pme-cell-0"><strong>Last name   :</strong><td><td class="pme-cell-0"><?=ucfirst($thatUser[0]->lname)?></td></tr>
+				<tr ><td class="pme-cell-1"><strong>Email       :</strong><td><td class="pme-cell-1"><?=$thatUser[0]->email?></td></tr>
+				<tr ><td class="pme-cell-1"><strong>City        :</strong><td><td class="pme-cell-1"><?=html_entity_decode($thatUser[0]->city);?></td></tr>
+				<tr ><td class="pme-cell-0"><strong>State       :</strong><td><td class="pme-cell-0"><?=html_entity_decode($thatUser[0]->state);?></td></tr>
+				<tr ><td class="pme-cell-1"><strong>Country     :</strong><td><td class="pme-cell-1"><?=html_entity_decode($thatUser[0]->country);?></td></tr>
 				<tr ><td class="pme-cell-0"><strong>Member Since:</strong><td><td class="pme-cell-0"><?=$signupdate?></td></tr>
 				<tr ><td class="pme-cell-0"><strong>Last Login  :</strong><td><td class="pme-cell-0"><?=$lastlogin?></td></tr>
-				<tr ><td class="pme-cell-1"><strong>Number of Logins:</strong><td><td class="pme-cell-1"> <?=$user->data()->logins?></td></tr>
+				<tr ><td class="pme-cell-1"><strong>Number of Logins:</strong><td><td class="pme-cell-1"> <?=$thatUser[0]->logins?></td></tr>
 				</table>
 			
 			</div>
@@ -111,7 +114,7 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 			<?php
 			
 			// If there is car information then display it 
-			$cars = $thatUser;
+			$cars = $thatCar;
 			
 			if( empty($cars) ) {
 					// 	If the user does not have a car then display the add car form</li>
