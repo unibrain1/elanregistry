@@ -80,9 +80,10 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 				<table class="pme-main">
 
 					<tr ><td class="pme-cell-0">
-							<a align="left" class="btn btn-success" href=<?=$us_url_root."/users/user_settings.php"?>>Edit Account Info</a>
+							<a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Edit Account Info</a>
 							<td>
-							<td class="pme-cell-0">
+							<td class="pme-cell-0">	
+							<?php echo $abs_us_root. " ".$us_url_root;	?>
 							</td>
 						</tr>
 
@@ -133,7 +134,8 @@ $lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
 							<td class="pme-cell-0">
 							</td>
 						</tr>
-						<tr ><td class="pme-cell-1"><strong>Car ID :</strong><td><td class="pme-cell-1"><?=$car->id?></td></tr>
+						<tr ><td class="pme-cell-0"><strong>Car ID :</strong><td><td class="pme-cell-0"><?=$car->id?></td></tr>
+						<tr ><td class="pme-cell-1"><strong>Model :</strong><td><td class="pme-cell-1"><?=$car->model?></td></tr>
 						<tr ><td class="pme-cell-0"><strong>Series :</strong><td><td class="pme-cell-0"><?=$car->series?></td></tr>
 						<tr ><td class="pme-cell-1"><strong>Variant:</strong><td><td class="pme-cell-1"><?=$car->variant?></td></tr>
 						<tr ><td class="pme-cell-0"><strong>Year :</strong><td><td class="pme-cell-0"><?=$car->year?></td></tr>
