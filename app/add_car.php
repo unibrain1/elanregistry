@@ -170,77 +170,84 @@ if (!empty($_POST)) {
         $successes[]='Comment Updated';
 
         // Update 'image'
-        $successes[]='Start Image Upload';
 
-        if (isset($_FILES['uploadedFile']) && $_FILES['uploadedFile']['error'] === UPLOAD_ERR_OK) {
-            // get details of the uploaded file
-            $fileTmpPath = $_FILES['uploadedFile']['tmp_name'];
-            $fileName = $_FILES['uploadedFile']['name'];
-            $fileSize = $_FILES['uploadedFile']['size'];
-            $fileType = $_FILES['uploadedFile']['type'];
-            $fileNameCmps = explode(".", $fileName);
-            $fileExtension = strtolower(end($fileNameCmps));
+        // if (empty($_FILES['uploadedFile']['name']))
+        if ($_FILES['uploadedFile']['error'] != UPLOAD_ERR_NO_FILE) {
+            $successes[]='Image not empty Filename';
 
-            // sanitize file-name and give it a random name
-            $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+            if ($_FILES['uploadedFile']['error'] === UPLOAD_ERR_OK) {
+                $successes[]='Image no error';
 
-            // check if file has one of the following extensions
-            $allowedfileExtensions = array('jpg', 'gif', 'png');
+                // get details of the uploaded file
+                $fileTmpPath = $_FILES['uploadedFile']['tmp_name'];
+                $fileName = $_FILES['uploadedFile']['name'];
+                $fileSize = $_FILES['uploadedFile']['size'];
+                $fileType = $_FILES['uploadedFile']['type'];
+                $fileNameCmps = explode(".", $fileName);
+                $fileExtension = strtolower(end($fileNameCmps));
 
-            if (in_array($fileExtension, $allowedfileExtensions)) {
-                // directory in which the uploaded file will be moved
-                $uploadFileDir = './userimages/';
-                $thumbnailDir = $uploadFileDir . 'thumbs/';
-                $dest_path = $uploadFileDir . $newFileName;
-                $thumb_dest_path = $thumbnailDir . $newFileName;
+                // sanitize file-name and give it a random name
+                $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+
+                // check if file has one of the following extensions
+                $allowedfileExtensions = array('jpg', 'gif', 'png');
+
+                if (in_array($fileExtension, $allowedfileExtensions)) {
+                    // directory in which the uploaded file will be moved
+                    $uploadFileDir = './userimages/';
+                    $thumbnailDir = $uploadFileDir . 'thumbs/';
+                    $dest_path = $uploadFileDir . $newFileName;
+                    $thumb_dest_path = $thumbnailDir . $newFileName;
 
 
-                if (move_uploaded_file($fileTmpPath, $dest_path)) {
-                    $successes[] ='File is successfully uploaded.' . $newFileName;
+                    if (move_uploaded_file($fileTmpPath, $dest_path)) {
+                        $successes[] ='File is successfully uploaded.' . $newFileName;
 
-                    // Resize the image
+                        // Resize the image
 
-                    list($width, $height) = getimagesize($dest_path) ;
+                        list($width, $height) = getimagesize($dest_path) ;
 
-                    $modwidth = 600;  // Only 600 wide
+                        $modwidth = 600;  // Only 600 wide
 
-                    $diff = $width / $modwidth;
+                        $diff = $width / $modwidth;
 
-                    $modheight = $height / $diff;
-                    $tn = imagecreatetruecolor($modwidth, $modheight) ;
-                    $image = imagecreatefromjpeg($dest_path) ;
-                    imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
+                        $modheight = $height / $diff;
+                        $tn = imagecreatetruecolor($modwidth, $modheight) ;
+                        $image = imagecreatefromjpeg($dest_path) ;
+                        imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
 
-                    imagejpeg($tn, $dest_path, 100) ;
-                    $successes[]='Image Resized';
+                        imagejpeg($tn, $dest_path, 100) ;
+                        $successes[]='Image Resized';
 
-                    // Create a thumbnail
-                    list($width, $height) = getimagesize($dest_path) ;
-                    $modwidth = 80;
+                        // Create a thumbnail
+                        list($width, $height) = getimagesize($dest_path) ;
+                        $modwidth = 80;
 
-                    $diff = $width / $modwidth;
+                        $diff = $width / $modwidth;
 
-                    $modheight = $height / $diff;
-                    $tn = imagecreatetruecolor($modwidth, $modheight) ;
-                    $image = imagecreatefromjpeg($dest_path) ;
-                    imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
+                        $modheight = $height / $diff;
+                        $tn = imagecreatetruecolor($modwidth, $modheight) ;
+                        $image = imagecreatefromjpeg($dest_path) ;
+                        imagecopyresampled($tn, $image, 0, 0, 0, 0, $modwidth, $modheight, $width, $height) ;
 
-                    imagejpeg($tn, $thumb_dest_path, 80) ;
-                    $successes[]='Image Thumbnail';
+                        imagejpeg($tn, $thumb_dest_path, 80) ;
+                        $successes[]='Image Thumbnail';
 
-                    $fields['image'] = $newFileName;
+                        $fields['image'] = $newFileName;
+                    } else {
+                        $errors[] = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
+                    }
                 } else {
-                    $errors[] = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
+                    $errors[] = 'Upload failed. Allowed file types: ' . implode(',', $allowedfileExtensions);
                 }
             } else {
-                $errors[] = 'Upload failed. Allowed file types: ' . implode(',', $allowedfileExtensions);
+                $errors[] = 'There is some error in the file upload. Please check the following error.<br>';
+                $errors[] = 'Error:' . $_FILES['uploadedFile']['error'];
             }
         } else {
-            $errors[] = 'There is some error in the file upload. Please check the following error.<br>';
-            $errors[] = 'Error:' . $_FILES['uploadedFile']['error'];
+            $successes[]='No Image Upload';
         }
         
-        $successes[]='End Image Upload';
 
         // If there are no errors then INSERT the $fields into the DB,
         if (empty($errors)) {
@@ -308,10 +315,11 @@ if (isset($fields['comments'])) {
                     <h1>Add a Car</h1> </br>
 					<?php if (!$errors=='') {
     ?><div class="alert alert-danger"><?=display_errors($errors); ?></div><?php
-} ?>
+}
+                    ?>
 					<?php if (!$successes=='') {
-        ?><div class="alert alert-success"><?=display_successes($successes); ?></div><?php
-    } ?>
+                        ?><div class="alert alert-success"><?=display_successes($successes); ?></div><?php
+                    } ?>
 					
 	<!-- Here is the FORM -->
 
