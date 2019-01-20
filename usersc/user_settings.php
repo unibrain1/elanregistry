@@ -20,15 +20,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <?php require_once $abs_us_root.$us_url_root.'users/includes/navigation.php'; ?>
 
 <?php
-if (!securePage($_SERVER['PHP_SELF'])){die();}?>
+if (!securePage($_SERVER['PHP_SELF'])) {
+    die();
+}?>
 
 <?php
 //dealing with if the user is logged in
-if($user->isLoggedIn() && !checkMenu(2,$user->data()->id)){
-	if (($settings->site_offline==1) && (!in_array($user->data()->id, $master_account)) && ($currentPage != 'login.php') && ($currentPage != 'maintenance.php')){
-		$user->logout();
-		Redirect::to($us_url_root.'users/maintenance.php');
-	}
+if ($user->isLoggedIn() && !checkMenu(2, $user->data()->id)) {
+    if (($settings->site_offline==1) && (!in_array($user->data()->id, $master_account)) && ($currentPage != 'login.php') && ($currentPage != 'maintenance.php')) {
+        $user->logout();
+        Redirect::to($us_url_root.'users/maintenance.php');
+    }
 }
 
 
@@ -45,63 +47,62 @@ $validation = new Validate();
 $userdetails=$user->data();
 // Get User Profile Information
 // USER ID is in $user_id .  Use the USER ID to get the users Profile information
-$userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?",array($user_id));
+$userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($user_id));
 if ($userQ->count() > 0) {
-	$profiledetails = $userQ->first();
-}
-else {
-	echo 'something is wrong with the user profile </br>';
+    $profiledetails = $userQ->first();
+} else {
+    echo 'something is wrong with the user profile </br>';
 }
 
 //Temporary Success Message
 $holdover = Input::get('success');
-if($holdover == 'true'){
+if ($holdover == 'true') {
     bold("Account Updated");
 }
 //Forms posted
-if(!empty($_POST)) {
+if (!empty($_POST)) {
     $token = $_POST['csrf'];
-    if(!Token::check($token)){
-				include($abs_us_root.$us_url_root.'usersc/scripts/token_error.php');
-    }else {
+    if (!Token::check($token)) {
+        include($abs_us_root.$us_url_root.'usersc/scripts/token_error.php');
+    } else {
         //Update display name
-				//if (($settings->change_un == 0) || (($settings->change_un == 2) && ($user->data()->un_changed == 1)))
-        if ($userdetails->username != $_POST['username'] && ($settings->change_un == 1 || (($settings->change_un == 2) && ($user->data()->un_changed == 0)))){
+        //if (($settings->change_un == 0) || (($settings->change_un == 2) && ($user->data()->un_changed == 1)))
+        if ($userdetails->username != $_POST['username'] && ($settings->change_un == 1 || (($settings->change_un == 2) && ($user->data()->un_changed == 0)))) {
             $displayname = Input::get("username");
             $fields=array(
                 'username'=>$displayname,
                 'un_changed' => 1,
             );
-            $validation->check($_POST,array(
+            $validation->check($_POST, array(
                 'username' => array(
                     'display' => 'Username',
                     'required' => true,
                     'unique_update' => 'users,'.$userId,
-										'min' => $settings->min_un,
-					          'max' => $settings->max_un
+                                        'min' => $settings->min_un,
+                              'max' => $settings->max_un
                 )
             ));
-            if($validation->passed()){
-                if(($settings->change_un == 2) && ($user->data()->un_changed == 1)){
+            if ($validation->passed()) {
+                if (($settings->change_un == 2) && ($user->data()->un_changed == 1)) {
                     Redirect::to($us_url_root.'users/user_settings.php?err=Username+has+already+been+changed+once.');
                 }
-                $db->update('users',$userId,$fields);
+                $db->update('users', $userId, $fields);
                 $successes[]="Username updated.";
-								logger($user->data()->id,"User","Changed username from $userdetails->username to $displayname.");
-            }else{
+                logger($user->data()->id, "User", "Changed username from $userdetails->username to $displayname.");
+            } else {
                 //validation did not pass
                 foreach ($validation->errors() as $error) {
                     $errors[] = $error;
                 }
             }
-        }else{
+        } else {
             $displayname=$userdetails->username;
         }
         //Update first name
-        if ($userdetails->fname != $_POST['fname']){
+        if ($userdetails->fname != $_POST['fname']) {
             $fname = ucfirst(Input::get("fname"));
             $fields=array('fname'=>$fname);
-            $validation->check($_POST,array(
+            $validation->check($_POST, array(
                 'fname' => array(
                     'display' => 'First Name',
                     'required' => true,
@@ -109,24 +110,24 @@ if(!empty($_POST)) {
                     'max' => 25
                 )
             ));
-            if($validation->passed()){
-                $db->update('users',$userId,$fields);
+            if ($validation->passed()) {
+                $db->update('users', $userId, $fields);
                 $successes[]='First name updated.';
-								logger($user->data()->id,"User","Changed fname from $userdetails->fname to $fname.");
-            }else{
+                logger($user->data()->id, "User", "Changed fname from $userdetails->fname to $fname.");
+            } else {
                 //validation did not pass
                 foreach ($validation->errors() as $error) {
                     $errors[] = $error;
                 }
             }
-        }else{
+        } else {
             $fname=$userdetails->fname;
         }
         //Update last name
-        if ($userdetails->lname != $_POST['lname']){
+        if ($userdetails->lname != $_POST['lname']) {
             $lname = ucfirst(Input::get("lname"));
             $fields=array('lname'=>$lname);
-            $validation->check($_POST,array(
+            $validation->check($_POST, array(
                 'lname' => array(
                     'display' => 'Last Name',
                     'required' => true,
@@ -134,25 +135,25 @@ if(!empty($_POST)) {
                     'max' => 25
                 )
             ));
-            if($validation->passed()){
-                $db->update('users',$userId,$fields);
+            if ($validation->passed()) {
+                $db->update('users', $userId, $fields);
                 $successes[]='Last name updated.';
-								logger($user->data()->id,"User","Changed lname from $userdetails->lname to $lname.");
-            }else{
+                logger($user->data()->id, "User", "Changed lname from $userdetails->lname to $lname.");
+            } else {
                 //validation did not pass
                 foreach ($validation->errors() as $error) {
                     $errors[] = $error;
                 }
             }
-        }else{
+        } else {
             $lname=$userdetails->lname;
         }
-// Extend user_setttings.php with some PROFILE information 
+        // Extend user_setttings.php with some PROFILE information
         //Update City
-        if ($profiledetails->city != $_POST['city']){
+        if ($profiledetails->city != $_POST['city']) {
             $city = ucfirst(Input::get("city"));
             $fields=array('city'=>$city);
-            $validation->check($_POST,array(
+            $validation->check($_POST, array(
                 'city' => array(
                     'display' => 'City',
                     'required' => true,
@@ -160,25 +161,25 @@ if(!empty($_POST)) {
                     'max' => 25		// TODO Check the field valuidation to be consistant across inputs
                 )
             ));
-            if($validation->passed()){
-                $db->update('profiles',$userId,$fields);
+            if ($validation->passed()) {
+                $db->update('profiles', $userId, $fields);
                 $successes[]='City updated.';
-								logger($user->data()->id,"User","Changed city from $profiledetails->city to $city.");
-            }else{
+                logger($user->data()->id, "User", "Changed city from $profiledetails->city to $city.");
+            } else {
                 //validation did not pass
                 foreach ($validation->errors() as $error) {
                     $errors[] = $error;
                 }
             }
-        }else{
+        } else {
             $city=$profiledetails->city;
         }
 
         //Update State
-        if ($profiledetails->state != $_POST['state']){
+        if ($profiledetails->state != $_POST['state']) {
             $state = ucfirst(Input::get("state"));
             $fields=array('state'=>$state);
-            $validation->check($_POST,array(
+            $validation->check($_POST, array(
                 'state' => array(
                     'display' => 'State',
                     'required' => true,
@@ -186,24 +187,24 @@ if(!empty($_POST)) {
                     'max' => 25		// TODO Check the field valuidation to be consistant across inputs
                 )
             ));
-            if($validation->passed()){
-                $db->update('profiles',$userId,$fields);
+            if ($validation->passed()) {
+                $db->update('profiles', $userId, $fields);
                 $successes[]='State updated.';
-								logger($user->data()->id,"User","Changed state from $profiledetails->state to $state.");
-            }else{
+                logger($user->data()->id, "User", "Changed state from $profiledetails->state to $state.");
+            } else {
                 //validation did not pass
                 foreach ($validation->errors() as $error) {
                     $errors[] = $error;
                 }
             }
-        }else{
+        } else {
             $state=$profiledetails->state;
         }
         //Update Country
-        if ($profiledetails->country != $_POST['country']){
+        if ($profiledetails->country != $_POST['country']) {
             $country = ucfirst(Input::get("country"));
             $fields=array('country'=>$country);
-            $validation->check($_POST,array(
+            $validation->check($_POST, array(
                 'state' => array(
                     'display' => 'Country',
                     'required' => true,
@@ -211,33 +212,33 @@ if(!empty($_POST)) {
                     'max' => 25		// TODO Check the field valuidation to be consistant across inputs
                 )
             ));
-            if($validation->passed()){
-                $db->update('profiles',$userId,$fields);
+            if ($validation->passed()) {
+                $db->update('profiles', $userId, $fields);
                 $successes[]='Country updated.';
-								logger($user->data()->id,"User","Changed country from $profiledetails->country to $country.");
-            }else{
+                logger($user->data()->id, "User", "Changed country from $profiledetails->country to $country.");
+            } else {
                 //validation did not pass
                 foreach ($validation->errors() as $error) {
                     $errors[] = $error;
                 }
             }
-        }else{
+        } else {
             $state=$profiledetails->state;
         }
 
 
-// END Extend user_setttings.php with some PROFILE information 
+        // END Extend user_setttings.php with some PROFILE information
 
-				if(!empty($_POST['password']) || $userdetails->email != $_POST['email'] || !empty($_POST['resetPin'])) {
-				//Check password for email or pw update
-				if (is_null($userdetails->password) || password_verify(Input::get('old'),$user->data()->password)) {
+        if (!empty($_POST['password']) || $userdetails->email != $_POST['email'] || !empty($_POST['resetPin'])) {
+            //Check password for email or pw update
+            if (is_null($userdetails->password) || password_verify(Input::get('old'), $user->data()->password)) {
 
         //Update email
-        if ($userdetails->email != $_POST['email']){
-            $email = Input::get("email");
-						$confemail = Input::get("confemail");
-            $fields=array('email'=>$email);
-            $validation->check($_POST,array(
+                if ($userdetails->email != $_POST['email']) {
+                    $email = Input::get("email");
+                    $confemail = Input::get("confemail");
+                    $fields=array('email'=>$email);
+                    $validation->check($_POST, array(
                 'email' => array(
                     'display' => 'Email',
                     'required' => true,
@@ -247,41 +248,51 @@ if(!empty($_POST)) {
                     'max' => 75
                 )
             ));
-            if($validation->passed()){
-							if($confemail == $email) {
-                if($emailR->email_act==0){$db->update('users',$userId,$fields); $successes[]='Email updated.'; logger($user->data()->id,"User","Changed email from $userdetails->email to $email."); }
-                if($emailR->email_act==1){
-									$vericode=randomstring(15);
-				          $vericode_expiry=date("Y-m-d H:i:s",strtotime("+$settings->join_vericode_expiry hours",strtotime(date("Y-m-d H:i:s"))));
-				          $db->update('users',$userId,['email_new'=>$email,'vericode' => $vericode,'vericode_expiry' => $vericode_expiry]);
-										//Send the email
-										$options = array(
-				              'fname' => $user->data()->fname,
-				              'email' => rawurlencode($user->data()->email),
-				              'vericode' => $vericode,
-											'join_vericode_expiry' => $settings->join_vericode_expiry
-				            );
-				            $encoded_email=rawurlencode($email);
-				            $subject = 'Verify Your Email';
-				            $body =  email_body('_email_template_verify_new.php',$options);
-				            $email_sent=email($email,$subject,$body);
-				            if(!$email_sent) $errors[] = 'Email NOT sent due to error. Please contact site administrator.';
-										else $successes[]="Email request received. Please check your email to perform verification. Be sure to check your Spam and Junk folder as the verification link expires in $settings->join_vericode_expiry hours.";
-										if($emailR->email_act==1) logger($user->data()->id,"User","Requested change email from $userdetails->email to $email. Verification email sent.");
+                    if ($validation->passed()) {
+                        if ($confemail == $email) {
+                            if ($emailR->email_act==0) {
+                                $db->update('users', $userId, $fields);
+                                $successes[]='Email updated.';
+                                logger($user->data()->id, "User", "Changed email from $userdetails->email to $email.");
+                            }
+                            if ($emailR->email_act==1) {
+                                $vericode=randomstring(15);
+                                $vericode_expiry=date("Y-m-d H:i:s", strtotime("+$settings->join_vericode_expiry hours", strtotime(date("Y-m-d H:i:s"))));
+                                $db->update('users', $userId, ['email_new'=>$email,'vericode' => $vericode,'vericode_expiry' => $vericode_expiry]);
+                                //Send the email
+                                $options = array(
+                              'fname' => $user->data()->fname,
+                              'email' => rawurlencode($user->data()->email),
+                              'vericode' => $vericode,
+                                            'join_vericode_expiry' => $settings->join_vericode_expiry
+                            );
+                                $encoded_email=rawurlencode($email);
+                                $subject = 'Verify Your Email';
+                                $body =  email_body('_email_template_verify_new.php', $options);
+                                $email_sent=email($email, $subject, $body);
+                                if (!$email_sent) {
+                                    $errors[] = 'Email NOT sent due to error. Please contact site administrator.';
+                                } else {
+                                    $successes[]="Email request received. Please check your email to perform verification. Be sure to check your Spam and Junk folder as the verification link expires in $settings->join_vericode_expiry hours.";
+                                }
+                                if ($emailR->email_act==1) {
+                                    logger($user->data()->id, "User", "Requested change email from $userdetails->email to $email. Verification email sent.");
+                                }
+                            }
+                        } else {
+                            $errors[] = "Your email did not match.";
+                        }
+                    } else {
+                        //validation did not pass
+                        foreach ($validation->errors() as $error) {
+                            $errors[] = $error;
+                        }
+                    }
+                } else {
+                    $email=$userdetails->email;
                 }
-          }
-					else $errors[] = "Your email did not match.";
-				 }else{
-                //validation did not pass
-                foreach ($validation->errors() as $error) {
-                    $errors[] = $error;
-                }
-            }
-        }else{
-            $email=$userdetails->email;
-        }
-        if(!empty($_POST['password'])) {
-            $validation->check($_POST,array(
+                if (!empty($_POST['password'])) {
+                    $validation->check($_POST, array(
                 'password' => array(
                     'display' => 'New Password',
                     'required' => true,
@@ -294,54 +305,56 @@ if(!empty($_POST)) {
                     'matches' => 'password',
                 ),
             ));
-            foreach ($validation->errors() as $error) {
-                $errors[] = $error;
-            }
-            if (empty($errors) && Input::get('old')!=Input::get('password')) {
-                //process
-                $new_password_hash = password_hash(Input::get('password'),PASSWORD_BCRYPT,array('cost' => 12));
-                $user->update(array('password' => $new_password_hash,'force_pr' => 0,'vericode' => randomstring(15),),$user->data()->id);
-                $successes[]='Password updated.';
-								logger($user->data()->id,"User","Updated password.");
-								if($settings->session_manager==1) {
-									$passwordResetKillSessions=passwordResetKillSessions();
-									if(is_numeric($passwordResetKillSessions)) {
-										if($passwordResetKillSessions==1) $successes[] = "Successfully Killed 1 Session";
-										if($passwordResetKillSessions >1) $successes[] = "Successfully Killed $passwordResetKillSessions Session";
-									} else {
-										$errors[] = "Failed to kill active sessions, Error: ".$passwordResetKillSessions;
-									}
-								}
+                    foreach ($validation->errors() as $error) {
+                        $errors[] = $error;
+                    }
+                    if (empty($errors) && Input::get('old')!=Input::get('password')) {
+                        //process
+                        $new_password_hash = password_hash(Input::get('password'), PASSWORD_BCRYPT, array('cost' => 12));
+                        $user->update(array('password' => $new_password_hash,'force_pr' => 0,'vericode' => randomstring(15),), $user->data()->id);
+                        $successes[]='Password updated.';
+                        logger($user->data()->id, "User", "Updated password.");
+                        if ($settings->session_manager==1) {
+                            $passwordResetKillSessions=passwordResetKillSessions();
+                            if (is_numeric($passwordResetKillSessions)) {
+                                if ($passwordResetKillSessions==1) {
+                                    $successes[] = "Successfully Killed 1 Session";
+                                }
+                                if ($passwordResetKillSessions >1) {
+                                    $successes[] = "Successfully Killed $passwordResetKillSessions Session";
+                                }
+                            } else {
+                                $errors[] = "Failed to kill active sessions, Error: ".$passwordResetKillSessions;
+                            }
+                        }
+                    } else {
+                        if (Input::get('old')==Input::get('password')) {
+                            $errors[] = "Your old password cannot be the same as your new";
+                        }
+                    }
+                }
+                if (!empty($_POST['resetPin']) && Input::get('resetPin')==1) {
+                    $user->update(['pin'=>null]);
+                    logger($user->data()->id, "User", "Reset PIN");
+                    $successes[]='Reset PIN';
+                    $successes[]='You can set a new PIN the next time you require verification';
+                }
             } else {
-							if(Input::get('old')==Input::get('password')) {
-								$errors[] = "Your old password cannot be the same as your new";
-							}
-						}
+                $errors[]="Current password verification failed. Update failed. Please try again.";
+            }
         }
-			if(!empty($_POST['resetPin']) && Input::get('resetPin')==1) {
-				$user->update(['pin'=>NULL]);
-				logger($user->data()->id,"User","Reset PIN");
-				$successes[]='Reset PIN';
-				$successes[]='You can set a new PIN the next time you require verification';
-			}
     }
-	else {
-		$errors[]="Current password verification failed. Update failed. Please try again.";
-		}
-	}
- }
 }
 // mod to allow edited values to be shown in form after update
 $user2 = new User();
 $userdetails=$user2->data();
 
 // Extend for profile
-$userQ2 = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?",array($user_id));
+$userQ2 = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($user_id));
 if ($userQ2->count() > 0) {
-	$profiledetails = $userQ2->first();
-}
-else {
-	echo 'something is wrong with the user profile </br>';
+    $profiledetails = $userQ2->first();
+} else {
+    echo 'something is wrong with the user profile </br>';
 }
 // End Extend
 
@@ -360,21 +373,34 @@ else {
 <!--
                     <strong>Want to change your profile picture? </strong><br> Visit <a href="https://en.gravatar.com/">https://en.gravatar.com/</a> and setup an account with the email address <?=$userdetails->email?>.  It works across millions of sites. It's fast and easy!<br>
 -->
-                    <?php if(!$errors=='') {?><div class="alert alert-danger"><?=display_errors($errors);?></div><?php } ?>
-                    <?php if(!$successes=='') {?><div class="alert alert-success"><?=display_successes($successes);?></div><?php } ?>
+                    <?php if (!$errors=='') {
+    ?><div class="alert alert-danger"><?=display_errors($errors); ?></div><?php
+} ?>
+                    <?php if (!$successes=='') {
+        ?><div class="alert alert-success"><?=display_successes($successes); ?></div><?php
+    } ?>
 
                     <form name='updateAccount' action='user_settings.php' method='post'>
 
                         <div class="form-group">
                             <label>Username</label>
-                            <?php if (($settings->change_un == 0) || (($settings->change_un == 2) && ($userdetails->un_changed == 1)) ) {?>
+                            <?php if (($settings->change_un == 0) || (($settings->change_un == 2) && ($userdetails->un_changed == 1))) {
+        ?>
 															<div class="input-group">
 																 <input  class='form-control' type='text' name='username' value='<?=$userdetails->username?>' readonly/>
-																 <span class="input-group-addon"data-toggle="tooltip" title="<?php if($settings->change_un==0) {?>The Administrator has disabled changing usernames.<?php } if(($settings->change_un == 2) && ($userdetails->un_changed == 1)) {?>The Administrator set username changes to occur only once and you have done so already.<?php } ?>">Why can't I change this?</span>
+																 <span class="input-group-addon"data-toggle="tooltip" title="<?php if ($settings->change_un==0) {
+            ?>The Administrator has disabled changing usernames.<?php
+        }
+        if (($settings->change_un == 2) && ($userdetails->un_changed == 1)) {
+            ?>The Administrator set username changes to occur only once and you have done so already.<?php
+        } ?>">Why can't I change this?</span>
 															 </div>
-                            <?php }else{ ?>
+                            <?php
+    } else {
+        ?>
 														<input  class='form-control' type='text' name='username' value='<?=$userdetails->username?>'>
-                            <?php } ?>
+                            <?php
+    } ?>
                         </div>
 
                         <div class="form-group">
@@ -404,11 +430,13 @@ else {
                         <div class="form-group">
                             <label>Email</label>
                             <input class='form-control' type='text' name='email' value='<?=$userdetails->email?>' />
-														<?php if(!IS_NULL($userdetails->email_new)) {?><br /><div class="alert alert-danger">
+														<?php if (!IS_NULL($userdetails->email_new)) {
+        ?><br /><div class="alert alert-danger">
 															<p><strong>Please note</strong> there is a pending request to update your email to <?=$userdetails->email_new?>.</p>
 															<p>Please use the verification email to complete this request.</p>
 															<p>If you need a new verification email, please re-enter the email above and submit the request again.</p>
-														</div><?php } ?>
+														</div><?php
+    } ?>
                         </div>
 
 												<div class="form-group">
@@ -432,18 +460,24 @@ else {
 	                       <span class="input-group-addon pwpopover" id="addon4" data-container="body" data-toggle="popover" data-placement="top" data-content="Must match the New Password">?</span>
 											 </div></div>
 
-											 <?php if(!is_null($userdetails->pin)) {?>
+											 <?php if (!is_null($userdetails->pin)) {
+        ?>
 												 <div class="form-group">
 													 <label>Reset PIN
 													 <input  type="checkbox" id="resetPin" name="resetPin" value="1" /></label>
 													</div>
-												<?php } ?>
+												<?php
+    } ?>
 
 											 <div class="form-group">
-													 <label>Old Password<?php if(!is_null($userdetails->password)) {?>, required for changing password, email, or resetting PIN<?php } ?></label>
+													 <label>Old Password<?php if (!is_null($userdetails->password)) {
+        ?>, required for changing password, email, or resetting PIN<?php
+    } ?></label>
 													 <div class="input-group" data-container="body">
 														 <span class="input-group-addon password_view_control" id="addon6"><span class="glyphicon glyphicon-eye-open"></span></span>
-														 <input class='form-control' type='password' id="old" name='old' <?php if(is_null($userdetails->password)) {?>disabled<?php } ?>/>
+														 <input class='form-control' type='password' id="old" name='old' <?php if (is_null($userdetails->password)) {
+        ?>disabled<?php
+    } ?>/>
 														 <span class="input-group-addon pwpopover" id="addon5" data-container="body" data-toggle="popover" data-placement="top" data-content="Required to change your password">?</span>
 													 </div>
 											 </div>
@@ -455,7 +489,7 @@ else {
 
                     </form>
                     <?php
-                    if(isset($user->data()->oauth_provider) && $user->data()->oauth_provider != null){
+                    if (isset($user->data()->oauth_provider) && $user->data()->oauth_provider != null) {
                         echo "<strong>NOTE:</strong> If you originally signed up with your Google/Facebook account, you will need to use the forgot password link to change your password...unless you're really good at guessing.";
                     }
                     ?>
@@ -470,7 +504,7 @@ else {
 
 
 <!-- footers -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
 
 <!-- Place any per-page javascript here -->
 <script type="text/javascript">
@@ -494,4 +528,4 @@ else {
 		});
 </script>
 
-<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html?>

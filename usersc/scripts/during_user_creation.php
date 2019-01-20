@@ -16,9 +16,9 @@
 // The format of the array is ['column_name'=>Data_for_column]
 
 // $db->update('users',$theNewId,['account_id'=>Input::get('account_id')]);
-$db->update('profiles',$theNewId,['city'=>Input::get('city')]);
-$db->update('profiles',$theNewId,['state'=>Input::get('state')]);
-$db->update('profiles',$theNewId,['country'=>Input::get('country')]);
+$db->update('profiles', $theNewId, ['city'=>Input::get('city')]);
+$db->update('profiles', $theNewId, ['state'=>Input::get('state')]);
+$db->update('profiles', $theNewId, ['country'=>Input::get('country')]);
 
 // You'll notice that the account id is now in the database!
 
@@ -27,9 +27,11 @@ $db->update('profiles',$theNewId,['country'=>Input::get('country')]);
 
 // The script below will automatically login a user who just registered if email activation is not turned on
 $e = $db->query("SELECT email_act FROM email")->first();
-if($e->email_act != 1){
-  $user = new User();
-  $login = $user->loginEmail(Input::get('email'), trim(Input::get('password')), 'off');
-  if(!$login){Redirect::to('login.php?err=There+was+a+problem+logging+you+in+automatically.');}
-  //where the user goes just after login is in usersc/scripts/custom_login_script.php
+if ($e->email_act != 1) {
+    $user = new User();
+    $login = $user->loginEmail(Input::get('email'), trim(Input::get('password')), 'off');
+    if (!$login) {
+        Redirect::to('login.php?err=There+was+a+problem+logging+you+in+automatically.');
+    }
+    //where the user goes just after login is in usersc/scripts/custom_login_script.php
 }

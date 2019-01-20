@@ -22,41 +22,43 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <?php require_once $abs_us_root.$us_url_root.'users/includes/header.php'; ?>
 <?php require_once $abs_us_root.$us_url_root.'users/includes/navigation.php'; ?>
 
-<?php if (!securePage($_SERVER['PHP_SELF'])){die();}?>
+<?php if (!securePage($_SERVER['PHP_SELF'])) {
+    die();
+}?>
 <?php
-if(!empty($_POST['uncloak'])){
-	if(isset($_SESSION['cloak_to'])){
-		$to = $_SESSION['cloak_to'];
-		$from = $_SESSION['cloak_from'];
-		unset($_SESSION['cloak_to']);
-		$_SESSION['user'] = $_SESSION['cloak_from'];
-		unset($_SESSION['cloak_from']);
-		logger($from,"Cloaking","uncloaked from ".$to);
-		Redirect::to($us_url_root.'users/admin_users.php?err=You+are+now+you!');
-		}else{
-			Redirect::to($us_url_root.'users/logout.php?err=Something+went+wrong.+Please+login+again');
-		}
+if (!empty($_POST['uncloak'])) {
+    if (isset($_SESSION['cloak_to'])) {
+        $to = $_SESSION['cloak_to'];
+        $from = $_SESSION['cloak_from'];
+        unset($_SESSION['cloak_to']);
+        $_SESSION['user'] = $_SESSION['cloak_from'];
+        unset($_SESSION['cloak_from']);
+        logger($from, "Cloaking", "uncloaked from ".$to);
+        Redirect::to($us_url_root.'users/admin_users.php?err=You+are+now+you!');
+    } else {
+        Redirect::to($us_url_root.'users/logout.php?err=Something+went+wrong.+Please+login+again');
+    }
 }
 
 //dealing with if the user is logged in
-if($user->isLoggedIn() || !$user->isLoggedIn() && !checkMenu(2,$user->data()->id)){
-	if (($settings->site_offline==1) && (!in_array($user->data()->id, $master_account)) && ($currentPage != 'login.php') && ($currentPage != 'maintenance.php')){
-		$user->logout();
-		Redirect::to($us_url_root.'users/maintenance.php');
-	}
+if ($user->isLoggedIn() || !$user->isLoggedIn() && !checkMenu(2, $user->data()->id)) {
+    if (($settings->site_offline==1) && (!in_array($user->data()->id, $master_account)) && ($currentPage != 'login.php') && ($currentPage != 'maintenance.php')) {
+        $user->logout();
+        Redirect::to($us_url_root.'users/maintenance.php');
+    }
 }
 // Get some interesting user information to display later
 
 $user_id = $user->data()->id;
 
 // USER ID is in $user_id .  Use the USER ID to get the users Profile information
-$userQ = $db->query("SELECT * FROM usersview WHERE id = ?",array($user_id));
+$userQ = $db->query("SELECT * FROM usersview WHERE id = ?", array($user_id));
 if ($userQ->count() > 0) {
-	$thatUser = $userQ->results();
+    $thatUser = $userQ->results();
 }
-$carQ = $db->query("SELECT * FROM users_carsview WHERE user_id = ?",array($user_id));
+$carQ = $db->query("SELECT * FROM users_carsview WHERE user_id = ?", array($user_id));
 if ($carQ->count() > 0) {
-	$thatCar = $carQ->results();
+    $thatCar = $carQ->results();
 }
 
 ?>
@@ -112,20 +114,19 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 			<div class="panel-heading"><strong>Your Car Information</strong></div>
 			<div class="panel-body">
 			<?php
-			
-			// If there is car information then display it 
-			$cars = $thatCar;
-			
-			if( empty($cars) ) {
-					// 	If the user does not have a car then display the add car form</li>
-					?>
+            
+            // If there is car information then display it
+            $cars = $thatCar;
+            
+            if (empty($cars)) {
+                // 	If the user does not have a car then display the add car form</li>
+                    ?>
 					<a align="center" class="btn btn-success" href=<?=$us_url_root."app/add_car.php"?> role="button">Add Car</a>
 					<?php
-			} else {
-				// Else there is car information then display it 
-				foreach($cars as $car){
-   					// output data of each row.  View has both cars and users
-					?>
+            } else {
+                // Else there is car information then display it
+                foreach ($cars as $car) {
+                    // output data of each row.  View has both cars and users ?>
 
 					<table class="pme-main">
 						<tr ><td class="pme-cell-0">
@@ -152,16 +153,16 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 						<tr ><td class="pme-cell-1"><strong>Created:</strong><td><td class="pme-cell-1"><?=$car->ctime?></td></tr>
 						<tr ><td class="pme-cell-1"><strong>Last Modified:</strong><td><td class="pme-cell-1"><?=$car->mtime?></td></tr>
 						<?php
-						if($car->image) {
-						?>
+                        if ($car->image) {
+                            ?>
 							<tr ><td class="pme-cell-1"><strong>Image:</strong><td>
 							<td class="pme-cell-1"><img src=<?=$us_url_root?>app/userimages/<?=$car->image?> width='390'></td></tr>
 						<?php
-						} ?>
+                        } ?>
 					</table>
 				<?php
-				} 
-			} ?>
+                }
+            } ?>
 
 			</div> <!-- panel-body -->
 		</div> <!-- panel -->
@@ -174,7 +175,7 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 </div> <!-- /#page-wrapper -->
 
 <!-- footers -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
 
 <!-- Place any per-page javascript here -->
 <script type="text/javascript">
@@ -183,4 +184,4 @@ $(document).ready(function(){
 });
 </script>
 
-<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html?>

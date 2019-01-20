@@ -23,7 +23,7 @@ The strict-transport-security header is a security enhancement that restricts we
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
 
 if ($protocol === "https://") {
-header("Strict-Transport-Security:max-age=31536000; includeSubdomains; preload");
+    header("Strict-Transport-Security:max-age=31536000; includeSubdomains; preload");
 }
 
 
@@ -80,4 +80,3 @@ header("Referrer-Policy: no-referrer-when-downgrade");
 header_remove("X-Powered-By");
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
- ?>

@@ -43,7 +43,7 @@ $carData = $carQ->results();
                   ?>
                 <tr>
                   <td>
-                  <?php  echo '<a class="btn btn-success btn-sm" href='.$us_url_root.'/app/car_details.php?car_id='.$v1->id.">Details</a>" ?>
+                  <?php  echo '<a class="btn btn-success btn-sm" href=/app/car_details.php?car_id='.$v1->id.">Details</a>" ?>
                   </td>
                   <td><?=$v1->year?></td>
                   <td><?=$v1->type?></td>
@@ -52,7 +52,7 @@ $carData = $carQ->results();
                   <td><?=$v1->variant?></td>
                   <td><?=$v1->color?></td>
                   <td> <?php
-                    if (isset($v1->image)) {
+                    if ($v1->image) {
                         echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
                     } ?>  </td>
                   <td><?=$v1->fname?></td>
@@ -88,7 +88,6 @@ $carData = $carQ->results();
         <script type="text/javascript" src="https://cdn.datatables.net/fixedheader/3.1.4/js/dataTables.fixedHeader.min.js"></script>
         <script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.2/js/dataTables.responsive.min.js"></script>
 
-
         <script>
         $(document).ready(function()  {
 
@@ -107,9 +106,6 @@ $carData = $carQ->results();
                 //         }
                 //     } );
                 // } );
-
-
-
 
              var table =  $('#cartable').DataTable(
                 {

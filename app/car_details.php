@@ -7,36 +7,32 @@
 <?php require_once $abs_us_root.$us_url_root.'users/includes/header.php'; ?>
 <?php require_once $abs_us_root.$us_url_root.'users/includes/navigation.php'; ?>
 
-<?php if (!securePage($_SERVER['PHP_SELF'])){die();}?>
+<?php if (!securePage($_SERVER['PHP_SELF'])) {
+    die();
+}?>
 <?php
 
 // Get some interesting user information to display later
 
 $user_id = $user->data()->id;
-
     
  if (!empty($_GET)) {
      $id = $_GET['car_id'];
      $car_id = Input::sanitize($id);
 
-	$carQ = $db->findById($car_id,"users_carsview");
-	$carData = $carQ->results();
+     $carQ = $db->findById($car_id, "users_carsview");
+     $carData = $carQ->results();
 
-	// $carQ = $db->query('SELECT * FROM cars_hist	 WHERE id=?', [$car_id] );
-	// $carHist = $carQ->results();
+     // $carQ = $db->query('SELECT * FROM cars_hist	 WHERE id=?', [$car_id] );
+     // $carHist = $carQ->results();
 
-	$raw = date_parse($carData[0]->join_date);
-	$signupdate = $raw['year']."-".$raw['month']."-".$raw['day'];
-
-	} else
-	{
-		// Shouldn't be here unless someone is mangling the url
-		Redirect::to($us_url_root."/app/list_cars.php");
-	}
-
+     $raw = date_parse($carData[0]->join_date);
+     $signupdate = $raw['year']."-".$raw['month']."-".$raw['day'];
+ } else {
+     // Shouldn't be here unless someone is mangling the url
+     Redirect::to($us_url_root."/app/list_cars.php");
+ }
 ?>
-
-
 <!-- Now that that is all out of the way, let's display everything -->
 
 <div id="page-wrapper">
@@ -80,11 +76,11 @@ $user_id = $user->data()->id;
 		<div class="panel panel-default">
 			<div class="panel-body">
 				<?php
-				if($carData[0]->image) {
-				?>
+                if ($carData[0]->image) {
+                    ?>
 					<img src=<?=$us_url_root?>app/userimages/<?=$carData[0]->image?> width='390'>
 				<?php
-				} ?>
+                } ?>
 
 			</div> <!-- panel-body -->
 		</div> <!-- panel -->
@@ -98,7 +94,7 @@ $user_id = $user->data()->id;
 </div> <!-- /#page-wrapper -->
 
 <!-- footers -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
 
 <!-- Place any per-page javascript here -->
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/>
@@ -110,4 +106,4 @@ $(document).ready(function()  {
 } );
 </script>
 
-<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html ?>
+<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html?>

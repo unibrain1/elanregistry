@@ -3,4 +3,3 @@
 
 //Where do you want to redirect the user after login
 Redirect::to($us_url_root.'users/account.php');
-?>
