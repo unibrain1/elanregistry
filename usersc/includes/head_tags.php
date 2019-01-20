@@ -7,9 +7,9 @@
 <!-- Add car validation JS -->
 <!-- TODO this should be only on tha pages needed -->
 <?php
-	if(file_exists($abs_us_root.$us_url_root.'app/js/cardefinition.js')){
-			?>	 <script language="JavaScript" src=<?=$us_url_root.'app/js/cardefinition.js'?> type="text/javascript"></script> <?php
-	}
+    if (file_exists($abs_us_root.$us_url_root.'app/js/cardefinition.js')) {
+        ?>	 <script language="JavaScript" src=<?=$us_url_root.'app/js/cardefinition.js'?> type="text/javascript"></script> <?php
+    }
 ?>
 
 

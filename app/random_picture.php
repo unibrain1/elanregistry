@@ -57,64 +57,47 @@ $settings['allow_otf'] = 0;
 *******************************************************************************/
 
 /* Override type? */
-if ($settings['allow_otf'] && isset($_GET['type']))
-{
-	$type = intval($_GET['type']);
-}
-else
-{
-	$type = $settings['display_type'];
+if ($settings['allow_otf'] && isset($_GET['type'])) {
+    $type = intval($_GET['type']);
+} else {
+    $type = $settings['display_type'];
 }
 
 /* Override images folder? */
-if ($settings['allow_otf'] && isset($_GET['folder']))
-{
-	$folder = htmlspecialchars(trim($_GET['folder']));
-    if (!is_dir($folder))
-    {
-    	$folder = $settings['img_folder'];
+if ($settings['allow_otf'] && isset($_GET['folder'])) {
+    $folder = htmlspecialchars(trim($_GET['folder']));
+    if (!is_dir($folder)) {
+        $folder = $settings['img_folder'];
     }
-}
-else
-{
-	$folder = $settings['img_folder'];
+} else {
+    $folder = $settings['img_folder'];
 }
 
 /* Make sure images fodler ends with an '/' */
-if (substr($folder,-1) != '/')
-{
-	$folder.='/';
+if (substr($folder, -1) != '/') {
+    $folder.='/';
 }
 
 /* Get a list of all the image files */
 $flist = array();
-foreach($settings['img_ext'] as $ext)
-{
+foreach ($settings['img_ext'] as $ext) {
     $tmp = glob($folder.'*'.$ext);
-    if (is_array($tmp))
-    {
-    	$flist = array_merge($flist,$tmp);
+    if (is_array($tmp)) {
+        $flist = array_merge($flist, $tmp);
     }
 }
 
 /* If we have any images choose a random one, otherwise select the "noimg.gif" image */
-if (count($flist))
-{
-	$src = $flist[array_rand($flist)];
-}
-else
-{
-	$src = 'images/noimg.gif';
+if (count($flist)) {
+    $src = $flist[array_rand($flist)];
+} else {
+    $src = 'images/noimg.gif';
 }
 
 /* Output the image according to the selected type */
-if ($type)
-{
-	header('Location:'.$src);
+if ($type) {
+    header('Location:'.$src);
     exit();
+} else {
+    echo $src;
 }
-else
-{
-	echo $src;
-}
-?>
