@@ -62,9 +62,9 @@ if ($carQ->count() > 0) {
 ?>
 <?php
 $raw = date_parse($thatUser[0]->join_date);
-$signupdate = $raw['month']."/".$raw['day']."/".$raw['year'];
+$signupdate = $raw['year']."-".$raw['month']."-".$raw['day'];
 $raw = date_parse($thatUser[0]->last_login);
-$lastlogin = $raw['month']."/".$raw['day']."/".$raw['year'];
+$lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 ?>
 
 
