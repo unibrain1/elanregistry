@@ -58,7 +58,6 @@ $user_id = $user->data()->id;
 				<tr ><td ><strong>Comments:</strong><td><td ><?=$carData[0]->comments?></td></tr>
 				
 				<tr ><td ><strong>First name:</strong><td><td ><?=ucfirst($carData[0]->fname)?></td></tr>
-				<tr ><td ><strong>Last name:</strong><td><td ><?=ucfirst($carData[0]->lname)?></td></tr>
 				<tr ><td ><strong>City</strong><td><td ><?=html_entity_decode($carData[0]->city);?></td></tr>
 				<tr ><td ><strong>State:</strong><td><td ><?=html_entity_decode($carData[0]->state);?></td></tr>
 				<tr ><td ><strong>Country:</strong><td><td ><?=html_entity_decode($carData[0]->country);?></td></tr>
