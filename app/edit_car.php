@@ -32,8 +32,8 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
     $cardetails['chassis']     = null;
     $cardetails['color']       = null;
     $cardetails['engine']      = null;
-    $cardetails['purchasedate']=  null;
-    $cardetails['solddate']    =  null;
+    $cardetails['purchasedate']= null;
+    $cardetails['solddate']    = null;
     $cardetails['comments']    = null;
     $cardetails['image']       = null;
     
@@ -47,17 +47,17 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
     $fields['chassis']     = null;
     $fields['color']       = null;
     $fields['engine']      = null;
-    $fields['purchasedate']=  null;
-    $fields['solddate']    =  null;
+    $fields['purchasedate']= null;
+    $fields['solddate']    = null;
     $fields['comments']    = null;
-    $fields['image']    = null;
+    $fields['image']       = null;
     
     // 'placeholder' to prompt for response.  Background text in input boxes
     $carprompt['chassis']     = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
     $carprompt['color']       = 'Enter the current color of the car';
     $carprompt['engine']      = 'Enter Engine number - LPAxxxxx';
-    $carprompt['purchasedate']=  'MM/DD/YYYY';  // Safari doesn't respext date input type so give a message and will need to validate
-    $carprompt['solddate']    =  'MM/DD/YYYY';
+    $carprompt['purchasedate']= 'MM/DD/YYYY';  // Safari doesn't respext date input type so give a message and will need to validate
+    $carprompt['solddate']    = 'MM/DD/YYYY';
     $carprompt['comments']    = 'Please give a brief history of your car and anything special';
     
     // A place to put some messages
@@ -89,7 +89,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
             $year = ($_POST['year']);
             if (strcmp($year, $select_str)) {
                 $fields['year'] = Input::sanitize($year);
-                $successes[]='Year Updated';
+                $successes[]='Year Updated - '.$fields['year'];
             } else {
                 $errors[] = "Please select Year";
             }
@@ -108,7 +108,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                 $fields['variant']= filter_var($variant, FILTER_SANITIZE_STRING);
                 $fields['type']   = filter_var($type, FILTER_SANITIZE_STRING);
     
-                $successes[]='Model Updated';
+                $successes[]='Model Updated -'.$fields['model'];
             } else {
                 $errors[] = "Please select Model";
             }
@@ -118,26 +118,27 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
             $len = strlen($chassis);
             $fields['chassis'] = Input::sanitize($chassis);
             if (strcmp($fields['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
-                $successes[]='Chassis Updated';
+                $successes[]='Chassis Updated -'.$fields['chassis'];
             } elseif ($year < 1970) {
                 if ($len != 4) { // Chassis number for years < 1970 are 4 digits
                     $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
                 }
-            } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
-                $errors[] = "Enter Chassis Number. 70xxyy0001z";
+            // } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
+            //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
             } else {
-                $successes[]='Chassis Updated';
+                $successes[]='Chassis Updated -'.$fields['chassis'];
             }
     
             // Update 'color'
+            $color = ($_POST['color']);
             $fields['color'] = Input::sanitize($color);
-            $successes[]='Color Updated';
+            $successes[]='Color Updated -'.$fields['color'];
     
             // Update 'engine'
             $engine = ($_POST['engine']);
             $engine = Input::sanitize($engine);
             $fields['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
-            $successes[]='Engine Updated';
+            $successes[]='Engine Updated -'.$fields['engine'];
     
             // Update 'purchasedate'
             $purchasedate = ($_POST['purchasedate']);
@@ -145,7 +146,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
             // Convert to SQL date format
             if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
                 $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
-                $successes[]='Purchased  Updated';
+                $successes[]='Purchased Updated -'.$fields['purchasedate'];
             } else {
                 $errors[] = "Purchase Date conversion error";
             }
@@ -155,7 +156,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
             $solddate = Input::sanitize($solddate);
             if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
                 $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
-                $successes[]='Sold Date Updated';
+                $successes[]='Sold Date Updated -'.$fields['solddate'] ;
             } else {
                 $errors[] = "Sold Date conversion error";
             }
@@ -167,10 +168,6 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
             $successes[]='Comment Updated';
             //
             // Update 'image'
-
-
-            // Update 'image'
-            $successes[]='Start Image Upload';
 
             if (isset($_FILES['uploadedFile']) && $_FILES['uploadedFile']['error'] === UPLOAD_ERR_OK) {
                 $successes[]='in Image Upload';
@@ -198,7 +195,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
 
 
                     if (move_uploaded_file($fileTmpPath, $dest_path)) {
-                        $successes[] ='File is successfully uploaded.' . $newFileName;
+                        $successes[] ='Image is successfully uploaded.' . $newFileName;
 
                         // Resize the image
 
@@ -237,13 +234,8 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                 } else {
                     $errors[] = 'Upload failed. Allowed file types: ' . implode(',', $allowedfileExtensions);
                 }
-            } else {
-                $errors[] = 'There is some error in the file upload. Please check the following error.<br>';
-                $errors[] = 'Error:' . $_FILES['uploadedFile']['error'];
-            }
-        
-            $successes[]='End Image Upload';
-    
+            } 
+            
             // If there are no errors then INSERT the $fields into the DB,
             if (empty($errors)) {
                 // Add a create time
@@ -261,7 +253,8 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                         // Grab the id of the last insert
                         $successes[]='Update Car ID: '.$fields['id'];
                         // then log it
-                        logger($user->data()->id, "User", "Updated car ". $fields['id']);
+                        logger($user->data()->id, "User", "Updated car ID ". $fields['id']);
+
                         // then redirect to User Account Page
                         Redirect::to($us_url_root.'users/account.php');
                     }
@@ -301,7 +294,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                 // This should never happen unless the user is trying to do something bad.  Log it and then log them out
                 logger($user->data()->id, "User", "Not owner of car! USER ". $user_id. " CAR ". $car_id);
                 $user->logout();
-                //  Redirect::to($us_url_root.'index.php');
+                 Redirect::to($us_url_root.'index.php');
 
                 exit();
             }
@@ -310,9 +303,6 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
 
             Redirect::to($us_url_root.'users/account.php');
         } // empty $car_id
-    } else {
-        logger($user->data()->id, "User", "Empty  GET");
-        Redirect::to($us_url_root.'users/account.php');
     }// $_GET
         
     // mod to allow edited values to be shown in form after update

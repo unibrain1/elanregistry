@@ -124,8 +124,8 @@ if (!empty($_POST)) {
             if ($len != 4) { // Chassis number for years < 1970 are 4 digits
                 $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
             }
-        } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
-            $errors[] = "Enter Chassis Number. 70xxyy0001z";
+        // } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
+        //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
         } else {
             $successes[]='Chassis Updated';
         }
