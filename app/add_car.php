@@ -144,23 +144,34 @@ if (!empty($_POST)) {
 
         // Update 'purchasedate'
         $purchasedate = ($_POST['purchasedate']);
-        $purchasedate = Input::sanitize($purchasedate);
-        // Convert to SQL date format
-        if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
-            $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
-            $successes[]='Purchased  Updated';
+
+        if(!empty($purchasedate))
+        {
+           $purchasedate = Input::sanitize($purchasedate);
+            // Convert to SQL date format
+            if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
+                $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
+                $successes[]='Purchased  Updated';
+            } else {
+                $errors[] = "Purchase Date conversion error";
+            } 
         } else {
-            $errors[] = "Purchase Date conversion error";
+            $fields['purchasedate'] = '0000-00-00';
         }
 
         // Update 'solddate'
-        $solddate = ($_POST['solddate']);
-        $solddate = Input::sanitize($solddate);
-        if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
-            $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
-            $successes[]='Sold Date Updated';
+        if(!empty($solddate))
+        {
+            $solddate = ($_POST['solddate']);
+            $solddate = Input::sanitize($solddate);
+            if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
+                $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
+                $successes[]='Sold Date Updated';
+            } else {
+                $errors[] = "Sold Date conversion error";
+            }
         } else {
-            $errors[] = "Sold Date conversion error";
+            $fields['solddate'] = '0000-00-00';
         }
 
         // Update 'comments'
