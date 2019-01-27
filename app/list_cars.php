@@ -33,7 +33,7 @@ $carData = $carQ->results();
           <table id="cartable" width="100%" class='display cell-border table table-hover table-list-search compact order-column'>
             <thead>
               <tr>
-                <th></th><th>Year</th> <th>Type</th><th>Chassis</th><th>Series</th> <th>Variant</th> <th>Color</th> <th>Image</th> <th>First Name</th> <th>Last Name</th> <th>City</th> <th>State</th> <th>Country</th> <th>Date Added</th>
+                <th></th><th>Year</th> <th>Type</th><th>Chassis</th><th>Series</th> <th>Variant</th> <th>Color</th> <th>Image</th> <th>First Name</th>  <th>City</th> <th>State</th> <th>Country</th> <th>Date Added</th>
               </tr>
             </thead>
             <tbody>
@@ -56,7 +56,6 @@ $carData = $carQ->results();
                         echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
                     } ?>  </td>
                   <td><?=$v1->fname?></td>
-                  <td><?=$v1->lname?></td>
                   <td><?=$v1->city?></td>
                   <td><?=$v1->state?></td>
                   <td><?=$v1->country?></td>
