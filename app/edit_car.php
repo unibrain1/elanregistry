@@ -480,7 +480,11 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
         </div> 
          <!-- Add some space -->
          </br>
-        <img src=<?=$us_url_root?>app/userimages/<?=$cardetails['image']?> width='390'>
+        <?php
+            if ($cardetails['image']) { ?>
+                 <img src=<?=$us_url_root?>app/userimages/<?=$cardetails['image']?> width='390'> <?php
+            }
+        ?>
 
         <!-- Add some space -->
          </br></br>
