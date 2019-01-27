@@ -74,48 +74,29 @@ $carData = $carQ->results();
 
         <!-- Place any per-page javascript here -->
 
- <!--        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.18/b-1.5.4/b-colvis-1.5.4/cr-1.5.0/fc-3.2.5/fh-3.1.4/r-2.2.2/sl-1.2.6/datatables.min.css"/>
+        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.18/b-1.5.4/b-colvis-1.5.4/cr-1.5.0/fc-3.2.5/fh-3.1.4/r-2.2.2/sl-1.2.6/datatables.min.css"/>
  
-        <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.18/b-1.5.4/b-colvis-1.5.4/cr-1.5.0/fc-3.2.5/fh-3.1.4/r-2.2.2/sl-1.2.6/datatables.min.js"></script> -->
+        <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.18/b-1.5.4/b-colvis-1.5.4/cr-1.5.0/fc-3.2.5/fh-3.1.4/r-2.2.2/sl-1.2.6/datatables.min.js"></script>
 
 
-        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/>
+        <!-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/> -->
         <link rel="stylesheet" type="text/css" href="/Registry/usersc/css/responsive.dataTables.css"/> 
         <!-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.2.6/css/select.dataTables.min.css"/> -->
       
-        <script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
-        <script type="text/javascript" src="https://cdn.datatables.net/fixedheader/3.1.4/js/dataTables.fixedHeader.min.js"></script>
-        <script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.2/js/dataTables.responsive.min.js"></script>
+        <!-- <script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script> -->
+        <!-- <script type="text/javascript" src="https://cdn.datatables.net/fixedheader/3.1.4/js/dataTables.fixedHeader.min.js"></script> -->
+        <!-- <script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.2/js/dataTables.responsive.min.js"></script> -->
 
         <script>
         $(document).ready(function()  {
-
-                // // Setup - add a text input to each footer cell
-                // $('#cartable thead tr').clone(true).appendTo( '#cartable thead' );
-                // $('#cartable thead tr:eq(1) th').each( function (i) {
-                //     var title = $(this).text();
-                //     $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
-             
-                //     $( 'input', this ).on( 'keyup change', function () {
-                //         if ( table.column(i).search() !== this.value ) {
-                //             table
-                //                 .column(i)
-                //                 .search( this.value )
-                //                 .draw();
-                //         }
-                //     } );
-                // } );
 
              var table =  $('#cartable').DataTable(
                 {
                   "pageLength": 25,
                   "aLengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
                   "aaSorting": [],
-                  fixedHeader:  { headerOffset: 70 },
-                  // responsive: true,
-                   "columnDefs": [
-                      { "targets": [6,7], "searchable": false }  
-                      ]
+                  fixedHeader:  { headerOffset: 68 },
+                  responsive: true
                 });
           } );
 
