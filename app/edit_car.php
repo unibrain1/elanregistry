@@ -56,8 +56,6 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
     $carprompt['chassis']     = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
     $carprompt['color']       = 'Enter the current color of the car';
     $carprompt['engine']      = 'Enter Engine number - LPAxxxxx';
-    $carprompt['purchasedate']= 'MM/DD/YYYY';  // Safari doesn't respext date input type so give a message and will need to validate
-    $carprompt['solddate']    = 'MM/DD/YYYY';
     $carprompt['comments']    = 'Please give a brief history of your car and anything special';
     
     // A place to put some messages
@@ -141,24 +139,34 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
             $successes[]='Engine Updated -'.$fields['engine'];
     
             // Update 'purchasedate'
-            $purchasedate = ($_POST['purchasedate']);
-            $purchasedate = Input::sanitize($purchasedate);
-            // Convert to SQL date format
-            if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
-                $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
-                $successes[]='Purchased Updated -'.$fields['purchasedate'];
-            } else {
-                $errors[] = "Purchase Date conversion error";
+            if($_POST['purchasedate'] != '')
+            {
+                $purchasedate = ($_POST['purchasedate']);
+                $purchasedate = Input::sanitize($purchasedate);
+                // Convert to SQL date format
+                if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
+                    $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
+                    $successes[]='Purchased Updated -'.$fields['purchasedate'];
+                } else {
+                    $errors[] = "Purchase Date conversion error";
+                }
+            }else {
+                $fields['purchasedate'] = '0000-00-00';
             }
     
             // Update 'solddate'
-            $solddate = ($_POST['solddate']);
-            $solddate = Input::sanitize($solddate);
-            if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
-                $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
-                $successes[]='Sold Date Updated -'.$fields['solddate'] ;
+            if($_POST['solddate'] != '')
+            {
+                $solddate = ($_POST['solddate']);
+                $solddate = Input::sanitize($solddate);
+                if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
+                    $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
+                    $successes[]='Sold Date Updated -'.$fields['solddate'] ;
+                } else {
+                    $errors[] = "Sold Date conversion error";
+                }
             } else {
-                $errors[] = "Sold Date conversion error";
+                $fields['solddate'] = '0000-00-00';
             }
     
             // Update 'comments'
@@ -408,7 +416,16 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                         buttonText: "<i class='fa fa-calendar-check-o'></i>"
                     });
                     $( "#datepicker1" ).datepicker( "option", "dateFormat", "yy-mm-dd"  );
-                    $( "#datepicker1" ).datepicker( "setDate", "<?php echo $cardetails['purchasedate']; ?>");
+
+                        <?php
+                         if( $cardetails['purchasedate'] == '0000-00-00' )
+                         {
+                            ?>$( "#datepicker1" ).datepicker( "setDate", NULL);<?php
+                         } else {
+                             ?>$( "#datepicker1" ).datepicker( "setDate", "<?php echo $cardetails['purchasedate']; ?>");<?php
+                         }
+
+                        ?>
                   } );
                 </script>
 
@@ -425,7 +442,17 @@ require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
                         buttonText: "<i class='fa fa-calendar-check-o'></i>"
                     });
                     $( "#datepicker2" ).datepicker( "option", "dateFormat", "yy-mm-dd"  );
-                    $( "#datepicker2" ).datepicker( "setDate", "<?php echo $cardetails['solddate']; ?>");
+
+                     <?php
+                         if( $cardetails['solddate'] == '0000-00-00' )
+                         {
+                            ?>$( "#datepicker2" ).datepicker( "setDate", NULL);<?php
+                         } else {
+                            ?>$( "#datepicker2" ).datepicker( "setDate", "<?php echo $cardetails['solddate']; ?>");<?php
+                         }
+
+                    ?>
+
                   } );
                 </script>
 		       <p><input type="text" name='solddate' id="datepicker2" size="30"></p>
