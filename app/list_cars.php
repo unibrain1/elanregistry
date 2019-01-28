@@ -33,7 +33,35 @@ $carData = $carQ->results();
           <table id="cartable" width="100%" class='display cell-border table table-hover table-list-search compact order-column'>
             <thead>
               <tr>
-                <th></th><th>Year</th> <th>Type</th><th>Chassis</th><th>Series</th> <th>Variant</th> <th>Color</th> <th>Image</th> <th>First Name</th>  <th>City</th> <th>State</th> <th>Country</th> <th>Date Added</th>
+                <th></th>
+                <th>Year</th>
+                <th>Type</th>
+                <th>Chassis</th>
+                <th>Series</th>
+                <th>Variant</th>
+                <th>Color</th>
+                <th>Image</th>
+                <th>First Name</th>
+                <th>City</th>
+                <th>State</th>
+                <th>Country</th>
+                <th>Date Added</th>
+              </tr>
+              <tr id="filterrow">
+                <th>NOSEARCH</th>
+                <th>Year</th>
+                <th>Type</th>
+                <th>Chassis</th>
+                <th>Series</th>
+                <th>Variant</th>
+                <th>Color</th>
+                <th>NOSEARCH</th>
+                <th>First Name</th>
+                <th>City</th>
+                <th>State</th>
+                <th>Country</th>
+                <th>Date Added</th>
+
               </tr>
             </thead>
             <tbody>
@@ -43,7 +71,7 @@ $carData = $carQ->results();
                   ?>
                 <tr>
                   <td>
-                  <?php  echo '<a class="btn btn-success btn-sm" href=/app/car_details.php?car_id='.$v1->id.">Details</a>" ?>
+                  <?php  echo '<a class="btn btn-success btn-sm" href='.$us_url_root.'app/car_details.php?car_id='.$v1->id.">Details</a>" ?>
                   </td>
                   <td><?=$v1->year?></td>
                   <td><?=$v1->type?></td>
@@ -59,7 +87,7 @@ $carData = $carQ->results();
                   <td><?=$v1->city?></td>
                   <td><?=$v1->state?></td>
                   <td><?=$v1->country?></td>
-                  <td><?=$v1->ctime?></td>                 
+                  <td><?=date('Y-m-d', $v1->ctime);?></td>                 
                 </tr>
               <?php
               } ?>
@@ -78,28 +106,53 @@ $carData = $carQ->results();
  
         <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.18/b-1.5.4/b-colvis-1.5.4/cr-1.5.0/fc-3.2.5/fh-3.1.4/r-2.2.2/sl-1.2.6/datatables.min.js"></script>
 
-
-        <!-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/> -->
         <link rel="stylesheet" type="text/css" href="/Registry/usersc/css/responsive.dataTables.css"/> 
-        <!-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.2.6/css/select.dataTables.min.css"/> -->
-      
-        <!-- <script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script> -->
-        <!-- <script type="text/javascript" src="https://cdn.datatables.net/fixedheader/3.1.4/js/dataTables.fixedHeader.min.js"></script> -->
-        <!-- <script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.2/js/dataTables.responsive.min.js"></script> -->
 
         <script>
         $(document).ready(function()  {
+          // Filter each column - http://jsfiddle.net/9bc6upok/ 
 
-             var table =  $('#cartable').DataTable(
+          // Setup - add a text input to each footer cell
+            $('#cartable thead tr#filterrow th').each( function () {
+                var title = $('#cartable thead tr#filterrow th').eq( $(this).index() ).text();
+                // $(this).html( '<input type="text" size="6" onclick="stopPropagation(event);" placeholder="Search '+title+'" />' );
+                if( title != "NOSEARCH" )
                 {
-                  "pageLength": 25,
-                  "aLengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
-                  "aaSorting": [],
-                  fixedHeader:  { headerOffset: 68 },
-                  responsive: true
-                });
-          } );
+                  $(this).html( '<input type="text" size="5" onclick="stopPropagation(event);" placeholder="Search '+title+'" />' );
+                }else{
+                  $(this).html( '' );
+                }
+            } );
+         
+            // DataTable
+            var table =  $('#cartable').DataTable(
+            {
+              "pageLength": 25,
+              "aLengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
+              "aaSorting": [[ 1, "asc" ],[ 2, "asc" ], [3, "asc" ]],
+              fixedHeader:  { headerOffset: 68 },
+              "columnDefs": [ {
+                "targets": 0,
+                "orderable": false
+                } ]
+            });
+             
+            // Apply the filter
+            $("#cartable thead input").on( 'keyup change', function () {
+                table
+                    .column( $(this).parent().index()+':visible' )
+                    .search( this.value )
+                    .draw();
+            } );
 
+          function stopPropagation(evt) {
+            if (evt.stopPropagation !== undefined) {
+              evt.stopPropagation();
+            } else {
+              evt.cancelBubble = true;
+            }
+          }
+        } );
         </script>
 
 
