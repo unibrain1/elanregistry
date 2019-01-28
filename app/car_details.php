@@ -77,7 +77,7 @@ $user_id = $user->data()->id;
 				<?php
                 if ($carData[0]->image) {
                     ?>
-					<img src=<?=$us_url_root?>app/userimages/<?=$carData[0]->image?> width='390'>
+					<img class="img-responsive" src=<?=$us_url_root?>app/userimages/<?=$carData[0]->image?> >
 				<?php
                 } ?>
 

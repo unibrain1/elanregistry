@@ -71,8 +71,8 @@ if(isset($user) && $user->isLoggedIn()){
 <div class="col-md-6">
 	<div class="panel panel-default">
 		<div class="panel-heading"><strong>Picture</strong></div>
-		<div class="panel-body">
-			<img class="polaroid" src="app/random_picture.php" width="510" ><br>
+		<div class="panel-body" >
+			<img class="img-responsive" src="app/random_picture.php"><br>
 	<br />
 
 		</div>
