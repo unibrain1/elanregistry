@@ -46,10 +46,13 @@ $userId = $user->data()->id;
 $validation = new Validate();
 $userdetails=$user->data();
 // Get User Profile Information
+// This is a hack and should be fixed - Get the Profile ID
+$profileQ = $db->query("SELECT id FROM profiles WHERE user_id = ?", array($user_id));
+$profileId = $profileQ->results()[0]->id;
 // USER ID is in $user_id .  Use the USER ID to get the users Profile information
 $userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($user_id));
 if ($userQ->count() > 0) {
-    $profiledetails = $userQ->first();
+		$profiledetails = $userQ->first();
 } else {
     echo 'something is wrong with the user profile </br>';
 }
@@ -162,7 +165,7 @@ if (!empty($_POST)) {
                 )
             ));
             if ($validation->passed()) {
-                $db->update('profiles', $userId, $fields);
+                $db->update('profiles', $profileId, $fields);
                 $successes[]='City updated.';
                 logger($user->data()->id, "User", "Changed city from $profiledetails->city to $city.");
             } else {
@@ -188,7 +191,7 @@ if (!empty($_POST)) {
                 )
             ));
             if ($validation->passed()) {
-                $db->update('profiles', $userId, $fields);
+                $db->update('profiles', $profileId, $fields);
                 $successes[]='State updated.';
                 logger($user->data()->id, "User", "Changed state from $profiledetails->state to $state.");
             } else {
@@ -213,7 +216,7 @@ if (!empty($_POST)) {
                 )
             ));
             if ($validation->passed()) {
-                $db->update('profiles', $userId, $fields);
+                $db->update('profiles', $profileId, $fields);
                 $successes[]='Country updated.';
                 logger($user->data()->id, "User", "Changed country from $profiledetails->country to $country.");
             } else {
@@ -363,16 +366,9 @@ if ($userQ2->count() > 0) {
     <div class="container">
         <div class="well">
             <div class="row">
-<!--
-                <div class="col-xs-12 col-md-2">
-                    <p><img src="<?=$grav; ?>" class="img-thumbnail" alt="Generic placeholder thumbnail"></p>
-                </div>
--->
                 <div class="col-xs-12 col-md-10">
                     <h1>Update your user settings</h1> </br>
-<!--
-                    <strong>Want to change your profile picture? </strong><br> Visit <a href="https://en.gravatar.com/">https://en.gravatar.com/</a> and setup an account with the email address <?=$userdetails->email?>.  It works across millions of sites. It's fast and easy!<br>
--->
+
                     <?php if (!$errors=='') {
     ?><div class="alert alert-danger"><?=display_errors($errors); ?></div><?php
 } ?>
