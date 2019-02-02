@@ -87,7 +87,7 @@ $carData = $carQ->results();
                   <td><?=$v1->city?></td>
                   <td><?=$v1->state?></td>
                   <td><?=$v1->country?></td>
-                  <td><?=date('Y-m-d', $v1->ctime);?></td>                 
+                  <td><?=date('Y-m-d', strtotime($v1->ctime));?></td>                 
                 </tr>
               <?php
               } ?>
@@ -118,7 +118,7 @@ $carData = $carQ->results();
                 // $(this).html( '<input type="text" size="6" onclick="stopPropagation(event);" placeholder="Search '+title+'" />' );
                 if( title != "NOSEARCH" )
                 {
-                  $(this).html( '<input type="text" size="5" onclick="stopPropagation(event);" placeholder="Search '+title+'" />' );
+                  $(this).html( '<input type="text" size="5" onclick="stopPropagation(event);" placeholder="Search" />' );
                 }else{
                   $(this).html( '' );
                 }
