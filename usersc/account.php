@@ -103,6 +103,15 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 				<tr ><td class="pme-cell-0"><strong>Member Since:</strong><td><td class="pme-cell-0"><?=$signupdate?></td></tr>
 				<tr ><td class="pme-cell-0"><strong>Last Login  :</strong><td><td class="pme-cell-0"><?=$lastlogin?></td></tr>
 				<tr ><td class="pme-cell-1"><strong>Number of Logins:</strong><td><td class="pme-cell-1"> <?=$thatUser[0]->logins?></td></tr>
+				<tr ><td class="pme-cell-0"><strong>Website:</strong><td>
+				<?php
+					if(!empty($thatUser[0]->website)){
+                ?>
+                    	<td class="pme-cell-0"> <?=$thatUser[0]->website?> </td></td><tr>
+                <?php } else {
+                      echo "<td></td></tr>";
+                 }
+                 ?>
 				</table>
 			
 			</div>

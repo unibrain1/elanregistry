@@ -208,7 +208,7 @@ if (!empty($_POST)) {
             $country = ucfirst(Input::get("country"));
             $fields=array('country'=>$country);
             $validation->check($_POST, array(
-                'state' => array(
+                'country' => array(
                     'display' => 'Country',
                     'required' => true,
                     'min' => 1,
@@ -226,9 +226,30 @@ if (!empty($_POST)) {
                 }
             }
         } else {
-            $state=$profiledetails->state;
+            $state=$profiledetails->country;
         }
 
+        //Update Website
+        if ($profiledetails->website != $_POST['website']) {
+            $website = Input::get("website");
+            $fields=array('website'=>$website);
+            
+            // Remove all illegal characters from a url
+            $fields['website'] = filter_var($fields['website'], FILTER_SANITIZE_URL);
+
+            // Validate url
+            if (filter_var($fields['website'], FILTER_VALIDATE_URL)) {
+                $db->update('profiles', $profileId, $fields);
+                $successes[]='website updated.';
+                logger($user->data()->id, "User", "Changed website from $profiledetails->website to $website.");
+            } else {
+                echo("$url is not a valid URL");
+                //validation did not pass                    
+                $errors[] = "$url is not a valid URL";
+            }
+        } else {
+            $state=$profiledetails->website;
+        }
 
         // END Extend user_setttings.php with some PROFILE information
 
@@ -420,6 +441,10 @@ if ($userQ2->count() > 0) {
                         <div class="form-group">
                             <label>Country</label>
                             <input  class='form-control' type='text' name='country' value='<?=$profiledetails->country?>' /> 
+                        </div>
+                         <div class="form-group">
+                            <label>Website</label>
+                            <input  class='form-control' type='text' name='website' value='<?=$profiledetails->website?>' /> 
                         </div>
 <!-- END Extend user_setttings.php with some PROFILE information -->
 
