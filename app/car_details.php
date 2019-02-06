@@ -48,6 +48,7 @@ $user_id = $user->data()->id;
 
 				<tr ><td ><strong>Series:</strong><td><td ><?=$carData[0]->series?></td></tr>
 				<tr ><td ><strong>Variant:</strong><td><td ><?=$carData[0]->variant?></td></tr>
+				<tr ><td ><strong>Model:</strong><td><td ><?=$carData[0]->model?></td></tr>
 				<tr ><td ><strong>Year:</strong><td><td ><?=$carData[0]->year?></td></tr>
 				<tr ><td ><strong>Type:</strong><td><td ><?=$carData[0]->type?></td></tr>
 				<tr ><td ><strong>Chassis :</strong><td><td ><?=$carData[0]->chassis?></td></tr>
