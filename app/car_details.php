@@ -57,7 +57,6 @@ $user_id = $user->data()->id;
 				<tr ><td ><strong>Purchase Date:</strong><td><td ><?=$carData[0]->purchasedate?></td></tr>
 				<tr ><td ><strong>Sold Date :</strong><td><td ><?=$carData[0]->solddate?></td></tr>
 				<tr ><td ><strong>Comments:</strong><td><td ><?=$carData[0]->comments?></td></tr>
-				
 				<tr ><td ><strong>First name:</strong><td><td ><?=ucfirst($carData[0]->fname)?></td></tr>
 				<tr ><td ><strong>City</strong><td><td ><?=html_entity_decode($carData[0]->city);?></td></tr>
 				<tr ><td ><strong>State:</strong><td><td ><?=html_entity_decode($carData[0]->state);?></td></tr>
@@ -65,7 +64,12 @@ $user_id = $user->data()->id;
 				<tr ><td ><strong>Member Since:</strong><td><td ><?=$signupdate?></td></tr>
 				<tr ><td ><strong>Record Created:</strong><td><td ><?=$carData[0]->ctime?></td></tr>
 				<tr ><td ><strong>Record Modified:</strong><td><td ><?=$carData[0]->mtime?></td></tr>
-		
+				<?php
+					if(!empty($carData[0]->website)){
+				?>
+						<tr ><td ><strong>Website:</strong><td><td> <a target="_blank" href="<?=$carData[0]->website?>">Website</a></td></tr>
+				<?php }
+				?>
 				</table>
 
 			</div>
