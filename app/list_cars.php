@@ -80,8 +80,8 @@ $carData = $carQ->results();
                   <td><?=$v1->variant?></td>
                   <td><?=$v1->color?></td>
                   <td> <?php
-                    if ($v1->image) {
-                        echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
+                  if ($v1->image AND file_exists($abs_us_root.$us_url_root."app/userimages/".$v1->image)) {
+                        echo '<img  src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
                     } ?>  </td>
                   <td><?=$v1->fname?></td>
                   <td><?=$v1->city?></td>

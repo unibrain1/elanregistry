@@ -76,7 +76,7 @@ $user_id = $user->data()->id;
 		<div class="panel panel-default">
 			<div class="panel-body">
 				<?php
-                if ($carData[0]->image) {
+                if ($carData[0]->image AND file_exists($abs_us_root.$us_url_root."app/userimages/".$carData[0]->image)) {
                     ?>
 					<img class="img-responsive" src=<?=$us_url_root?>app/userimages/<?=$carData[0]->image?> >
 				<?php
