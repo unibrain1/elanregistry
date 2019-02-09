@@ -46,28 +46,28 @@ $user_id = $user->data()->id;
 			<div class="panel-body">
 				<table id="cartable" width="100%" class='display'>	
 
-				<tr ><td ><strong>Series:</strong><td><td ><?=$carData[0]->series?></td></tr>
-				<tr ><td ><strong>Variant:</strong><td><td ><?=$carData[0]->variant?></td></tr>
-				<tr ><td ><strong>Model:</strong><td><td ><?=$carData[0]->model?></td></tr>
-				<tr ><td ><strong>Year:</strong><td><td ><?=$carData[0]->year?></td></tr>
-				<tr ><td ><strong>Type:</strong><td><td ><?=$carData[0]->type?></td></tr>
-				<tr ><td ><strong>Chassis :</strong><td><td ><?=$carData[0]->chassis?></td></tr>
-				<tr ><td ><strong>Color:</strong><td><td ><?=$carData[0]->color?></td></tr>
-				<tr ><td ><strong>Engine :</strong><td><td ><?=$carData[0]->engine?></td></tr>
-				<tr ><td ><strong>Purchase Date:</strong><td><td ><?=$carData[0]->purchasedate?></td></tr>
-				<tr ><td ><strong>Sold Date :</strong><td><td ><?=$carData[0]->solddate?></td></tr>
-				<tr ><td ><strong>Comments:</strong><td><td ><?=$carData[0]->comments?></td></tr>
-				<tr ><td ><strong>First name:</strong><td><td ><?=ucfirst($carData[0]->fname)?></td></tr>
-				<tr ><td ><strong>City</strong><td><td ><?=html_entity_decode($carData[0]->city);?></td></tr>
-				<tr ><td ><strong>State:</strong><td><td ><?=html_entity_decode($carData[0]->state);?></td></tr>
-				<tr ><td ><strong>Country:</strong><td><td ><?=html_entity_decode($carData[0]->country);?></td></tr>
-				<tr ><td ><strong>Member Since:</strong><td><td ><?=$signupdate?></td></tr>
-				<tr ><td ><strong>Record Created:</strong><td><td ><?=$carData[0]->ctime?></td></tr>
-				<tr ><td ><strong>Record Modified:</strong><td><td ><?=$carData[0]->mtime?></td></tr>
+				<tr ><td ><strong>Series:</strong></td><td ><?=$carData[0]->series?></td></tr>
+				<tr ><td ><strong>Variant:</strong></td><td ><?=$carData[0]->variant?></td></tr>
+				<tr ><td ><strong>Model:</strong></td><td ><?=$carData[0]->model?></td></tr>
+				<tr ><td ><strong>Year:</strong></td><td ><?=$carData[0]->year?></td></tr>
+				<tr ><td ><strong>Type:</strong></td><td ><?=$carData[0]->type?></td></tr>
+				<tr ><td ><strong>Chassis :</strong></td><td ><?=$carData[0]->chassis?></td></tr>
+				<tr ><td ><strong>Color:</strong></td><td ><?=$carData[0]->color?></td></tr>
+				<tr ><td ><strong>Engine :</strong></td><td ><?=$carData[0]->engine?></td></tr>
+				<tr ><td ><strong>Purchase Date:</strong></td><td ><?=$carData[0]->purchasedate?></td></tr>
+				<tr ><td ><strong>Sold Date :</strong></td><td ><?=$carData[0]->solddate?></td></tr>
+				<tr ><td ><strong>Comments:</strong></td><td ><?=$carData[0]->comments?></td></tr>
+				<tr ><td ><strong>First name:</strong></td><td ><?=ucfirst($carData[0]->fname)?></td></tr>
+				<tr ><td ><strong>City</strong></td><td ><?=html_entity_decode($carData[0]->city);?></td></tr>
+				<tr ><td ><strong>State:</strong></td><td ><?=html_entity_decode($carData[0]->state);?></td></tr>
+				<tr ><td ><strong>Country:</strong></td><td ><?=html_entity_decode($carData[0]->country);?></td></tr>
+				<tr ><td ><strong>Member Since:</strong></td><td ><?=$signupdate?></td></tr>
+				<tr ><td ><strong>Record Created:</strong></td><td ><?=$carData[0]->ctime?></td></tr>
+				<tr ><td ><strong>Record Modified:</strong><t/d><td ><?=$carData[0]->mtime?></td></tr>
 				<?php
 					if(!empty($carData[0]->website)){
 				?>
-						<tr ><td ><strong>Website:</strong><td><td> <a target="_blank" href="<?=$carData[0]->website?>">Website</a></td></tr>
+						<tr ><td ><strong>Website:</strong></td><td> <a target="_blank" href="<?=$carData[0]->website?>">Website</a></td></tr>
 				<?php }
 				?>
 				</table>
