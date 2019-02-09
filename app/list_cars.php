@@ -97,7 +97,13 @@ $carData = $carQ->results();
                       echo "<td></td>";
                     }
                   ?>
-                  <td><?=date('Y-m-d', strtotime($v1->ctime));?></td>                 
+                  <td>
+                  <?php
+                    if(strtotime($v1->ctime) > strtotime('-30 days')) {
+                        echo '<img style="-webkit-user-select:none; display:block; margin:auto;" src="'.$us_url_root.'app/images/new.png">';
+                  }
+                  ?>
+                  <?=date('Y-m-d', strtotime($v1->ctime));?></td>                 
                 </tr>
               <?php
               } ?>
@@ -139,7 +145,7 @@ $carData = $carQ->results();
             {
               "pageLength": 25,
               "aLengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
-              "aaSorting": [[ 1, "asc" ],[ 2, "asc" ], [3, "asc" ]],
+              "aaSorting": [[ 1, "asc" ],[ 2, "asc" ],[ 3, "asc" ]],
               fixedHeader:  { headerOffset: 68 },
               "columnDefs": [ {
                 "targets": 0,
