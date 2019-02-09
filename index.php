@@ -13,6 +13,19 @@ if(isset($user) && $user->isLoggedIn()){
 }
 ?>
 
+<?php
+
+// Grab a random car 
+
+
+
+$carQ = $db->query("SELECT * FROM users_carsview WHERE image <> '' ORDER BY RAND() LIMIT 1");
+if ($carQ->count() > 0) {
+    $thatCar = $carQ->results();
+ }
+
+?>
+
 <div id="page-wrapper">
 <div class="container">
 <div class="row">
@@ -70,9 +83,24 @@ if(isset($user) && $user->isLoggedIn()){
 </div><!-- /.col -->
 <div class="col-md-6">
 	<div class="panel panel-default">
-		<div class="panel-heading"><strong>Picture</strong></div>
+		<div class="panel-heading"><strong>One of the cars</strong></div>
 		<div class="panel-body" >
-			<img class="img-responsive" src="app/random_picture.php"><br>
+			<table id="cartable" width="100%" class='display'>	
+				<?php
+                if ($thatCar[0]->image) {
+                    ?>
+					<tr><td colspan="2">
+						<img class="img-responsive" src=<?=$us_url_root?>app/userimages/<?=$thatCar[0]->image?> >
+					</td></tr>
+				<?php
+                } ?>
+				<tr ><td ><strong>Year :</strong></td><td ><?=$thatCar[0]->year?></td></tr>
+				<tr ><td ><strong>Series :</strong></td><td ><?=$thatCar[0]->series?></td></tr>
+				<tr ><td ><strong>Variant:</strong></td><td ><?=$thatCar[0]->variant?></td></tr>
+				<tr ><td ><strong>Type:</strong></td><td ><?=$thatCar[0]->type?></td></tr>	
+				<tr><td><a colspan="2" class="btn btn-success btn-sm" href=<?=$us_url_root?>app/car_details.php?car_id=<?=$thatCar[0]->id?>">Details</a></td><td></td></tr>		
+			</table>
+			</div>
 	<br />
 
 		</div>
@@ -95,6 +123,16 @@ if(isset($user) && $user->isLoggedIn()){
 <?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls ?>
 
 <!-- Place any per-page javascript here -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/>
+<script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function()  {
+ var table =  $('#cartable').DataTable();
+} );
+</script>
+<!-- End  any per-page javascript here -->
+
 
 
 <?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html ?>
