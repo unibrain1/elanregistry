@@ -124,7 +124,7 @@ $carData = $carQ->results();
  
         <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.18/b-1.5.4/b-colvis-1.5.4/cr-1.5.0/fc-3.2.5/fh-3.1.4/r-2.2.2/sl-1.2.6/datatables.min.js"></script>
 
-        <link rel="stylesheet" type="text/css" href="/Registry/usersc/css/responsive.dataTables.css"/> 
+        <!-- <link rel="stylesheet" type="text/css" href="/Registry/usersc/css/responsive.dataTables.css"/>  -->
 
         <script>
         $(document).ready(function()  {
