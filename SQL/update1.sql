@@ -7,7 +7,7 @@ CREATE OR REPLACE  VIEW users_carsview  AS   (select
 	FROM cars c
         INNER JOIN car_user cu
             ON c.id = cu.carid
-        INNER JOIN usersView u
+        INNER JOIN usersview u
             ON cu.userid = u.id
 )
     
