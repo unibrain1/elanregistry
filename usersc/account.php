@@ -85,27 +85,17 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 
 				<table id="datatable" width="100%" class='display'>	
 
-					<tr ><td >
-							<a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Account Info</a>
-							<td>
-
-						</tr>
-
-
+				<tr ><td >
+						<a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Account Info</a>
+					<td>
+				</tr>
 				<tr ><td ><strong>Username    :</strong></td><td ><?=echousername($thatUser[0]->id)?></td></tr>
 				<tr ><td ><strong>First name  :</strong></td><td ><?=ucfirst($thatUser[0]->fname)?></td></tr>
 				<tr ><td ><strong>Last name   :</strong></td><td ><?=ucfirst($thatUser[0]->lname)?></td></tr>
 				<tr ><td ><strong>Email       :</strong></td><td ><?=$thatUser[0]->email?></td></tr>
 				<tr ><td ><strong>City        :</strong></td><td ><?=html_entity_decode($thatUser[0]->city);?></td></tr>
 				<tr ><td ><strong>State       :</strong></td><td ><?=html_entity_decode($thatUser[0]->state);?></td></tr>
-
-
-
-
 				<tr ><td ><strong>Country     :</strong></td><td ><?=html_entity_decode($thatUser[0]->country);?></td></tr>
-
-
-
 				<tr ><td ><strong>Member Since:</strong></td><td ><?=$signupdate?></td></tr>
 				<tr ><td ><strong>Last Login  :</strong></td><td ><?=$lastlogin?></td></tr>
 				<tr ><td ><strong>Number of Logins:</strong></td><td > <?=$thatUser[0]->logins?></td></tr>
