@@ -98,12 +98,14 @@ $carData = $carQ->results();
                     }
                   ?>
                   <td>
+                  <?=date('Y-m-d', strtotime($v1->ctime));?>                
+
                   <?php
                     if(strtotime($v1->ctime) > strtotime('-30 days')) {
                         echo '<img style="-webkit-user-select:none; display:block; margin:auto;" src="'.$us_url_root.'app/images/new.png">';
                   }
                   ?>
-                  <?=date('Y-m-d', strtotime($v1->ctime));?></td>                 
+                  </td> 
                 </tr>
               <?php
               } ?>
