@@ -57,6 +57,13 @@ if ($userQ->count() > 0) {
     echo 'something is wrong with the user profile </br>';
 }
 
+// Get the country list
+$countryQ = $db->query("SELECT name FROM country");
+ if ($countryQ->count() > 0) {
+    $countrylist = $countryQ->results();
+}
+
+
 //Temporary Success Message
 $holdover = Input::get('success');
 if ($holdover == 'true') {
@@ -389,7 +396,6 @@ if ($userQ2->count() > 0) {
             <div class="row">
                 <div class="col-xs-12 col-md-10">
                     <h1>Update your user settings</h1> </br>
-
                     <?php if (!$errors=='') {
     ?><div class="alert alert-danger"><?=display_errors($errors); ?></div><?php
 } ?>
@@ -438,10 +444,20 @@ if ($userQ2->count() > 0) {
                             <label>State</label>
                             <input  class='form-control' type='text' name='state' value='<?=$profiledetails->state?>' /> 
                         </div>
+
+
                         <div class="form-group">
-                            <label>Country</label>
-                            <input  class='form-control' type='text' name='country' value='<?=$profiledetails->country?>' /> 
+                            <label>Country <?=$profiledetails->country?></label>
+                            <?php
+                            echo "<select name='country'>";
+                            echo '<option selected>'.$profiledetails->country.'</option>';
+                            foreach ($countrylist as $c) {
+                                echo "<option value=\"$c->name\">$c->name</option>";
+                            }
+                            echo "</select>";// Closing of list box 
+                            ?>
                         </div>
+
                          <div class="form-group">
                             <label>Website</label>
                             <input  class='form-control' type='text' name='website' value='<?=$profiledetails->website?>' /> 
@@ -451,22 +467,22 @@ if ($userQ2->count() > 0) {
                         <div class="form-group">
                             <label>Email</label>
                             <input class='form-control' type='text' name='email' value='<?=$userdetails->email?>' />
-														<?php if (!IS_NULL($userdetails->email_new)) {
-        ?><br /><div class="alert alert-danger">
-															<p><strong>Please note</strong> there is a pending request to update your email to <?=$userdetails->email_new?>.</p>
-															<p>Please use the verification email to complete this request.</p>
-															<p>If you need a new verification email, please re-enter the email above and submit the request again.</p>
-														</div><?php
+							<?php if (!IS_NULL($userdetails->email_new)) {
+                            ?><br /><div class="alert alert-danger">
+								<p><strong>Please note</strong> there is a pending request to update your email to <?=$userdetails->email_new?>.</p>
+								<p>Please use the verification email to complete this request.</p>
+								<p>If you need a new verification email, please re-enter the email above and submit the request again.</p>
+							</div><?php
     } ?>
                         </div>
 
-												<div class="form-group">
+						<div class="form-group">
                             <label>Confirm Email</label>
                             <input class='form-control' type='text' name='confemail' />
                         </div>
 
-												<div class="form-group">
-												<label>New Password</label>
+						<div class="form-group">
+						<label>New Password</label>
 	                      <div class="input-group" data-container="body">
 	                        <span class="input-group-addon password_view_control" id="addon1"><span class="glyphicon glyphicon-eye-open"></span></span>
 	                        <input  class="form-control" type="password" autocomplete="off" name="password" id="password" aria-describedby="passwordhelp">

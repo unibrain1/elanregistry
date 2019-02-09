@@ -41,6 +41,12 @@ if (!userIdExists($userId)) {
     die();
 }
 
+// Get the country list
+$countryQ = $db->query("SELECT name FROM country");
+ if ($countryQ->count() > 0) {
+    $countrylist = $countryQ->results();
+}
+
 $userdetails = fetchUserDetails(null, null, $userId); //Fetch user details
 // Get User Profile Information
 // USER ID is in $userId .  Use the USER ID to get the users Profile information
@@ -181,7 +187,7 @@ if (!empty($_POST)) {
                 )
             ));
                 if ($validation->passed()) {
-                    $db->update('profiles', $userId, $fields);
+                    $db->update('profiles', ["user_id","=",$userId], $fields);
                     $successes[]='City updated.';
                     logger($user->data()->id, "User", "Changed city from $profiledetails->city to $city.");
                 } else {
@@ -207,7 +213,7 @@ if (!empty($_POST)) {
                 )
             ));
                 if ($validation->passed()) {
-                    $db->update('profiles', $userId, $fields);
+                    $db->update('profiles', ["user_id","=",$userId], $fields);
                     $successes[]='State updated.';
                     logger($user->data()->id, "User", "Changed state from $profiledetails->state to $state.");
                 } else {
@@ -232,7 +238,7 @@ if (!empty($_POST)) {
                 )
             ));
                 if ($validation->passed()) {
-                    $db->update('profiles', $userId, $fields);
+                    $db->update('profiles', ["user_id","=",$userId], $fields);
                     $successes[]='Country updated.';
                     logger($user->data()->id, "User", "Changed country from $profiledetails->country to $country.");
                 } else {
@@ -242,7 +248,7 @@ if (!empty($_POST)) {
                     }
                 }
             } else {
-                $state=$profiledetails->state;
+                $state=$profiledetails->country;
             }
 
 
@@ -482,6 +488,12 @@ if (!empty($_POST)) {
             }
         }
         $userdetails = fetchUserDetails(null, null, $userId);
+        $userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($userId));
+            if ($userQ->count() > 0) {
+                $profiledetails = $userQ->first();
+            } else {
+                echo 'something is wrong with the user profile </br>';
+            }
     }
 }
 
@@ -563,7 +575,14 @@ if ((!in_array($user->data()->id, $master_account) && in_array($userId, $master_
 		<input  class='form-control' type='text' name='state' value='<?=$profiledetails->state?>' /> 
 
 		<label>Country</label>
-		<input  class='form-control' type='text' name='country' value='<?=$profiledetails->country?>' /> 
+            <?php
+            echo "<select name='country'>";
+            echo "<option value='country' selected>$profiledetails->country</option>";
+            foreach ($countrylist as $c) {
+                echo "<option value=\"$c->name\">$c->name</option>";
+            }
+            echo "</select>";// Closing of list box 
+            ?>
 <!-- END Extend user_setttings.php with some PROFILE information -->
 
         </div>

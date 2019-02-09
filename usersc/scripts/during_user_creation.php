@@ -16,9 +16,9 @@
 // The format of the array is ['column_name'=>Data_for_column]
 
 // $db->update('users',$theNewId,['account_id'=>Input::get('account_id')]);
-$db->update('profiles', $theNewId, ['city'=>Input::get('city')]);
-$db->update('profiles', $theNewId, ['state'=>Input::get('state')]);
-$db->update('profiles', $theNewId, ['country'=>Input::get('country')]);
+$db->update('profiles', ["user_id","=",$theNewId], ['city'=>Input::get('city')]);
+$db->update('profiles', ["user_id","=",$theNewId], ['state'=>Input::get('state')]);
+$db->update('profiles', ["user_id","=",$theNewId], ['country'=>Input::get('country')]);
 
 // You'll notice that the account id is now in the database!
 
