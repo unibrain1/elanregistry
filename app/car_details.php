@@ -23,8 +23,8 @@ $user_id = $user->data()->id;
      $carQ = $db->findById($car_id, "users_carsview");
      $carData = $carQ->results();
 
-     // $carQ = $db->query('SELECT * FROM cars_hist	 WHERE id=?', [$car_id] );
-     // $carHist = $carQ->results();
+     $carQ = $db->query('SELECT * FROM cars_hist	 WHERE id=?', [$car_id] );
+     $carHist = $carQ->results();
 
      $raw = date_parse($carData[0]->join_date);
      $signupdate = $raw['year']."-".$raw['month']."-".$raw['day'];
@@ -91,6 +91,51 @@ $user_id = $user->data()->id;
 	</div> <!-- col-xs-12 col-md-6 -->
 </div> <!-- row -->
 
+	<div class="panel panel-default">
+	<div class="panel-heading"><strong>Record Update History</strong></div>
+			<div class="panel-body">
+				<table id="historytable" width="100%" class='display'>
+            <thead>
+              <tr>
+                <th>Operation</th>
+                <th>Year</th>
+                <th>Type</th>
+                <th>Chassis</th>
+                <th>Series</th>
+                <th>Variant</th>
+                <th>Color</th>
+                <th>Image</th>
+                <th>Date Modified</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php
+              //Cycle through users
+              foreach ($carHist as $v1) {
+                  ?>
+                <tr>
+                  <td><?=$v1->operation?></td>
+                  <td><?=$v1->year?></td>
+                  <td><?=$v1->type?></td>
+                  <td><?=$v1->chassis?></td>
+                  <td><?=$v1->series?></td>
+                  <td><?=$v1->variant?></td>
+                  <td><?=$v1->color?></td>
+                  <td> <?php
+                  if ($v1->image AND file_exists($abs_us_root.$us_url_root."app/userimages/".$v1->image)) {
+                        echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
+                    } ?>  </td>
+                  
+                  <td><?=$v1->timestamp?></td> 
+                </tr>
+              <?php
+              } ?>
+            </tbody>
+          </table>
+				
+			</div> <!-- panel-body -->
+		</div> <!-- panel -->
+
 </div> <!-- well -->
 
 </div> <!-- /container -->
@@ -107,6 +152,11 @@ $user_id = $user->data()->id;
 <script type="text/javascript">
 $(document).ready(function()  {
  var table =  $('#cartable').DataTable();
+} );
+</script>
+<script type="text/javascript">
+$(document).ready(function()  {
+ var table =  $('#historytable').DataTable();
 } );
 </script>
 
