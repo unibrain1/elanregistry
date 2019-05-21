@@ -23,7 +23,7 @@ $user_id = $user->data()->id;
      $carQ = $db->findById($car_id, "users_carsview");
      $carData = $carQ->results();
 
-     $carQ = $db->query('SELECT * FROM cars_hist	 WHERE id=?', [$car_id] );
+     $carQ = $db->query('SELECT * FROM cars_hist WHERE id=? ORDER BY cars_hist.timestamp DESC', [$car_id] );
      $carHist = $carQ->results();
 
      $raw = date_parse($carData[0]->join_date);
@@ -156,7 +156,12 @@ $(document).ready(function()  {
 </script>
 <script type="text/javascript">
 $(document).ready(function()  {
- var table =  $('#historytable').DataTable();
+ var table =  $('#historytable').DataTable(
+            {
+              "aaSorting": [[ 9, "dsc" ]]
+            });
+             
+
 } );
 </script>
 
