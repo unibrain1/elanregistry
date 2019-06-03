@@ -10,3 +10,5 @@ meekro = 2
 gdpr = 2
 userman = 2
 comments = 2
+langcheck = 2
+spice_shaker = 1
