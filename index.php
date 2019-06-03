@@ -7,8 +7,8 @@ if(file_exists("install/index.php")){
 }
 
 require_once 'users/init.php';
-require_once $abs_us_root.$us_url_root.'users/includes/header.php';
-require_once $abs_us_root.$us_url_root.'users/includes/navigation.php';
+require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
+
 if(isset($user) && $user->isLoggedIn()){
 }
 ?>
@@ -16,8 +16,6 @@ if(isset($user) && $user->isLoggedIn()){
 <?php
 
 // Grab a random car 
-
-
 
 $carQ = $db->query("SELECT * FROM users_carsview WHERE image <> '' ORDER BY RAND() LIMIT 1");
 if ($carQ->count() > 0) {
