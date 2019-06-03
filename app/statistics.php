@@ -1,5 +1,6 @@
 <?php
 require_once '../users/init.php';
+require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 ?>
 
 <?php if (!securePage($_SERVER['PHP_SELF'])) {
@@ -332,5 +333,5 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXQRDsHxF-xqZc-QaH7HK_3C1
   max-width: none;
   }
 </style>
-  <!-- Place any per-page javascript here -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html?>
+<!-- footers -->
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>
