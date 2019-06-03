@@ -23,8 +23,4 @@ foreach ($users as $u) {
 
 }
 
-
-
-
-
 ?>

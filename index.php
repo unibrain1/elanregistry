@@ -129,8 +129,5 @@ $(document).ready(function()  {
  var table =  $('#cartable').DataTable();
 } );
 </script>
-<!-- End  any per-page javascript here -->
-
-
-
-<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html ?>
+<!-- footers -->
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>

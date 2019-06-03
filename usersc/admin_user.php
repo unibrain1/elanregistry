@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 ?>
 <?php 
-require_once '../users/init.php'; 
+require_once '../users/init.php';
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 ?>
 
@@ -863,5 +863,5 @@ if ((!in_array($user->data()->id, $master_account) && in_array($userId, $master_
   <script>$('#adminUser').find('input:enabled, select:enabled, textarea:enabled').attr('disabled', 'disabled');</script>
 <?php
                                 } ?>
-
-<?php require_once $abs_us_root.$us_url_root.'users/includes/html_footer.php'; // currently just the closing /body and /html?>
+<!-- footers -->
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>
