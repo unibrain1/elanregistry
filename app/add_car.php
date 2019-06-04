@@ -12,7 +12,6 @@ require_once '../users/init.php';
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 ?>
 
-
 <?php if (!securePage($_SERVER['PHP_SELF'])) {
     die();
 } ?>
@@ -445,6 +444,13 @@ if (isset($fields['comments'])) {
 		</div> <!-- /.row -->
 	</div> <!-- /.container -->
 </div> <!-- /.wrapper -->
+
+<!-- Add car validation JS -->
+<?php
+    if (file_exists($abs_us_root.$us_url_root.'app/js/cardefinition.js')) {
+        ?>   <script language="JavaScript" src=<?=$us_url_root.'app/js/cardefinition.js'?> type="text/javascript"></script> <?php
+    }
+?>
 
 
 <!-- footers -->
