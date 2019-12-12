@@ -191,7 +191,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
                 $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
 
                 // check if file has one of the following extensions
-                $allowedfileExtensions = array('jpg', 'gif', 'png');
+                $allowedfileExtensions = array('jpg', 'jpeg', 'gif', 'png');
 
                 if (in_array($fileExtension, $allowedfileExtensions)) {
                     // directory in which the uploaded file will be moved
@@ -492,7 +492,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
     	<input type="hidden" name="csrf" value="<?=Token::generate();?>" />
 
 		<p><input class='btn btn-primary' type='submit' value='Update' class='submit' /></p>
-		<p><a class="btn btn-info" href=<?$us_url_root?>."/users/account.php">Cancel</a></p> 
+		<p><a class="btn btn-info" href=<?=$us_url_root?>users/account.php>Cancel?</a></p> 
 	</form>
 	
 					<!-- Content Goes Here. Class width can be adjusted -->
