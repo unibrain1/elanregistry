@@ -56,7 +56,7 @@ $userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.i
 if ($userQ->count() > 0) {
     $profiledetails = $userQ->first();
 } else {
-    echo 'something is wrong with the user profile </br>';
+    echo 'ADMIN_USER(59) something is wrong with the user profile </br>';
 }
 
 //Forms posted
@@ -494,7 +494,7 @@ if (!empty($_POST)) {
             if ($userQ->count() > 0) {
                 $profiledetails = $userQ->first();
             } else {
-                echo 'something is wrong with the user profile </br>';
+                echo 'ADMIN_USER(497) something is wrong with the user profile </br>';
             }
     }
 }

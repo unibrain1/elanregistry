@@ -1,4 +1,4 @@
-
+<script src="<?=$us_url_root?>usersc/widgets/logins/Chart.bundle.js"></script>
   <div class="row">
 <!-- This is an example widget file.  It will be included on the statistics page of the Dashboard. -->
 <!-- Do any php that needs to happen. You already have access to the db -->

@@ -89,7 +89,7 @@ $top = $db->query("SELECT id, logins FROM users ORDER BY logins DESC LIMIT 5")->
       </li>
 
       <li class="list-group-item">
-        <a href="https://userspice.com/forums" target="_blank"> <i class="fa fa-quote-left"></i>  UserSpice Forums </a>
+        <a href="https://www.youtube.com/playlist?list=PLixQt02ELp8onA67F4yrVbLnTOYsSBhxZ" target="_blank"> <i class="fa fa-quote-left"></i>  UserSpice Videos</a>
       </li>
 
       <li class="list-group-item">

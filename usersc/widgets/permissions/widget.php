@@ -1,4 +1,4 @@
-<!-- This is an example widget file.  It will be included on the statistics page of the Dashboard. -->
+<script src="<?=$us_url_root?>usersc/widgets/permissions/Chart.bundle.js"></script>
 <div class="row">
 <!-- Do any php that needs to happen. You already have access to the db -->
 <?php

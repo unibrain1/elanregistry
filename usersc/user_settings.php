@@ -49,14 +49,16 @@ $validation = new Validate();
 $userdetails=$user->data();
 // Get User Profile Information
 // This is a hack and should be fixed - Get the Profile ID
-$profileQ = $db->query("SELECT id FROM profiles WHERE user_id = ?", array($user_id));
+$profileQ = $db->query("SELECT id FROM profiles WHERE user_id = ?", array($userId));
 $profileId = $profileQ->results()[0]->id;
 // USER ID is in $user_id .  Use the USER ID to get the users Profile information
-$userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($user_id));
+$userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($userId));
 if ($userQ->count() > 0) {
 		$profiledetails = $userQ->first();
 } else {
-    echo 'something is wrong with the user profile </br>';
+    echo 'USER_SETTING(59) something is wrong with the user profile </br>';
+	dump($userId);
+	dump($userQ);
 }
 
 // Get the country list
@@ -383,11 +385,11 @@ $user2 = new User();
 $userdetails=$user2->data();
 
 // Extend for profile
-$userQ2 = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($user_id));
+$userQ2 = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($userId));
 if ($userQ2->count() > 0) {
     $profiledetails = $userQ2->first();
 } else {
-    echo 'something is wrong with the user profile </br>';
+    echo 'USER_SETTING(390) something is wrong with the user profile </br>';
 }
 // End Extend
 
