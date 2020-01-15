@@ -11,4 +11,5 @@ userman = 2
 comments = 2
 langcheck = 2
 spice_shaker = 1
-bio = 1
+bio = 2
+registry = 2

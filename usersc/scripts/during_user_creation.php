@@ -13,25 +13,22 @@ dump($_POST);
 //For example, in additional_join_form_fields.php we have a sample form field called account_id.
 // You may wish to do additional validation, but we'll keep it simple. Uncomment out the code below to test it.
 
+// Create a profiles entry if it does not exist (it shouldn't)
+
+$check = $db->query("SELECT id FROM profiles WHERE user_id = ?", $theNewId)->count();
+if($check < 1){
+	$now = new DateTime();
+  	$db->insert('profiles',['user_id'=>$theNewId,'bio'=>"automatically added - ".$now->format('Y-m-d H:i:s')]);
+}
+
+
 // The format of the array is ['column_name'=>Data_for_column]
 
 // $db->update('users',$theNewId,['account_id'=>Input::get('account_id')]);
-// $db->update('profiles', ["user_id","=",$theNewId], ['city'=>Input::get('city')]);
+$db->update('profiles', ["user_id","=",$theNewId], ['city'=>Input::get('city')]);
 $db->update('profiles', ["user_id","=",$theNewId], ['state'=>Input::get('state')]);
 $db->update('profiles', ["user_id","=",$theNewId], ['country'=>Input::get('country')]);
 
-
-
-if ($db->update('profiles', ["user_id","=",$theNewId], ['city'=>Input::get('city')]))
-echo "City Success";
-else
-echo $db->errorString();
-
-
-
-
-
-// You'll notice that the account id is now in the database!
 
 // Even if you do not want to add additional fields to the the join form, this is a great opportunity to add this user to another database table.
 // Get creative!
