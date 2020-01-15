@@ -39,51 +39,52 @@ FROM (
 <div class="container-fluid">
 <div class="well">
 	<h1>Statistics</h1></br>
-	<div class="row">
+  <div class="row">
 
-		<div class="col-xs-12" align="center">
-			<div class="panel-body">
+		<div class="col-12" align="center">
+			<div class="card-block">
         <div id="map" style="height: 400px; width: 80%; margin: 10px; padding: 40px;"></div>
         26 <img src="http://labs.google.com/ridefinder/images/mm_20_yellow.png"/> |
         36 <img src="http://labs.google.com/ridefinder/images/mm_20_white.png"/> |
         45 <img src="http://labs.google.com/ridefinder/images/mm_20_red.png"/> |
         50 <img src="http://labs.google.com/ridefinder/images/mm_20_blue.png"/> |
         26R <img src="http://labs.google.com/ridefinder/images/mm_20_purple.png"/> 
-		</div>
-	</div>
+		  </div>
+	 </div>
+  </div>
 
 	<div class="row">
-		<div class="col-xs-12 col-md-6">
+		<div class="col-md-6">
 			<!-- Column 1 -->
 		
-			<div class="panel-heading"></div>
-			<div class="panel-body">
+			<div class="card-header"></div>
+			<div class="card-block">
 		    <!--Div that will hold the pie chart-->
 		    	<div id="chart_country"></div>
-	    	</div> <!-- .panel-body -->
+	    	</div> <!-- .card-block -->
 
-			<div class="panel-heading"></div>
-			<div class="panel-body">
+			<div class="card-header"></div>
+			<div class="card-block">
 		    <!--Div that will hold the pie chart-->
 		    	<div id="chart_type"></div>
-	    	</div> <!-- .panel-body -->
+	    	</div> <!-- .card-block -->
 
 		</div> <!-- /.col -->
 
-		<div class="col-xs-12 col-md-6">
+		<div class="col-md-6">
 			<!-- Column 2 -->
-			<div class="panel-heading"></div>
-			<div class="panel-body">
+			<div class="card-header"></div>
+			<div class="card-block">
 		    	<div id="chart_series"></div>
-			</div> <!-- .panel-body -->
-			<div class="panel-heading"></div>
-			<div class="panel-body">
+			</div> <!-- .card-block -->
+			<div class="card-header"></div>
+			<div class="card-block">
 		    	<div id="chart_variant"></div>
-			</div> <!-- .panel-body -->
-			<div class="panel-heading"></div>
-			<div class="panel-body">
+			</div> <!-- .card-block -->
+			<div class="card-header"></div>
+			<div class="card-block">
 		    	<div id="chart_age"></div>
-			</div> <!-- .panel-body -->
+			</div> <!-- .card-block -->
 		</div> <!-- /.col -->
 
 	</div> <!-- /.row -->
