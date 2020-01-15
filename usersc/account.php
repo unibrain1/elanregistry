@@ -1,6 +1,7 @@
 <?php
+// This is a user-facing page
 /*
-UserSpice 4
+UserSpice 5
 An Open Source PHP User Management System
 by the UserSpice Team at http://UserSpice.com
 
@@ -17,29 +18,29 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-?>
-<?php 
 require_once '../users/init.php';
+if (!securePage($_SERVER['PHP_SELF'])){die();}
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
-?>
+$hooks =  getMyHooks();
+includeHook($hooks,'pre');
 
-<?php if (!securePage($_SERVER['PHP_SELF'])) {
-    die();
-}?>
-<?php
-if (!empty($_POST['uncloak'])) {
-    if (isset($_SESSION['cloak_to'])) {
-        $to = $_SESSION['cloak_to'];
-        $from = $_SESSION['cloak_from'];
-        unset($_SESSION['cloak_to']);
-        $_SESSION['user'] = $_SESSION['cloak_from'];
-        unset($_SESSION['cloak_from']);
-        logger($from, "Cloaking", "uncloaked from ".$to);
-        Redirect::to($us_url_root.'users/admin_users.php?err=You+are+now+you!');
-    } else {
-        Redirect::to($us_url_root.'users/logout.php?err=Something+went+wrong.+Please+login+again');
-    }
+
+
+if(!empty($_POST['uncloak'])){
+	logger($user->data()->id,"Cloaking","Attempting Uncloak");
+	if(isset($_SESSION['cloak_to'])){
+		$to = $_SESSION['cloak_to'];
+		$from = $_SESSION['cloak_from'];
+		unset($_SESSION['cloak_to']);
+		$_SESSION['user'] = $_SESSION['cloak_from'];
+		unset($_SESSION['cloak_from']);
+		logger($from,"Cloaking","uncloaked from ".$to);
+		Redirect::to($us_url_root.'users/admin.php?view=users&err=You+are+now+you!');
+		}else{
+			Redirect::to($us_url_root.'users/logout.php?err=Something+went+wrong.+Please+login+again');
+		}
 }
+
 
 //dealing with if the user is logged in
 if ($user->isLoggedIn() || !$user->isLoggedIn() && !checkMenu(2, $user->data()->id)) {
@@ -77,6 +78,7 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 <div class="container">
 <div class="well">
 <h1>Account Information</h1></br>
+		<?php includeHook($hooks,'body');?>
 
 <div class="row">
 	<div class="col-xs-12 col-md-6">
@@ -172,6 +174,8 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 		</div> <!-- panel -->
 	</div> <!-- col-xs-12 col-md-6 -->
 </div> <!-- row -->
+		<?php includeHook($hooks,'bottom');?>
+
 </div> <!-- well -->
 
 </div> <!-- /container -->
