@@ -44,11 +44,11 @@ FROM (
 		<div class="col-12" align="center">
 			<div class="card-block">
         <div id="map" style="height: 400px; width: 80%; margin: 10px; padding: 40px;"></div>
-        26 <img src="http://labs.google.com/ridefinder/images/mm_20_yellow.png"/> |
-        36 <img src="http://labs.google.com/ridefinder/images/mm_20_white.png"/> |
-        45 <img src="http://labs.google.com/ridefinder/images/mm_20_red.png"/> |
-        50 <img src="http://labs.google.com/ridefinder/images/mm_20_blue.png"/> |
-        26R <img src="http://labs.google.com/ridefinder/images/mm_20_purple.png"/> 
+        26 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png"/> |
+        36 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png"/> |
+        45 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png"/> |
+        50 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images//mm_20_blue.png"/> |
+        26R <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png"/> 
 		  </div>
 	 </div>
   </div>
@@ -227,11 +227,11 @@ FROM (
   //  The Map 
 
   var customIcons = {
-    '26':  {url: 'http://labs.google.com/ridefinder/images/mm_20_yellow.png'},
-    '36':  {url: 'http://labs.google.com/ridefinder/images/mm_20_white.png'},
-    '45':  {url: 'http://labs.google.com/ridefinder/images/mm_20_red.png'},
-    '50':  {url: 'http://labs.google.com/ridefinder/images/mm_20_blue.png'},
-    '26R': {url: 'http://labs.google.com/ridefinder/images/mm_20_purple.png'}
+    '26':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png'},
+    '36':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png'},
+    '45':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png'},
+    '50':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_blue.png'},
+    '26R': {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png'}
   };
   function initMap() {
     var map = new google.maps.Map(document.getElementById('map'), {
