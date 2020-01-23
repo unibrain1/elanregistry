@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin>
+  <name>Registry Admin Users System</name>
+  <author>Jim Boone</author>
+<!-- Feel free to include your github repo here -->
+  <website>https://www.elanregistry.org></website>
+
+<!-- the version of the plugin iteself -->
+  <version>1.0.0</version>
+
+<!-- release date of THIS version -->
+  <release>Jan 14, 2020</release>
+
+<!-- the last version of UserSpice you tested the plugin with -->
+  <tested>5.0</tested>
+
+<!-- What does your plugin do? -->
+ 	<description>Updates to the Users Dashboard to add a column to report if a user has car in the registry.
+	</description>
+
+  <!-- This is the launch button in the plugin manager. If it is blank or missing, Configure Plugin will show up. -->
+    <button>Registry</button>
+</plugin>
