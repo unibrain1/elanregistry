@@ -1,3 +1,10 @@
+<!-- Facebook sharing meta tags (delete if you don't want them) -->
+<!-- Be sure to update this in .11 -->
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="description" content="Registry for the Lotus Elan and Elan +2">
+<meta name="author" content="Jim Boone">
 <meta property="og:url"                content="https://www.elanregistry.org/" /> <!-- URL for website (link address) -->
 <meta property="og:type"               content="website" /> <!-- type of site -->
 <meta property="og:title"              content="Lotus Elan Registry" /> <!-- title of site (title of share) -->
