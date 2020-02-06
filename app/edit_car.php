@@ -246,7 +246,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
             // If there are no errors then INSERT the $fields into the DB,
             if (empty($errors)) {
                 // Add a create time
-                $fields['ctime'] = date('Y-m-d G:i:s');
+                $fields['mtime'] = date('Y-m-d G:i:s');
                 
                 // Make sure user owns the car before update
 
