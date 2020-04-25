@@ -41,7 +41,7 @@
                   FROM users
                   LEFT JOIN car_user
                   ON (users.id = car_user.userid)
-                  where ( users.email_verified = 0 AND users.last_login = 0 AND car_user.carid is NULL AND users.join_date  < CURRENT_DATE - INTERVAL 30 DAY)
+                  where ( users.email_verified = 0 AND users.last_login = 0 AND car_user.carid is NULL AND users.join_date  < CURRENT_DATE - INTERVAL 10 DAY)
                   GROUP BY users.id 
                   ";
 
