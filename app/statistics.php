@@ -226,6 +226,8 @@ FROM (
 
   //  The Map 
 
+  // From https://developers.google.com/maps/documentation/javascript/mysql-to-maps
+
   var customIcons = {
     '26':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png'},
     '36':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png'},
@@ -242,7 +244,7 @@ FROM (
     var infoWindow = new google.maps.InfoWindow;
 
     // Change this depending on the name of your PHP or XML file
-    downloadUrl('mapmarkers2.xml.php/', function(data) {
+    downloadUrl('mapmarkers2.xml.php', function(data) {
       var xml = data.responseXML;
 
       var markers = xml.documentElement.getElementsByTagName('marker');
@@ -323,6 +325,7 @@ FROM (
 </script>
 <script async defer
 src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXQRDsHxF-xqZc-QaH7HK_3C1srIluRLU&callback=initMap">
+
 </script>
 <style>
   /* Always set the map height explicitly to define the size of the div

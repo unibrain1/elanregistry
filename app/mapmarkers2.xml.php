@@ -1,5 +1,7 @@
 <?php
 
+// From https://developers.google.com/maps/documentation/javascript/mysql-to-maps#domfunctions
+
 require_once '../users/init.php';
 
 if (!securePage($_SERVER['PHP_SELF'])) {
