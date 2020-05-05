@@ -37,13 +37,13 @@
               <div class="modal-body">
                 <?php
                   $q="
-                  SELECT  users.id
-                  FROM users
-                  LEFT JOIN car_user
-                  ON (users.id = car_user.userid)
-                  where ( users.email_verified = 0 AND users.last_login = 0 AND car_user.carid is NULL AND users.join_date  < CURRENT_DATE - INTERVAL 10 DAY)
-                  GROUP BY users.id 
-                  ";
+                   	SELECT users.id
+                    FROM users
+                    LEFT JOIN car_user
+                    ON (users.id = car_user.userid)
+                    WHERE ( users.email_verified = 0 AND users.last_login = 0 AND car_user.carid IS NULL AND vericode_expiry < CURRENT_DATE )
+                    GROUP BY users.id
+					";
 
                   $usersQ = $db->query( $q );
                   echo "Delete ". $usersQ->count() ." SPAM users</br>";
