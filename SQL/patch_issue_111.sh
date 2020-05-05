@@ -4,6 +4,6 @@ IFS=,
 
 while read id date
 do
-	echo "UPDATE cars SET ctime = '${date}' WHERE cars.id = ${id}"
+	echo "UPDATE cars SET ctime = '${date}' WHERE cars.id = ${id};"
 
 done < patch_issue_111.csv
