@@ -1,0 +1,42 @@
+# Giberish files
+.github
+.user.ini
+.php_cs.cache
+USER.INI
+error_log
+TODO
+.DS_Store
+*~
+*.swp
+*.bak
+*.sav
+.git
+runme.php
+# Scripts and such
+utilities
+# IDE related files
+Elanegistry.sublime-project
+Elanegistry.sublime-workspace
+ElanRegistry.code-workspace
+elan_registry.code-workspace
+# Environment specific files
+.env.enc
+.env.key
+vendor
+# Include the userimages and thumbs directory but not the files
+app/userimages/thumbs/*.*
+app/userimages/*.*
+# Include these file from UserSpice - Patches
+!users/images/logo.png
+!users/css/images/*.png
+!users/images/logo.png
+# Exclude userspice extentions.  These need to be manually installed
+usersc/plugins/
+usersc/templates/
+usersc/widgets/
+install/*
+# exclude backup files
+@backup*
+# exclude UserSpice update backups
+usupdate.zip
+users/updates/
