@@ -439,7 +439,7 @@ if (isset($fields['image'])) {
                         <div class="form-group">
                             <label>Comments</br></label>
                         </div>
-                        <textarea name='comments' rows='10' cols='60' wrap='virtual' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments']); ?></textarea>
+                        <textarea class="form-control" name='comments' rows='10' wrap='virtual' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments']); ?></textarea>
                     </div>
                 </div>   
             </div>
@@ -461,7 +461,7 @@ if (isset($fields['image'])) {
             </div>
             <div class="col-sm-4">
                 <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-                <input class='bbtn btn-primary btn-lg btn-block' type='submit' value='Add' class='submit' />
+                <input class='bbtn btn-success btn-lg btn-block' type='submit' value='Add' class='submit' />
                 <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a> </form> 
             </div>
             <div class="col-sm-4">
