@@ -20,7 +20,7 @@ $carData = $carQ->results();
           <div class="card card-default">
             <div class="card-header"><h2><strong>List Cars</strong></h2></div>
               <div class="card-body">
-                <table id="cartable" width="100%" class='display cell-border table table-hover table-list-search compact order-column'>
+                <table id="cartable" width="100%" class="table-sm display compact table-bordered table-list-search ">
                   <thead>
                     <tr>
                       <th></th>
@@ -53,7 +53,6 @@ $carData = $carQ->results();
                       <th>Country</th>
                       <th>NOSEARCH</th>
                       <th>Date Added</th>
-
                     </tr>
                   </thead>
                   <tbody>
@@ -119,12 +118,11 @@ $(document).ready(function()  {
   // Filter each column - http://jsfiddle.net/9bc6upok/ 
 
   // Setup - add a text input to each footer cell
-    $('#cartable thead tr#filterrow th').each( function () {
+    $('#cartable thead tr#filterrow th').each( function ( i ) {
         var title = $('#cartable thead tr#filterrow th').eq( $(this).index() ).text();
-        // $(this).html( '<input type="text" size="6" onclick="stopPropagation(event);" placeholder="Search '+title+'" />' );
         if( title != "NOSEARCH" )
         {
-          $(this).html( '<input type="text" size="5" onclick="stopPropagation(event);" placeholder="Search" />' );
+          $(this).html( '<input type="text" size="5" placeholder=" '+title+'" data-index="'+i+'" />');
         }else{
           $(this).html( '' );
         }
@@ -134,6 +132,7 @@ $(document).ready(function()  {
     var table =  $('#cartable').DataTable(
     {
       "pageLength": 25,
+      scrollX:        true,
       "aLengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
       "aaSorting": [[ 1, "asc" ],[ 2, "asc" ],[ 3, "asc" ]],
       fixedHeader:  { headerOffset: 68 },
@@ -142,22 +141,15 @@ $(document).ready(function()  {
         "orderable": false
         } ]
     });
-
-    // Apply the filter
-    $("#cartable thead input").on( 'keyup change', function () {
+    // Filter event handler
+    $( table.table().container() ).on( 'keyup', 'thead input', function () {
         table
-            .column( $(this).parent().index()+':visible' )
+            .column( $(this).data('index') )
             .search( this.value )
             .draw();
     } );
 
-  function stopPropagation(evt) {
-    if (evt.stopPropagation !== undefined) {
-      evt.stopPropagation();
-    } else {
-      evt.cancelBubble = true;
-    }
-  }
+
 } );
 </script>
 
