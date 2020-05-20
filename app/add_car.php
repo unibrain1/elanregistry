@@ -354,29 +354,25 @@ if (isset($fields['image'])) {
 ?>
 
 <div id="page-wrapper">
-    <div class="container">
+    <div class="container-fluid">
         <div class="well">
-    <br>
+        <br>
         <div class="row">
-            <div class="col-xs-12 col-md-6">
+            <div class="col-sm">  <!-- Car Info -->
                 <div class="card card-default">
-                <div class="card-header"><h2><strong>Update Car - <?php echo $cardetails['id'] ?></strong></h2></div>
+                    <div class="card-header"><h2><strong>Add Car</strong></h2></div>
                     <div class="card-body">
-                    <?php
-                    if (!$errors == '') {
-                        ?><div class="alert alert-danger"><?= display_errors($errors); ?></div><?php
-                    }
-                    ?>
-                    <?php if (!$successes == '') {
-                        ?><div class="alert alert-success"><?= display_successes($successes); ?></div><?php
-                    }
-                    ?>
-                    <!-- Here is the FORM -->
-                    <form name="addCar" action="add_car.php" method="POST" enctype="multipart/form-data">
-
-
-
-
+                        <?php
+                        if (!$errors == '') {
+                            ?><div class="alert alert-danger"><?= display_errors($errors); ?></div><?php
+                        }
+                        ?>
+                        <?php if (!$successes == '') {
+                            ?><div class="alert alert-success"><?= display_successes($successes); ?></div><?php
+                        }
+                        ?>
+                        <!-- Here is the FORM -->
+                        <form name="addCar" action="add_car.php" method="POST" enctype="multipart/form-data">
                         <div class="form-group">
                             <label>Year</label>
 
@@ -444,39 +440,36 @@ if (isset($fields['image'])) {
                             <label>Comments</br></label>
                         </div>
                         <textarea name='comments' rows='10' cols='60' wrap='virtual' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments']); ?></textarea>
-                        
-
+                    </div>
+                </div>   
+            </div>
+            <div class="col-sm"> <!-- Image Info -->
+                <div class="card card-default">
+                <div class="card-header"><h2><strong>Upload/Replace Picture</strong></h2></div>
+                    <div class="card-body">    
                         <!-- Form for the 'image' -->
-                        </br>
-                        <div class="form-group">
-                            <label>Upload a Picture:</br></label> </br>
-                        </div>
                         <div>
                             <input type="file" name="uploadedFile" />
+                            <small id="engineHelp" class="form-text text-muted">Valid file types:  JPEG</small>
                         </div>
-
-
-
-
-
-
-
-
-                        <!-- Add some space -->
-                        </br></br>
-
-                        <!-- And last some buttons -->
-                        <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-
-                        <p><input class='btn btn-primary' type='submit' value='Add' class='submit' />
-                        <a class="btn btn-info" href=<?= $us_url_root ?>users/account.php>Cancel </a> </form> 
-
-                        <!-- End of main content section -->
-                </div> <!-- /.col -->
-            </div> <!-- /.row -->
-        </div> <!-- /.container -->
-    </div> <!-- /.wrapper -->
-
+                    </div>
+                </div> <!-- card -->
+            </div> <!--col -->
+        </div> <!-- /.row -->
+        <div class="row">
+            <div class="col-sm-4">
+            </div>
+            <div class="col-sm-4">
+                <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
+                <input class='bbtn btn-primary btn-lg btn-block' type='submit' value='Add' class='submit' />
+                <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a> </form> 
+            </div>
+            <div class="col-sm-4">
+            </div>
+        </div> <!-- /.row -->
+        </div> <!-- well -->              
+    </div> <!-- /.container -->
+</div> <!-- /.wrapper -->
 
 <!-- Include Date Range Picker -->
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.min.js"></script>
