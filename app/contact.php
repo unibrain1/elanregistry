@@ -36,7 +36,8 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 
 ?>
 <div id="page-wrapper">
-	<div class="container-fluid">
+	<div class="container">
+	<br>
 <div class="row">
 	<div class="col-xs-12">
 
@@ -81,4 +82,4 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 
 
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>

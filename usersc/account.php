@@ -1,44 +1,26 @@
 <?php
-// This is a user-facing page
-/*
-UserSpice 5
-An Open Source PHP User Management System
-by the UserSpice Team at http://UserSpice.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
 require_once '../users/init.php';
-if (!securePage($_SERVER['PHP_SELF'])){die();}
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
-$hooks =  getMyHooks();
-includeHook($hooks,'pre');
 
 
+if (!securePage($_SERVER['PHP_SELF'])) {
+    die();
+}
 
-if(!empty($_POST['uncloak'])){
-	logger($user->data()->id,"Cloaking","Attempting Uncloak");
-	if(isset($_SESSION['cloak_to'])){
-		$to = $_SESSION['cloak_to'];
-		$from = $_SESSION['cloak_from'];
-		unset($_SESSION['cloak_to']);
-		$_SESSION['user'] = $_SESSION['cloak_from'];
-		unset($_SESSION['cloak_from']);
-		logger($from,"Cloaking","uncloaked from ".$to);
-		Redirect::to($us_url_root.'users/admin.php?view=users&err=You+are+now+you!');
-		}else{
-			Redirect::to($us_url_root.'users/logout.php?err=Something+went+wrong.+Please+login+again');
-		}
+
+if (!empty($_POST['uncloak'])) {
+    logger($user->data()->id, "Cloaking", "Attempting Uncloak");
+    if (isset($_SESSION['cloak_to'])) {
+        $to = $_SESSION['cloak_to'];
+        $from = $_SESSION['cloak_from'];
+        unset($_SESSION['cloak_to']);
+        $_SESSION['user'] = $_SESSION['cloak_from'];
+        unset($_SESSION['cloak_from']);
+        logger($from, "Cloaking", "uncloaked from ".$to);
+        Redirect::to($us_url_root.'users/admin.php?view=users&err=You+are+now+you!');
+    } else {
+        Redirect::to($us_url_root.'users/logout.php?err=Something+went+wrong.+Please+login+again');
+    }
 }
 
 
@@ -75,55 +57,49 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 <!-- Now that that is all out of the way, let's display everything -->
 
 <div id="page-wrapper">
-<div class="container">
+<div class="container-fluid">
 <div class="well">
-<h1>Account Information</h1></br>
-		<?php includeHook($hooks,'body');?>
+</br>
 
 <div class="row">
-	<div class="col-xs-12 col-md-6">
-		<div class="panel panel-default">
-			<div class="panel-heading"><strong>Account Information</strong></div>
-			<div class="panel-body">
+	<div class="col-4">
+		<div class="card card-default">
+			<div class="card-header"><strong><h2>Account Information</h2></strong></div>
+			<div class="card-body">
+				<table id="accounttable" width="100%" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
 
-				<table id="datatable" width="100%" class='display'>	
-
-				<tr ><td >
-						<a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Account Info</a>
-					<td>
-				</tr>
-				<tr ><td ><strong>Username    :</strong></td><td ><?=echousername($thatUser[0]->id)?></td></tr>
-				<tr ><td ><strong>First name  :</strong></td><td ><?=ucfirst($thatUser[0]->fname)?></td></tr>
-				<tr ><td ><strong>Last name   :</strong></td><td ><?=ucfirst($thatUser[0]->lname)?></td></tr>
-				<tr ><td ><strong>Email       :</strong></td><td ><?=$thatUser[0]->email?></td></tr>
-				<tr ><td ><strong>City        :</strong></td><td ><?=html_entity_decode($thatUser[0]->city);?></td></tr>
-				<tr ><td ><strong>State       :</strong></td><td ><?=html_entity_decode($thatUser[0]->state);?></td></tr>
-				<tr ><td ><strong>Country     :</strong></td><td ><?=html_entity_decode($thatUser[0]->country);?></td></tr>
-				<tr ><td ><strong>Member Since:</strong></td><td ><?=$signupdate?></td></tr>
-				<tr ><td ><strong>Last Login  :</strong></td><td ><?=$lastlogin?></td></tr>
-				<tr ><td ><strong>Number of Logins:</strong></td><td > <?=$thatUser[0]->logins?></td></tr>
-				<tr ><td ><strong>Website:</strong></td>
-				<?php
-				if(!empty($thatUser[0]->website)){
-					echo '<td> <a target="_blank"  href='.$thatUser[0]->website.'>Website</a></td>';
-                 } else {
-                    echo "<td></td></tr>";
-                 }
-                 ?>
+					<tr ><td ><strong>First name      : </strong></td><td ><?= ucfirst($thatUser[0]->fname)?></td></tr>
+					<tr ><td ><strong>Last name       : </strong></td><td ><?= ucfirst($thatUser[0]->lname)?></td></tr>
+					<tr ><td ><strong>Email           : </strong></td><td ><?= $thatUser[0]->email?></td></tr>
+					<tr ><td ><strong>City            : </strong></td><td ><?= html_entity_decode($thatUser[0]->city);?></td></tr>
+					<tr ><td ><strong>State           : </strong></td><td ><?= html_entity_decode($thatUser[0]->state);?></td></tr>
+					<tr ><td ><strong>Country         : </strong></td><td ><?= html_entity_decode($thatUser[0]->country);?></td></tr>
+					<tr ><td ><strong>Website         : </strong></td>
+					<?php
+                    if (!empty($thatUser[0]->website)) {
+                        echo '<td> <a target="_blank"  href='.$thatUser[0]->website.'>Website</a></td>';
+                    } else {
+                        echo "<td></td></tr>";
+                    }
+                    ?>
+					<tr ><td ><strong>Member Since    : </strong></td><td ><?= $signupdate?></td></tr>
+					<tr ><td ><strong>Last Login      : </strong></td><td ><?= $lastlogin?></td></tr>
+					<tr ><td ><strong>Number of Logins: </strong></td><td ><?= $thatUser[0]->logins?></td></tr>
+					
+					<tr ><td ><a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Updae Account Info</a><td></tr>
 				</table>
 			
 			</div>
 		</div>
-	</div> <!-- col-xs-12 col-md-6 -->
-	<div class="col-xs-12 col-md-6">
+	</div> 
+	<div class="col">
 
-		<div class="panel panel-default">
-			<div class="panel-heading"><strong>Your Car Information</strong></div>
-			<div class="panel-body">
+		<div class="card border-default">
+			<div class="card-header"><strong><h2>Your Car Information</h2></strong></div>
+			<div class="card-body">
 			<?php
             
             // If there is car information then display it
-            // $cars = $thatCar;
             
             if (empty($thatCar)) {
                 // 	If the user does not have a car then display the add car form</li>
@@ -133,17 +109,11 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
             } else {
                 // Else there is car information then display it
                 foreach ($thatCar as $car) {
-                    // output data of each row.  View has both cars and users ?>
+                    // output data of each row.  View has both cars and users?>
 
-				<table id="datatable1" width="100%" class='display'>	
-					<tr ><td>
-						 <form  method = 'get' action = <?=$us_url_root.'app/edit_car.php'?> >
-              					<input class='btn btn-success' type = 'submit' value = 'Update Car' >
-								<input type='hidden' name='car_id' value='<?=$car->id?>'>
-						</form>
-						<td></td>
-					</tr>
-					<tr><td><strong>Car ID :</strong></td><td><?=$car->id?></td></tr>
+				<table id="cartable" width="100%" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+
+					<tr class="table-success"><th><strong>Car ID :</strong></th><th><?=$car->id?></th></tr>
 					<tr ><td ><strong>Model :</strong></td><td ><?=$car->model?></td></tr>
 					<tr ><td ><strong>Series :</strong></td><td ><?=$car->series?></td></tr>
 					<tr ><td ><strong>Variant:</strong></td><td ><?=$car->variant?></td></tr>
@@ -161,20 +131,27 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
                     if ($car->image) {
                         ?>
 						<tr ><td ><strong>Image:</strong></td>
-						<td ><img class="img-responsive" src=<?=$us_url_root?>app/userimages/<?=$car->image?> >
-</td></tr>
+						<td ><img class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$car->image?> ></td></tr>
 					<?php
                     } ?>
+					<tr ><td>
+					<form  method = 'get' action = <?=$us_url_root.'app/edit_car.php'?> >
+							<input class='btn btn-success' type = 'submit' value = 'Update Car' >
+							<input type='hidden' name='car_id' value='<?=$car->id?>'>
+					</form>
+					<td></td>
+					</tr>
 				</table>
+
+				</br>
 				<?php
                 }
             } ?>
 
-			</div> <!-- panel-body -->
-		</div> <!-- panel -->
+			</div> <!-- card-body -->
+		</div> <!-- card -->
 	</div> <!-- col-xs-12 col-md-6 -->
 </div> <!-- row -->
-		<?php includeHook($hooks,'bottom');?>
 
 </div> <!-- well -->
 
@@ -197,15 +174,19 @@ $(document).ready(function(){
 
 <script type="text/javascript">
 $(document).ready(function()  {
- var table =  $('#datatable').DataTable();
+ var table =  $('#accounttable').DataTable();
 } );
 </script>
+
 <script type="text/javascript">
 $(document).ready(function()  {
- var table =  $('#datatable1').DataTable();
+  var table =  $('#cartable').DataTable(
+    {
+      "scrollX": true
+    });
 } );
 </script>
 
 
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>
