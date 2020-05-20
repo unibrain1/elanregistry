@@ -36,7 +36,19 @@ if (!empty($_GET)) {
     <br>
 
     <div class="row">
-      <div class="col-xs-12 col-md-6">
+      <div class="col-sm-6"> <!-- Image -->
+        <div class="card card-default">
+          <div class="card-body">
+            <?php
+                    if ($carData[0]->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$carData[0]->image)) {
+                        ?>
+                      <img class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$carData[0]->image?> >
+                    <?php
+                    } ?>
+          </div> <!-- card-body -->
+        </div> <!-- card -->
+      </div> <!-- col-xs-12 col-md-6 -->
+      <div class="col-sm-6"> <!-- Car Info -->
         <div class="card card-default">
           <div class="card-header"><h2><strong>Car Information</strong></h2></div>
           <div class="card-body">
@@ -70,18 +82,7 @@ if (!empty($_GET)) {
           </div>
         </div>
       </div> <!-- col-xs-12 col-md-6 -->
-      <div class="col-xs-12 col-md-6">
-        <div class="card card-default">
-          <div class="card-body">
-            <?php
-                    if ($carData[0]->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$carData[0]->image)) {
-                        ?>
-                      <img class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$carData[0]->image?> >
-                    <?php
-                    } ?>
-          </div> <!-- card-body -->
-        </div> <!-- card -->
-      </div> <!-- col-xs-12 col-md-6 -->
+
     </div> <!-- row -->
     <br>
     <div class="card border-success">
