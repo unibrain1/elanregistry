@@ -439,7 +439,7 @@ if (!empty($_GET)) {
             </div>
             <div class="col-sm-4">
                 <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-                <input class="btn btn-primary btn-lg btn-block" type='submit' value='Update' class='submit' />
+                <input class="btn btn-success btn-lg btn-block" type='submit' value='Update' class='submit' />
                 <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a></form>
             </div>
             <div class="col-sm-4">
