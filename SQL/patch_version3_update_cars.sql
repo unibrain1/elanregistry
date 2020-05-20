@@ -1,8 +1,8 @@
 SET
     SQL_MODE = 'ALLOW_INVALID_DATES';
 
-ALTER TABLE `cars` CHANGE `image` `image` VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL
-ALTER TABLE `cars_hist` CHANGE `image` `image` VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL
+ALTER TABLE `cars` CHANGE `image` `image` VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL;
+ALTER TABLE `cars_hist` CHANGE `image` `image` VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL;
 /* Add columns to cars */
 ALTER TABLE
     `cars`
@@ -72,7 +72,7 @@ AFTER
 AFTER
     website;
 
-    ALTER TABLE `elanregi_spice`.`cars_hist` DROP INDEX `id`, ADD UNIQUE `id` (`id`) USING BTREE;
+    ALTER TABLE `cars_hist` DROP INDEX `id`, ADD UNIQUE `id` (`id`) USING BTREE;
 
 
 
