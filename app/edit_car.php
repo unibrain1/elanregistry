@@ -10,10 +10,6 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 // Always handy to know who I am
 $user_id                    = $user->data()->id;
 
-// Get the combined user+profile
-$userQ = $db->findById($user_id, "usersview");
-$userData = $userQ->results();
-
 // A place to store default values and what the user entered
 $select_str                 = 'Please Select';
 
@@ -29,31 +25,8 @@ $cardetails['solddate']     = null;
 $cardetails['comments']     = null;
 
 // Holding place before processing
-$fields['year']             = null;
-$fields['model']            = null;
-$fields['series']           = null;
-$fields['variant']          = null;
-$fields['type']             = null;
-$fields['chassis']          = null;
-$fields['color']            = null;
-$fields['engine']           = null;
-$fields['purchasedate']     = null;
-$fields['solddate']         = null;
-$fields['comments']         = null;
-$fields['image']            = null;
-/*  Add the User/profile information to the record */
-$fields['user_id']      = $userData[0]->id;
-$fields['email']        = $userData[0]->email;
-$fields['fname']        = $userData[0]->fname;
-$fields['lname']        = $userData[0]->lname;
-$fields['join_date']    = $userData[0]->join_date;
-$fields['city']         = $userData[0]->city;
-$fields['state']        = $userData[0]->state;
-$fields['country']      = $userData[0]->country;
-$fields['lat']          = $userData[0]->lat;
-$fields['lon']          = $userData[0]->lon;
-$fields['website']      = $userData[0]->website;
-
+// A place to put my cardetails
+$cardetails                     = [];
 
 // 'placeholder' to prompt for response.  Background text in input boxes
 $carprompt['chassis']       = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
@@ -70,8 +43,6 @@ $successes                  = [];
 // And a Validation function
 $validation                 = new Validate();
 
-// A place to put my fields
-$fields                     = [];
 
 //Temporary Success Message
 $holdover = Input::get('success');
@@ -87,15 +58,33 @@ if (!empty($_POST)) {
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
+
+        /*  Add the User/profile information to the record */
+        // Get the combined user+profile
+        $userQ = $db->findById($user_id, "usersview");
+        $userData = $userQ->results();
+
+        $cardetails['user_id']      = $userData[0]->id;
+        $cardetails['email']        = $userData[0]->email;
+        $cardetails['fname']        = $userData[0]->fname;
+        $cardetails['lname']        = $userData[0]->lname;
+        $cardetails['join_date']    = $userData[0]->join_date;
+        $cardetails['city']         = $userData[0]->city;
+        $cardetails['state']        = $userData[0]->state;
+        $cardetails['country']      = $userData[0]->country;
+        $cardetails['lat']          = $userData[0]->lat;
+        $cardetails['lon']          = $userData[0]->lon;
+        $cardetails['website']      = $userData[0]->website;
+
         //Update id
         $id = ($_POST['car_id']);
-        $fields['id'] = Input::sanitize($id);
+        $cardetails['id'] = Input::sanitize($id);
 
         //Update Year
         $year = ($_POST['year']);
         $year = Input::sanitize($year);
         if (strcmp($year, $select_str)) {
-            $fields['year'] = $year;
+            $cardetails['year'] = $year;
             $successes[] = 'Year Updated';
         } else {
             $errors[] = "Please select Year";
@@ -108,14 +97,14 @@ if (!empty($_POST)) {
         if (strcmp($model, $select_str)) {
             // Model isn't really a thing.
             //      We need to explode it into the proper columns
-            $fields['model'] = Input::sanitize($model);  // Still save it for later so we can remember what the user entered
+            $cardetails['model'] = Input::sanitize($model);  // Still save it for later so we can remember what the user entered
             list($series, $variant, $type) = explode('|', $model);
             /* MST value is from form, so I shouldn't have to do this but to be safe ... */
-            $fields['series'] = filter_var($series, FILTER_SANITIZE_STRING);
-            $fields['variant'] = filter_var($variant, FILTER_SANITIZE_STRING);
-            $fields['type']   = filter_var($type, FILTER_SANITIZE_STRING);
+            $cardetails['series'] = filter_var($series, FILTER_SANITIZE_STRING);
+            $cardetails['variant'] = filter_var($variant, FILTER_SANITIZE_STRING);
+            $cardetails['type']   = filter_var($type, FILTER_SANITIZE_STRING);
 
-            $successes[] = 'Model Updated -' . $fields['model'];
+            $successes[] = 'Model Updated -' . $cardetails['model'];
         } else {
             $errors[] = "Please select Model";
         }
@@ -124,9 +113,9 @@ if (!empty($_POST)) {
         $chassis = ($_POST['chassis']);
         $chassis = Input::sanitize($chassis);
         $len = strlen($chassis);
-        $fields['chassis'] = filter_var($chassis, FILTER_SANITIZE_STRING);
-        if (strcmp($fields['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
-            $successes[] = 'Chassis Updated -' . $fields['chassis'];
+        $cardetails['chassis'] = filter_var($chassis, FILTER_SANITIZE_STRING);
+        if (strcmp($cardetails['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
+            $successes[] = 'Chassis Updated -' . $cardetails['chassis'];
         } elseif ($year < 1970) {
             if ($len != 4) { // Chassis number for years < 1970 are 4 digits
                 $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
@@ -134,20 +123,20 @@ if (!empty($_POST)) {
             // } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
             //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
         } else {
-            $successes[] = 'Chassis Updated -' . $fields['chassis'];
+            $successes[] = 'Chassis Updated -' . $cardetails['chassis'];
         }
 
         // Update 'color'
         $color = ($_POST['color']);
         $color = Input::sanitize($color);
-        $fields['color'] = filter_var($color, FILTER_SANITIZE_STRING);
+        $cardetails['color'] = filter_var($color, FILTER_SANITIZE_STRING);
         $successes[] = 'Color Updated';
 
         // Update 'engine'
         $engine = ($_POST['engine']);
         $engine = Input::sanitize($engine);
-        $fields['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
-        $successes[] = 'Engine Updated -' . $fields['engine'];
+        $cardetails['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
+        $successes[] = 'Engine Updated -' . $cardetails['engine'];
 
         // Update 'purchasedate'
         $purchasedate = ($_POST['purchasedate']);
@@ -155,7 +144,7 @@ if (!empty($_POST)) {
             $purchasedate = Input::sanitize($purchasedate);
             // Convert to SQL date format
             if ($purchasedate = date("Y-m-d", strtotime($purchasedate))) {
-                $fields['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
+                $cardetails['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
                 $successes[] = 'Purchased  Updated';
             } else {
                 $errors[] = "Purchase Date conversion error";
@@ -167,7 +156,7 @@ if (!empty($_POST)) {
         if (!empty($solddate)) {
             $solddate = Input::sanitize($solddate);
             if ($solddate = date("Y-m-d", strtotime($solddate))) {
-                $fields['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
+                $cardetails['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
                 $successes[] = 'Sold Date Updated';
             } else {
                 $errors[] = "Sold Date conversion error";
@@ -177,7 +166,7 @@ if (!empty($_POST)) {
         // Update 'comments'
         $comments = ($_POST['comments']);
         $comments = Input::sanitize($comments);
-        $fields['comments'] = filter_var($comments, FILTER_SANITIZE_STRING);
+        $cardetails['comments'] = filter_var($comments, FILTER_SANITIZE_STRING);
         $successes[] = 'Comment Updated to ('.$comments.')';
 
         // Update 'image'
@@ -240,7 +229,7 @@ if (!empty($_POST)) {
                     imagejpeg($tn, $thumb_dest_path, 80);
                     $successes[] = 'Image Thumbnail';
 
-                    $fields['image'] = $newFileName;
+                    $cardetails['image'] = $newFileName;
                 } else {
                     $errors[] = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
                 }
@@ -249,23 +238,25 @@ if (!empty($_POST)) {
             }
         }
 
-        // If there are no errors then INSERT the $fields into the DB,
+        // If there are no errors then INSERT the $cardetails into the DB,
         if (empty($errors)) {
             // Add a create time
-            $fields['mtime'] = date('Y-m-d G:i:s');
+            $cardetails['mtime'] = date('Y-m-d G:i:s');
 
             // Make sure user owns the car before update
-            if ($db->get('car_user', ['AND',  ['userid', '=', $user_id], ['carid', '=', $fields['id']]])) {
+            if ($db->get('car_user', ['AND',  ['userid', '=', $user_id], ['carid', '=', $cardetails['id']]])) {
                 // Owner
-                $db->update('cars', $fields['id'], $fields);
+                $db->update('cars', $cardetails['id'], $cardetails);
                 if ($db->error()) {
                     $errors[] = 'DB ERROR' . $db->errorString();
                     logger($user->data()->id, "User", "edit_car error car " . $db->errorString());
                 } else {
                     // Grab the id of the last insert
-                    $successes[] = 'Update Car ID: ' . $fields['id'];
+                    $successes[] = 'Update Car ID: ' . $cardetails['id'];
+                    $successes[] = 'Update BY ID: ' . $cardetails['user_id'];
+
                     // then log it
-                    logger($user->data()->id, "User", "Updated car ID " . $fields['id']);
+                    logger($user->data()->id, "User", "Updated car ID " . $cardetails['id']);
 
                     // then redirect to User Account Page
                     Redirect::to($us_url_root . 'users/account.php');
@@ -287,7 +278,7 @@ if (!empty($_GET)) {
         $userQ = $db->get('car_user', ['AND',  ['userid', '=', $user_id], ['carid', '=', $car_id]]);
 
         if ($userQ->count() > 0) {
-            // Owner
+            // Owner so get the car
             $carQ =  $db->get("cars", ["id",  "=", $car_id]);
             $theCar = $carQ->results();
 
@@ -303,6 +294,8 @@ if (!empty($_GET)) {
             $cardetails['comments']    = $theCar[0]->comments;
             $cardetails['image']       = $theCar[0]->image;
 
+            
+
             // Get the car history for display
             $carQ = $db->query('SELECT * FROM cars_hist WHERE car_id=? ORDER BY cars_hist.timestamp DESC', [$car_id]);
             $carHist = $carQ->results();
@@ -316,65 +309,31 @@ if (!empty($_GET)) {
         }
     } else { /* Empty Car */
         logger($user->data()->id, "User", "Empty car_id field in GET");
-
         Redirect::to($us_url_root . 'users/account.php');
     } // empty $car_id
 } // $_GET
-
-// mod to allow edited values to be shown in form after update
-if (isset($fields['id'])) {
-    $cardetails['id']  = $fields['id'];
-}
-if (isset($fields['year'])) {
-    $cardetails['year']  = $fields['year'];
-}
-if (isset($fields['model'])) {
-    $cardetails['model'] = $fields['model'];
-}
-if (isset($fields['chassis'])) {
-    $cardetails['chassis'] = $fields['chassis'];
-}
-if (isset($fields['color'])) {
-    $cardetails['color'] = $fields['color'];
-}
-if (isset($fields['engine'])) {
-    $cardetails['engine'] = $fields['engine'];
-}
-if (isset($fields['purchasedate'])) {
-    $cardetails['purchasedate'] = $fields['purchasedate'];
-}
-if (isset($fields['solddate'])) {
-    $cardetails['solddate'] =  $fields['solddate'];
-}
-if (isset($fields['comments'])) {
-    $cardetails['comments'] = $fields['comments'];
-}
-if (isset($fields['image'])) {
-    $cardetails['image'] = $fields['image'];
-}
 ?>
 
 <div id="page-wrapper">
-    <div class="container">
+    <div class="container-fluid">
         <div class="well">
-    <br>
-
+        <br>
         <div class="row">
-            <div class="col-xs-12 col-md-6">
+            <div class="col-sm"> <!-- Car Info -->
                 <div class="card card-default">
                 <div class="card-header"><h2><strong>Update Car - <?php echo $cardetails['id'] ?></strong></h2></div>
                     <div class="card-body">
-                    <?php
-                    if (!$errors == '') {
-                        ?><div class="alert alert-danger"><?= display_errors($errors); ?></div><?php
-                    }
-                    ?>
-                    <?php if (!$successes == '') {
-                        ?><div class="alert alert-success"><?= display_successes($successes); ?></div><?php
-                    }
-                    ?>
-                    <!-- Here is the FORM -->
-                    <form name="addCar" action="edit_car.php" method="POST" enctype="multipart/form-data">
+                        <?php
+                        if (!$errors == '') {
+                            ?><div class="alert alert-danger"><?= display_errors($errors); ?></div><?php
+                        }
+                        ?>
+                        <?php if (!$successes == '') {
+                            ?><div class="alert alert-success"><?= display_successes($successes); ?></div><?php
+                        }
+                        ?>
+                        <!-- Here is the FORM -->
+                        <form name="addCar" action="edit_car.php" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="car_id" value="<?= $cardetails['id'] ?>" />
 
                         <div class="form-group">
@@ -448,19 +407,19 @@ if (isset($fields['image'])) {
                         <div class="form-group">
                             <label>Comments</br></label>
                         </div>
-                        <textarea name='comments' rows='10' cols='60' wrap='virtual' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments']); ?></textarea>
-                        
+                        <textarea class="form-control" name='comments' rows='10' wrap='virtual' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments']); ?></textarea>
+                    </div>
+                </div>   
+            </div>
+            <div class="col-sm"> <!-- Image Info -->
+                <div class="card card-default">
+                <div class="card-header"><h2><strong>Upload/Replace Picture</strong></h2></div>
+                    <div class="card-body">            
                         <!-- Form for the 'image' -->
-
-                        </br></br>
-                        <div class="form-group">
-                            <label>Upload/Replace Picture: </br></label> </br>
-                            <small id="engineHelp" class="form-text text-muted">Valid file types:  JPEG</small>
-                        </div>
                         <div>
                             <input type="file" name="uploadedFile" />
-                        </div>
-                        
+                            <small id="engineHelp" class="form-text text-muted">Valid file types:  JPEG</small>
+                        </div>                        
                         <!-- Add some space -->
                         </br>
                         <?php
@@ -469,20 +428,28 @@ if (isset($fields['image'])) {
                         }
                         ?>
                         </br>
-
-                        <!-- And last some buttons -->
-                        <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-
-                        <input class='btn btn-primary' type='submit' value='Update' class='submit' />
-                        <a class="btn btn-info" href=<?= $us_url_root ?>users/account.php>Cancel </a></form> 
-                    </div> <!-- card-body -->
+                        </br>
+                        </br>
+                    </div>
                 </div> <!-- card -->
-            </div> <!-- col-->
-        </div> <!-- row -->
+            </div> <!--col -->
+        </div> <!-- /.row -->
+        <div class="row">
+            <div class="col-sm-4">
+            </div>
+            <div class="col-sm-4">
+                <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
+                <input class="btn btn-primary btn-lg btn-block" type='submit' value='Update' class='submit' />
+                <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a></form>
+            </div>
+            <div class="col-sm-4">
+            </div>
+        </div> <!-- /.row -->
+        </div> <!-- well -->              
+
         <!-- Car History -->
         <div class="row">
         <div class="col-sm">
-
         <div class="card card-info">
             <div class="card-header"><h2><strong>Record Update History</strong></h2></div>
             <div class="card-body">
@@ -497,6 +464,12 @@ if (isset($fields['image'])) {
                         <th>Series</th>
                         <th>Variant</th>
                         <th>Color</th>
+
+                        <th>Engine</th>
+                        <th>Purchase Date</th>
+                        <th>Sold Date</th>
+                        <th>Comments</th>
+
                         <th>Image</th>
                         <th>Owner</th>
                         <th>City</th>
@@ -518,6 +491,12 @@ if (isset($fields['image'])) {
                         <td><?=$v1->series?></td>
                         <td><?=$v1->variant?></td>
                         <td><?=$v1->color?></td>
+
+                        <td><?=$v1->engine?></td>                        
+                        <td><?=$v1->purchasedate?></td>
+                        <td><?=$v1->solddate?></td>
+                        <td><?=$v1->comments?></td>
+
                         <td> <?php
                         if ($v1->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$v1->image)) {
                             echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
@@ -576,7 +555,7 @@ if (isset($fields['image'])) {
 $(document).ready(function()  {
     var table =  $('#historytable').DataTable(
     {
-        "aaSorting": [[ 9, "dsc" ]],
+        "ordering": false,
         "scrollX"  : true
     });
 } );
