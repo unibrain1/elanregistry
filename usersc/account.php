@@ -86,7 +86,7 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
 					<tr ><td ><strong>Last Login      : </strong></td><td ><?= $lastlogin?></td></tr>
 					<tr ><td ><strong>Number of Logins: </strong></td><td ><?= $thatUser[0]->logins?></td></tr>
 					
-					<tr ><td ><a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Updae Account Info</a><td></tr>
+					<tr ><td ><a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Update Account Info</a><td></tr>
 				</table>
 			
 			</div>
