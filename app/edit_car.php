@@ -501,7 +501,7 @@ if (!empty($_GET)) {
                         if ($v1->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$v1->image)) {
                             echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
                         } ?>  </td>
-                        <td><?=$v1->lname?></td>
+                        <td><?=$v1->fname?></td>
                         <td><?=$v1->city?></td>
                         <td><?=$v1->state?></td>
                         <td><?=$v1->country?></td> 
