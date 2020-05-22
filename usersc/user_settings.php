@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 ?>
-<?php 
+<?php
 require_once '../users/init.php';
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 ?>
@@ -54,18 +54,23 @@ $profileId = $profileQ->results()[0]->id;
 // USER ID is in $user_id .  Use the USER ID to get the users Profile information
 $userQ = $db->query("SELECT * FROM profiles LEFT JOIN users ON user_id = users.id WHERE user_id = ?", array($userId));
 if ($userQ->count() > 0) {
-		$profiledetails = $userQ->first();
+    $profiledetails = $userQ->first();
+
+    /* Set the city, state, country for geolocation.  If there is an update of any of these values they will be overwritten */
+    $city = $profiledetails->city;
+    $state = $profiledetails->state;
+    $country = $profiledetails->country;
 } else {
     echo 'USER_SETTING(59) something is wrong with the user profile </br>';
-	dump($userId);
-	dump($userQ);
+    dump($userId);
+    dump($userQ);
 }
 
 // Get the country list
 $countryQ = $db->query("SELECT name FROM country");
  if ($countryQ->count() > 0) {
-    $countrylist = $countryQ->results();
-}
+     $countrylist = $countryQ->results();
+ }
 
 
 //Temporary Success Message
@@ -237,8 +242,14 @@ if (!empty($_POST)) {
                 }
             }
         } else {
-            $state=$profiledetails->country;
+            $country=$profiledetails->country;
         }
+
+        // Update geolocation
+        include($abs_us_root.$us_url_root.'app/views/_geolocate.php');
+        $db->update('profiles', $profileId, $fields);
+        $successes[]='Lat/Lon updated.';
+        logger($user->data()->id, "User", "Changed updated lat/lon");
 
         //Update Website
         if ($profiledetails->website != $_POST['website']) {
@@ -255,7 +266,7 @@ if (!empty($_POST)) {
                 logger($user->data()->id, "User", "Changed website from $profiledetails->website to $website.");
             } else {
                 echo("$url is not a valid URL");
-                //validation did not pass                    
+                //validation did not pass
                 $errors[] = "$url is not a valid URL";
             }
         } else {
@@ -458,7 +469,7 @@ if ($userQ2->count() > 0) {
                             foreach ($countrylist as $c) {
                                 echo "<option value=\"$c->name\">$c->name</option>";
                             }
-                            echo "</select>";// Closing of list box 
+                            echo "</select>";// Closing of list box
                             ?>
                         </div>
 
@@ -472,12 +483,12 @@ if ($userQ2->count() > 0) {
                             <label>Email</label>
                             <input class='form-control' type='text' name='email' value='<?=$userdetails->email?>' />
 							<?php if (!IS_NULL($userdetails->email_new)) {
-                            ?><br /><div class="alert alert-danger">
+                                ?><br /><div class="alert alert-danger">
 								<p><strong>Please note</strong> there is a pending request to update your email to <?=$userdetails->email_new?>.</p>
 								<p>Please use the verification email to complete this request.</p>
 								<p>If you need a new verification email, please re-enter the email above and submit the request again.</p>
 							</div><?php
-    } ?>
+                            } ?>
                         </div>
 
 						<div class="form-group">
@@ -502,23 +513,23 @@ if ($userQ2->count() > 0) {
 											 </div></div>
 
 											 <?php if (!is_null($userdetails->pin)) {
-        ?>
+                                ?>
 												 <div class="form-group">
 													 <label>Reset PIN
 													 <input  type="checkbox" id="resetPin" name="resetPin" value="1" /></label>
 													</div>
 												<?php
-    } ?>
+                            } ?>
 
 											 <div class="form-group">
 													 <label>Old Password<?php if (!is_null($userdetails->password)) {
-        ?>, required for changing password, email, or resetting PIN<?php
-    } ?></label>
+                                ?>, required for changing password, email, or resetting PIN<?php
+                            } ?></label>
 													 <div class="input-group" data-container="body">
 														 <span class="input-group-addon password_view_control" id="addon6"><span class="glyphicon glyphicon-eye-open"></span></span>
 														 <input class='form-control' type='password' id="old" name='old' <?php if (is_null($userdetails->password)) {
-        ?>disabled<?php
-    } ?>/>
+                                ?>disabled<?php
+                            } ?>/>
 														 <span class="input-group-addon pwpopover" id="addon5" data-container="body" data-toggle="popover" data-placement="top" data-content="Required to change your password">?</span>
 													 </div>
 											 </div>
@@ -570,4 +581,4 @@ if ($userQ2->count() > 0) {
 </script>
 
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>
