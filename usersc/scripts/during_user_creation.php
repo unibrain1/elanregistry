@@ -16,9 +16,9 @@
 // Create a profiles entry if it does not exist (it shouldn't)
 
 $check = $db->query("SELECT id FROM profiles WHERE user_id = ?", $theNewId)->count();
-if($check < 1){
-	$now = new DateTime();
-  	$db->insert('profiles',['user_id'=>$theNewId,'bio'=>"automatically added - ".$now->format('Y-m-d H:i:s')]);
+if ($check < 1) {
+    $now = new DateTime();
+    $db->insert('profiles', ['user_id'=>$theNewId,'bio'=>"automatically added - ".$now->format('Y-m-d H:i:s')]);
 }
 
 
@@ -29,6 +29,10 @@ $db->update('profiles', ["user_id","=",$theNewId], ['city'=>Input::get('city')])
 $db->update('profiles', ["user_id","=",$theNewId], ['state'=>Input::get('state')]);
 $db->update('profiles', ["user_id","=",$theNewId], ['country'=>Input::get('country')]);
 
+//   Update geolocation
+        $fields = [];
+include($abs_us_root.$us_url_root.'app/views/_geolocate.php');
+$db->update('profiles', ["user_id","=",$theNewId], $fields);
 
 // Even if you do not want to add additional fields to the the join form, this is a great opportunity to add this user to another database table.
 // Get creative!
