@@ -32,7 +32,7 @@ ga('create','UA-7230761-6','auto');ga('send','pageview');
                 <div class="col-12 text-center">
                         <footer><br>&copy;
                           <?php echo date("Y"); ?>
-                           <?=$settings->copyright; ?></footer>
+                            <?=$settings->copyright; ?></footer>
                         <br>
                 </div>
         </div>
