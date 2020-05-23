@@ -18,7 +18,7 @@ if (!empty($_GET)) {
     $carQ = $db->findById($car_id, "users_carsview");
     $carData = $carQ->results();
 
-    $carQ = $db->query('SELECT * FROM cars_hist WHERE car_id=? ORDER BY cars_hist.timestamp DESC', [$car_id]);
+    $carQ = $db->query('SELECT * FROM cars_hist WHERE car_id=? ORDER BY timestamp DESC, operation ASC', [$car_id]);
     $carHist = $carQ->results();
 
     $raw = date_parse($carData[0]->join_date);
@@ -38,6 +38,7 @@ if (!empty($_GET)) {
     <div class="row">
       <div class="col-sm-6"> <!-- Image -->
         <div class="card card-default">
+        <div class="card-header"><h2><strong>The Car</strong></h2></div>
           <div class="card-body">
             <?php
                     if ($carData[0]->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$carData[0]->image)) {
@@ -53,6 +54,7 @@ if (!empty($_GET)) {
           <div class="card-header"><h2><strong>Car Information</strong></h2></div>
           <div class="card-body">
             <table id="cartable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+            <tr ><td ><strong>Car ID:</strong></td><td ><?=$carData[0]->id?></td></tr>
             <tr ><td ><strong>Series:</strong></td><td ><?=$carData[0]->series?></td></tr>
             <tr ><td ><strong>Variant:</strong></td><td ><?=$carData[0]->variant?></td></tr>
             <tr ><td ><strong>Model:</strong></td><td ><?=$carData[0]->model?></td></tr>
@@ -64,6 +66,7 @@ if (!empty($_GET)) {
             <tr ><td ><strong>Purchase Date:</strong></td><td ><?=$carData[0]->purchasedate?></td></tr>
             <tr ><td ><strong>Sold Date :</strong></td><td ><?=$carData[0]->solddate?></td></tr>
             <tr ><td ><strong>Comments:</strong></td><td ><?=$carData[0]->comments?></td></tr>
+            <tr ><td ><strong>Owner ID:</strong></td><td ><?=$carData[0]->user_id?></td></tr>
             <tr ><td ><strong>First name:</strong></td><td ><?=ucfirst($carData[0]->fname)?></td></tr>
             <tr ><td ><strong>City</strong></td><td ><?=html_entity_decode($carData[0]->city);?></td></tr>
             <tr ><td ><strong>State:</strong></td><td ><?=html_entity_decode($carData[0]->state);?></td></tr>
@@ -88,63 +91,7 @@ if (!empty($_GET)) {
     <div class="card border-success">
       <div class="card-header"><h2><strong>Record Update History</strong></h2></div>
           <div class="card-body">
-            <table id="historytable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
-              <thead>
-              <tr>
-                  <th>Operation</th>
-                  <th>Date Modified</th>
-                  <th>Year</th>
-                  <th>Type</th>
-                  <th>Chassis</th>
-                  <th>Series</th>
-                  <th>Variant</th>
-                  <th>Color</th>
-
-                  <th>Engine</th>
-                  <th>Purchase Date</th>
-                  <th>Sold Date</th>
-                  <th>Comments</th>
-
-                  <th>Image</th>
-                  <th>Owner</th>
-                  <th>City</th>
-                  <th>State</th>
-                  <th>Country</th>
-              </tr>
-              </thead>
-              <tbody>
-              <?php
-              //Cycle through users
-              foreach ($carHist as $v1) {
-                  ?>
-                  <tr>
-                  <td><?=$v1->operation?></td>
-                  <td><?=$v1->timestamp?></td> 
-                  <td><?=$v1->year?></td>
-                  <td><?=$v1->type?></td>
-                  <td><?=$v1->chassis?></td>
-                  <td><?=$v1->series?></td>
-                  <td><?=$v1->variant?></td>
-                  <td><?=$v1->color?></td>
-
-                  <td><?=$v1->engine?></td>                        
-                  <td><?=$v1->purchasedate?></td>
-                  <td><?=$v1->solddate?></td>
-                  <td><?=$v1->comments?></td>
-
-                  <td> <?php
-                  if ($v1->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$v1->image)) {
-                      echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
-                  } ?>  </td>
-                  <td><?=$v1->fname?></td>
-                  <td><?=$v1->city?></td>
-                  <td><?=$v1->state?></td>
-                  <td><?=$v1->country?></td> 
-                  </tr>
-              <?php
-              } ?>
-              </tbody>
-          </table>
+            <?php include($abs_us_root.$us_url_root.'app/views/_car_history.php'); ?>
           </div> <!-- card-body -->
         </div> <!-- card -->
     </div> <!-- well -->
