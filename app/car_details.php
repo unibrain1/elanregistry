@@ -8,9 +8,6 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 }
 
 // Get some interesting user information to display later
-
-$user_id = $user->data()->id;
-
 if (!empty($_GET)) {
     $id = $_GET['car_id'];
     $car_id = Input::sanitize($id);
