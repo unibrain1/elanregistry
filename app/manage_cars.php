@@ -17,7 +17,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 $badusers="SELECT users.id FROM users  LEFT JOIN car_user ON (users.id = car_user.userid) WHERE ( users.email_verified = 0 AND users.last_login = 0 AND car_user.carid IS NULL AND vericode_expiry < CURRENT_DATE ) GROUP BY users.id ";
 $unusedprofiles=" SELECT t1.user_id FROM profiles t1 LEFT JOIN users t2 ON t1.user_id = t2.id WHERE t2.id IS NULL ";
 $orphanedcars="SELECT t1.userid FROM car_user t1 LEFT JOIN users t2 ON t1.userid = t2.id  WHERE t2.id IS NULL ";
-$duplicates="SELECT a.* FROM cars a JOIN( SELECT chassis, COUNT( * ) FROM users_carsview GROUP BY chassis HAVING COUNT( * ) > 1 ) b ON a.chassis = b.chassis ORDER BY a.chassis DESC";
+$duplicates="SELECT a.* FROM cars a JOIN( SELECT chassis, COUNT( * ) FROM users_carsview WHERE chassis <> '' GROUP BY chassis HAVING COUNT( * ) > 1 ) b ON a.chassis = b.chassis ORDER BY a.chassis DESC";
 
 // Get list of suspected duplicates
     $duplicatesQ = $db->query($duplicates);
