@@ -82,15 +82,18 @@ if (!empty($_GET)) {
           </div>
         </div>
       </div> <!-- col-xs-12 col-md-6 -->
-
     </div> <!-- row -->
     <br>
-    <div class="card border-success">
-      <div class="card-header"><h2><strong>Record Update History</strong></h2></div>
+    <div class="row">
+      <div class="col"> <!-- Image -->
+        <div class="card border-success">
+          <div class="card-header"><h2><strong>Record Update History</strong></h2></div>
           <div class="card-body">
             <?php include($abs_us_root.$us_url_root.'app/views/_car_history.php'); ?>
           </div> <!-- card-body -->
         </div> <!-- card -->
+        </div> <!-- col -->
+    </div> <!-- row -->
     </div> <!-- well -->
   </div> <!-- container -->
 </div> <!-- #page-wrapper -->
@@ -108,15 +111,7 @@ $(document).ready(function()  {
 } );
 </script>
 
-<script type="text/javascript">
-$(document).ready(function()  {
-  var table =  $('#historytable').DataTable(
-    {
-      "ordering": false,
-      "scrollX": true
-    });
-} );
-</script>
+
 
 <!-- footers -->
 <?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>

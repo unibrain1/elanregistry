@@ -494,15 +494,7 @@ if (!empty($_GET)) {
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/>
 <script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
 
-<script type="text/javascript">
-$(document).ready(function()  {
-    var table =  $('#historytable').DataTable(
-    {
-        "ordering": false,
-        "scrollX"  : true
-    });
-} );
-</script>
+
 
 <!-- Add car validation JS -->
 <script language="JavaScript" src=<?= $us_url_root . 'app/js/cardefinition.js' ?> type="text/javascript"></script>
