@@ -55,3 +55,12 @@
                     } ?>
                     </tbody>
                 </table>
+                <script type="text/javascript">
+                $(document).ready(function()  {
+                var table =  $('#historytable').DataTable(
+                    {
+                    "ordering": false,
+                    "scrollX": true
+                    });
+                } );
+                </script>
