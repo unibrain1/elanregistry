@@ -20,8 +20,8 @@ $orphanedcars="SELECT t1.userid FROM car_user t1 LEFT JOIN users t2 ON t1.userid
 $duplicates="SELECT a.* FROM cars a JOIN( SELECT chassis, COUNT( * ) FROM users_carsview WHERE chassis <> '' GROUP BY chassis HAVING COUNT( * ) > 1 ) b ON a.chassis = b.chassis ORDER BY a.chassis DESC";
 
 // Get list of suspected duplicates
-    $duplicatesQ = $db->query($duplicates);
-    $duplicateCars = $duplicatesQ->results();
+$duplicatesQ = $db->query($duplicates);
+$duplicateCars = $duplicatesQ->results();
 
 
 
@@ -102,6 +102,12 @@ if (!empty($_POST)) {
                             $successes[] = 'Admin '.($user->data()->id).' Merged CAR '.$old_car_id.' to CAR '.$new_car_id;
                             logger($user->data()->id, "User", "Merged CAR $old_car_id to CAR $new_car_id.");
                         }
+                        
+                        // Now update the table
+                        // Get list of suspected duplicates
+                        $duplicatesQ = $db->query($duplicates);
+                        $duplicateCars = $duplicatesQ->results();
+
                         break;
                     case "cake":
                         echo "i is cake";
