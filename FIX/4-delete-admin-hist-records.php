@@ -13,8 +13,14 @@ echo "Deleting old administrative update records";
 
 $q = "
     DELETE FROM `cars_hist` WHERE timestamp LIKE '2020-05-06 13:2%';
-    DELETE FROM `cars_hist` WHERE timestamp LIKE '2020-05-22 10:5%';"
-    ;
+    DELETE FROM `cars_hist` WHERE timestamp LIKE '2020-05-22 10:5%';
+
+    DELETE FROM `cars_hist` WHERE timestamp LIKE '2020-05-06 15:2%';
+    DELETE FROM `cars_hist` WHERE timestamp LIKE '2020-05-22 12:5%';
+
+    DELETE FROM `cars_hist` WHERE timestamp LIKE '2020-05-06 15:2%';
+    DELETE FROM `cars_hist` WHERE timestamp LIKE '2020-05-22 12:5%';
+    ";
 
 
 $db->query($q);
