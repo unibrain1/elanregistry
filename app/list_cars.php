@@ -111,7 +111,10 @@ $carData = $carQ->results();
 <!-- Place any per-page javascript here -->
 
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/fixedheader/3.1.2/css/fixedHeader.dataTables.min.css">
 <script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/fixedheader/3.1.2/js/dataTables.fixedHeader.min.js" type="text/javascript"></script>
+
 
 <script>
 $(document).ready(function()  {
@@ -131,13 +134,13 @@ $(document).ready(function()  {
     // DataTable
     var table =  $('#cartable').DataTable(
     {
-      "pageLength": 25,
-      scrollX:        true,
+      fixedHeader  : true,
+      pageLength   : 25,
+      scrollX      : true,
       "aLengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
-      "aaSorting": [[ 1, "asc" ],[ 2, "asc" ],[ 3, "asc" ]],
-      fixedHeader:  { headerOffset: 68 },
-      "columnDefs": [ {
-        "targets": 0,
+      "aaSorting"  : [[ 1, "asc" ],[ 2, "asc" ],[ 3, "asc" ]],
+      "columnDefs" : [ {
+        "targets"  : 0,
         "orderable": false
         } ]
     });
