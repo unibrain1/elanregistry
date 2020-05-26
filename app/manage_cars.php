@@ -3,7 +3,6 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-
 require_once '../users/init.php';
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 
@@ -35,11 +34,14 @@ if (!empty($_POST)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
         // Do something!
+        $_POST  = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+
         if (!empty($_POST)) {
             if (!empty($_POST['command'])) {
                 switch ($_POST['command']) {
+
+                    // Assign car t a new owner
                     case "reassign":
-                        
                         $user_id = $_POST['user_id'];
                         $car_id  = $_POST['car_id'];
 
@@ -68,21 +70,31 @@ if (!empty($_POST)) {
 
                         // Add a record to the history with some information on the assignment
                         $fields['comments'] = "Car was reassigned to new user $user_id.";
+                        $fields['operation'] = "NEWOWNER";
+
                         $fields['car_id'] = $car_id;
-                        $fields['operation'] = "REASSIGN";
                         $db->insert("cars_hist", $fields);
 
-                        $successes[] = 'Admin '.($user->data()->id).' Assigned CAR '.$car_id.' to USER '.$user_id;
-                        logger($user->data()->id, "User", "Assigned CAR $car_id to USER $user_id.");
+                        $successes[] = 'Admin '.($user->data()->id).' '.$fields['comments'];
+                        logger($user->data()->id, "ElanRegistry", $fields['comments']);
 
                         break;
 
+                    // Merge two cars because a car is a) a duplicate or b)the car was sold to a new owner and the new owner created a record.
                     case "merge":
-                            $cars = $_POST['cars'];
-                            $N = count($cars);
-                            if ($N <> 2) {
+                            // Validate input
+                            if (!isset($_POST['cars'])  or !isset($_POST['reason'])) {
+                                $errors[] = 'Select 2 cars to merge and a reason';
+                                break;
+                            }
+                            $cars    = $_POST['cars'];
+                            $reason  = $_POST['reason'];
+
+                            if (count($cars) <> 2) {
                                 $errors[] = 'Select 2 cars to merge';
+                                break;
                             } else {
+                                // Determine the newest car
                                 if ($cars[0] > $cars[1]) {
                                     $new_car_id = $cars[0];
                                     $old_car_id = $cars[1];
@@ -90,37 +102,61 @@ if (!empty($_POST)) {
                                     $new_car_id = $cars[1];
                                     $old_car_id = $cars[0];
                                 }
-                                
-                                // Merge the history
-                                $db->query("UPDATE cars_hist SET car_id = ? WHERE car_id = ?", [$new_car_id, $old_car_id]);
-                                if ($db->error()) {
-                                    $errors[] = $db->errorString();
-                                    logger($user->data()->id, "User", "FAILED: Merged CAR $old_car_id to CAR $new_car_id.");
-                                } else {
-                                    // Unassign from the previous owner
-                                    $db->query("DELETE FROM car_user WHERE carid = ?", [$old_car_id]);
+                            }
+                            if (count($reason) <> 1) {
+                                $errors[] = 'Select 1 reason code';
+                                break;
+                            } else {
+                                // Build the reason string
+                                switch ($reason[0]) {
+                                    case "duplicate":
+                                        $fields['comments'] = "Car $old_car_id a duplicate of $new_car_id.  The history of $old_car_id has been merged with $new_car_id and $old_car_id deleted.";
+                                        $fields['operation'] = "DUPLICATE";
+                                    break;
 
-                                    // Remove old car
-                                    $db->query("DELETE FROM cars WHERE id = ?", [$old_car_id]);
+                                    case "newowner":
+                                        $fields['comments'] = "Car $old_car_id was sold to a new owner and the new owner created a record for the same car as $new_car_id. The history of $old_car_id has been merged with $new_car_id and $old_car_id deleted.";
+                                        $fields['operation'] = "NEWOWNER";
+                                    break;
 
-                                    // Add a record to the history with some information on the assignment
-                                    $fields['comments'] = "Car $old_car_id was merged with $new_car_id.  Car $old_car_id has been deleted.  This was most likely because of a duplicate entry.";
-                                    $fields['car_id'] = $new_car_id;
-                                    $fields['operation'] = "MERGE";
-                                    $db->insert("cars_hist", $fields);
+                                    default:
 
-                                    $successes[] = 'Admin '.($user->data()->id).' Merged CAR '.$old_car_id.' to CAR '.$new_car_id;
-                                    logger($user->data()->id, "User", "Merged CAR $old_car_id to CAR $new_car_id.");
+                                    // This should never happen (Yeah right)
+                                        $fields['comments'] = "Car $old_car_id was merged with $new_car_id.  Car $old_car_id has been deleted.";
+                                        $fields['operation'] = "DEFAULT";
+                                    break;
                                 }
                             }
-                        // Now update the table
-                        // Get list of suspected duplicates
+
+                            // Merge the history
+                            $db->query("UPDATE cars_hist SET car_id = ? WHERE car_id = ?", [$new_car_id, $old_car_id]);
+                            if ($db->error()) {
+                                $errors[] = $db->errorString();
+                                logger($user->data()->id, "ElanRegistry", "FAILED: Merged CAR $old_car_id to CAR $new_car_id.");
+                            } else {
+                                // Unassign from the previous owner
+                                $db->query("DELETE FROM car_user WHERE carid = ?", [$old_car_id]);
+
+                                // Remove old car
+                                $db->query("DELETE FROM cars WHERE id = ?", [$old_car_id]);
+
+                                // Add a record to the history with some information on the assignment
+                                $fields['car_id'] = $new_car_id;
+
+                                $db->insert("cars_hist", $fields);
+
+                                $successes[] = 'Admin '.($user->data()->id).' '.$fields['comments'];
+                                logger($user->data()->id, "ElanRegistry", $fields['comments']);
+                            }
+                        // Now update suspected duplicates
                         $duplicatesQ = $db->query($duplicates);
                         $duplicateCars = $duplicatesQ->results();
 
                         break;
+
+                    // This will never happen (Yeah right)
                     case "cake":
-                        echo "i is cake";
+                        echo "The cake is a lie";
                         break;
                 }
             }
@@ -133,13 +169,31 @@ if (!empty($_POST)) {
 	<div class="container-fluid">
 		<div class="well">
 		<div class="row">
+
+            <div class="col-4" align="center">
+				<div class="card card-default">
+				<div class="card-header"><h2><strong>Messages</strong></h2></div>
+					<div class="card-body">
+						<?php if (!$errors=='') {
+    ?>
+						<div class="alert alert-danger"><?=display_errors($errors); ?></div><?php
+} ?>
+						<?php if (!$successes=='') {
+        ?>
+						<div class="alert alert-success"><?=display_successes($successes); ?></div><?php
+    } ?>
+					</div> <!-- card-body -->
+				</div> <!-- card -->  
+			</div> <!-- col -->
+
+
 			<div class="col-4" align="center">
 				<div class="card card-default">
 				<div class="card-header"><h2><strong>DB Cleanup</strong></h2></div>
 					<div class="card-body">
-					<button type="button" class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#badUser">Remove <?= $db->query($badusers)->count() ?> Bad Users</button>
-					<button type="button" class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#cleanProfile">Clean <?= $db->query($unusedprofiles)->count() ?> Unused Profiles</button>
-					<button type="button" class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#orphanCars">Assign  <?= $db->query($orphanedcars)->count() ?> Orphan Cars</button>
+					<button type="button" class="btn btn-success btn-lg btn-block" data-toggle="modal" data-target="#badUser">Remove <?= $db->query($badusers)->count() ?> Bad Users</button>
+					<button type="button" class="btn btn-success btn-lg btn-block" data-toggle="modal" data-target="#cleanProfile">Clean <?= $db->query($unusedprofiles)->count() ?> Unused Profiles</button>
+					<button type="button" class="btn btn-success btn-lg btn-block" data-toggle="modal" data-target="#orphanCars">Assign  <?= $db->query($orphanedcars)->count() ?> Orphan Cars</button>
 					</div> <!-- card-body -->
 				</div> <!-- card -->
 			</div> <!-- col -->
@@ -156,37 +210,35 @@ if (!empty($_POST)) {
 						<br><br>
 						<input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
 						<input type="hidden" name="command" value="reassign" />
-						<input class="btn btn-primary btn-lg btn-block" type='submit' value='Assign' class='submit' />
+						<input class="btn btn-success btn-lg btn-block" type='submit' value='Assign' class='submit' />
 					</form>
 					</div> <!-- card-body -->
 				</div> <!-- card -->
 			</div> <!-- col -->
-			<div class="col-4" align="center">
-				<div class="card card-default">
-				<div class="card-header"><h2><strong>Messages</strong></h2></div>
-					<div class="card-body">
-						<?php if (!$errors=='') {
-    ?>
-						<div class="alert alert-danger"><?=display_errors($errors); ?></div><?php
-} ?>
-						<?php if (!$successes=='') {
-        ?>
-						<div class="alert alert-success"><?=display_successes($successes); ?></div><?php
-    } ?>
-					</div> <!-- card-body -->
-				</div> <!-- card -->  
-			</div> <!-- col -->
+
 		</div> <!-- row -->
 		<div class="row">
-			<div class="col" align="center">
+			<div class="col">
 				<div class="card card-default">
-				<div class="card-header"><h2><strong>Suspected Duplicates</strong></h2></div>
+				<div class="card-header"><h2><strong>Duplicates</strong></h2></div>
 					<div class="card-body">
                         <form action="manage_cars.php" method="POST" enctype="multipart/form-data">
                             <input type="hidden" name="command" value="merge" />
                             <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
+                            <input type="submit" class="btn btn-success "  name="formSubmit" value="Merge" />
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="customCheck-duplicate" name="reason[]" value="duplicate" />
+                                    <label class="custom-control-label" for="customCheck-duplicate">Duplicate car</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="customCheck-newowner" name="reason[]" value="newowner" />
+                                    <label class="custom-control-label" for="customCheck-newowner">New car is new owner</label>
+                                </div>
+                            </div>
 
-                            <input type="submit" class="btn btn-primary btn-lg btn-block"  name="formSubmit" value="Merge" />
                             <table id="duptable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
                                 <thead>
                                 <tr>
@@ -223,7 +275,7 @@ if (!empty($_POST)) {
                                     <td class="center">
                                         <div class="form-group">
                                             <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="customCheck-<?=$v1->id?>" name="cars[]" value="<?=$v1->id?>" >
+                                            <input type="checkbox" class="custom-control-input" id="customCheck-<?=$v1->id?>" name="cars[]" value="<?=$v1->id?>" />
                                             <label class="custom-control-label" for="customCheck-<?=$v1->id?>"></label>
                                             </div>
                                         </div>
