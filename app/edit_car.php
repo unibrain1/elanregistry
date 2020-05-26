@@ -248,14 +248,14 @@ if (!empty($_POST)) {
                 $db->update('cars', $cardetails['id'], $cardetails);
                 if ($db->error()) {
                     $errors[] = 'DB ERROR' . $db->errorString();
-                    logger($user->data()->id, "User", "edit_car error car " . $db->errorString());
+                    logger($user->data()->id, "ElanRegistry", "edit_car error car " . $db->errorString());
                 } else {
                     // Grab the id of the last insert
                     $successes[] = 'Update Car ID: ' . $cardetails['id'];
                     $successes[] = 'Update BY ID: ' . $cardetails['user_id'];
 
                     // then log it
-                    logger($user->data()->id, "User", "Updated car ID " . $cardetails['id']);
+                    logger($user->data()->id, "ElanRegistry", "Updated car ID " . $cardetails['id']);
 
                     // then redirect to User Account Page
                     Redirect::to($us_url_root . 'users/account.php');
@@ -300,14 +300,14 @@ if (!empty($_GET)) {
             $carHist = $carQ->results();
         } else {
             // This should never happen unless the user is trying to do something bad.  Log it and then log them out
-            logger($user->data()->id, "User", "Not owner of car! USER " . $user_id . " CAR " . $car_id);
+            logger($user->data()->id, "ElanRegistry", "Not owner of car! USER " . $user_id . " CAR " . $car_id);
             $user->logout();
             Redirect::to($us_url_root . 'index.php');
 
             exit();
         }
     } else { /* Empty Car */
-        logger($user->data()->id, "User", "Empty car_id field in GET");
+        logger($user->data()->id, "ElanRegistry", "Empty car_id field in GET");
         Redirect::to($us_url_root . 'users/account.php');
     } // empty $car_id
 } // $_GET

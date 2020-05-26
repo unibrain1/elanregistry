@@ -260,14 +260,14 @@ if (!empty($_POST)) {
 
             if ($db->error()) {
                 $errors[] = 'DB ERROR' . $db->errorString();
-                logger($user->data()->id, "User", "add_car error car " . $db->errorString());
+                logger($user->data()->id, "ElanRegistry", "add_car error car " . $db->errorString());
             } else {
                 // Grab the id of the last insert
                 $car_id = $db->lastId();
                 $successes[] = 'Car ID: ' . $car_id;
                 $successes[] = 'User ID: ' . $user_id;
                 // then log it
-                logger($user->data()->id, "User", "Added car " . $car_id);
+                logger($user->data()->id, "ElanRegistry", "Added car " . $car_id);
                 // then udate the cross reference table (user_car) with the car_id and user_id,
                 $db->insert(
                     'car_user',
