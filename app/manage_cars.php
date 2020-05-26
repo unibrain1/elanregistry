@@ -110,7 +110,7 @@ if (!empty($_POST)) {
                                 // Build the reason string
                                 switch ($reason[0]) {
                                     case "duplicate":
-                                        $fields['comments'] = "Car $old_car_id a duplicate of $new_car_id.  The history of $old_car_id has been merged with $new_car_id and $old_car_id deleted.";
+                                        $fields['comments'] = "Car $old_car_id is a duplicate of $new_car_id.  The history of $old_car_id has been merged with $new_car_id and $old_car_id deleted.";
                                         $fields['operation'] = "DUPLICATE";
                                     break;
 
