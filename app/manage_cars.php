@@ -142,10 +142,6 @@ if (!empty($_POST)) {
 
                                 // Add a record to the history with some information on the assignment
                                 $fields['car_id'] = $new_car_id;
-<<<<<<< HEAD
-=======
-                                print_r($fields);
->>>>>>> 7db57e9da077c13feb80a49d479382f73b9afc1a
 
                                 $db->insert("cars_hist", $fields);
 
