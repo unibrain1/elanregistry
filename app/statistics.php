@@ -14,8 +14,9 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 $countryData     = $db->query("SELECT country, COUNT(country) as count FROM users_carsview GROUP BY country ORDER BY count DESC")->results();
 $typeData        = $db->query("SELECT type, COUNT(type) as count FROM users_carsview GROUP BY type ORDER BY count DESC")->results();
 $seriesData      = $db->query("SELECT series, COUNT(series) as count FROM users_carsview GROUP BY series ORDER BY count DESC")->results();
-$seriesData1     = $db->query("SELECT series, COUNT(series) as count FROM users_carsview GROUP BY series ORDER BY series ASC")->results();
+$variantData = $db->query("SELECT variant, COUNT(variant) as count FROM users_carsview GROUP BY variant ORDER BY count DESC")->results();
 
+// There should be a more efficient way to do this
 $count['s1']     = $db->query("select count(*) as count from cars where series like 's1%'")->results()[0]->count;
 $count['s2']     = $db->query("select count(*) as count from cars where series like 's2%'")->results()[0]->count;
 $count['s3']     = $db->query("select count(*) as count from cars where series like 's3%'")->results()[0]->count;
@@ -23,16 +24,14 @@ $count['s4']     = $db->query("select count(*) as count from cars where series l
 $count['sprint'] = $db->query("select count(*) as count from cars where series like 'sprint%'")->results()[0]->count;
 $count['+2']     = $db->query("select count(*) as count from cars where series like '+2%'")->results()[0]->count;
 
+// Number of cars produced
 $notes['s1']     = "900";
 $notes['s2']     = "1250";
 $notes['s3']     = "2650";
-$notes['s4']     = "3000";
-$notes['sprint'] = "1353";
+$notes['s4']     = "2976";
+$notes['sprint'] = "900";
 $notes['+2']     = "4526";
 
-
-
-$variantData = $db->query("SELECT variant, COUNT(variant) as count FROM users_carsview GROUP BY variant ORDER BY count DESC")->results();
 
 $ageData = $db->query("
 SELECT t.age as age,  count(*) as count
@@ -48,101 +47,109 @@ FROM (
   FROM users_carsview  WHERE ctime > DATE_SUB( CURDATE(), INTERVAL 365 DAY )) t
   group by t.age ORDER BY CAST(t.age as unsigned)
 ")->results();
-
-
 ?>
 
 
 <div id="page-wrapper">
 <div class="container-fluid">
 <div class="well">
-	<h1>Statistics</h1></br>
-  <div class="row">
-
-		<div class="col-12" align="center">
-			<div class="card-block">
-        <div id="map" style="height: 400px; width: 80%; margin: 10px; padding: 40px;"></div>
-        26 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png"/> |
-        36 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png"/> |
-        45 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png"/> |
-        50 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images//mm_20_blue.png"/> |
-        26R <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png"/> 
-		  </div>
-	 </div>
-  </div>
-
+<!-- Here are the blocks  -->
 	<div class="row">
-		<div class="col-md-6">
-			<!-- Column 1 -->
-			<div class="card-block">
-      <div class="card-header"><h2>Count of Cars by Series</h2></div>
-				<div class="card-body">
+    <div class="col-12" align="center">
+      <div class="card-block">
+        <div class="card-header"><h2>Where are the cars around the world</h2></div>
+        <div class="card-body">
+          <div id="map" style="height: 400px; width: 80%; margin: 10px; padding: 40px;"></div>
+          26 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png"/> |
+          36 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png"/> |
+          45 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png"/> |
+          50 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images//mm_20_blue.png"/> |
+          26R <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png"/> 
+          </div>
+        </div> <!-- body -->        </div> <!-- body -->
+      </div><!-- card block -->
+    </div> <!-- col -->
+  </div> <!-- row -->
 
-        <table id="seriestable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
-          <thead>
-            <tr>
-              <th>Series</th>
-              <th>Count</th>
-              <th>Number produced *</th>
-              <th>Percent recorded</th>
+  <div class="row">
+    <div class="col-6" align="center">
+      <div class="card-block">
+        <div class="card-header"><h2>Count of Cars by Series</h2></div>
+        <div class="card-body">
+          <table id="seriestable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+            <thead> <tr><th>Series</th><th>Count</th><th>Number produced *</th> <th>Percent recorded</th></tr></thead>
+            <tbody>
+              <?php
+              $total=0;
+              $totalN=0;
+              foreach ($count as $key => $value) {
+                  echo "<tr><td>".ucfirst($key)."</td><td>".$value."</td>";
+                  echo "<td>".$notes[$key]."</td>";
+                  echo "<td>".round(($value*100)/$notes[$key], 0)." %</td></tr>";
 
-            </tr>
-          </thead>
-          <tbody>
-                <?php
-                $total=0;
-                $totalN=0;
-          foreach ($count as $key => $value) {
-              echo "<tr><td>".ucfirst($key)."</td><td>".$value."</td>";
-              echo "<td>".$notes[$key]."</td>";
-              echo "<td>".round(($value*100)/$notes[$key], 0)." %</td></tr>";
-
-              $total += $value;
-              $totalN += $notes[$key];
-          }
+                  $total += $value;
+                  $totalN += $notes[$key];
+              }
               echo "<tr><td><strong>Total</td><td>".$total."</strong></td><td>".$totalN."</td><td>".round(($total*100)/$totalN)." %</td></tr>";
               ?> 
+            </tbody>
+          </table>
+          <p><small>* - Number produced is from 
+          <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950">
+          Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.  
+          In cases where there is a range of values, I took the lower.</small></p>
+        </div> <!-- body -->
+      </div><!-- card block -->
+    </div> <!-- col -->
+    <div class="col-6" align="center">
+      <div class="card-block">
+        <div class="card-header"><h2>Cars by Country</h2></div>
+        <div class="card-body">
+          <div id="chart_country"></div>
+        </div> <!-- body -->
+      </div><!-- card block -->
+    </div> <!-- col -->
+  </div> <!-- row -->
 
-          </tbody>
-        </table>
-        <p><small>* - Number produced is from <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950
-">Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.  In cases where there is a range of values, I took the lower.</small></p>
+	<div class="row">
+    <div class="col-6" align="center">
+      <div class="card-block">
+        <div class="card-header"><h2>Cars by Type</h2></div>
+        <div class="card-body">
+          <div id="chart_type"></div>
+        </div> <!-- body -->
+      </div><!-- card block -->
+    </div> <!-- col -->
+    <div class="col-6" align="center">
+      <div class="card-block">
+        <div class="card-header"><h2>Cars by Series</h2></div>
+        <div class="card-body">
+          <div id="chart_series"></div>
+        </div> <!-- body -->
+      </div><!-- card block -->
+    </div> <!-- col -->
+  </div> <!-- row -->
 
-        </div><!--card body -->
-      </div> <!-- .card-block -->
+  <div class="row">
+    <div class="col-6" align="center">
+      <div class="card-block">
+        <div class="card-header"><h2>Cars by Variant</h2></div>
+        <div class="card-body">
+          <div id="chart_variant"></div>
+        </div> <!-- body -->
+      </div><!-- card block -->
+    </div> <!-- col -->
+    <div class="col-6" align="center">
+      <div class="card-block">
+        <div class="card-header"><h2>Cars added in the last period</h2></div>
+        <div class="card-body">
+          <div id="chart_age"></div>
+        </div> <!-- body -->
+      </div><!-- card block -->
+    </div> <!-- col -->
+  </div> <!-- row -->
 
-
-			<div class="card-block">
-      <div class="card-header"></div>
-
-		  <!--Div that will hold the pie chart-->
-		    <div id="chart_country"></div>
-	    </div> <!-- .card-block -->
-
-			<div class="card-header"></div>
-			<div class="card-block">
-		    <!--Div that will hold the pie chart-->
-		    	<div id="chart_type"></div>
-	    	</div> <!-- .card-block -->
-		</div> <!-- /.col -->
-
-		<div class="col-md-6">
-			<!-- Column 2 -->
-			<div class="card-header"></div>
-			<div class="card-block">
-		    	<div id="chart_series"></div>
-			</div> <!-- .card-block -->
-			<div class="card-header"></div>
-			<div class="card-block">
-		    	<div id="chart_variant"></div>
-			</div> <!-- .card-block -->
-			<div class="card-header"></div>
-			<div class="card-block">
-		    	<div id="chart_age"></div>
-			</div> <!-- .card-block -->
-		</div> <!-- /.col -->
-
-	</div> <!-- /.row -->
+<!-- End blocks -->
 </div> <!-- /.well -->
 </div> <!-- /.container -->
 </div> <!-- /.wrapper -->
@@ -157,16 +164,16 @@ FROM (
 <script type="text/javascript">
 
 	// Load the Visualization API and the corechart package.
-	google.charts.load('current', {'packages':['corechart']});
+	google.charts.load('current', {'packages':['corechart','line']});
 
 	// Set a callback to run when the Google Visualization API is loaded.
-	google.charts.setOnLoadCallback(drawChart1);
-	google.charts.setOnLoadCallback(drawChart2);
-	google.charts.setOnLoadCallback(drawChart3);
-	google.charts.setOnLoadCallback(drawChart4);
-	google.charts.setOnLoadCallback(drawChart5);
+	google.charts.setOnLoadCallback(drawChart_carsbycountry);
+	google.charts.setOnLoadCallback(drawChart_carsbytype);
+	google.charts.setOnLoadCallback(drawChart_carsbyseries);
+	google.charts.setOnLoadCallback(drawChart_carsbyvariant);
+  google.charts.setOnLoadCallback(drawChart_carsbyage);
 
-   function drawChart1() {
+   function drawChart_carsbycountry() {
       // Create the data table.
 	 var data = google.visualization.arrayToDataTable([
 	 [ 	{ label: 'Country', type: 'string'},
@@ -180,8 +187,7 @@ FROM (
 	 ]);
 
       // Set chart options
-      var options = {'title':'Cars by Country',
-                     'height':400,
+      var options = {'height':400,
                       pieHole: 0.4
                  };
 
@@ -189,7 +195,7 @@ FROM (
       var chart = new google.visualization.PieChart(document.getElementById('chart_country'));
       chart.draw(data, options);
    }
-   function drawChart2() {
+   function drawChart_carsbytype() {
       // Create the data table.
 	 var data = google.visualization.arrayToDataTable([
 	 [ 	{ label: 'Type', type: 'string'},
@@ -203,8 +209,7 @@ FROM (
 	 ]);
 
       // Set chart options
-      var options = {'title':'Cars by Type',
-                     'height':400,
+      var options = {'height':400,
                       pieHole: 0.4
                  };
 
@@ -212,7 +217,7 @@ FROM (
       var chart = new google.visualization.PieChart(document.getElementById('chart_type'));
       chart.draw(data, options);
    }     
-   function drawChart3() {
+   function drawChart_carsbyseries() {
       // Create the data table.
 	 var data = google.visualization.arrayToDataTable([
 	 [ 	{ label: 'Series', type: 'string'},
@@ -226,15 +231,14 @@ FROM (
 	 ]);
 
       // Set chart options
-      var options = {'title':'Cars by Series',
-                     'height':400,
+      var options = {'height':400,
                       pieHole: 0.4
                  };
       // Instantiate and draw our chart, passing in some options.
       var chart = new google.visualization.PieChart(document.getElementById('chart_series'));
       chart.draw(data, options);
    }     
-   function drawChart4() {
+   function drawChart_carsbyvariant() {
       // Create the data table.
 	 var data = google.visualization.arrayToDataTable([
 	 [ 	{ label: 'Variant', type: 'string'},
@@ -248,15 +252,14 @@ FROM (
 	 ]);
 
       // Set chart options
-      var options = {'title':'Cars by Variant',
-                     'height':400,
+      var options = {'height':400,
                       pieHole: 0.4
                  };
       // Instantiate and draw our chart, passing in some options.
       var chart = new google.visualization.PieChart(document.getElementById('chart_variant'));
       chart.draw(data, options);
    }
-    function drawChart5() {
+    function drawChart_carsbyage() {
       // Create the data table.
 	 var data = google.visualization.arrayToDataTable([
 	 [ 	{ label: 'Age', type: 'string'},
@@ -270,14 +273,14 @@ FROM (
 	 ]);
 
       // Set chart options
-      var options = {'title':'Cars added in the last period',
-                     'height':400,
+      var options = { 'height':400,
                  };
 
       // Instantiate and draw our chart, passing in some options.
       var chart = new google.visualization.BarChart(document.getElementById('chart_age'));
       chart.draw(data, options);
    }
+
 
   //  The Map 
 
