@@ -11,9 +11,27 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 //PHP Goes Here!
 
 
-$countryData = $db->query("SELECT country, COUNT(country) as count FROM users_carsview GROUP BY country ORDER BY count DESC")->results();
-$typeData = $db->query("SELECT type, COUNT(type) as count FROM users_carsview GROUP BY type ORDER BY count DESC")->results();
-$seriesData = $db->query("SELECT series, COUNT(series) as count FROM users_carsview GROUP BY series ORDER BY count DESC")->results();
+$countryData     = $db->query("SELECT country, COUNT(country) as count FROM users_carsview GROUP BY country ORDER BY count DESC")->results();
+$typeData        = $db->query("SELECT type, COUNT(type) as count FROM users_carsview GROUP BY type ORDER BY count DESC")->results();
+$seriesData      = $db->query("SELECT series, COUNT(series) as count FROM users_carsview GROUP BY series ORDER BY count DESC")->results();
+$seriesData1     = $db->query("SELECT series, COUNT(series) as count FROM users_carsview GROUP BY series ORDER BY series ASC")->results();
+
+$count['s1']     = $db->query("select count(*) as count from cars where series like 's1%'")->results()[0]->count;
+$count['s2']     = $db->query("select count(*) as count from cars where series like 's2%'")->results()[0]->count;
+$count['s3']     = $db->query("select count(*) as count from cars where series like 's3%'")->results()[0]->count;
+$count['s4']     = $db->query("select count(*) as count from cars where series like 's4%'")->results()[0]->count;
+$count['sprint'] = $db->query("select count(*) as count from cars where series like 'sprint%'")->results()[0]->count;
+$count['+2']     = $db->query("select count(*) as count from cars where series like '+2%'")->results()[0]->count;
+
+$notes['s1']     = "900";
+$notes['s2']     = "1250";
+$notes['s3']     = "2650";
+$notes['s4']     = "3000";
+$notes['sprint'] = "1353";
+$notes['+2']     = "xxxx";
+
+
+
 $variantData = $db->query("SELECT variant, COUNT(variant) as count FROM users_carsview GROUP BY variant ORDER BY count DESC")->results();
 
 $ageData = $db->query("
@@ -56,19 +74,56 @@ FROM (
 	<div class="row">
 		<div class="col-md-6">
 			<!-- Column 1 -->
-		
-			<div class="card-header"></div>
 			<div class="card-block">
-		    <!--Div that will hold the pie chart-->
-		    	<div id="chart_country"></div>
-	    	</div> <!-- .card-block -->
+      <div class="card-header"><h2>Count of Cars by Series</h2></div>
+				<div class="card-body">
+
+        <table id="seriestable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+          <thead>
+            <tr>
+              <th>Series</th>
+              <th>Count</th>
+              <th>Number produced *</th>
+              <th>Percent recorded</th>
+
+            </tr>
+          </thead>
+          <tbody>
+                <?php
+                $total=0;
+                $totalN=0;
+          foreach ($count as $key => $value) {
+              echo "<tr><td>".ucfirst($key)."</td><td>".$value."</td>";
+              echo "<td>".$notes[$key]."</td>";
+              echo "<td>".round(($value*100)/$notes[$key], 0)." %</td></tr>";
+
+              $total += $value;
+              $totalN += $notes[$key];
+          }
+              echo "<tr><td><strong>Total</td><td>".$total."</strong></td><td>".$totalN."</td><td>".round(($total*100)/$totalN)." %</td></tr>";
+              ?> 
+
+          </tbody>
+        </table>
+        <p><small>* - Number produced is from <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950
+">Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22</small></p>
+
+        </div><!--card body -->
+      </div> <!-- .card-block -->
+
+
+			<div class="card-block">
+      <div class="card-header"></div>
+
+		  <!--Div that will hold the pie chart-->
+		    <div id="chart_country"></div>
+	    </div> <!-- .card-block -->
 
 			<div class="card-header"></div>
 			<div class="card-block">
 		    <!--Div that will hold the pie chart-->
 		    	<div id="chart_type"></div>
 	    	</div> <!-- .card-block -->
-
 		</div> <!-- /.col -->
 
 		<div class="col-md-6">
@@ -338,4 +393,4 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXQRDsHxF-xqZc-QaH7HK_3C1
   }
 </style>
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>
