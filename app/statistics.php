@@ -28,7 +28,7 @@ $notes['s2']     = "1250";
 $notes['s3']     = "2650";
 $notes['s4']     = "3000";
 $notes['sprint'] = "1353";
-$notes['+2']     = "xxxx";
+$notes['+2']     = "4526";
 
 
 
@@ -106,7 +106,7 @@ FROM (
           </tbody>
         </table>
         <p><small>* - Number produced is from <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950
-">Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22</small></p>
+">Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.  In cases where there is a range of values, I took the lower.</small></p>
 
         </div><!--card body -->
       </div> <!-- .card-block -->
