@@ -37,15 +37,15 @@ $ageData = $db->query("
 SELECT t.age as age,  count(*) as count
 FROM (
   SELECT CASE
-  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 15 DAY ) AND CURDATE() THEN '15'
-  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 30 DAY ) AND CURDATE() THEN '30'
-  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 60 DAY ) AND CURDATE() THEN '60'
-  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 90 DAY ) AND CURDATE() THEN '90'
-  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 180 DAY ) AND CURDATE() THEN '180'
-  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 365 DAY ) AND CURDATE() THEN '365'
+  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 15 DAY ) AND CURDATE() THEN '15 days'
+  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 30 DAY ) AND CURDATE() THEN '30 days'
+  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 60 DAY ) AND CURDATE() THEN '60 days'
+  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 90 DAY ) AND CURDATE() THEN '90 days'
+  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 180 DAY ) AND CURDATE() THEN '180 days'
+  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 365 DAY ) AND CURDATE() THEN '365 days'
   END AS age
   FROM users_carsview  WHERE ctime > DATE_SUB( CURDATE(), INTERVAL 365 DAY )) t
-  group by t.age ORDER BY CAST(t.age as unsigned)
+  group by t.age ORDER BY CAST(t.age as unsigned) 
 ")->results();
 ?>
 
@@ -327,15 +327,21 @@ FROM (
         }
       ],
       <?php
-              foreach ($ageData as $record) {
-                  echo "['".$record->age."',".$record->count."],";
-              }
-           ?>
+        $count=0;
+        foreach ($ageData as $record) {
+            $count += $record->count;  // Count returned is the number of cars in the bucket.  Make cumulative
+            echo "['".$record->age."',".$count."],";
+        }
+      ?>
     ]);
 
     // Set chart options
     var options = {
       'height': 400,
+      legend: {
+        position: "none"
+      },
+
     };
 
     // Instantiate and draw our chart, passing in some options.
