@@ -51,22 +51,25 @@ FROM (
 
 
 <div id="page-wrapper">
-<div class="container-fluid">
-<div class="well">
-<!-- Here are the blocks  -->
-	<div class="row">
-    <div class="col-12" align="center">
-      <div class="card-block">
-        <div class="card-header"><h2>Where are the cars around the world</h2></div>
-        <div class="card-body">
-          <div id="map" style="height: 400px; width: 80%; margin: 10px; padding: 40px;"></div>
-          26 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png"/> |
-          36 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png"/> |
-          45 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png"/> |
-          50 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images//mm_20_blue.png"/> |
-          26R <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png"/> 
-          </div>
-        </div> <!-- body -->        </div> <!-- body -->
+  <div class="container-fluid">
+    <div class="well">
+      <!-- Here are the blocks  -->
+      <div class="row">
+        <div class="col-12" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Where are the cars around the world</h2>
+            </div>
+            <div class="card-body">
+              <div id="map" style="height: 400px; width: 80%; margin: 10px; padding: 40px;"></div>
+              26 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png" /> |
+              36 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png" /> |
+              45 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png" /> |
+              50 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images//mm_20_blue.png" /> |
+              26R <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png" />
+            </div>
+          </div> <!-- body -->
+        </div> <!-- body -->
       </div><!-- card block -->
     </div> <!-- col -->
   </div> <!-- row -->
@@ -74,10 +77,19 @@ FROM (
   <div class="row">
     <div class="col-6" align="center">
       <div class="card-block">
-        <div class="card-header"><h2>Count of Cars by Series</h2></div>
+        <div class="card-header">
+          <h2>Count of Cars by Series</h2>
+        </div>
         <div class="card-body">
           <table id="seriestable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
-            <thead> <tr><th>Series</th><th>Count</th><th>Number produced *</th> <th>Percent recorded</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Series</th>
+                <th>Count</th>
+                <th>Number produced *</th>
+                <th>Percent recorded</th>
+              </tr>
+            </thead>
             <tbody>
               <?php
               $total=0;
@@ -91,19 +103,21 @@ FROM (
                   $totalN += $notes[$key];
               }
               echo "<tr><td><strong>Total</td><td>".$total."</strong></td><td>".$totalN."</td><td>".round(($total*100)/$totalN)." %</td></tr>";
-              ?> 
+              ?>
             </tbody>
           </table>
-          <p><small>* - Number produced is from 
-          <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950">
-          Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.  
-          In cases where there is a range of values, I took the lower.</small></p>
+          <p><small>* - Number produced is from
+              <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950">
+                Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.
+              In cases where there is a range of values, I took the lower.</small></p>
         </div> <!-- body -->
       </div><!-- card block -->
     </div> <!-- col -->
     <div class="col-6" align="center">
       <div class="card-block">
-        <div class="card-header"><h2>Cars by Country</h2></div>
+        <div class="card-header">
+          <h2>Cars by Country</h2>
+        </div>
         <div class="card-body">
           <div id="chart_country"></div>
         </div> <!-- body -->
@@ -111,10 +125,12 @@ FROM (
     </div> <!-- col -->
   </div> <!-- row -->
 
-	<div class="row">
+  <div class="row">
     <div class="col-6" align="center">
       <div class="card-block">
-        <div class="card-header"><h2>Cars by Type</h2></div>
+        <div class="card-header">
+          <h2>Cars by Type</h2>
+        </div>
         <div class="card-body">
           <div id="chart_type"></div>
         </div> <!-- body -->
@@ -122,7 +138,9 @@ FROM (
     </div> <!-- col -->
     <div class="col-6" align="center">
       <div class="card-block">
-        <div class="card-header"><h2>Cars by Series</h2></div>
+        <div class="card-header">
+          <h2>Cars by Series</h2>
+        </div>
         <div class="card-body">
           <div id="chart_series"></div>
         </div> <!-- body -->
@@ -133,7 +151,9 @@ FROM (
   <div class="row">
     <div class="col-6" align="center">
       <div class="card-block">
-        <div class="card-header"><h2>Cars by Variant</h2></div>
+        <div class="card-header">
+          <h2>Cars by Variant</h2>
+        </div>
         <div class="card-body">
           <div id="chart_variant"></div>
         </div> <!-- body -->
@@ -141,7 +161,9 @@ FROM (
     </div> <!-- col -->
     <div class="col-6" align="center">
       <div class="card-block">
-        <div class="card-header"><h2>Cars added in the last period</h2></div>
+        <div class="card-header">
+          <h2>Cars added in the last period</h2>
+        </div>
         <div class="card-body">
           <div id="chart_age"></div>
         </div> <!-- body -->
@@ -149,7 +171,7 @@ FROM (
     </div> <!-- col -->
   </div> <!-- row -->
 
-<!-- End blocks -->
+  <!-- End blocks -->
 </div> <!-- /.well -->
 </div> <!-- /.container -->
 </div> <!-- /.wrapper -->
@@ -162,124 +184,164 @@ FROM (
 <!--Load the AJAX API-->
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script type="text/javascript">
+  // Load the Visualization API and the corechart package.
+  google.charts.load('current', {
+    'packages': ['corechart', 'line']
+  });
 
-	// Load the Visualization API and the corechart package.
-	google.charts.load('current', {'packages':['corechart','line']});
-
-	// Set a callback to run when the Google Visualization API is loaded.
-	google.charts.setOnLoadCallback(drawChart_carsbycountry);
-	google.charts.setOnLoadCallback(drawChart_carsbytype);
-	google.charts.setOnLoadCallback(drawChart_carsbyseries);
-	google.charts.setOnLoadCallback(drawChart_carsbyvariant);
+  // Set a callback to run when the Google Visualization API is loaded.
+  google.charts.setOnLoadCallback(drawChart_carsbycountry);
+  google.charts.setOnLoadCallback(drawChart_carsbytype);
+  google.charts.setOnLoadCallback(drawChart_carsbyseries);
+  google.charts.setOnLoadCallback(drawChart_carsbyvariant);
   google.charts.setOnLoadCallback(drawChart_carsbyage);
 
-   function drawChart_carsbycountry() {
-      // Create the data table.
-	 var data = google.visualization.arrayToDataTable([
-	 [ 	{ label: 'Country', type: 'string'},
-	 	{ label: 'Count', type: 'number'}
-	 ],		 
-		 <?php
+  function drawChart_carsbycountry() {
+    // Create the data table.
+    var data = google.visualization.arrayToDataTable([
+      [{
+          label: 'Country',
+          type: 'string'
+        },
+        {
+          label: 'Count',
+          type: 'number'
+        }
+      ],
+      <?php
       foreach ($countryData as $record) {
           echo "['".$record->country."',".$record->count."],";
       }
-           ?> 
-	 ]);
+           ?>
+    ]);
 
-      // Set chart options
-      var options = {'height':400,
-                      pieHole: 0.4
-                 };
+    // Set chart options
+    var options = {
+      'height': 400,
+      pieHole: 0.4
+    };
 
-      // Instantiate and draw our chart, passing in some options.
-      var chart = new google.visualization.PieChart(document.getElementById('chart_country'));
-      chart.draw(data, options);
-   }
-   function drawChart_carsbytype() {
-      // Create the data table.
-	 var data = google.visualization.arrayToDataTable([
-	 [ 	{ label: 'Type', type: 'string'},
-	 	{ label: 'Count', type: 'number'}
-	 ],		 
-		 <?php
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.PieChart(document.getElementById('chart_country'));
+    chart.draw(data, options);
+  }
+
+  function drawChart_carsbytype() {
+    // Create the data table.
+    var data = google.visualization.arrayToDataTable([
+      [{
+          label: 'Type',
+          type: 'string'
+        },
+        {
+          label: 'Count',
+          type: 'number'
+        }
+      ],
+      <?php
       foreach ($typeData as $record) {
           echo "['".$record->type."',".$record->count."],";
       }
-           ?> 
-	 ]);
+           ?>
+    ]);
 
-      // Set chart options
-      var options = {'height':400,
-                      pieHole: 0.4
-                 };
+    // Set chart options
+    var options = {
+      'height': 400,
+      pieHole: 0.4
+    };
 
-      // Instantiate and draw our chart, passing in some options.
-      var chart = new google.visualization.PieChart(document.getElementById('chart_type'));
-      chart.draw(data, options);
-   }     
-   function drawChart_carsbyseries() {
-      // Create the data table.
-	 var data = google.visualization.arrayToDataTable([
-	 [ 	{ label: 'Series', type: 'string'},
-	 	{ label: 'Count', type: 'number'}
-	 ],		 
-		 <?php
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.PieChart(document.getElementById('chart_type'));
+    chart.draw(data, options);
+  }
+
+  function drawChart_carsbyseries() {
+    // Create the data table.
+    var data = google.visualization.arrayToDataTable([
+      [{
+          label: 'Series',
+          type: 'string'
+        },
+        {
+          label: 'Count',
+          type: 'number'
+        }
+      ],
+      <?php
       foreach ($seriesData as $record) {
           echo "['".$record->series."',".$record->count."],";
       }
-           ?> 
-	 ]);
+           ?>
+    ]);
 
-      // Set chart options
-      var options = {'height':400,
-                      pieHole: 0.4
-                 };
-      // Instantiate and draw our chart, passing in some options.
-      var chart = new google.visualization.PieChart(document.getElementById('chart_series'));
-      chart.draw(data, options);
-   }     
-   function drawChart_carsbyvariant() {
-      // Create the data table.
-	 var data = google.visualization.arrayToDataTable([
-	 [ 	{ label: 'Variant', type: 'string'},
-	 	{ label: 'Count', type: 'number'}
-	 ],		 
-		 <?php
+    // Set chart options
+    var options = {
+      'height': 400,
+      pieHole: 0.4
+    };
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.PieChart(document.getElementById('chart_series'));
+    chart.draw(data, options);
+  }
+
+  function drawChart_carsbyvariant() {
+    // Create the data table.
+    var data = google.visualization.arrayToDataTable([
+      [{
+          label: 'Variant',
+          type: 'string'
+        },
+        {
+          label: 'Count',
+          type: 'number'
+        }
+      ],
+      <?php
               foreach ($variantData as $record) {
                   echo "['".$record->variant."',".$record->count."],";
               }
-           ?> 
-	 ]);
+           ?>
+    ]);
 
-      // Set chart options
-      var options = {'height':400,
-                      pieHole: 0.4
-                 };
-      // Instantiate and draw our chart, passing in some options.
-      var chart = new google.visualization.PieChart(document.getElementById('chart_variant'));
-      chart.draw(data, options);
-   }
-    function drawChart_carsbyage() {
-      // Create the data table.
-	 var data = google.visualization.arrayToDataTable([
-	 [ 	{ label: 'Age', type: 'string'},
-	 	{ label: 'Count', type: 'number'}
-	 ],		 
-		 <?php
+    // Set chart options
+    var options = {
+      'height': 400,
+      pieHole: 0.4
+    };
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.PieChart(document.getElementById('chart_variant'));
+    chart.draw(data, options);
+  }
+
+  function drawChart_carsbyage() {
+    // Create the data table.
+    var data = google.visualization.arrayToDataTable([
+      [{
+          label: 'Age',
+          type: 'string'
+        },
+        {
+          label: 'Count',
+          type: 'number'
+        }
+      ],
+      <?php
               foreach ($ageData as $record) {
                   echo "['".$record->age."',".$record->count."],";
               }
-           ?> 
-	 ]);
+           ?>
+    ]);
 
-      // Set chart options
-      var options = { 'height':400,
-                 };
+    // Set chart options
+    var options = {
+      'height': 400,
+    };
 
-      // Instantiate and draw our chart, passing in some options.
-      var chart = new google.visualization.BarChart(document.getElementById('chart_age'));
-      chart.draw(data, options);
-   }
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.BarChart(document.getElementById('chart_age'));
+    chart.draw(data, options);
+  }
 
 
   //  The Map 
@@ -287,12 +349,23 @@ FROM (
   // From https://developers.google.com/maps/documentation/javascript/mysql-to-maps
 
   var customIcons = {
-    '26':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png'},
-    '36':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png'},
-    '45':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png'},
-    '50':  {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_blue.png'},
-    '26R': {url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png'}
+    '26': {
+      url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png'
+    },
+    '36': {
+      url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png'
+    },
+    '45': {
+      url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png'
+    },
+    '50': {
+      url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_blue.png'
+    },
+    '26R': {
+      url: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png'
+    }
   };
+
   function initMap() {
     var map = new google.maps.Map(document.getElementById('map'), {
       center: new google.maps.LatLng(18, 0),
@@ -314,8 +387,8 @@ FROM (
         var image = markerElem.getAttribute('image');
         var url = markerElem.getAttribute('url');
         var point = new google.maps.LatLng(
-            parseFloat(markerElem.getAttribute('lat')),
-            parseFloat(markerElem.getAttribute('lng')));
+          parseFloat(markerElem.getAttribute('lat')),
+          parseFloat(markerElem.getAttribute('lng')));
 
         var infowincontent = document.createElement('div');
         var strong = document.createElement('strong');
@@ -332,8 +405,8 @@ FROM (
         text.textContent = "Type : ".concat(type)
         infowincontent.appendChild(text);
         infowincontent.appendChild(document.createElement('br'));
-   
-        if( image != "" ){
+
+        if (image != "") {
           var img = document.createElement('img');
           img.src = "/app/userimages/thumbs/".concat(image);
           infowincontent.appendChild(img);
@@ -359,14 +432,14 @@ FROM (
           infoWindow.setContent(infowincontent);
           infoWindow.open(map, marker);
         }); // addListener
-      });  // markerElem
+      }); // markerElem
     });
   }
 
   function downloadUrl(url, callback) {
     var request = window.ActiveXObject ?
-        new ActiveXObject('Microsoft.XMLHTTP') :
-        new XMLHttpRequest;
+      new ActiveXObject('Microsoft.XMLHTTP') :
+      new XMLHttpRequest;
 
     request.onreadystatechange = function() {
       if (request.readyState == 4) {
@@ -382,7 +455,7 @@ FROM (
   function doNothing() {}
 </script>
 <script async defer
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXQRDsHxF-xqZc-QaH7HK_3C1srIluRLU&callback=initMap">
+  src="https://maps.googleapis.com/maps/api/js?&key=<?= $MAPS_KEY ?>&callback=initMap">
 
 </script>
 <style>
@@ -391,9 +464,10 @@ src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXQRDsHxF-xqZc-QaH7HK_3C1
   #map {
     height: 100%;
   }
+
   #map-container img {
-  max-width: none;
+    max-width: none;
   }
 </style>
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer
