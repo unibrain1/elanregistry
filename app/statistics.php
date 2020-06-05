@@ -14,7 +14,8 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 $countryData     = $db->query("SELECT country, COUNT(country) as count FROM users_carsview GROUP BY country ORDER BY count DESC")->results();
 $typeData        = $db->query("SELECT type, COUNT(type) as count FROM users_carsview GROUP BY type ORDER BY count DESC")->results();
 $seriesData      = $db->query("SELECT series, COUNT(series) as count FROM users_carsview GROUP BY series ORDER BY count DESC")->results();
-$variantData = $db->query("SELECT variant, COUNT(variant) as count FROM users_carsview GROUP BY variant ORDER BY count DESC")->results();
+$variantData     = $db->query("SELECT variant, COUNT(variant) as count FROM users_carsview GROUP BY variant ORDER BY count DESC")->results();
+$timeData        = $db->query("SELECT ctime FROM cars WHERE 1 ORDER BY `cars`.`ctime` ASC")->results();
 
 // There should be a more efficient way to do this
 $count['s1']     = $db->query("select count(*) as count from cars where series like 's1%'")->results()[0]->count;
@@ -42,7 +43,7 @@ FROM (
   WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 60 DAY ) AND CURDATE() THEN '60 days'
   WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 90 DAY ) AND CURDATE() THEN '90 days'
   WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 180 DAY ) AND CURDATE() THEN '180 days'
-  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 365 DAY ) AND CURDATE() THEN '366 days'
+  WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 365 DAY ) AND CURDATE() THEN '365 days'
   END AS age
   FROM users_carsview  WHERE ctime > DATE_SUB( CURDATE(), INTERVAL 365 DAY )) t
   group by t.age ORDER BY CAST(t.age as unsigned) 
@@ -67,31 +68,29 @@ FROM (
               45 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png" /> |
               50 <img src="https://maps.gstatic.com/mapfiles/ridefinder-images//mm_20_blue.png" /> |
               26R <img src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png" />
-            </div>
-          </div> <!-- body -->
-        </div> <!-- body -->
-      </div><!-- card block -->
-    </div> <!-- col -->
-  </div> <!-- row -->
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+      </div> <!-- row -->
 
-  <div class="row">
-    <div class="col-6" align="center">
-      <div class="card-block">
-        <div class="card-header">
-          <h2>Count of Cars by Series</h2>
-        </div>
-        <div class="card-body">
-          <table id="seriestable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
-            <thead>
-              <tr>
-                <th>Series</th>
-                <th>Count</th>
-                <th>Number produced *</th>
-                <th>Percent recorded</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php
+      <div class="row">
+        <div class="col-6" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Count of Cars by Series</h2>
+            </div>
+            <div class="card-body">
+              <table id="seriestable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+                <thead>
+                  <tr>
+                    <th>Series</th>
+                    <th>Count</th>
+                    <th>Number produced *</th>
+                    <th>Percent recorded</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php
               $total=0;
               $totalN=0;
               foreach ($count as $key => $value) {
@@ -104,78 +103,90 @@ FROM (
               }
               echo "<tr><td><strong>Total</td><td>".$total."</strong></td><td>".$totalN."</td><td>".round(($total*100)/$totalN)." %</td></tr>";
               ?>
-            </tbody>
-          </table>
-          <p><small>* - Number produced is from
-              <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950">
-                Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.
-              In cases where there is a range of values, I took the lower.</small></p>
-        </div> <!-- body -->
-      </div><!-- card block -->
-    </div> <!-- col -->
-    <div class="col-6" align="center">
-      <div class="card-block">
-        <div class="card-header">
-          <h2>Cars by Country</h2>
-        </div>
-        <div class="card-body">
-          <div id="chart_country"></div>
-        </div> <!-- body -->
-      </div><!-- card block -->
-    </div> <!-- col -->
-  </div> <!-- row -->
+                </tbody>
+              </table>
+              <p><small>* - Number produced is from
+                  <a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950">
+                    Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.
+                  In cases where there is a range of values, I took the lower.</small></p>
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+        <div class="col-6" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Cars by Country</h2>
+            </div>
+            <div class="card-body">
+              <div id="chart_country"></div>
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+      </div> <!-- row -->
 
-  <div class="row">
-    <div class="col-6" align="center">
-      <div class="card-block">
-        <div class="card-header">
-          <h2>Cars by Type</h2>
-        </div>
-        <div class="card-body">
-          <div id="chart_type"></div>
-        </div> <!-- body -->
-      </div><!-- card block -->
-    </div> <!-- col -->
-    <div class="col-6" align="center">
-      <div class="card-block">
-        <div class="card-header">
-          <h2>Cars by Series</h2>
-        </div>
-        <div class="card-body">
-          <div id="chart_series"></div>
-        </div> <!-- body -->
-      </div><!-- card block -->
-    </div> <!-- col -->
-  </div> <!-- row -->
+      <div class="row">
+        <div class="col-6" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Cars by Type</h2>
+            </div>
+            <div class="card-body">
+              <div id="chart_type"></div>
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+        <div class="col-6" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Cars by Series</h2>
+            </div>
+            <div class="card-body">
+              <div id="chart_series"></div>
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+      </div> <!-- row -->
 
-  <div class="row">
-    <div class="col-6" align="center">
-      <div class="card-block">
-        <div class="card-header">
-          <h2>Cars by Variant</h2>
-        </div>
-        <div class="card-body">
-          <div id="chart_variant"></div>
-        </div> <!-- body -->
-      </div><!-- card block -->
-    </div> <!-- col -->
-    <div class="col-6" align="center">
-      <div class="card-block">
-        <div class="card-header">
-          <h2>Cars added in the last period</h2>
-        </div>
-        <div class="card-body">
-          <div id="chart_age"></div>
-        </div> <!-- body -->
-      </div><!-- card block -->
-    </div> <!-- col -->
-  </div> <!-- row -->
+      <div class="row">
+        <div class="col-6" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Cars by Variant</h2>
+            </div>
+            <div class="card-body">
+              <div id="chart_variant"></div>
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+        <div class="col-6" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Cars added in the last period</h2>
+            </div>
+            <div class="card-body">
+              <div id="chart_age"></div>
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+      </div> <!-- row -->
 
-  <!-- End blocks -->
-</div> <!-- /.well -->
-</div> <!-- /.container -->
-</div> <!-- /.wrapper -->
+      <div class="row">
+        <div class="col" align="center">
+          <div class="card-block">
+            <div class="card-header">
+              <h2>Cars added over Time</h2>
+            </div>
+            <div class="card-body">
+              <div id="car_chart"></div>
+            </div> <!-- body -->
+          </div><!-- card block -->
+        </div> <!-- col -->
+      </div><!-- row -->
 
+      <!-- End blocks -->
+    </div> <!-- /.container -->
+  </div> <!-- /.wrapper -->
+</div> <!-- page -->
 
 <!-- footers -->
 <?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
@@ -186,7 +197,8 @@ FROM (
 <script type="text/javascript">
   // Load the Visualization API and the corechart package.
   google.charts.load('current', {
-    'packages': ['corechart', 'line']
+    'packages': ['corechart', 'line'],
+    'packages': ['annotationchart']
   });
 
   // Set a callback to run when the Google Visualization API is loaded.
@@ -195,6 +207,8 @@ FROM (
   google.charts.setOnLoadCallback(drawChart_carsbyseries);
   google.charts.setOnLoadCallback(drawChart_carsbyvariant);
   google.charts.setOnLoadCallback(drawChart_carsbyage);
+  google.charts.setOnLoadCallback(drawChart_carbytime);
+
 
   function drawChart_carsbycountry() {
     // Create the data table.
@@ -349,6 +363,31 @@ FROM (
     chart.draw(data, options);
   }
 
+  function drawChart_carbytime() {
+    var data = new google.visualization.DataTable();
+    data.addColumn('date', 'Date');
+    data.addColumn('number', 'Count of Cars');
+
+    data.addRows([
+      <?php
+      $count = 0;
+      foreach ($timeData as $car) {
+          $count++;
+          echo "[ new Date(".date('Y, m, d, G, i, s', strtotime($car->ctime))."), ".$count."],";
+      }
+      ?>
+    ]);
+
+    var chart = new google.visualization.AnnotationChart(document.getElementById('car_chart'));
+
+    var options = {
+      displayAnnotations: false,
+      'height': 400,
+      width: 900
+    };
+
+    chart.draw(data, options);
+  }
 
   //  The Map 
 
