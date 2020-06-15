@@ -1,5 +1,5 @@
 <?php
-require_once '../users/init.php';
+require_once '../../users/init.php';
 
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
@@ -11,7 +11,7 @@ $db = DB::getInstance();
 $query = $db->query("SELECT * FROM email");
 $base_url = $query->first()->verify_url;
 
-$verify_url=$base_url.$us_url_root."verify/verify_car.php";
+$verify_url=$base_url.$us_url_root."app/verify/verify_car.php";
 
 $carQ = $db->query("SELECT * FROM users_carsview WHERE mtime < DATE_SUB(NOW(), INTERVAL 16 YEAR) ORDER BY `users_carsview`.`mtime` ASC LIMIT 1");
   $carData=$carQ->results();  // Results as an array
