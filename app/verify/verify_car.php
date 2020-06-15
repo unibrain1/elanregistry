@@ -7,8 +7,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 }
 
 $query = $db->query("SELECT * FROM email");
-//$base_url = $query->first()->verify_url;
-$base_url="http://localhost:8888";  // Testing only
+$base_url = $query->first()->verify_url;
 
 
 if (isset($_GET['code']) and (isset($_GET['code']))) {
