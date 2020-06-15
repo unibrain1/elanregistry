@@ -7,6 +7,10 @@ require_once '../users/init.php';
 
 // Get the DB
 $db = DB::getInstance();
+
+echo "Updating cars.mtime to auto increment timestamp<br>";
+$db->query("ALTER TABLE cars CHANGE mtime mtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
 echo "Creating car verification information<br>";
 
 $db->query("ALTER TABLE `cars` ADD `vericode` VARCHAR(32) NOT NULL AFTER `mtime`, ADD `last_verified` TIMESTAMP NULL DEFAULT NULL AFTER `vericode`");
