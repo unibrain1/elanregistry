@@ -1,4 +1,5 @@
 # Giberish files
+.vscode
 .github
 .user.ini
 .php_cs.cache
