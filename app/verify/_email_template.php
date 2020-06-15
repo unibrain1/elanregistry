@@ -201,14 +201,12 @@
             <tr>
                 <td>Website</td>
                 <?php
-             if (!empty($car->website)) {
-                 ?>
-                <td> <a target="_blank"
-                        href="<?=$car->website?>">Website</a></td>
-                <?php
-             } else {
-                 echo "<td></td>";
-             } ?>
+                if (!empty($car->website)) {
+                    echo '<td> <a target="_blank" href="'.$car->website.'">Website</a></td>';
+                } else {
+                    echo "<td></td>";
+                }
+                ?>
             </tr>
             <tr>
                 <td>Date Added</td>

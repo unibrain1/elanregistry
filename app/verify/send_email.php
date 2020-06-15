@@ -9,12 +9,11 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 $db = DB::getInstance();
 
 $query = $db->query("SELECT * FROM email");
-//$base_url = $query->first()->verify_url;
-$base_url="http://localhost:8888";  // Testing only
+$base_url = $query->first()->verify_url;
 
 $verify_url=$base_url.$us_url_root."verify/verify_car.php";
 
-$carQ = $db->query("SELECT * FROM users_carsview WHERE mtime < DATE_SUB(NOW(), INTERVAL 16 YEAR) ORDER BY `users_carsview`.`mtime` DESC LIMIT 3");
+$carQ = $db->query("SELECT * FROM users_carsview WHERE mtime < DATE_SUB(NOW(), INTERVAL 16 YEAR) ORDER BY `users_carsview`.`mtime` ASC LIMIT 1");
   $carData=$carQ->results();  // Results as an array
 
   // Set verification codes
@@ -45,7 +44,7 @@ foreach ($carData as $car) {
 
     // Get the email template
     ob_start();
-    include('template.php');
+    include('_email_template.php');
     $body = ob_get_contents();
     ob_get_clean();
     //echo $body;
