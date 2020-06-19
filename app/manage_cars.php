@@ -202,7 +202,7 @@ if (!empty($_POST)) {
 				<div class="card card-default">
 				<div class="card-header"><h2><strong>Reassign Car</strong></h2></div>
 					<div class="card-body">
-					<form name="assignCar" action="manage_car.php" method="POST" enctype="multipart/form-data">
+					<form name="assignCar" action="manage_cars.php" method="POST" enctype="multipart/form-data">
 						<label for="car_id">Car ID:</label><br>
 						<input type="text" id="car_id" name="car_id"><br>
 						<label for="user_id">User ID:</label><br>
