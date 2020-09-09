@@ -32,12 +32,14 @@ app/userimages/*.*
 !users/css/images/*.png
 !users/images/logo.png
 # Exclude userspice extentions.  These need to be manually installed
-usersc/plugins/
-usersc/templates/
-usersc/widgets/
+usersc/plugins/*
+usersc/templates/*
+usersc/widgets/*
 install/*
 # exclude backup files
 @backup*
 # exclude UserSpice update backups
 usupdate.zip
 users/updates/
+# exclude Test Cases
+Tests/
