@@ -37,7 +37,6 @@ in doubt, post a question to the
 		<td ><strong>Elan 1500</strong><br><i> Type 26 Elan 1500 Roadster </i> </td>
 		<td >
         <ul>
-            <li><a href="http://www.type26register.com/ ">Complete Details</a></li>
             <li>1500 badge on boot</li>
             <li>All were recalled from the factory and updated to Elan 1600 specification</li>
             <li>Boot lid does not extend all the way to the trailing edge of the car</li>
@@ -53,7 +52,6 @@ in doubt, post a question to the
 		<td >
         <ul>
 
-            <li><a href="http://www.type26register.com/ ">Complete Details</a></li>
 
             <li>1600 badge on boot</li>
 			<li>Round tail lights</li>
@@ -72,7 +70,6 @@ in doubt, post a question to the
 		</td>
 		<td >
         <ul>
-            <li><a href="http://www.type26register.com/ ">Complete Details</a></li>
             <li>No rollup windows</li>
             <li>Oval tail lights.  Early cars had round lights</li>
             <li>Boot lid does not extend all the way to the trailing edge of the car</li>
