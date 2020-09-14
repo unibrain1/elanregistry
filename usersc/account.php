@@ -47,10 +47,9 @@ if ($carQ->count() > 0) {
 
 ?>
 <?php
-$raw = date_parse($thatUser[0]->join_date);
-$signupdate = $raw['year']."-".$raw['month']."-".$raw['day'];
-$raw = date_parse($thatUser[0]->last_login);
-$lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
+$signupdate = new DateTime($thatUser[0]->join_date);
+$lastlogin = new DateTime($thatUser[0]->last_login);
+
 ?>
 
 
@@ -82,9 +81,9 @@ $lastlogin = $raw['year']."-".$raw['month']."-".$raw['day'];
                         echo "<td></td></tr>";
                     }
                     ?>
-					<tr ><td ><strong>Member Since    : </strong></td><td ><?= $signupdate?></td></tr>
-					<tr ><td ><strong>Last Login      : </strong></td><td ><?= $lastlogin?></td></tr>
-					<tr ><td ><strong>Number of Logins: </strong></td><td ><?= $thatUser[0]->logins?></td></tr>
+					<tr ><td ><strong>Member Since    : </strong></td><td ><?= $signupdate->format("Y-m-d")?></td></tr>
+					<tr ><td ><strong>Member Since    : </strong></td><td ><?= $lastlogin->format("Y-m-d")?></td></tr>
+\					<tr ><td ><strong>Number of Logins: </strong></td><td ><?= $thatUser[0]->logins?></td></tr>
 					
 					<tr ><td ><a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Update Account Info</a><td></tr>
 				</table>
