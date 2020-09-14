@@ -142,7 +142,7 @@ $lang = array_merge($lang,array(
 		"VAL_NUM"					=> "must be a number",
 		"VAL_INT"					=> "must be a whole number",
 		"VAL_EMAIL"				=> "must be a valid email address",
-		"VAL_NO_EMAIL"		=> "cannot be an email addresss",
+		"VAL_NO_EMAIL"		=> "cannot be an email address",
 		"VAL_SERVER"			=> "must belong to a valid server",
 		"VAL_LESS"				=> "must be less than",
 		"VAL_GREAT"				=> "must be greater than",
@@ -328,7 +328,7 @@ $lang = array_merge($lang,array(
 		"SET_NOCHANGE"	=> "The Administrator has disabled changing usernames.",
 		"SET_ONECHANGE"	=> "The Administrator set username changes to occur only once and you have done so already.",
 
-		"SET_GRAVITAR"	=> "<strong>Want to change your profile picture? </strong><br> Visit <a href='https://en.gravatar.com/'>https://en.gravatar.com/</a> and setup an account with the same email you used on this site.It works across millions of sites. It's fast and easy!",
+		"SET_GRAVITAR"	=> "<strong>Want to change your profile picture? </strong><br> Visit <a href='https://en.gravatar.com/'>https://en.gravatar.com/</a> and setup an account with the same email you used on this site. It works across millions of sites. It's fast and easy!",
 
 		"SET_NOTE1"			=> "<p><strong>Please note</strong> there is a pending request to update your email to",
 
