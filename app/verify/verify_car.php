@@ -28,8 +28,8 @@ if (isset($_GET['code']) and (isset($_GET['code']))) {
             // Is there a car with that code?
             $message =  "<h2>Thank you for verifying your car</h2><p>Taking you to the details...</p>";
 
-            // Update last_verified time
-            $db->update("cars", $car->id, ["last_verified"=>  date('Y-m-d G:i:s') ]);
+            // Car is verified.  Remove vericode
+            $db->update("cars", $car->id, ["vericode"=>  '' ]);
             // Update the History record to show verified
             // Find the history record
             $hist_id = $db->query('SELECT car_id, id, MAX(timestamp) AS max FROM cars_hist where car_id = ? GROUP BY id, car_id ORDER BY `max` DESC LIMIT 1', [$car->id])->first()->id;
@@ -51,20 +51,19 @@ if (isset($_GET['code']) and (isset($_GET['code']))) {
             // Is there a car with that code?
             $message =  "<h2>Thank you for letting me know you sold the car.  I'll update the records.</h2><p>Taking you to the details...</p>";
 
-            $db->update("cars", $car->id, ["last_verified"=>  date('Y-m-d G:i:s') ]);
-            // Update the History record to show verified
+            // Car is verified.  Remove vericode
+            $db->update("cars", $car->id, ["vericode"=>  '' ]);
+
+            // Update the History record to show sold
             // Find the history record
             $hist_id = $db->query('SELECT car_id, id, MAX(timestamp) AS max FROM cars_hist where car_id = ? GROUP BY id, car_id ORDER BY `max` DESC LIMIT 1', [$car->id])->first()->id;
             $db->update("cars_hist", $hist_id, ["operation"=> "VERIFIED SOLD","comments"=>"Owner reported car sold"]);
-
-
 
             $redirect = $base_url.$us_url_root.'app/car_details.php?car_id='.$car->id;
         break;
     }
 }
 ?>
-
 
 <div id="page-wrapper">
     <div class="container-fluid">
