@@ -66,7 +66,6 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 			<div class="card-header"><strong><h2>Account Information</h2></strong></div>
 			<div class="card-body">
 				<table id="accounttable" width="100%" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
-
 					<tr ><td ><strong>First name      : </strong></td><td ><?= ucfirst($thatUser[0]->fname)?></td></tr>
 					<tr ><td ><strong>Last name       : </strong></td><td ><?= ucfirst($thatUser[0]->lname)?></td></tr>
 					<tr ><td ><strong>Email           : </strong></td><td ><?= $thatUser[0]->email?></td></tr>
@@ -83,7 +82,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
                     ?>
 					<tr ><td ><strong>Member Since    : </strong></td><td ><?= $signupdate->format("Y-m-d")?></td></tr>
 					<tr ><td ><strong>Member Since    : </strong></td><td ><?= $lastlogin->format("Y-m-d")?></td></tr>
-\					<tr ><td ><strong>Number of Logins: </strong></td><td ><?= $thatUser[0]->logins?></td></tr>
+					<tr ><td ><strong>Number of Logins: </strong></td><td ><?= $thatUser[0]->logins?></td></tr>
 					
 					<tr ><td ><a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Update Account Info</a><td></tr>
 				</table>
