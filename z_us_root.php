@@ -1,5 +1,5 @@
-<?php //DO NOT DELETE THIS FILE.
-$path=['','users/','usersc/','app/','stories/', 'FIX/'];
+<?php
+$path=['','users/','usersc/','app/','stories/','FIX/','app/verify/','stories/brian_walton/','stories/SGO_2F/'];
 //Only add or remove values in the $path variable separated by commas above
 
 $abs_us_root=$_SERVER['DOCUMENT_ROOT'];
