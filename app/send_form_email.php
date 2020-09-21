@@ -15,7 +15,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 if (isset($_POST['email'])) {
  
     // EDIT THE 2 LINES BELOW AS REQUIRED
-    $email_to = "jim@elanregistry.org";
+    $email_to = "elanregistry@gmail.com";
     $email_subject = "[ELANREGISTRY] Feedback";
  
     function died($error)
