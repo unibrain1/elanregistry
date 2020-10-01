@@ -36,6 +36,8 @@ usersc/plugins/*
 usersc/templates/*
 usersc/widgets/*
 install/*
+# Now get my template
+!usersc/templates/ElanRegistry
 # exclude backup files
 @backup*
 # exclude UserSpice update backups
