@@ -2,7 +2,6 @@
 require_once '../users/init.php';
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 
-
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
 }
@@ -13,7 +12,23 @@ $user_id                    = $user->data()->id;
 // A place to store default values and what the user entered
 $select_str                 = 'Please Select';
 
-// It's a car edit
+// Get the combined user+profile
+$userQ = $db->findById($user_id, "usersview");
+$userData = $userQ->results();
+
+/*  Add the User/profile information to the record */
+$cardetails['user_id']      = $userData[0]->id;
+$cardetails['email']        = $userData[0]->email;
+$cardetails['fname']        = $userData[0]->fname;
+$cardetails['lname']        = $userData[0]->lname;
+$cardetails['join_date']    = $userData[0]->join_date;
+$cardetails['city']         = $userData[0]->city;
+$cardetails['state']        = $userData[0]->state;
+$cardetails['country']      = $userData[0]->country;
+$cardetails['lat']          = $userData[0]->lat;
+$cardetails['lon']          = $userData[0]->lon;
+$cardetails['website']      = $userData[0]->website;
+
 $cardetails['id']           = null;
 $cardetails['year']         = $select_str;
 $cardetails['model']        = $select_str;
@@ -23,10 +38,7 @@ $cardetails['engine']       = null;
 $cardetails['purchasedate'] = null;
 $cardetails['solddate']     = null;
 $cardetails['comments']     = null;
-
-// Holding place before processing
-// A place to put my cardetails
-$cardetails                     = [];
+$cardetails['image']        = null;
 
 // 'placeholder' to prompt for response.  Background text in input boxes
 $carprompt['chassis']       = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
@@ -40,44 +52,19 @@ $carprompt['comments']      = 'Please give a brief history of your car and anyth
 $errors                     = [];
 $successes                  = [];
 
-// And a Validation function
-$validation                 = new Validate();
-
-//Temporary Success Message
-$holdover = Input::get('success');
-if ($holdover == 'true') {
-    bold("Account Updated");
-}
 //Forms posted now process it
-//
-// TODO - Sanatize the data!
-
 if (!empty($_POST)) {
     $token = $_POST['csrf'];
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
-
-        /*  Add the User/profile information to the record */
-        // Get the combined user+profile
-        $userQ = $db->findById($user_id, "usersview");
-        $userData = $userQ->results();
-
-        $cardetails['user_id']      = $userData[0]->id;
-        $cardetails['email']        = $userData[0]->email;
-        $cardetails['fname']        = $userData[0]->fname;
-        $cardetails['lname']        = $userData[0]->lname;
-        $cardetails['join_date']    = $userData[0]->join_date;
-        $cardetails['city']         = $userData[0]->city;
-        $cardetails['state']        = $userData[0]->state;
-        $cardetails['country']      = $userData[0]->country;
-        $cardetails['lat']          = $userData[0]->lat;
-        $cardetails['lon']          = $userData[0]->lon;
-        $cardetails['website']      = $userData[0]->website;
-
-        //Update id
+        // Update id
         $id = ($_POST['car_id']);
         $cardetails['id'] = Input::sanitize($id);
+
+        // This is the name of the last image
+        $lastimage = ($_POST['lastimage']);
+        $cardetails['image'] = Input::sanitize($lastimage);
 
         //Update Year
         $year = ($_POST['year']);
@@ -332,117 +319,35 @@ if (!empty($_GET)) {
                         }
                         ?>
                         <!-- Here is the FORM -->
-                        <form name="addCar" action="edit_car.php" method="POST" enctype="multipart/form-data">
+                        <form name="editCar" action="edit_car.php" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="car_id" value="<?= $cardetails['id'] ?>" />
 
-                        <div class="form-group">
-                            <label>Year</label>
+                        <?php include($abs_us_root.$us_url_root.'app/views/_car_table.php'); ?>
 
-                            <select class="custom-select" name="year" onchange="populateSub(this, this.form.model);">
-                                <option selected><?= $cardetails['year'] ?></option>
-                                <option>1963</option>
-                                <option>1964</option>
-                                <option>1965</option>
-                                <option>1966</option>
-                                <option>1967</option>
-                                <option>1968</option>
-                                <option>1969</option>
-                                <option>1970</option>
-                                <option>1971</option>
-                                <option>1972</option>
-                                <option>1973</option>
-                                <option>1974</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Model</label>
-
-                            <select class="custom-select" name="model">
-                                <option selected><?= $cardetails['model'] ?></option>
-                                <option value="">--Please Choose--</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Chassis</label>
-                            <input class='form-control' type='text' name='chassis' placeholder='<?= $carprompt['chassis'] ?>' value='<?= $cardetails['chassis'] ?>' />
-                            <small id="chassisHelp" class="form-text text-muted"><?= $carprompt['chassis'] ?></small>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Color</label>
-                            <input class='form-control' type='text' name='color' placeholder='<?= $carprompt['color'] ?>' value='<?= $cardetails['color'] ?>' />
-                            <small id="colorHelp" class="form-text text-muted"><?= $carprompt['color'] ?></small>
-
-                        </div>
-
-                        <div class="form-group">
-                            <label>Engine Number</label>
-                            <input class='form-control' type='text' name='engine' placeholder='<?= $carprompt['engine'] ?>' value='<?= $cardetails['engine'] ?>' />
-                            <small id="engineHelp" class="form-text text-muted"><?= $carprompt['engine'] ?></small>
-
-                        </div>
-
-                        <div class="form-group">
-                            <label class="control-label" for="purchasedate">
-                            Purchase Date 
-                            </label>
-                                <div class="input-group">
-                                    <input class="form-control" id="purchasedate" name="purchasedate" placeholder='<?= $cardetails['purchasedate'] ?>' type="text"/>
-                                </div>
-                        </div>                       
-
-                        <div class="form-group">
-                            <label class="control-label" for="solddate">
-                            Sold Date
-                            </label>
-                                <div class="input-group">
-                                    <input class="form-control" id="solddate" name="solddate" placeholder='<?= $cardetails['solddate'] ?>' type="text"/>
-                                </div>
-                        </div> 
-
-                        <!-- Form for the comment -->
-                        <div class="form-group">
-                            <label>Comments</br></label>
-                        </div>
-                        <textarea class="form-control" name='comments' rows='10' wrap='virtual' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments']); ?></textarea>
-                    </div>
+                    </div> <!-- card-body -->
                 </div>   
             </div>
             <div class="col-sm"> <!-- Image Info -->
                 <div class="card card-default">
                 <div class="card-header"><h2><strong>Upload/Replace Picture</strong></h2></div>
                     <div class="card-body">            
-                        <!-- Form for the 'image' -->
-                        <div>
-                            <input type="file" name="uploadedFile" />
-                            <small id="engineHelp" class="form-text text-muted">Valid file types:  JPEG</small>
-                        </div>                        
-                        <!-- Add some space -->
-                        </br>
-                        <?php
-                        if ($cardetails['image']) { ?>
-                            <img class="card-img-top" src=<?= $us_url_root ?>app/userimages/<?= $cardetails['image'] ?> width='390'> <?php
-                        }
-                        ?>
-                        </br>
-                        </br>
-                        </br>
+                        <?php include($abs_us_root.$us_url_root.'app/views/_image_table.php'); ?>
                     </div>
                 </div> <!-- card -->
             </div> <!--col -->
         </div> <!-- /.row -->
+
         <div class="row">
             <div class="col-sm-4">
             </div>
             <div class="col-sm-4">
                 <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
                 <input class="btn btn-success btn-lg btn-block" type='submit' value='Update' class='submit' />
-                <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a></form>
+                <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a>
             </div>
             <div class="col-sm-4">
             </div>
+            </form>
         </div> <!-- /.row -->
         </div> <!-- well -->              
 
@@ -476,8 +381,7 @@ if (!empty($_GET)) {
 			autoclose: true,
 		})
 	})
-</script>
-<script>
+
 	$(document).ready(function(){
 		var date_input=$('input[name="solddate"]'); //our date input has the name "date"
 		var container=$('.page-wrapper form').length>0 ? $('.page-wrapper form').parent() : "body";
@@ -487,14 +391,20 @@ if (!empty($_GET)) {
 			todayHighlight: false,
 			autoclose: true,
 		})
-	})
+    })
+    
+    $('#uploadedFile').on('change',function(){
+        //get the file name
+        var fileName = $(this).val().replace('C:\\fakepath\\', " ");
+        //replace the "Choose a file" label
+        $(this).next('.custom-file-label').html(fileName);
+    })
+
 </script>
 
 <!-- Car History Table -->
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/>
 <script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
-
-
 
 <!-- Add car validation JS -->
 <script language="JavaScript" src=<?= $us_url_root . 'app/js/cardefinition.js' ?> type="text/javascript"></script>
