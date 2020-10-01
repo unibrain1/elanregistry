@@ -46,33 +46,10 @@ if ($carQ->count() > 0) {
     $thatCar = $carQ->results();
 }
 
-// Search in the elan_factory_info for details on the car.
-// The car.chassis can either match exactly (car.chassis = elan_factory_info.serial )
-//    or
-// The right most 5 digits of the car.chassis (post 1970 and some 1969) will =  elan_factory_info.serial
-
-$search = array($thatCar[0]->chassis, substr($thatCar[0]->chassis, -5));
-
-$carFactory = FALSE; 
-foreach ($search as $s) {
-	$carQ = $db->query('SELECT * FROM elan_factory_info WHERE serial = ? ', [$s]);
-	// Did it return anything?
-	if ( $carQ->results()[0]->id != "" ) {
-	// Yes it did
-	$carFactory = $carQ->results();  
-	if ( $carFactory[0]->suffix != "" )
-		$carFactory[0]->suffix = $carFactory[0]->suffix . " (" . suffixtotext($carFactory[0]->suffix) .")";
-	break;  
-	}
-}
-
-?>
-<?php
 $signupdate = new DateTime($thatUser[0]->join_date);
 $lastlogin = new DateTime($thatUser[0]->last_login);
 
 ?>
-
 
 <!-- Now that that is all out of the way, let's display everything -->
 
@@ -153,18 +130,42 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 						<td ><img class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$car->image?> ></td></tr>
 					<?php
                     } ?>
-					<tr class="table-info"><td colspan=2 ><strong>Factory Data - <small>I've lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small></strong></td></tr>
-					<tr ><td ><strong>Year:</strong></td><td ><?=$carFactory[0]->year?></td></tr>
-					<tr ><td ><strong>Month:</strong></td><td ><?=$carFactory[0]->month?></td></tr>
-					<tr ><td ><strong>Production Batch:</strong></td><td ><?=$carFactory[0]->batch?></td></tr>
-					<tr ><td ><strong>Type:</strong></td><td ><?=$carFactory[0]->type?></td></tr>
-					<tr ><td ><strong>Chassis:</strong></td><td ><?=$carFactory[0]->serial?></td></tr>
-					<tr ><td ><strong>Suffix:</strong></td><td ><?=$carFactory[0]->suffix?></td></tr>
-					<tr ><td ><strong>Engine:</strong></td><td ><?=$carFactory[0]->engineletter?><?=$carFactory[0]->enginenumber?></td></tr>
-					<tr ><td ><strong>Gearbox:</strong></td><td ><?=$carFactory[0]->gearbox?></td></tr>
-					<tr ><td ><strong>Color:</strong></td><td ><?=$carFactory[0]->color?></td></tr>
-					<tr ><td ><strong>Build Date:</strong></td><td ><?=$carFactory[0]->builddate?></td></tr>
-					<tr ><td ><strong>Notes:</strong></td><td ><?=$carFactory[0]->note?></td></tr>
+					<?php
+                    // Search in the elan_factory_info for details on the car.
+                    // The car.chassis can either match exactly (car.chassis = elan_factory_info.serial )
+                    //    or
+                    // The right most 5 digits of the car.chassis (post 1970 and some 1969) will =  elan_factory_info.serial
+
+                    $search = array($car->chassis, substr($car->chassis, -5));
+
+                    $carFactory = [];
+                    foreach ($search as $s) {
+                        $factoryQ = $db->query('SELECT * FROM elan_factory_info WHERE serial = ? ', [$s]);
+                        // Did it return anything?
+                        if ($factoryQ->count() != 0) {
+                            // Yes it did
+                            $carFactory = $carQ->results();
+                            if ($carFactory[0]->suffix != "") {
+                                $carFactory[0]->suffix = $carFactory[0]->suffix . " (" . suffixtotext($carFactory[0]->suffix) .")";
+                            } ?>
+								<tr class="table-info"><td colspan=2 ><strong>Factory Data - <small>I've lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small></strong></td></tr>
+
+								<tr ><td ><strong>Year:</strong></td><td ><?=$carFactory[0]->year?></td></tr>
+								<tr ><td ><strong>Month:</strong></td><td ><?=$carFactory[0]->month?></td></tr>
+								<tr ><td ><strong>Production Batch:</strong></td><td ><?=$carFactory[0]->batch?></td></tr>
+								<tr ><td ><strong>Type:</strong></td><td ><?=$carFactory[0]->type?></td></tr>
+								<tr ><td ><strong>Chassis:</strong></td><td ><?=$carFactory[0]->serial?></td></tr>
+								<tr ><td ><strong>Suffix:</strong></td><td ><?=$carFactory[0]->suffix?></td></tr>
+								<tr ><td ><strong>Engine:</strong></td><td ><?=$carFactory[0]->engineletter?><?=$carFactory[0]->enginenumber?></td></tr>
+								<tr ><td ><strong>Gearbox:</strong></td><td ><?=$carFactory[0]->gearbox?></td></tr>
+								<tr ><td ><strong>Color:</strong></td><td ><?=$carFactory[0]->color?></td></tr>
+								<tr ><td ><strong>Build Date:</strong></td><td ><?=$carFactory[0]->builddate?></td></tr>
+								<tr ><td ><strong>Notes:</strong></td><td ><?=$carFactory[0]->note?></td></tr>
+							<?php
+                            break;
+                        }
+                    } ?>
+
 					<tr ><td>
 					<form  method = 'get' action = <?=$us_url_root.'app/edit_car.php'?> >
 							<input class='btn btn-success' type = 'submit' value = 'Update Car' >
