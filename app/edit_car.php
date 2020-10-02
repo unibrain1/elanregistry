@@ -321,6 +321,7 @@ if (!empty($_GET)) {
                         <!-- Here is the FORM -->
                         <form name="editCar" action="edit_car.php" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="car_id" value="<?= $cardetails['id'] ?>" />
+                        <input type="hidden" name="lastimage" value="<?= $cardetails['image'] ?>" />
 
                         <?php include($abs_us_root.$us_url_root.'app/views/_car_table.php'); ?>
 
