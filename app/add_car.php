@@ -331,7 +331,9 @@ if (!empty($_POST)) {
                 <div class="card card-default">
                 <div class="card-header"><h2><strong>Upload/Replace Picture</strong></h2></div>
                     <div class="card-body">    
-                        <?php include($abs_us_root.$us_url_root.'app/views/_image_table.php'); ?>
+                        <div class="custom-file">
+                            <?php include($abs_us_root.$us_url_root.'app/views/_image_table.php'); ?>
+                        </div>
                     </div>
                 </div> <!-- card -->
             </div> <!--col -->
@@ -399,7 +401,6 @@ $('#uploadedFile').on('change',function(){
     //replace the "Choose a file" label
     $(this).next('.custom-file-label').html(fileName);
 })
-
 </script>
 
 
