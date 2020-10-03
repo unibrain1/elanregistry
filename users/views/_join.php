@@ -177,7 +177,7 @@ Special thanks to John Bovey for the password strenth feature.
       <input type="hidden" value="<?=Token::generate();?>" name="csrf">
       <button class="submit btn btn-primary " type="submit" id="next_button"><i class="fa fa-plus-square"></i> <?=lang("SIGNUP_TEXT");?></button>
       <?php if($settings->recaptcha == 1|| $settings->recaptcha == 2){ ?>
-        <div class="g-recaptcha" data-sitekey="<?=$settings->recap_public; ?>" data-bind="next_button" data-callback="submitForm"></div>
+         <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
       <?php } ?>
     </form><br />
   </div>

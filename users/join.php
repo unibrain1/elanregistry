@@ -289,12 +289,16 @@ includeHook($hooks,'bottom');
 <?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls ?>
 
 <?php if($settings->recaptcha > 0){ ?>
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
-<script>
-    function submitForm() {
-        document.getElementById("payment-form").submit();
-    }
-</script>
+<script src="https://www.google.com/recaptcha/api.js?render=<?=$settings->recap_public;?>"></script>
+    <script>
+        grecaptcha.ready(function () {
+            grecaptcha.execute("<?=$settings->recap_public; ?>", { action: 'contact' }).then(function (token) {
+                var recaptchaResponse = document.getElementById('recaptchaResponse');
+                recaptchaResponse.value = token;
+            });
+        });
+    </script>
+
 <?php } ?>
 <?php if($settings->auto_assign_un==0) { ?>
 
