@@ -27,6 +27,8 @@ vendor
 # Include the userimages and thumbs directory but not the files
 app/userimages/thumbs/*.*
 app/userimages/*.*
+!app/userimages/.htaccess
+!app/userimages/thumbs/.htaccess
 # Include these file from UserSpice - Patches
 !users/images/logo.png
 !users/css/images/*.png
