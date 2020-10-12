@@ -18,7 +18,7 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
                         <ul class="list-group">
                             <li class="list-group-item d-flex justify-content-between align-items-center"><a href="SGO_2F/index.php">The story of SGO 2F:  50/0164</a></li>
                             <li class="list-group-item d-flex justify-content-between align-items-center"><a href="brian_walton/index.php">Elan Experimental Rally Car:  36/6086</a></li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center"><a href="type26registry/index.php">Archive of www.type26registry.com</a> - This is probably incomplete.</li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center"><a href="type26registry/index.html">Archive of www.type26registry.com</a> - This is probably incomplete.</li>
                         </ul>
                     </div>
                 </div>
