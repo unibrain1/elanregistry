@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Type 26 Register - Production & Spec Changes</title>
+<meta name="generator" content="WYSIWYG Web Builder - http://www.wysiwygwebbuilder.com">
+<style type="text/css">
+div#container
+{
+   width: 1000px;
+   position: relative;
+   margin-top: 0px;
+   margin-left: auto;
+   margin-right: auto;
+   text-align: left;
+}
+</style>
+<style type="text/css">
+body
+{
+   text-align: center;
+   margin: 0;
+   background-color: #FFFFFF;
+   color: #000000;
+}
+</style>
+<script type="text/javascript">
+<!--
+function SwapImage()
+{
+   var doc=document, args=arguments;
+   doc.$imgSwaps = new Array();
+   for(var i=2; i<args.length; i+=2)
+   {
+      var elem=FindObject(args[i]);
+      if(elem)
+      {
+         doc.$imgSwaps[doc.$imgSwaps.length]=elem;
+         elem.$src=elem.src;
+         elem.src=args[i+1];
+      }
+   }
+}
+function FindObject(id, doc)
+{
+   var child, elem;
+   if(!doc)
+      doc=document;
+   if(doc.getElementById)
+      elem=doc.getElementById(id);
+   else
+   if(doc.layers)
+      child=doc.layers;
+   else
+   if(doc.all)
+      elem=doc.all[id];
+   if(elem)
+      return elem;
+   if(doc.id==id || doc.name==id)
+      return doc;
+   if(doc.childNodes)
+      child=doc.childNodes;
+   if(child)
+   {
+      for(var i=0; i<child.length; i++)
+      {
+         elem=FindObject(id,child[i]);
+         if(elem)
+            return elem;
+      }
+   }
+   var frm=doc.forms;
+   if(frm)
+   {
+      for(var i=0; i<frm.length; i++)
+      {
+         var elems=frm[i].elements;
+         for(var j=0; j<elems.length; j++)
+         {
+            elem=FindObject(id,elems[i]);
+            if(elem) return elem;
+         }
+      }
+   }
+   return null;
+}
+//-->
+</script>
+<script type="text/javascript">
+<!--
+function PreloadImages()
+{
+   var imageObj = new Image();
+   var images = new Array();
+   images[0]="./images/img0235.gif";
+   images[1]="./images/img0235_over.gif";
+   images[2]="./images/img0236.gif";
+   images[3]="./images/img0236_over.gif";
+   images[4]="./images/img0237.gif";
+   images[5]="./images/img0237_over.gif";
+   images[6]="./images/img0238.gif";
+   images[7]="./images/img0238_over.gif";
+   images[8]="./images/img0239.gif";
+   images[9]="./images/img0239_over.gif";
+   images[10]="./images/img0240.gif";
+   images[11]="./images/img0240_over.gif";
+   images[12]="./images/img0241.gif";
+   images[13]="./images/img0241_over.gif";
+   images[14]="./images/img0242.gif";
+   images[15]="./images/img0242_over.gif";
+   images[16]="./images/img0243.gif";
+   images[17]="./images/img0243_over.gif";
+   images[18]="./images/img0244.gif";
+   images[19]="./images/img0244_over.gif";
+   images[20]="./images/img0245.gif";
+   images[21]="./images/img0245_over.gif";
+   for (var i=0; i<=21; i++)
+   {
+      imageObj.src = images[i];
+   }
+}
+// -->
+</script>
+</head>
+<body>
+<div id="container">
+<div id="wb_Image2" style="position:absolute;left:30px;top:37px;width:961px;height:403px;z-index:0;" align="left">
+<img src="images/img0246.jpg" id="Image2" alt="" align="top" border="0" style="width:961px;height:403px;"></div>
+<div id="wb_Shape4" style="position:absolute;left:203px;top:464px;width:789px;height:3874px;z-index:1;" align="center">
+<img src="images/img0219.png" id="Shape4" align="top" alt="" title="" border="0" width="789" height="3874"></div>
+<div id="wb_Image1" style="position:absolute;left:305px;top:500px;width:572px;height:3796px;z-index:2;" align="left">
+<img src="images/wwb_img15.jpg" id="Image1" alt="" align="top" border="0" style="width:572px;height:3796px;"></div>
+<div id="wb_Shape1" style="position:absolute;left:771px;top:4048px;width:0px;height:0px;z-index:3;" align="center">
+<img src="images/img0220.gif" id="Shape1" align="top" alt="" title="" border="0" width="0" height="0"></div>
+<div id="wb_Shape2" style="position:absolute;left:760px;top:4041px;width:0px;height:0px;z-index:4;" align="center">
+<img src="images/img0221.gif" id="Shape2" align="top" alt="" title="" border="0" width="0" height="0"></div>
+<div id="wb_Shape3" style="position:absolute;left:743px;top:4061px;width:0px;height:0px;z-index:5;" align="center">
+<img src="images/img0222.gif" id="Shape3" align="top" alt="" title="" border="0" width="0" height="0"></div>
+<div id="wb_TextArt2" style="position:absolute;left:42px;top:52px;width:545px;height:58px;z-index:6;" align="center">
+<img src="images/img0247.png" id="TextArt2" align="top" alt="" title="" border="0" width="545" height="58"></div>
+<div id="wb_NavigationBar2" style="position:absolute;left:31px;top:463px;width:150px;height:359px;z-index:7;" align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="NavigationBar2">
+<tr>
+<td align="left" valign="top" width="150" height="29"><a href="./index.html"><img id="img0235" src="images/img0235.gif" alt="Home" title="Home" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0235','images/img0235_over.gif')" onmouseout="SwapImage(0,0,'img0235','images/img0235.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./about.html"><img id="img0236" src="images/img0236.gif" alt="About" title="About" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0236','images/img0236_over.gif')" onmouseout="SwapImage(0,0,'img0236','images/img0236.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./parts.html"><img id="img0237" src="images/img0237.gif" alt="For Sale" title="For Sale" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0237','images/img0237_over.gif')" onmouseout="SwapImage(0,0,'img0237','images/img0237.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./register.html"><img id="img0238" src="images/img0238.gif" alt="Register" title="Register" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0238','images/img0238_over.gif')" onmouseout="SwapImage(0,0,'img0238','images/img0238.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./Photos.html"><img id="img0239" src="images/img0239.gif" alt="Photos" title="Photos" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0239','images/img0239_over.gif')" onmouseout="SwapImage(0,0,'img0239','images/img0239.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./originality.html"><img id="img0240" src="images/img0240.gif" alt="Originality" title="Originality" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0240','images/img0240_over.gif')" onmouseout="SwapImage(0,0,'img0240','images/img0240.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./lotus_news_archive.html"><img id="img0241" src="images/img0241.gif" alt="Lotus News Archive" title="Lotus News Archive" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0241','images/img0241_over.gif')" onmouseout="SwapImage(0,0,'img0241','images/img0241.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./nostalgia.html"><img id="img0242" src="images/img0242.gif" alt="Nostalgia" title="Nostalgia" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0242','images/img0242_over.gif')" onmouseout="SwapImage(0,0,'img0242','images/img0242.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./spec_changes.html"><img id="img0243" src="images/img0243.gif" alt="Production & Spec Changes" title="Production & Spec Changes" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0243','images/img0243_over.gif')" onmouseout="SwapImage(0,0,'img0243','images/img0243.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./links.html"><img id="img0244" src="images/img0244.gif" alt="Links" title="Links" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0244','images/img0244_over.gif')" onmouseout="SwapImage(0,0,'img0244','images/img0244.gif')"></a></td>
+</tr>
+<tr><td height="4"></td></tr><tr>
+<td align="left" valign="top" width="150" height="29"><a href="./contact.html"><img id="img0245" src="images/img0245.gif" alt="Contact" title="Contact" align="top" border="0" width="150" height="29" onmouseover="SwapImage(1,0,'img0245','images/img0245_over.gif')" onmouseout="SwapImage(0,0,'img0245','images/img0245.gif')"></a></td>
+</tr>
+</table>
+</div>
+</div>
+</body>
+</html>
