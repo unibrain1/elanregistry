@@ -408,7 +408,7 @@ $('#uploadedFile').on('change',function(){
 
 
 <!-- Add car validation JS -->
- <script language="JavaScript" src=<?= $us_url_root . 'app/js/cardefinition.js' ?> type="text/javascript"></script> 
+ <script language="JavaScript" src=<?= $us_url_root . 'assets/js/cardefinition.js' ?> type="text/javascript"></script> 
 
 <?php
 require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php';
