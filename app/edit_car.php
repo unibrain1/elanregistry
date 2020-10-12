@@ -408,7 +408,7 @@ if (!empty($_GET)) {
 <script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
 
 <!-- Add car validation JS -->
-<script language="JavaScript" src=<?= $us_url_root . 'app/js/cardefinition.js' ?> type="text/javascript"></script>
+<script language="JavaScript" src=<?= $us_url_root . 'assets/js/cardefinition.js' ?> type="text/javascript"></script>
 
 <?php
 // And close the template
