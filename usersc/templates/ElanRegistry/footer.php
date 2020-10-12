@@ -12,13 +12,13 @@ require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php';
 </script>
 
 <!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-7230761-9"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-7230761-4"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
-  gtag('config', 'UA-7230761-9');
+  gtag('config', 'UA-7230761-4');
 </script>
 
 <div class="container">
