@@ -42,23 +42,58 @@ if ($carQ->count() > 0) {
 						history of the cars, trace the evolution of the
 						Lotus Elan and to facilitate owner communication.
 						</p>
-						<p>The Lotus Elan Registry started in January 2003.  A thread on LotusElan.net asked the question, 
+						<p class="card-text">The Lotus Elan Registry started in January 2003.  A thread on LotusElan.net asked the question, 
 						<a href="http://www.lotuselan.net/forums/elan-f14/lotus-elan-register-t349.html">
 						Does anybody know if there is a Lotus Elan register?</a>
 						I bashed together a registry and a few years later
 						we have over 300 cars accounted for with more added every month.</p>
+						
 				</div>
 			</div>
+			<div class="card bg-secondary mb-3" style="max-width: 20rem;">
+				<div class="card-header"><H2>Thanks</H2></div>
+				<div class="card-body">
+					<p class="card-text">Thank you to the many people on the Elan mailing list and the Elan forums who have helped with the registry. 
+                            The group has helped with testing, providing pictures, provided feedback on what should be included, and kept me motivated to improve the site. 
+							This is their work. I am just the one who assembled the pieces.</p>
 
+					<p class="card-text">Special thanks to Ross, Tim, Gary, Ed, Terry, Peter, Jeff, Nicholas, Alan, Christian, Michael, Stan, 
+					Jason and everyone else who has contributed and will continue to make the registry what it is, a place 
+					for us to obsess over little British cars.</p>
+						
+				</div>
+			</div>
 
 			<div class="card bg-secondary mb-3" style="max-width: 20rem;">
 				<div class="card-header"><h2>Important Resources</h2></div>
 				<div class="card-body">
-							<ul class="list-group">
-								<li class="list-group-item d-flex justify-content-between align-items-center"><a href="http://www.lotuselansprint.com/index.asp">The Lotus Elan Sprint</a></li>
-								<li class="list-group-item d-flex justify-content-between align-items-center"><a href="http://www.type26register.com/">The Lotus Elan Type 26 Registry</a></li>
-								<li class="list-group-item d-flex justify-content-between align-items-center"><a href="http://www.lotuselan.net/">LotusElan.Net</a></li>
-							</ul>
+					<div class="list-group">
+						<a href="http://www.lotuselansprint.com/" class="list-group-item list-group-item-action flex-column align-items-start">
+							<div class="d-flex w-100 justify-content-between">
+							<h5 class="mb-1">The Lotus Elan Sprint</h5>
+							</div>
+							<p class="mb-1 pl-3"><small>This site is dedicated to the Lotus Elan Sprint, the final iteration of the Lotus Elan</small></p>
+						</a>
+						<a href="http://www.lotuselan.net/" class="list-group-item list-group-item-action flex-column align-items-start">
+							<div class="d-flex w-100 justify-content-between">
+							<h5 class="mb-1">LotusElan.Net</h5>
+							</div>
+							<p class="mb-1 pl-3"><small>A great online community for the Lotus Elan.</small></p>
+						</a>
+						<a href="<?=$us_url_root?>stories/type26registry/index.html" class="list-group-item list-group-item-action flex-column align-items-start">
+							<div class="d-flex w-100 justify-content-between">
+							<h5 class="mb-1">Type 26 Registry</h5>
+							</div>
+							<p class="mb-1 pl-3"><small>The 26 registry is no longer online.  I've copied what I can and saved it here<<small></p>
+						</a>
+						<a href="https://github.com/unibrain1/elanregistry" class="list-group-item list-group-item-action flex-column align-items-start">
+							<div class="d-flex w-100 justify-content-between">
+							<h5 class="mb-1">Elan Registry project on GitHub</h5>
+							</div>
+							<p class="mb-1 pl-3"><small>If you want to help out with the coding or just want to see how the sausage is made.  I'm not a proffesional coder, I just play one in the garage.<small></p>
+						</a>
+					</div>
+
 				</div>
 			</div>
 				</div><!-- /.col -->
