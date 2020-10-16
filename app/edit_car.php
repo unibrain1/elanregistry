@@ -106,6 +106,11 @@ function add_car($post)
     if(isset( $_POST['car_id'])){
         $cardetails['id'] = Input::sanitize($_POST['car_id']);
     }
+
+    // This is the name of the last image
+    $image = ($_POST['image']);
+    $cardetails['image'] = Input::sanitize($image);
+
     //Update Year
     $year = ($_POST['year']);
     $year = Input::sanitize($year);
@@ -212,7 +217,6 @@ function add_car($post)
         $fileTmpPath = $_FILES['file']['tmp_name'];
         $fileName = $_FILES['file']['name'];
 
-        
         $fileNameCmps = explode(".", $fileName);
         $fileExtension = strtolower(end($fileNameCmps));
 
@@ -269,7 +273,6 @@ function add_car($post)
         $cardetails['ctime'] = date('Y-m-d G:i:s');
 
         // Is this an update or an insert?
-
         if (isset($cardetails['id'])) {
             // Update
             $db->update('cars', $cardetails['id'], $cardetails);
@@ -304,7 +307,7 @@ function add_car($post)
                 // then udate the cross reference table (user_car) with the car_id and user_id,
                 $db->insert('car_user', array('userid' => $user->data()->id, 'carid' => $car_id));
                 // then redirect to User Account Page
-            // Redirect::to($us_url_root . 'users/account.php');
+                Redirect::to($us_url_root . 'users/account.php');
             }
         }
     } else {
@@ -312,7 +315,9 @@ function add_car($post)
     }
 }
 
-
+/*
+ * Fill out the form with the existing values
+ */
 function update_car($post){
     global $cardetails;
     global $user;
@@ -409,6 +414,7 @@ function update_car($post){
                         if( isset( $cardetails['id'] ) ){ ?>
                             <input type="hidden" name="car_id" id="action" value="<?=$cardetails['id']?>" />
                         <?php } ?>
+                    <input type="hidden" name="image" value="<?= $cardetails['image'] ?>" />
                     <input class='bbtn btn-success btn-lg btn-block' type='submit' id='submit' class='submit' />
                     <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a> 
                 </div>
