@@ -16,6 +16,7 @@ if ($cardetails['image']) { ?>
 ?>
 
 <script>
+// Update file select box with filename
     $('#file').on('change',function(){
         //get the file name
         var fileName = $(this).val();
