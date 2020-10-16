@@ -103,6 +103,9 @@ function add_car($post)
     global $errors;
     global $successes;
 
+    if(isset( $_POST['car_id'])){
+        $cardetails['id'] = Input::sanitize($_POST['car_id']);
+    }
     //Update Year
     $year = ($_POST['year']);
     $year = Input::sanitize($year);
@@ -121,9 +124,9 @@ function add_car($post)
         $errors[] = "Please select Model ".$model." strcmp" . strcmp($model, "");
     } else {
         // Model isn't really a thing.
-            //      We need to explode it into the proper columns
-            $cardetails['model'] = $model;  // Still save it for later so we can remember what the user entered
-            list($series, $variant, $type) = explode('|', $model);
+        //      We need to explode it into the proper columns
+        $cardetails['model'] = $model;  // Still save it for later so we can remember what the user entered
+        list($series, $variant, $type) = explode('|', $model);
         /* MST value is from form, so I shouldn't have to do this but to be safe ... */
         $cardetails['series'] = filter_var($series, FILTER_SANITIZE_STRING);
         $cardetails['variant'] = filter_var($variant, FILTER_SANITIZE_STRING);
@@ -204,6 +207,7 @@ function add_car($post)
 
     // Update 'image'
     if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+
         // get details of the uploaded file
         $fileTmpPath = $_FILES['file']['tmp_name'];
         $fileName = $_FILES['file']['name'];
@@ -263,25 +267,45 @@ function add_car($post)
     if (empty($errors)) {
         // Add a create time
         $cardetails['ctime'] = date('Y-m-d G:i:s');
-        $db->insert('cars', $cardetails);
-        
-        if ($db->error()) {
-            $errors[] = 'DB ERROR' . $db->errorString();
-            logger($user->data()->id, "ElanRegistry", "add_car error car " . $db->errorString());
+
+        // Is this an update or an insert?
+
+        if (isset($cardetails['id'])) {
+            // Update
+            $db->update('cars', $cardetails['id'], $cardetails);
+            if ($db->error()) {
+                $errors[] = 'DB ERROR' . $db->errorString();
+                logger($user->data()->id, "ElanRegistry - Update", "edit_car error car " . $db->errorString());
+            } else {
+                // Grab the id of the last insert
+                $successes[] = 'Update Car ID: ' . $cardetails['id'];
+                $successes[] = 'Update BY ID: ' . $cardetails['user_id'];
+
+                // then log it
+                logger($user->data()->id, "ElanRegistry", "Updated car ID " . $cardetails['id']);
+
+                // then redirect to User Account Page
+                Redirect::to($us_url_root . 'users/account.php');
+            }
         } else {
-            // Grab the id of the last insert
-            $car_id = $db->lastId();
-            $successes[] = 'Car ID: ' . $car_id;
-            $successes[] = 'User ID: ' . $user->data()->id;
-            // then log it
-            logger($user->data()->id, "ElanRegistry", "Added car " . $car_id);
-            // then udate the cross reference table (user_car) with the car_id and user_id,
-            $db->insert(
-                'car_user',
-                array('userid' => $user->data()->id, 'carid' => $car_id)
-            );
-            // then redirect to User Account Page
-            Redirect::to($us_url_root . 'users/account.php');
+            // Insert
+            $db->insert('cars', $cardetails);
+            
+            if ($db->error()) {
+                $errors[] = 'DB ERROR' . $db->errorString();
+                logger($user->data()->id, "ElanRegistry - Insert", "edit_car error car " . $db->errorString());
+            } else {
+                // Grab the id of the last insert
+                $car_id = $db->lastId();
+                $successes[] = 'Add Car ID: ' . $car_id;
+                $successes[] = 'Update User ID: ' . $user->data()->id;
+                // then log it
+                logger($user->data()->id, "ElanRegistry", "Added car " . $car_id);
+                // then udate the cross reference table (user_car) with the car_id and user_id,
+                $db->insert('car_user', array('userid' => $user->data()->id, 'carid' => $car_id));
+                // then redirect to User Account Page
+            // Redirect::to($us_url_root . 'users/account.php');
+            }
         }
     } else {
         $errors[] = 'Cannot add record';
@@ -308,18 +332,20 @@ function update_car($post){
             // Owner so get the car
             $carQ =  $db->get("cars", ["id",  "=", $car_id]);
             $theCar = $carQ->results();
-
             // Get the details from the current car
-            $cardetails['id']          = $theCar[0]->id;
-            $cardetails['year']        = $theCar[0]->year;
-            $cardetails['model']       = $theCar[0]->model;
-            $cardetails['chassis']     = $theCar[0]->chassis;
-            $cardetails['color']       = $theCar[0]->color;
-            $cardetails['engine']      = $theCar[0]->engine;
-            $cardetails['purchasedate']= $theCar[0]->purchasedate;
-            $cardetails['solddate']    = $theCar[0]->solddate;
-            $cardetails['comments']    = $theCar[0]->comments;
-            $cardetails['image']       = $theCar[0]->image;
+            $cardetails['id']           = $theCar[0]->id;
+            $cardetails['year']         = $theCar[0]->year;
+            $cardetails['model']        = $theCar[0]->model;
+            $cardetails['series']       = $theCar[0]->series;
+            $cardetails['variant']      = $theCar[0]->variant;
+            $cardetails['type']         = $theCar[0]->type;
+            $cardetails['chassis']      = $theCar[0]->chassis;
+            $cardetails['color']        = $theCar[0]->color;
+            $cardetails['engine']       = $theCar[0]->engine;
+            $cardetails['purchasedate'] = $theCar[0]->purchasedate;
+            $cardetails['solddate']     = $theCar[0]->solddate;
+            $cardetails['comments']     = $theCar[0]->comments;
+            $cardetails['image']        = $theCar[0]->image;
 
             // Get the car history for display
             $carQ = $db->query('SELECT * FROM cars_hist WHERE car_id=? ORDER BY cars_hist.timestamp DESC', [$car_id]);
@@ -379,6 +405,10 @@ function update_car($post){
                 <div class="col-sm-4">
                     <input type="hidden" name="csrf" id="csrf" value="<?= Token::generate(); ?>" />
                     <input type="hidden" name="action" id="action" value="add_car" />
+                    <?php
+                        if( isset( $cardetails['id'] ) ){ ?>
+                            <input type="hidden" name="car_id" id="action" value="<?=$cardetails['id']?>" />
+                        <?php } ?>
                     <input class='bbtn btn-success btn-lg btn-block' type='submit' id='submit' class='submit' />
                     <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a> 
                 </div>
