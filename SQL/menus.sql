@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:8889
--- Generation Time: Sep 16, 2020 at 04:10 PM
+-- Generation Time: Oct 14, 2020 at 03:56 PM
 -- Server version: 5.7.26
 -- PHP Version: 7.4.2
 
@@ -39,11 +39,6 @@ CREATE TABLE `menus` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 --
--- Truncate table before insert `menus`
---
-
-TRUNCATE TABLE `menus`;
---
 -- Dumping data for table `menus`
 --
 
@@ -69,7 +64,7 @@ INSERT INTO `menus` (`id`, `menu_title`, `parent`, `dropdown`, `logged_in`, `dis
 (21, 'main', -1, 0, 1, 130, '{{messages}}', '', ''),
 (41, 'main', -1, 0, 1, 30, 'Identification Guide', 'app/identification.php', 'fa fa-fw fa-binoculars'),
 (38, 'main', -1, 0, 1, 10, '{{home}}', '#', 'fa fa-fw fa-home'),
-(42, 'main', -1, 0, 1, 40, 'Add Car', 'app/add_car.php', 'fa fa-fw fa-plus'),
+(42, 'main', -1, 0, 1, 40, 'Add Car', 'app/edit_car.php', 'fa fa-fw fa-plus'),
 (43, 'main', -1, 1, 1, 99999, '{{account}}', '#', 'fa fa-fw fa-user'),
 (47, 'main', -1, 0, 1, 100, 'Feedback', 'app/contact.php', 'fa fa-fw fa-comments'),
 (48, 'main', -1, 0, 0, 20, 'Statistics', 'app/statistics.php', 'fa fa-fw fa-pie-chart'),
