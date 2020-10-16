@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:8889
--- Generation Time: Oct 14, 2020 at 03:56 PM
+-- Generation Time: Oct 16, 2020 at 05:26 PM
 -- Server version: 5.7.26
 -- PHP Version: 7.4.2
 
@@ -26,6 +26,7 @@ SET time_zone = "+00:00";
 -- Table structure for table `menus`
 --
 
+DROP TABLE IF EXISTS `menus`;
 CREATE TABLE `menus` (
   `id` int(10) NOT NULL,
   `menu_title` varchar(255) NOT NULL,
