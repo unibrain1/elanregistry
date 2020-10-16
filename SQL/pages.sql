@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:8889
--- Generation Time: Oct 14, 2020 at 03:56 PM
+-- Generation Time: Oct 16, 2020 at 05:27 PM
 -- Server version: 5.7.26
 -- PHP Version: 7.4.2
 
@@ -26,6 +26,7 @@ SET time_zone = "+00:00";
 -- Table structure for table `pages`
 --
 
+DROP TABLE IF EXISTS `pages`;
 CREATE TABLE `pages` (
   `id` int(11) NOT NULL,
   `page` varchar(100) NOT NULL,
@@ -100,7 +101,8 @@ INSERT INTO `pages` (`id`, `page`, `title`, `private`, `re_auth`, `core`) VALUES
 (196, 'error/index.php', '', 0, 0, 0),
 (197, 'app/fileupload.php', '', 1, 0, 0),
 (198, 'app/image_sav.php', '', 1, 0, 0),
-(199, 'FIX/10-update-car-table.php', '', 1, 0, 0);
+(199, 'FIX/10-update-car-table.php', '', 1, 0, 0),
+(200, 'app/credits.php', 'Credits', 0, 0, 0);
 
 --
 -- Indexes for dumped tables
@@ -120,7 +122,7 @@ ALTER TABLE `pages`
 -- AUTO_INCREMENT for table `pages`
 --
 ALTER TABLE `pages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=200;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=201;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
