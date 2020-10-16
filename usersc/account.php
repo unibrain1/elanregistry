@@ -100,7 +100,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
             if (empty($thatCar)) {
                 // 	If the user does not have a car then display the add car form</li>
                     ?>
-					<a align="center" class="btn btn-success" href=<?=$us_url_root."app/add_car.php"?> role="button">Add Car</a>
+					<a align="center" class="btn btn-success" href=<?=$us_url_root."app/edit_car.php"?> role="button">Add Car</a>
 					<?php
             } else {
                 // Else there is car information then display it
@@ -165,16 +165,19 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
                             break;
                         }
                     } ?>
-
-					<tr ><td>
-					<form  method = 'get' action = <?=$us_url_root.'app/edit_car.php'?> >
-							<input class='btn btn-success' type = 'submit' value = 'Update Car' >
-							<input type='hidden' name='car_id' value='<?=$car->id?>'>
-					</form>
-					<td></td>
-					</tr>
-				</table>
-
+					</table>
+					<br>
+					<div class="col">
+						<div class="form-group row">
+							<form method = 'POST' action=<?=$us_url_root.'app/edit_car.php'?> >
+								<input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
+								<input type="hidden" name="action" value="update_car" />
+								<input type="hidden" name="car_id" value="<?=$car->id?>" />
+								<button class="btn btn-success" type="submit">Update Car</button>
+							</form>
+							<a class="btn btn-info" role="button" href="<?=$us_url_root?>app/car_details.php?car_id=<?=$car->id?>">Details</a>
+						</div>
+					</div>
 				</br>
 				<?php
                 }

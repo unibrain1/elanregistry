@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:8889
--- Generation Time: Sep 16, 2020 at 04:10 PM
+-- Generation Time: Oct 14, 2020 at 03:56 PM
 -- Server version: 5.7.26
 -- PHP Version: 7.4.2
 
@@ -36,11 +36,6 @@ CREATE TABLE `pages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
--- Truncate table before insert `pages`
---
-
-TRUNCATE TABLE `pages`;
---
 -- Dumping data for table `pages`
 --
 
@@ -70,7 +65,6 @@ INSERT INTO `pages` (`id`, `page`, `title`, `private`, `re_auth`, `core`) VALUES
 (98, 'usersc/account.php', 'Account Dashboard', 1, 0, 0),
 (106, 'usersc/user_settings.php', 'User Settings', 1, 0, 0),
 (107, 'usersc/admin_user.php', 'User Manager', 1, 0, 0),
-(121, 'app/add_car.php', 'Add Car', 1, 0, 0),
 (122, 'app/list_cars.php', 'List Cars', 0, 0, 0),
 (123, 'app/identification.php', 'Identification Guide', 0, 0, 0),
 (124, 'app/contact.php', 'Feedback', 1, 0, 0),
@@ -101,7 +95,12 @@ INSERT INTO `pages` (`id`, `page`, `title`, `private`, `re_auth`, `core`) VALUES
 (187, 'stories/SGO_2F/index.php', '', 0, 0, 0),
 (188, 'app/list_factory.php', '', 0, 0, 0),
 (189, 'FIX/8-load_factory_data.php', '', 1, 0, 0),
-(190, 'FIX/9-reload_pages_menus.php', '', 1, 0, 0);
+(190, 'FIX/9-reload_pages_menus.php', '', 1, 0, 0),
+(195, 'app/validate.php', '', 1, 0, 0),
+(196, 'error/index.php', '', 0, 0, 0),
+(197, 'app/fileupload.php', '', 1, 0, 0),
+(198, 'app/image_sav.php', '', 1, 0, 0),
+(199, 'FIX/10-update-car-table.php', '', 1, 0, 0);
 
 --
 -- Indexes for dumped tables
@@ -121,7 +120,7 @@ ALTER TABLE `pages`
 -- AUTO_INCREMENT for table `pages`
 --
 ALTER TABLE `pages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=191;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=200;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
