@@ -126,15 +126,4 @@ if ($carQ->count() > 0) {
 	</div> <!-- /.container -->
 </div><!-- .page-wrapper -->
 <!-- footers -->
-
-<!-- Place any per-page javascript here -->
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/jquery.dataTables.min.css"/>
-<script type="text/javascript" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
-
-<script type="text/javascript">
-$(document).ready(function()  {
-  var table =  $('#cartable').DataTable();
-} );
-</script>
-<!-- footers -->
 <?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>
