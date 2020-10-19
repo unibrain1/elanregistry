@@ -6,6 +6,7 @@ require_once 'validate.php';
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
 }
+
 // A place to store default values and what the user entered
 $select_str                 = 'Please Select';
 
@@ -59,13 +60,28 @@ $carHist                    = null;
 $title = 'Add Car';
 $action = null; // No one has asked me to do anything yet
 
-function var_error_log( $object=null ){
+function var_error_log($object=null)
+{
     ob_start();                    // start buffer capture
-    var_dump( $object );           // dump the values
+    var_dump($object);           // dump the values
     $contents = ob_get_contents(); // put the buffer into a variable
     ob_end_clean();                // end capture
-    error_log( $contents );        // log contents of the result of var_dump( $object )
+    error_log($contents);        // log contents of the result of var_dump( $object )
 }
+
+function get_mime_type($file)
+{
+    $mtype = false;
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mtype = finfo_file($finfo, $file);
+        finfo_close($finfo);
+    } elseif (function_exists('mime_content_type')) {
+        $mtype = mime_content_type($file);
+    }
+    return $mtype;
+}
+
 
 //Forms posted now process it
 if (!empty($_POST)) {
@@ -73,18 +89,17 @@ if (!empty($_POST)) {
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
-        
         $action = ($_POST['action']);
         $action = Input::sanitize($action);
 
         switch ($action) {
             case "add_car":
                 $title = 'Add Car';
-                add_car( $_POST );
+                add_car($_POST);
                 break;
             case "update_car":
                 $title = 'Update Car';
-                update_car( $_POST );
+                update_car($_POST);
                // add_car( $_POST, $cardetails);
                 break;
             default:
@@ -96,6 +111,11 @@ if (!empty($_POST)) {
 
 function add_car($post)
 {
+    // Configuration
+    // directory in which the uploaded file will be moved
+    $uploadFileDir = './userimages/';
+    $thumbnailDir = $uploadFileDir . 'thumbs/';
+
     global $cardetails;
     global $user;
     global $db;
@@ -103,7 +123,7 @@ function add_car($post)
     global $errors;
     global $successes;
 
-    if(isset( $_POST['car_id'])){
+    if (isset($_POST['car_id'])) {
         $cardetails['id'] = Input::sanitize($_POST['car_id']);
     }
 
@@ -205,35 +225,29 @@ function add_car($post)
     // Update 'comments'
     $comments = ($_POST['comments']);
     $comments = Input::sanitize($comments);
-    if (strcmp($comments, "") != 0 ) {
+    if (strcmp($comments, "") != 0) {
         $cardetails['comments'] = filter_var($comments, FILTER_SANITIZE_STRING);
         $successes[] = 'Comment Updated';
     }
 
     // Update 'image'
     if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        // check if file has one of the allowed mime types
+        $mime_type = get_mime_type($_FILES['file']['tmp_name']);
 
-        // get details of the uploaded file
-        $fileTmpPath = $_FILES['file']['tmp_name'];
-        $fileName = $_FILES['file']['name'];
+        $allowed_file_types = ['image/png', 'image/jpeg'];
+        if (in_array($mime_type, $allowed_file_types)) {
+            // get extenstion of the uploaded file
+            $fileNameCmps = explode(".", $_FILES['file']['error']);
+            $fileExtension = strtolower(end($fileNameCmps));
 
-        $fileNameCmps = explode(".", $fileName);
-        $fileExtension = strtolower(end($fileNameCmps));
-
-        //  give the file a random name
-        $newFileName = uniqid('img_', 'true') . '.' . $fileExtension;
-
-        // check if file has one of the following extensions
-        $allowedfileExtensions = array('jpg', 'jpeg', 'gif', 'png');
-
-        if (in_array($fileExtension, $allowedfileExtensions)) {
-            // directory in which the uploaded file will be moved
-            $uploadFileDir = './userimages/';
-            $thumbnailDir = $uploadFileDir . 'thumbs/';
+            //  give the file a random name
+            $newFileName = uniqid('img_', 'true') . '.' . $fileExtension;
+            
             $dest_path = $uploadFileDir . $newFileName;
             $thumb_dest_path = $thumbnailDir . $newFileName;
 
-            if (move_uploaded_file($fileTmpPath, $dest_path)) {
+            if (move_uploaded_file($_FILES['file']['tmp_name'], $dest_path)) {
                 $successes[] = 'Image is successfully uploaded.' . $newFileName;
 
                 // Resize the image
@@ -263,14 +277,12 @@ function add_car($post)
                 $errors[] = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
             }
         } else {
-            $errors[] = 'Upload failed. Allowed file types: ' . implode(',', $allowedfileExtensions);
+            $errors[] = "Upload failed. You tries to upload <?=$mime_type?> Allowed file types: " . implode(',', $allowed_file_types);
         }
-    } 
+    }
 
     // If there are no errors then INSERT the $cardetails into the DB,
     if (empty($errors)) {
-        // Add a create time
-        $cardetails['ctime'] = date('Y-m-d G:i:s');
 
         // Is this an update or an insert?
         if (isset($cardetails['id'])) {
@@ -292,6 +304,9 @@ function add_car($post)
             }
         } else {
             // Insert
+            // Add a create time
+            $cardetails['ctime'] = date('Y-m-d G:i:s');
+
             $db->insert('cars', $cardetails);
             
             if ($db->error()) {
@@ -318,7 +333,8 @@ function add_car($post)
 /*
  * Fill out the form with the existing values
  */
-function update_car($post){
+function update_car($post)
+{
     global $cardetails;
     global $user;
     global $db;
@@ -411,7 +427,7 @@ function update_car($post){
                     <input type="hidden" name="csrf" id="csrf" value="<?= Token::generate(); ?>" />
                     <input type="hidden" name="action" id="action" value="add_car" />
                     <?php
-                        if( isset( $cardetails['id'] ) ){ ?>
+                        if (isset($cardetails['id'])) { ?>
                             <input type="hidden" name="car_id" id="action" value="<?=$cardetails['id']?>" />
                         <?php } ?>
                     <input type="hidden" name="image" value="<?= $cardetails['image'] ?>" />
@@ -427,8 +443,7 @@ function update_car($post){
 
             <!-- Car History -->
             <?php
-            if( $action == 'update_car' )
-            { ?>
+            if ($action == 'update_car') { ?>
 
             
             <div class="row">
@@ -480,7 +495,7 @@ function update_car($post){
             $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
             $('#year').trigger("change");
             // Need to escape all the special characters in the MODEL field in order for this to work
-            $('#model option[value=<?php  $str = array("|", " ", "/","+"); $escStr   = array("\\\|", "\\\ ", "\\\/","\\\+");  echo str_replace($str, $escStr,$cardetails['model']);?> ]').prop('selected', true);
+            $('#model option[value=<?php  $str = array("|", " ", "/","+"); $escStr   = array("\\\|", "\\\ ", "\\\/","\\\+");  echo str_replace($str, $escStr, $cardetails['model']);?> ]').prop('selected', true);
         }
 
     });
