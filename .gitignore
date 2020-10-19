@@ -29,6 +29,8 @@ app/userimages/thumbs/*.*
 app/userimages/*.*
 !app/userimages/.htaccess
 !app/userimages/thumbs/.htaccess
+# Exclude userspice base
+users
 # Include these file from UserSpice - Patches
 !users/images/logo.png
 !users/css/images/*.png
