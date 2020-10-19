@@ -1,1 +1,0 @@
-<?php $path=['','users/','usersc/']; ?>
