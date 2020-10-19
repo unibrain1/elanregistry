@@ -1,0 +1,16 @@
+{
+    "name": "jimboone/elan_registry",
+    "description": "Registry for the Lotus Elan and +2",
+    "type": "project",
+    "license": "GNU Lesser General Public License v3.0",
+    "authors": [
+        {
+            "name": "Jim Boone",
+            "email": "jim@unibrain.org"
+        }
+    ],
+    "require": {
+        "php": ">=7.1",
+        "johnathanmiller/secure-env-php": "^2.0"
+    }
+}
