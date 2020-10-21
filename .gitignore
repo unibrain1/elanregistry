@@ -49,3 +49,4 @@ usupdate.zip
 users/updates/
 # exclude Test Cases
 Tests/
+.htaccess
