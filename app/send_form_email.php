@@ -30,8 +30,7 @@ if (isset($_POST['email'])) {
  
  
     // validation expected data exists
-    if (!isset($_POST['fname']) ||
-        !isset($_POST['lname']) ||
+    if (!isset($_POST['name']) ||
         !isset($_POST['email']) ||
         !isset($_POST['id']) ||
         !isset($_POST['comments'])) {
@@ -40,8 +39,7 @@ if (isset($_POST['email'])) {
  
     
  
-    $first_name = $_POST['fname']; // required
-    $last_name = $_POST['lname']; // required
+    $name = $_POST['name']; // required
     $email_from = $_POST['email']; // required
     $id_from = $_POST['id']; // required
     $comments = $_POST['comments']; // required
@@ -55,12 +53,8 @@ if (isset($_POST['email'])) {
  
     $string_exp = "/^[A-Za-z .'-]+$/";
  
-    if (!preg_match($string_exp, $first_name)) {
-        $error_message .= 'The First Name you entered does not appear to be valid.<br />';
-    }
- 
-    if (!preg_match($string_exp, $last_name)) {
-        $error_message .= 'The Last Name you entered does not appear to be valid.<br />';
+    if (!preg_match($string_exp, $name)) {
+        $error_message .= 'The Name you entered does not appear to be valid.<br />';
     }
  
     if (strlen($comments) < 2) {
@@ -80,8 +74,7 @@ if (isset($_POST['email'])) {
         return str_replace($bad, "", $string);
     }
  
-    $email_message .= "First Name : ".clean_string($first_name)."\n";
-    $email_message .= "Last Name  : ".clean_string($last_name)."\n";
+    $email_message .= "Name       : ".clean_string($name)."\n";
     $email_message .= "Email      : ".clean_string($email_from)."\n";
     $email_message .= "Account ID : ".clean_string($id_from)."\n\n";
     $email_message .= "Comments   :\n".clean_string($comments)."\n";
@@ -99,7 +92,6 @@ if (isset($_POST['email'])) {
     <div class="row">
       <div class="col-sm-12">
             <div class="jumbotron">
-
               <!-- Content Goes Here. Class width can be adjusted -->
 
             <h2><p>Thank you for feedback!  Your help makes the Elan Registry better!</p></h2>
