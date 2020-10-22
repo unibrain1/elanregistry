@@ -1,6 +1,6 @@
 <?php
 require_once '../users/init.php';
-require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
+require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 require_once 'validate.php';
 
 if (!securePage($_SERVER['PHP_SELF'])) {
@@ -60,7 +60,7 @@ $carHist                    = null;
 $title = 'Add Car';
 $action = null; // No one has asked me to do anything yet
 
-function var_error_log($object=null)
+function var_error_log($object = null)
 {
     ob_start();                    // start buffer capture
     var_dump($object);           // dump the values
@@ -100,7 +100,7 @@ if (!empty($_POST)) {
             case "update_car":
                 $title = 'Update Car';
                 update_car($_POST);
-               // add_car( $_POST, $cardetails);
+                // add_car( $_POST, $cardetails);
                 break;
             default:
                 $errors[] = "No valid action";
@@ -138,7 +138,7 @@ function add_car($post)
         $errors[] = "Please select Year";
     } else {
         $cardetails['year'] = $year;
-        $successes[] = 'Year Updated ('.$year.')';
+        $successes[] = 'Year Updated (' . $year . ')';
     }
 
     // Update 'model'
@@ -146,7 +146,7 @@ function add_car($post)
     $model = ($_POST['model']);
     $model = Input::sanitize($model);
     if (strcmp($model, "") == 0) {
-        $errors[] = "Please select Model ".$model." strcmp" . strcmp($model, "");
+        $errors[] = "Please select Model " . $model . " strcmp" . strcmp($model, "");
     } else {
         // Model isn't really a thing.
         //      We need to explode it into the proper columns
@@ -157,7 +157,7 @@ function add_car($post)
         $cardetails['variant'] = filter_var($variant, FILTER_SANITIZE_STRING);
         $cardetails['type'] = filter_var($type, FILTER_SANITIZE_STRING);
 
-        $successes[] = 'Model Updated ('.$model.')';
+        $successes[] = 'Model Updated (' . $model . ')';
     }
 
     // Update 'chassis'
@@ -173,7 +173,7 @@ function add_car($post)
             $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
         }
         // } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
-            //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
+        //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
     } else {
         $successes[] = 'Chassis Updated';
     }
@@ -183,7 +183,7 @@ function add_car($post)
     $color = ($_POST['color']);
     $color = Input::sanitize($color);
     if (strcmp($color, "") != 0) {
-        $successes[] = 'Color Updated ('.$color.')';
+        $successes[] = 'Color Updated (' . $color . ')';
         $cardetails['color'] = filter_var($color, FILTER_SANITIZE_STRING);
     }
 
@@ -192,7 +192,7 @@ function add_car($post)
     $engine = Input::sanitize($engine);
     if (strcmp($engine, "") != 0) {
         $cardetails['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
-        $successes[] = 'Engine Updated ('.$engine.')';
+        $successes[] = 'Engine Updated (' . $engine . ')';
     }
 
     // Update 'purchasedate'
@@ -202,7 +202,7 @@ function add_car($post)
         // Convert to SQL date format
         if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
             $cardetails['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
-            $successes[] = 'Purchased Updated ('.$purchasedate.')';
+            $successes[] = 'Purchased Updated (' . $purchasedate . ')';
         } else {
             $errors[] = "Purchase Date conversion error";
         }
@@ -216,7 +216,7 @@ function add_car($post)
         // Convert to SQL date format
         if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
             $cardetails['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
-            $successes[] = 'Sold Date Updated ('.$solddate.')';
+            $successes[] = 'Sold Date Updated (' . $solddate . ')';
         } else {
             $errors[] = "Sold Date conversion error";
         }
@@ -243,7 +243,7 @@ function add_car($post)
 
             //  give the file a random name
             $newFileName = uniqid('img_', 'true') . '.' . $fileExtension;
-            
+
             $dest_path = $uploadFileDir . $newFileName;
             $thumb_dest_path = $thumbnailDir . $newFileName;
 
@@ -308,7 +308,7 @@ function add_car($post)
             $cardetails['ctime'] = date('Y-m-d G:i:s');
 
             $db->insert('cars', $cardetails);
-            
+
             if ($db->error()) {
                 $errors[] = 'DB ERROR' . $db->errorString();
                 logger($user->data()->id, "ElanRegistry - Insert", "edit_car error car " . $db->errorString());
@@ -389,124 +389,129 @@ function update_car($post)
 <div id="page-wrapper">
     <div class="container-fluid">
         <div class="well">
-        <br> 
-        <form method="POST" name="addCar" action="edit_car.php" enctype="multipart/form-data">
-            <div class="row">
-                <div class="col-md-6">  <!-- Car Info -->
-                    <div class="card card-default">
-                        <div class="card-header"><h2><strong><?=$title?></strong></h2></div>
-                        <div class="card-body">
-                            <!-- Here is a place to display errors -->
-                            <?php
-                            if (!$errors == '') {
+            <br>
+            <form method="POST" name="addCar" action="edit_car.php" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- Car Info -->
+                        <div class="card card-default">
+                            <div class="card-header">
+                                <h2><strong><?= $title ?></strong></h2>
+                            </div>
+                            <div class="card-body">
+                                <!-- Here is a place to display errors -->
+                                <?php
+                                if (!$errors == '') {
                                 ?><div class="alert alert-danger"><?= display_errors($errors); ?></div><?php
-                            }
-                            ?>
-                            <?php if (!$successes == '') {
+                                                                                                    }
+                                                                                                        ?>
+                                <?php if (!$successes == '') {
                                 ?><div class="alert alert-success"><?= display_successes($successes); ?></div><?php
-                            }
-                            ?>
-                            <!-- Here is the FORM -->
-                            <?php include($abs_us_root.$us_url_root.'app/views/_car_table.php'); ?>
-                        </div> <!-- card-body -->
-                    </div>   
-                </div>
-                <div class="col-md-6"> <!-- Image Info -->
-                    <div class="card card-default">
-                    <div class="card-header"><h2><strong>Photos</strong></h2></div>
-                        <div class="card-body">    
-                                <?php include($abs_us_root.$us_url_root.'app/views/_image_table.php'); ?>
+                                                                                                            }
+                                                                                                                ?>
+                                <!-- Here is the FORM -->
+                                <?php include($abs_us_root . $us_url_root . 'app/views/_car_table.php'); ?>
+                            </div> <!-- card-body -->
                         </div>
-                    </div> <!-- card -->
-                </div> <!--col -->
-            </div> <!-- /.row -->
-            <div class="row">
-                <div class="col-sm-4">
-                </div>
-                <div class="col-sm-4">
-                    <input type="hidden" name="csrf" id="csrf" value="<?= Token::generate(); ?>" />
-                    <input type="hidden" name="action" id="action" value="add_car" />
-                    <?php
+                    </div>
+                    <div class="col-md-6">
+                        <!-- Image Info -->
+                        <div class="card card-default">
+                            <div class="card-header">
+                                <h2><strong>Photos</strong></h2>
+                            </div>
+                            <div class="card-body">
+                                <?php include($abs_us_root . $us_url_root . 'app/views/_image_table.php'); ?>
+                            </div>
+                        </div> <!-- card -->
+                    </div>
+                    <!--col -->
+                </div> <!-- /.row -->
+                <div class="row">
+                    <div class="col-sm-4">
+                    </div>
+                    <div class="col-sm-4">
+                        <input type="hidden" name="csrf" id="csrf" value="<?= Token::generate(); ?>" />
+                        <input type="hidden" name="action" id="action" value="add_car" />
+                        <?php
                         if (isset($cardetails['id'])) { ?>
-                            <input type="hidden" name="car_id" id="action" value="<?=$cardetails['id']?>" />
+                            <input type="hidden" name="car_id" id="car_id" value="<?= $cardetails['id'] ?>" />
                         <?php } ?>
-                    <input type="hidden" name="image" value="<?= $cardetails['image'] ?>" />
-                    <input class='bbtn btn-success btn-lg btn-block' type='submit' id='submit' class='submit' />
-                    <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a> 
-                </div>
-                <div class="col-sm-4">
-                </div>
-            </div> <!-- /.row -->
-        </form> 
+                        <input type="hidden" name="image" value="<?= $cardetails['image'] ?>" />
+                        <input class='bbtn btn-success btn-lg btn-block' type='submit' id='submit' />
+                        <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a> </div> <div class="col-sm-4">
+                    </div>
+                </div> <!-- /.row -->
+            </form>
 
-        </div> <!-- well -->   
+        </div> <!-- well -->
 
-            <!-- Car History -->
-            <?php
-            if ($action == 'update_car') { ?>
+        <!-- Car History -->
+        <?php
+        if ($action == 'update_car') { ?>
 
-            
+
             <div class="row">
                 <div class="col-sm">
                     <div class="card card-info">
-                        <div class="card-header"><h2><strong>Record Update History</strong></h2></div>
+                        <div class="card-header">
+                            <h2><strong>Record Update History</strong></h2>
+                        </div>
                         <div class="card-body">
-                            <?php include($abs_us_root.$us_url_root.'app/views/_car_history.php'); ?>
+                            <?php include($abs_us_root . $us_url_root . 'app/views/_car_history.php'); ?>
                         </div> <!-- card-body -->
-                    </div> <!-- card -->   
-                </div> <! - .col -->  
-            </div> <!-- /.row -->          
-            <?php } ?>
-        </div> <!-- well -->     
-    </div> <!-- /.container -->
-</div> <!-- /.wrapper -->
+                    </div> <!-- card -->
+                </div>
+                <!-- .col -->
+            </div> <!-- /.row -->
+        <?php } ?>
+    </div> <!-- well -->
+</div> <!-- /.container -->
+
 
 <!-- Include Date Range Picker -->
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker3.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker3.css" />
 
 <script>
-    $(document).ready(function(){
-        var date_input=$('input[id="purchasedate"]'); //our date input has the name "date"
-        var container=$('.page-wrapper form').length>0 ? $('.page-wrapper form').parent() : "body";
+    $(document).ready(function() {
+        var date_input = $('input[id="purchasedate"]'); //our date input has the name "date"
+        var container = $('.page-wrapper form').length > 0 ? $('.page-wrapper form').parent() : "body";
         date_input.datepicker({
             format: 'yyyy-mm-dd',
             container: container,
             todayHighlight: false,
             autoclose: true,
         })
-    })
+    });
 
-    $(document).ready(function(){
-        var date_input=$('input[id="solddate"]'); //our date input has the name "date"
-        var container=$('.page-wrapper form').length>0 ? $('.page-wrapper form').parent() : "body";
+    $(document).ready(function() {
+        var date_input = $('input[id="solddate"]'); //our date input has the name "date"
+        var container = $('.page-wrapper form').length > 0 ? $('.page-wrapper form').parent() : "body";
         date_input.datepicker({
             format: 'yyyy-mm-dd',
             container: container,
             todayHighlight: false,
             autoclose: true,
         })
-    })
+    });
 
-    $(document).ready(function(){
+    $(document).ready(function() {
         var _action = '<?= $action ?>';
-        
-        if( _action == 'update_car' ){
+
+        if (_action == 'update_car') {
             $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
             $('#year').trigger("change");
             // Need to escape all the special characters in the MODEL field in order for this to work
-            $('#model option[value=<?php  $str = array("|", " ", "/","+"); $escStr   = array("\\\|", "\\\ ", "\\\/","\\\+");  echo str_replace($str, $escStr, $cardetails['model']);?> ]').prop('selected', true);
+            $('#model option[value=<?php $str = array("|", " ", "/", "+");
+                                    $escStr   = array("\\\|", "\\\ ", "\\\/", "\\\+");
+                                    echo str_replace($str, $escStr, $cardetails['model']); ?>]').prop('selected', true);
         }
-
     });
-
-
 </script>
 
-
-
 <!-- Add car validation JS -->
-<script language="JavaScript" src="<?= $us_url_root ?>assets/js/cardefinition.js" type="text/javascript"></script> 
+<script src="<?= $us_url_root ?>assets/js/cardefinition.js"></script>
 
 <?php
 require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php';

@@ -56,14 +56,14 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 <div id="page-wrapper">
 <div class="container-fluid">
 <div class="well">
-</br>
+<br>
 
 <div class="row">
 	<div class="col-4">
 		<div class="card card-default">
-			<div class="card-header"><strong><h2>Account Information</h2></strong></div>
+			<div class="card-header"><h2><strong>Account Information</strong></h2></div>
 			<div class="card-body">
-				<table id="accounttable" width="100%" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+				<table id="accounttable" class="table table-striped table-bordered table-sm" >	
 					<tr ><td ><strong>First name      : </strong></td><td ><?= ucfirst($thatUser[0]->fname)?></td></tr>
 					<tr ><td ><strong>Last name       : </strong></td><td ><?= ucfirst($thatUser[0]->lname)?></td></tr>
 					<tr ><td ><strong>Email           : </strong></td><td ><?= $thatUser[0]->email?></td></tr>
@@ -82,7 +82,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 					<tr ><td ><strong>Member Since    : </strong></td><td ><?= $lastlogin->format("Y-m-d")?></td></tr>
 					<tr ><td ><strong>Number of Logins: </strong></td><td ><?= $thatUser[0]->logins?></td></tr>
 					
-					<tr ><td ><a align="left"   class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Update Account Info</a><td></tr>
+					<tr ><td ><a class="btn btn-success" href=<?=$us_url_root."users/user_settings.php"?> >Update Account Info</a><td></tr>
 				</table>
 			
 			</div>
@@ -91,7 +91,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 	<div class="col">
 
 		<div class="card border-default">
-			<div class="card-header"><strong><h2>Your Car Information</h2></strong></div>
+			<div class="card-header"><h2><strong>Your Car Information</strong></h2></div>
 			<div class="card-body">
 			<?php
             
@@ -100,14 +100,14 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
             if (empty($thatCar)) {
                 // 	If the user does not have a car then display the add car form</li>
                     ?>
-					<a align="center" class="btn btn-success" href=<?=$us_url_root."app/edit_car.php"?> role="button">Add Car</a>
+					<a class="btn btn-success" href=<?=$us_url_root."app/edit_car.php"?> role="button">Add Car</a>
 					<?php
             } else {
                 // Else there is car information then display it
                 foreach ($thatCar as $car) {
                     // output data of each row.  View has both cars and users?>
 
-				<table id="cartable" width="100%" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+				<table id="cartable-<?=$car->id?>" class="table table-striped table-bordered table-sm" >	
 
 					<tr class="table-success"><th><strong>Car ID :</strong></th><th><?=$car->id?></th></tr>
 					<tr ><td ><strong>Model :</strong></td><td ><?=$car->model?></td></tr>
@@ -127,7 +127,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
                     if ($car->image) {
                         ?>
 						<tr ><td ><strong>Image:</strong></td>
-						<td ><img class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$car->image?> ></td></tr>
+						<td ><img alt="my car" class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$car->image?> ></td></tr>
 					<?php
                     } ?>
 					<?php
@@ -178,7 +178,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 							<a class="btn btn-info" role="button" href="<?=$us_url_root?>app/car_details.php?car_id=<?=$car->id?>">Details</a>
 						</div>
 					</div>
-				</br>
+				<br>
 				<?php
                 }
             } ?>

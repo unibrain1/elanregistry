@@ -58,74 +58,19 @@ $countryQ = $db->query("SELECT name FROM country");
           $password_match_statement = '<span id="password_match" class="gray_out_text">'.lang("JOIN_TWICE").'</span>';
 
 
-          //2.) Apply default class to gray out green check icon
-          echo '
-          <style>
-          .gray_out_icon{
-            -webkit-filter: grayscale(100%); /* Safari 6.0 - 9.0 */
-            filter: grayscale(100%);
-          }
-          .gray_out_text{
-            opacity: .5;
-          }
-          </style>
-          ';
-
-          //3.) Javascript to check to see if user has met conditions on keyup (NOTE: It seems like we shouldn't have to include jquery here because it's already included by UserSpice, but the code doesn't work without it.)
-          echo '
-          <script type="text/javascript">
-          $(document).ready(function(){
-
-            $( "#password" ).keyup(function() {
-              var pswd = $("#password").val();
-
-              //validate the length
-              if ( pswd.length >= ' . $settings->min_pw . ' && pswd.length <= ' . $settings->max_pw . ' ) {
-                $("#character_range_icon").removeClass("gray_out_icon");
-                $("#character_range").removeClass("gray_out_text");
-              } else {
-                $("#character_range_icon").addClass("gray_out_icon");
-                $("#character_range").addClass("gray_out_text");
-              }
-
-              //validate capital letter
-              if ( pswd.match(/[A-Z]/) ) {
-                $("#num_caps_icon").removeClass("gray_out_icon");
-                $("#caps").removeClass("gray_out_text");
-              } else {
-                $("#num_caps_icon").addClass("gray_out_icon");
-                $("#caps").addClass("gray_out_text");
-              }
-
-              //validate number
-              if ( pswd.match(/\d/) ) {
-                $("#num_numbers_icon").removeClass("gray_out_icon");
-                $("#number").removeClass("gray_out_text");
-              } else {
-                $("#num_numbers_icon").addClass("gray_out_icon");
-                $("#number").addClass("gray_out_text");
-              }
-            });
-
-            $( "#confirm" ).keyup(function() {
-              var pswd = $("#password").val();
-              var confirm_pswd = $("#confirm").val();
-
-              //validate password_match
-              if (pswd == confirm_pswd) {
-                $("#password_match_icon").removeClass("gray_out_icon");
-                $("#password_match").removeClass("gray_out_text");
-              } else {
-                $("#password_match_icon").addClass("gray_out_icon");
-                $("#password_match").addClass("gray_out_text");
-              }
-
-            });
-          });
-          </script>
-          ';
+          
 
           ?>
+<!-- 2.) Apply default class to gray out green check icon -->
+<style>
+  .gray_out_icon{
+    -webkit-filter: grayscale(100%); /* Safari 6.0 - 9.0 */
+    filter: grayscale(100%);
+  }
+  .gray_out_text{
+    opacity: .5;
+  }
+</style>
 
 
 <div class="row Form">
@@ -140,31 +85,29 @@ $countryQ = $db->query("SELECT name FROM country");
       <fieldset>
         <legend><?=lang("SIGNUP_TEXT","");?></legend>
 
-        <div class="form-group row">
-            <?php if($settings->auto_assign_un==0) {?><label id="username-label" class="col-sm-2 col-form-label"><?=lang("GEN_UNAME");?> *</label>&nbsp;&nbsp;<span id="usernameCheck" class="small"></span>
-            <div class="col-sm-8">
-              <div class="input-group-prepend">
-                <input type="text" class="form-control" id="username" name="username" placeholder="<?=lang("GEN_UNAME");?>" value="<?php if (!$form_valid && !empty($_POST)){ echo $username;} ?>" required autofocus autocomplete="username"><?php } ?>
-              </div>
+        <div class="form-group row"> 
+          <?php if($settings->auto_assign_un==0) {?><label id="username-label" class="col-sm-2 col-form-label"><?=lang("GEN_UNAME");?> *</label>&nbsp;&nbsp;<span id="usernameCheck" class="small"></span>
+          <div class="col-sm-8">
+            <div class="input-group-prepend">
+              <input type="text" class="form-control" id="username" name="username" placeholder="<?=lang("GEN_UNAME");?>" value="<?php if (!$form_valid && !empty($_POST)){ echo $username;} ?>" required autofocus autocomplete="username"><?php } ?>
             </div>
+
+        <div class="form-group row">
+          <label for="fname" id="fname-label" class="col-sm-2 col-form-label"><?=lang("GEN_FNAME");?> *</label>
+          <div class="col-sm-8">
+            <div class="input-group-prepend">
+              <input type="text" class="form-control" id="fname" name="fname" placeholder="<?=lang("GEN_FNAME");?>" value="<?php if (!$form_valid && !empty($_POST)){ echo $fname;} ?>" required autofocus autocomplete="given-name">
+            </div>
+          </div>
         </div>
 
         <div class="form-group row">
-            <label for="fname" id="fname-label" class="col-sm-2 col-form-label"><?=lang("GEN_FNAME");?> *</label>
-            <div class="col-sm-8">
-              <div class="input-group-prepend">
-                <input type="text" class="form-control" id="fname" name="fname" placeholder="<?=lang("GEN_FNAME");?>" value="<?php if (!$form_valid && !empty($_POST)){ echo $fname;} ?>" required autofocus autocomplete="first-name">
-              </div>
+          <label for="lname" id="lname-label" class="col-sm-2 col-form-label"><?=lang("GEN_LNAME");?> *</label>
+          <div class="col-sm-8">
+            <div class="input-group-prepend">
+              <input type="text" class="form-control" id="lname" name="lname" placeholder="<?=lang("GEN_LNAME");?>" value="<?php if (!$form_valid && !empty($_POST)){ echo $lname;} ?>" required autocomplete="family-name">
             </div>
-        </div>
-
-        <div class="form-group row">
-            <label for="lname" id="lname-label" class="col-sm-2 col-form-label"><?=lang("GEN_LNAME");?> *</label>
-            <div class="col-sm-8">
-              <div class="input-group-prepend">
-                <input type="text" class="form-control" id="lname" name="lname" placeholder="<?=lang("GEN_LNAME");?>" value="<?php if (!$form_valid && !empty($_POST)){ echo $lname;} ?>" required autocomplete="family-name">
-              </div>
-            </div>
+          </div>
         </div>
 
         <div class="form-group row">
@@ -195,7 +138,7 @@ $countryQ = $db->query("SELECT name FROM country");
         </div>
 
         <div class="form-group row">
-            <label for="country" id="state-label" class="col-sm-2 col-form-label">Country *</label>
+            <label for="country" id="country-label" class="col-sm-2 col-form-label">Country *</label>
             <div class="col-sm-8">
               <div class="input-group-prepend">
                     <select class="form-control" id="country" name="country" required>
@@ -238,7 +181,7 @@ $countryQ = $db->query("SELECT name FROM country");
           <label for="password" id="password-label" class="col-sm-2 col-form-label"><?=lang("GEN_PASS");?> *</label>
           <div class="col-sm-8">
             <div class="input-group-prepend">
-              <input  class="form-control" type="password" name="password" id="password" placeholder="<?=lang("GEN_PASS");?>" required autocomplete="password" aria-describedby="passwordhelp">
+              <input  class="form-control" type="password" name="password" id="password" placeholder="<?=lang("GEN_PASS");?>" required autocomplete="new-password">
             </div>
             <span class="text-muted"><small><?=lang("GEN_MIN");?> <?=$settings->min_pw?> <?=lang("GEN_AND");?> <?=lang("GEN_MAX");?> <?=$settings->max_pw?> <?=lang("GEN_CHAR");?></small></span>
           </div>
@@ -248,7 +191,7 @@ $countryQ = $db->query("SELECT name FROM country");
           <label for="confirm" id="confirm-label" class="col-sm-2 col-form-label"><?=lang("PW_CONF");?> *</label>
           <div class="col-sm-8">
             <div class="input-group-prepend">
-              <input  type="password" id="confirm" name="confirm" class="form-control" placeholder="<?=lang("PW_CONF");?>" required autocomplete="password" >
+              <input  type="password" id="confirm" name="confirm" class="form-control" placeholder="<?=lang("PW_CONF");?>" required autocomplete="new-password" >
             </div>
           </div>
         </div>
@@ -263,3 +206,59 @@ $countryQ = $db->query("SELECT name FROM country");
     
     </form>
   </div>
+</div>
+<!-- 3.) Javascript to check to see if user has met conditions on keyup 
+  (NOTE: It seems like we shouldn't have to include jquery here because 
+  it's already included by UserSpice, but the code doesn't work without it.) -->
+
+<script>
+$(document).ready(function(){
+
+  $( "#password" ).keyup(function() {
+    var pswd = $("#password").val();
+
+    //validate the length
+    if ( pswd.length >= ' . $settings->min_pw . ' && pswd.length <= ' . $settings->max_pw . ' ) {
+      $("#character_range_icon").removeClass("gray_out_icon");
+      $("#character_range").removeClass("gray_out_text");
+    } else {
+      $("#character_range_icon").addClass("gray_out_icon");
+      $("#character_range").addClass("gray_out_text");
+    }
+
+    //validate capital letter
+    if ( pswd.match(/[A-Z]/) ) {
+      $("#num_caps_icon").removeClass("gray_out_icon");
+      $("#caps").removeClass("gray_out_text");
+    } else {
+      $("#num_caps_icon").addClass("gray_out_icon");
+      $("#caps").addClass("gray_out_text");
+    }
+
+    //validate number
+    if ( pswd.match(/\d/) ) {
+      $("#num_numbers_icon").removeClass("gray_out_icon");
+      $("#number").removeClass("gray_out_text");
+    } else {
+      $("#num_numbers_icon").addClass("gray_out_icon");
+      $("#number").addClass("gray_out_text");
+    }
+  });
+
+  $( "#confirm" ).keyup(function() {
+    var pswd = $("#password").val();
+    var confirm_pswd = $("#confirm").val();
+
+    //validate password_match
+    if (pswd == confirm_pswd) {
+      $("#password_match_icon").removeClass("gray_out_icon");
+      $("#password_match").removeClass("gray_out_text");
+    } else {
+      $("#password_match_icon").addClass("gray_out_icon");
+      $("#password_match").addClass("gray_out_text");
+    }
+
+  });
+});
+</script>
+

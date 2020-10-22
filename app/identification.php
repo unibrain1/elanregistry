@@ -30,9 +30,9 @@ in doubt, post a question to the
 <li><a href="#plus2">Plus 2</a></li>
 </ul>
 
-<a name="roadster"></a>
+<a id="roadster"></a>
 <fieldset><legend>Roadster/Drophead</legend>
- <table id="cartable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+ <table class="table table-striped table-bordered table-sm" >
         <tr >
 		<td ><strong>Elan 1500</strong><br><i> Type 26 Elan 1500 Roadster </i> </td>
 		<td >
@@ -167,9 +167,9 @@ in doubt, post a question to the
 	</table>
 	</fieldset>
     
-<a name="coupe"></a>
+<a id="coupe"></a>
 <fieldset><legend>Coupe</legend><br>
- <table id="cartable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+ <table class="table table-striped table-bordered table-sm" >
     	<tr >
 		<td ><strong>Coupe S3 Pre-Airflow </strong><br><i> Type 36 FHC-preairflow </i>
 		</td>
@@ -263,9 +263,9 @@ in doubt, post a question to the
 	</table>
 	</fieldset>
 
-<a name="race"></a>
+<a id="race"></a>
 	<fieldset><legend>Racing Version</legend>
- <table id="cartable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+ <table class="table table-striped table-bordered table-sm" >
     	<tr >
 		<td ><strong>26R </strong><br><i> Type 26 26R Race </i>
 		</td>
@@ -285,9 +285,9 @@ in doubt, post a question to the
 	</fieldset>
     
 	
-<a name="plus2"></a>
+<a id="plus2"></a>
 	<fieldset><legend>Plus 2</legend>
- <table id="cartable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+ <table class="table table-striped table-bordered table-sm" >
 		<tr >
 		<td ><strong>Plus 2</strong><br><i>Type 50 +2</i>
 		</td>

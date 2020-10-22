@@ -16,11 +16,11 @@ $carData = $carQ->results();
   <div class="container-fluid">
     <div class="well">
       <div class="row">
-        <div class="col-12" align="center">
+        <div class="col-12">
           <div class="card card-default">
             <div class="card-header"><h2><strong>List Cars</strong></h2></div>
               <div class="card-body">
-                <table id="cartable" width="100%" class="table-sm display compact table-bordered table-list-search ">
+                <table id="cartable" class="table-sm display compact table-bordered table-list-search ">
                   <thead>
                     <tr>
                       <th></th>
@@ -61,18 +61,16 @@ $carData = $carQ->results();
                     foreach ($carData as $v1) {
                         ?>
                       <tr>
-                        <td>
-                        <?php  echo '<a class="btn btn-success btn-sm" href='.$us_url_root.'app/car_details.php?car_id='.$v1->id.">Details</a>" ?>
-                        </td>
+                        <td> <a class="btn btn-success btn-sm" href="<?=$us_url_root?>app/car_details.php?car_id=<?=$v1->id?>">Details</a> </td>
                         <td><?=$v1->year?></td>
                         <td><?=$v1->type?></td>
                         <td><?=$v1->chassis?></td>
                         <td><?=$v1->series?></td>
                         <td><?=$v1->variant?></td>
                         <td><?=$v1->color?></td>
-                        <td> <?php
+                        <td> <!-- TODO alt should be more descriptive --> <?php
                         if ($v1->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$v1->image)) {
-                            echo '<img src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
+                            echo '<img alt="elan" src='.$us_url_root.'app/userimages/thumbs/'.$v1->image.">";
                         } ?>  </td>
                         <td><?=$v1->fname?></td>
                         <td><?=$v1->city?></td>
@@ -91,7 +89,7 @@ $carData = $carQ->results();
 
                         <?php
                           if (strtotime($v1->ctime) > strtotime('-30 days')) {
-                              echo '<img style="-webkit-user-select:none; display:block; margin:auto;" src="'.$us_url_root.'app/images/new.png">';
+                              echo '<img style="-webkit-user-select:none; display:block; margin:auto;" alt="new" src="'.$us_url_root.'app/images/new.png">';
                           } ?>
                         </td> 
                       </tr>
@@ -111,7 +109,7 @@ $carData = $carQ->results();
 <!-- Place any per-page javascript here -->
 
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/fixedheader/3.1.2/css/fixedHeader.dataTables.min.css">
-<script src="https://cdn.datatables.net/fixedheader/3.1.2/js/dataTables.fixedHeader.min.js" type="text/javascript"></script>
+<script src="https://cdn.datatables.net/fixedheader/3.1.2/js/dataTables.fixedHeader.min.js"></script>
 
 
 <script>
