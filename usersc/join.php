@@ -302,7 +302,7 @@ includeHook($hooks,'bottom');
 <?php if($settings->auto_assign_un==0) { ?>
 
 <?php } ?>
-<script type="text/javascript">
+<script>
     $(document).ready(function(){
         $('#password_view_control').hover(function () {
             $('#password').attr('type', 'text');

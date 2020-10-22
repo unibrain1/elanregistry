@@ -39,10 +39,10 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 <p>"A letter from Ray Badcock at Lotus dated 20th March 1979 and sent to Barry Freeman stated that this Elan was once a Works Experimental Rally Elan." The hunt was on when I received the vehicle to find out if this 'experimental story' was true....
 </p>	
 
-<img src="brian_walton_s3rally_1.jpg"><br />
-<img src="brian_walton_s3rally_2.jpg"><br />
-<img src="brian_walton_s3rally_3.jpg"><br />
-<img src="godon_n_palmer.jpg"><br />
+<img src="brian_walton_s3rally_1.jpg" alt="rally car"><br />
+<img src="brian_walton_s3rally_2.jpg" alt="vintage ad"><br />
+<img src="brian_walton_s3rally_3.jpg" alt="letter from lotus"><br />
+<img src="godon_n_palmer.jpg" alt="newspaper clipping"><br />
 
 <p>Great Britain...this is where it gets more interesting.</p><p>1975-1979</p>
 
@@ -68,7 +68,10 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 <p>Up until then I will just sand on.</p>
 <p>This shot was taken in my garage as I was slowly rubbing the beast down to just above the gel. In completing the task I found the four large round holes at the front of the car where the cibie oscar lights were placed. A replacement set was found and they fitted a treat. The front of the car was a real mess, with hundreds of cracks throughout. In typical kiwi fashion I have spent months slowly repairing the entire body back to new. </p> 
 	
-	
+				</div> <!-- /.col -->
+		</div> <!-- /.row -->
+	</div> <!-- /.container -->
+</div><!-- .page-wrapper -->
 
 <!-- footers -->
 <?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer ?>

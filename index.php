@@ -56,16 +56,16 @@ if ($carQ->count() > 0) {
 					<?php
 						if ($thatCar[0]->image and file_exists($abs_us_root.$us_url_root."app/userimages/".$thatCar[0]->image)) {
 							?>
-						<img class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$thatCar[0]->image?> >
+						<img class="card-img-top" src=<?=$us_url_root?>app/userimages/<?=$thatCar[0]->image?> alt="elan">
 						<?php
 						} ?>
 
-					<table id="cartable" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">	
+					<table id="cartable" class="table table-striped table-bordered table-sm">	
 						<tr ><td ><strong>Year :</strong></td><td ><?=$thatCar[0]->year?></td></tr>
 						<tr ><td ><strong>Series :</strong></td><td ><?=$thatCar[0]->series?></td></tr>
 						<tr ><td ><strong>Variant:</strong></td><td ><?=$thatCar[0]->variant?></td></tr>
 						<tr ><td ><strong>Type:</strong></td><td ><?=$thatCar[0]->type?></td></tr>	
-						<tr><td><a colspan="2" class="btn btn-success btn-sm" href=<?=$us_url_root?>app/car_details.php?car_id=<?=$thatCar[0]->id?>">Details</a></td><td></td></tr>		
+						<tr><td colspan="2"><a class="btn btn-success btn-sm" href="<?=$us_url_root?>app/car_details.php?car_id=<?=$thatCar[0]->id?>">Details</a></td></tr>		
 					</table>
 				</div> <!-- card-body -->
 			</div> <!-- card -->
@@ -110,13 +110,13 @@ if ($carQ->count() > 0) {
 								<div class="d-flex w-100 justify-content-between">
 								<h5 class="mb-1">Type 26 Registry</h5>
 								</div>
-								<p class="mb-1 pl-3"><small>The 26 registry is no longer online.  I've copied what I can and saved it here<<small></p>
+								<p class="mb-1 pl-3"><small>The 26 registry is no longer online.  I've copied what I can and saved it here</small></p>
 							</a>
 							<a href="https://github.com/unibrain1/elanregistry" class="list-group-item list-group-item-action flex-column align-items-start">
 								<div class="d-flex w-100 justify-content-between">
 								<h5 class="mb-1">Elan Registry project on GitHub</h5>
 								</div>
-								<p class="mb-1 pl-3"><small>If you want to help out with the coding or just want to see how the sausage is made.  I'm not a proffesional coder, I just play one in the garage.<small></p>
+								<p class="mb-1 pl-3"><small>If you want to help out with the coding or just want to see how the sausage is made.  I'm not a proffesional coder, I just play one in the garage.</small></p>
 							</a>
 						</div><!-- /.list-group -->
 					</div><!-- /.card-body -->
