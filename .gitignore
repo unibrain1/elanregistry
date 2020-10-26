@@ -24,6 +24,7 @@ elan_registry.code-workspace
 .env.enc
 .env.key
 vendor
+assets/js/show_struc.js
 # Include the userimages and thumbs directory but not the files
 app/userimages/thumbs/*.*
 app/userimages/*.*
