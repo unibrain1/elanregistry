@@ -131,10 +131,9 @@ if (!empty($_GET)) {
     </div> <!-- row -->
     </div> <!-- well -->
   </div> <!-- container -->
-</div> <!-- #page-wrapper -->
+</div> <!-- page-wrapper -->
 
 <!-- footers -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
-
-<!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>

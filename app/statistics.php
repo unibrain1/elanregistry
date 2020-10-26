@@ -511,5 +511,8 @@ FROM (
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?&key=<?= $MAPS_KEY ?>&callback=initMap"> </script>
 
+
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>
