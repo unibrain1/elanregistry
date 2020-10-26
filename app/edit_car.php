@@ -85,21 +85,22 @@ function get_mime_type($file)
 
 //Forms posted now process it
 if (!empty($_POST)) {
-    $token = $_POST['csrf'];
+    $token = Input::sanitize($_POST['csrf']);
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
         $action = ($_POST['action']);
         $action = Input::sanitize($action);
+        $post = $_POST;
 
         switch ($action) {
             case "add_car":
                 $title = 'Add Car';
-                add_car($_POST);
+                add_car();
                 break;
             case "update_car":
                 $title = 'Update Car';
-                update_car($_POST);
+                update_car();
                 // add_car( $_POST, $cardetails);
                 break;
             default:
@@ -109,7 +110,7 @@ if (!empty($_POST)) {
 } // End Post
 
 
-function add_car($post)
+function add_car()
 {
     // Configuration
     // directory in which the uploaded file will be moved
@@ -128,63 +129,55 @@ function add_car($post)
     }
 
     // This is the name of the last image
-    $image = ($_POST['image']);
-    $cardetails['image'] = Input::sanitize($image);
+    $cardetails['image'] = Input::sanitize($_POST['image']);
 
     //Update Year
-    $year = ($_POST['year']);
-    $year = Input::sanitize($year);
-    if ($year == 0) {
-        $errors[] = "Please select Year";
+    if (isset($_POST['year'])) {
+
+        $cardetails['year'] = Input::sanitize($_POST['year']);
+        $successes[] = 'Year Updated (' . $cardetails['year'] . ')';
     } else {
-        $cardetails['year'] = $year;
-        $successes[] = 'Year Updated (' . $year . ')';
+        $errors[] = "Please select Year";
     }
 
     // Update 'model'
-    //
-    $model = ($_POST['model']);
-    $model = Input::sanitize($model);
-    if (strcmp($model, "") == 0) {
-        $errors[] = "Please select Model " . $model . " strcmp" . strcmp($model, "");
-    } else {
+    if (isset($_POST['model'])) {
+        $cardetails['model'] = Input::sanitize($_POST['model']);
         // Model isn't really a thing.
         //      We need to explode it into the proper columns
-        $cardetails['model'] = $model;  // Still save it for later so we can remember what the user entered
-        list($series, $variant, $type) = explode('|', $model);
+        list($series, $variant, $type) = explode('|', $cardetails['model']);
         /* MST value is from form, so I shouldn't have to do this but to be safe ... */
         $cardetails['series'] = filter_var($series, FILTER_SANITIZE_STRING);
         $cardetails['variant'] = filter_var($variant, FILTER_SANITIZE_STRING);
         $cardetails['type'] = filter_var($type, FILTER_SANITIZE_STRING);
 
-        $successes[] = 'Model Updated (' . $model . ')';
+        $successes[] = 'Model Updated (' . $cardetails['model'] . ')';
+    } else {
+        $errors[] = "Please select Model";
     }
 
     // Update 'chassis'
-    $chassis = ($_POST['chassis']);
-    $chassis = Input::sanitize($chassis);
-    $len = strlen($chassis);
-    $cardetails['chassis'] = filter_var($chassis, FILTER_SANITIZE_STRING);
-    // Validate
-    if (strcmp($cardetails['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
-        $successes[] = 'Chassis Updated';
-    } elseif ($year < 1970) {
-        if ($len != 4) { // Chassis number for years < 1970 are 4 digits
-            $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
+    if (isset($_POST['chassis'])) {
+        $cardetails['chassis'] = Input::sanitize($_POST['chassis']);
+        $len = strlen($cardetails['chassis']);
+        // Validate
+        if (strcmp($cardetails['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
+            $successes[] = 'Chassis Updated';
+        } elseif ($cardetails['year'] < 1970) {
+            if ($len != 4) { // Chassis number for years < 1970 are 4 digits
+                $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
+            }
+            // } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
+            //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
+        } else {
+            $successes[] = 'Chassis Updated';
         }
-        // } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
-        //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
-    } else {
-        $successes[] = 'Chassis Updated';
     }
 
-
     // Update 'color'
-    $color = ($_POST['color']);
-    $color = Input::sanitize($color);
-    if (strcmp($color, "") != 0) {
-        $successes[] = 'Color Updated (' . $color . ')';
-        $cardetails['color'] = filter_var($color, FILTER_SANITIZE_STRING);
+    if (isset($_POST['color'])) {
+        $cardetails['color'] = Input::sanitize($_POST['color']);
+        $successes[] = 'Color Updated (' . $cardetails['color'] . ')';
     }
 
     // Update 'engine'
@@ -193,6 +186,12 @@ function add_car($post)
     if (strcmp($engine, "") != 0) {
         $cardetails['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
         $successes[] = 'Engine Updated (' . $engine . ')';
+    }
+
+    if (isset($_POST['engine'])) {
+        $cardetails['engine'] = Input::sanitize($_POST['engine']);
+        $cardetails['engine'] = str_replace(" ", "", strtoupper(trim($engine)));
+        $successes[] = 'Engine Updated (' . $cardetails['engine'] . ')';
     }
 
     // Update 'purchasedate'
@@ -208,26 +207,26 @@ function add_car($post)
         }
     }
 
-
-    // Update 'solddate'
-    $solddate = ($_POST['solddate']);
-    if (!empty($solddate)) {
-        $solddate = Input::sanitize($solddate);
-        // Convert to SQL date format
-        if ($solddate = date("Y-m-d H:i:s", strtotime($solddate))) {
-            $cardetails['solddate'] = filter_var($solddate, FILTER_SANITIZE_STRING);
-            $successes[] = 'Sold Date Updated (' . $solddate . ')';
-        } else {
-            $errors[] = "Sold Date conversion error";
-        }
+    if (isset($_POST['purchasedate'])) {
+        $cardetails['purchasedate'] = Input::sanitize($_POST['purchasedate']);
+        $cardetails['purchasedate'] = date("Y-m-d H:i:s", strtotime($cardetails['purchasedate']));
+        $successes[] = 'Purchase Date Updated (' . $cardetails['purchasedate'] . ')';
     }
 
+
+    // Update 'solddate'
+    if (isset($_POST['solddate'])) {
+        $cardetails['solddate'] = Input::sanitize($_POST['solddate']);
+        $cardetails['solddate'] = date("Y-m-d H:i:s", strtotime($cardetails['solddate']));
+        $successes[] = 'Sold Date Updated (' . $cardetails['solddate'] . ')';
+    }
+
+
     // Update 'comments'
-    $comments = ($_POST['comments']);
-    $comments = Input::sanitize($comments);
-    if (strcmp($comments, "") != 0) {
-        $cardetails['comments'] = filter_var($comments, FILTER_SANITIZE_STRING);
-        $successes[] = 'Comment Updated';
+    if (isset($_POST['comments'])) {
+        $cardetails['comments'] = Input::sanitize($_POST['comments']);
+        $cardetails['comments'] = date("Y-m-d H:i:s", strtotime($cardetails['comments']));
+        $successes[] = 'Comments Updated (' . $cardetails['comments'] . ')';
     }
 
     // Update 'image'
@@ -283,7 +282,6 @@ function add_car($post)
 
     // If there are no errors then INSERT the $cardetails into the DB,
     if (empty($errors)) {
-
         // Is this an update or an insert?
         if (isset($cardetails['id'])) {
             // Update
@@ -333,7 +331,7 @@ function add_car($post)
 /*
  * Fill out the form with the existing values
  */
-function update_car($post)
+function update_car()
 {
     global $cardetails;
     global $user;
@@ -444,36 +442,44 @@ function update_car($post)
                 </div> <!-- /.row -->
             </form>
 
+            <!-- Car History -->
+            <?php
+            if ($action == 'update_car') { ?>
+
+
+                <div class="row">
+                    <div class="col-sm">
+                        <div class="card card-info">
+                            <div class="card-header">
+                                <h2><strong>Record Update History</strong></h2>
+                            </div>
+                            <div class="card-body">
+                                <?php include($abs_us_root . $us_url_root . 'app/views/_car_history.php'); ?>
+                            </div> <!-- card-body -->
+                        </div> <!-- card -->
+                    </div>
+                    <!-- .col -->
+                </div> <!-- /.row -->
+            <?php } ?>
         </div> <!-- well -->
+    </div> <!-- /.container -->
+</div><!-- .page-wrapper -->
 
-        <!-- Car History -->
-        <?php
-        if ($action == 'update_car') { ?>
-
-
-            <div class="row">
-                <div class="col-sm">
-                    <div class="card card-info">
-                        <div class="card-header">
-                            <h2><strong>Record Update History</strong></h2>
-                        </div>
-                        <div class="card-body">
-                            <?php include($abs_us_root . $us_url_root . 'app/views/_car_history.php'); ?>
-                        </div> <!-- card-body -->
-                    </div> <!-- card -->
-                </div>
-                <!-- .col -->
-            </div> <!-- /.row -->
-        <?php } ?>
-    </div> <!-- well -->
-</div> <!-- /.container -->
-
-
+<!-- Table Sorting and Such -->
+<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
 <!-- Include Date Range Picker -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker3.css" />
 
 <script>
+    $(document).ready(function() {
+        var table = $('#historytable').DataTable({
+            "ordering": false,
+            "scrollX": true
+        });
+    });
+
     $(document).ready(function() {
         var date_input = $('input[id="purchasedate"]'); //our date input has the name "date"
         var container = $('.page-wrapper form').length > 0 ? $('.page-wrapper form').parent() : "body";
@@ -513,6 +519,8 @@ function update_car($post)
 <!-- Add car validation JS -->
 <script src="<?= $us_url_root ?>assets/js/cardefinition.js"></script>
 
+
+<!-- footers -->
 <?php
-require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php';
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
 ?>
