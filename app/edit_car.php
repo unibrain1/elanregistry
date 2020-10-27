@@ -25,7 +25,7 @@ $cardetails['state']        = $userData[0]->state;
 $cardetails['country']      = $userData[0]->country;
 $cardetails['lat']          = $userData[0]->lat;
 $cardetails['lon']          = $userData[0]->lon;
-$cardetails['website']      = $userData[0]->website;
+//$cardetails['website']      = $userData[0]->website;
 
 $cardetails['id']           = null;
 $cardetails['year']         = $select_str;
@@ -38,6 +38,7 @@ $cardetails['color']        = null;
 $cardetails['engine']       = null;
 $cardetails['purchasedate'] = null;
 $cardetails['solddate']     = null;
+$cardetails['website']      = null;
 $cardetails['comments']     = null;
 $cardetails['image']        = null;
 
@@ -48,6 +49,7 @@ $carprompt['engine']        = 'Enter Engine number - LPAxxxxx';
 $carprompt['purchasedate']  = 'YYYY-MM-DD';
 $carprompt['solddate']      = 'YYYY-MM-DD';
 $carprompt['comments']      = 'Please give a brief history of your car and anything special';
+$carprompt['website']       = 'Website URL';
 
 // A place to put some messages
 $errors                     = [];
@@ -85,12 +87,11 @@ function get_mime_type($file)
 
 //Forms posted now process it
 if (!empty($_POST)) {
-    $token = Input::sanitize($_POST['csrf']);
+    $token = Input::get('csrf');
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
-        $action = ($_POST['action']);
-        $action = Input::sanitize($action);
+        $action = Input::get('action');
         $post = $_POST;
 
         switch ($action) {
@@ -125,16 +126,16 @@ function add_car()
     global $successes;
 
     if (isset($_POST['car_id'])) {
-        $cardetails['id'] = Input::sanitize($_POST['car_id']);
+        $cardetails['id'] = Input::get('car_id');
     }
 
     // This is the name of the last image
-    $cardetails['image'] = Input::sanitize($_POST['image']);
+    $cardetails['image'] = Input::get('image');
 
     //Update Year
     if (isset($_POST['year'])) {
 
-        $cardetails['year'] = Input::sanitize($_POST['year']);
+        $cardetails['year'] = Input::get('year');
         $successes[] = 'Year Updated (' . $cardetails['year'] . ')';
     } else {
         $errors[] = "Please select Year";
@@ -142,7 +143,7 @@ function add_car()
 
     // Update 'model'
     if (isset($_POST['model'])) {
-        $cardetails['model'] = Input::sanitize($_POST['model']);
+        $cardetails['model'] = Input::get('model');
         // Model isn't really a thing.
         //      We need to explode it into the proper columns
         list($series, $variant, $type) = explode('|', $cardetails['model']);
@@ -158,7 +159,7 @@ function add_car()
 
     // Update 'chassis'
     if (isset($_POST['chassis'])) {
-        $cardetails['chassis'] = Input::sanitize($_POST['chassis']);
+        $cardetails['chassis'] = Input::get('chassis');
         $len = strlen($cardetails['chassis']);
         // Validate
         if (strcmp($cardetails['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
@@ -176,39 +177,20 @@ function add_car()
 
     // Update 'color'
     if (isset($_POST['color'])) {
-        $cardetails['color'] = Input::sanitize($_POST['color']);
+        $cardetails['color'] = Input::get('color');
         $successes[] = 'Color Updated (' . $cardetails['color'] . ')';
     }
 
     // Update 'engine'
-    $engine = ($_POST['engine']);
-    $engine = Input::sanitize($engine);
-    if (strcmp($engine, "") != 0) {
-        $cardetails['engine'] = filter_var(str_replace(" ", "", strtoupper(trim($engine))), FILTER_SANITIZE_STRING);
-        $successes[] = 'Engine Updated (' . $engine . ')';
-    }
-
     if (isset($_POST['engine'])) {
-        $cardetails['engine'] = Input::sanitize($_POST['engine']);
-        $cardetails['engine'] = str_replace(" ", "", strtoupper(trim($engine)));
+        $cardetails['engine'] = Input::get('engine');
+        $cardetails['engine'] = str_replace(" ", "", strtoupper(trim($cardetails['engine'])));
         $successes[] = 'Engine Updated (' . $cardetails['engine'] . ')';
     }
 
     // Update 'purchasedate'
-    $purchasedate = ($_POST['purchasedate']);
-    if (!empty($purchasedate)) {
-        $purchasedate = Input::sanitize($purchasedate);
-        // Convert to SQL date format
-        if ($purchasedate = date("Y-m-d H:i:s", strtotime($purchasedate))) {
-            $cardetails['purchasedate'] = filter_var($purchasedate, FILTER_SANITIZE_STRING);
-            $successes[] = 'Purchased Updated (' . $purchasedate . ')';
-        } else {
-            $errors[] = "Purchase Date conversion error";
-        }
-    }
-
     if (isset($_POST['purchasedate'])) {
-        $cardetails['purchasedate'] = Input::sanitize($_POST['purchasedate']);
+        $cardetails['purchasedate'] = Input::get('purchasedate');
         $cardetails['purchasedate'] = date("Y-m-d H:i:s", strtotime($cardetails['purchasedate']));
         $successes[] = 'Purchase Date Updated (' . $cardetails['purchasedate'] . ')';
     }
@@ -216,16 +198,20 @@ function add_car()
 
     // Update 'solddate'
     if (isset($_POST['solddate'])) {
-        $cardetails['solddate'] = Input::sanitize($_POST['solddate']);
+        $cardetails['solddate'] = Input::get('solddate');
         $cardetails['solddate'] = date("Y-m-d H:i:s", strtotime($cardetails['solddate']));
         $successes[] = 'Sold Date Updated (' . $cardetails['solddate'] . ')';
     }
 
+    // Update 'website'
+    if (isset($_POST['website'])) {
+        $cardetails['website'] = Input::get('website');
+        $successes[] = 'Website Updated (' . $cardetails['website'] . ')';
+    }
 
     // Update 'comments'
     if (isset($_POST['comments'])) {
-        $cardetails['comments'] = Input::sanitize($_POST['comments']);
-        $cardetails['comments'] = date("Y-m-d H:i:s", strtotime($cardetails['comments']));
+        $cardetails['comments'] = Input::get('comments');
         $successes[] = 'Comments Updated (' . $cardetails['comments'] . ')';
     }
 
@@ -363,6 +349,7 @@ function update_car()
             $cardetails['engine']       = $theCar[0]->engine;
             $cardetails['purchasedate'] = $theCar[0]->purchasedate;
             $cardetails['solddate']     = $theCar[0]->solddate;
+            $cardetails['website']      = $theCar[0]->website;
             $cardetails['comments']     = $theCar[0]->comments;
             $cardetails['image']        = $theCar[0]->image;
 

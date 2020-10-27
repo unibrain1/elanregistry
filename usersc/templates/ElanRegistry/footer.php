@@ -37,8 +37,6 @@ require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php';
 </div>
 <?php require_once($abs_us_root . $us_url_root . 'users/includes/html_footer.php'); ?>
 
-<script src="<?= $us_url_root ?>assets/js/show_struc.js"></script>
-
 <?php
 //optional
 if (file_exists($abs_us_root . $us_url_root . 'assets/js/show_struc.js')) { ?>
