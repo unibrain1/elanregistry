@@ -60,20 +60,21 @@
                 <div class="input-group-text"><i class="fas fa-barcode"></i></div>
                 <input required class="form-control" type="text" name="chassis" id="chassis" placeholder="<?= $carprompt['chassis'] ?>" value="<?= $cardetails['chassis'] ?>" /> <!-- Add some validation -->
             </div>
-            <small class="form-text text-muted">Required<br><br><strong>Before 1970</strong><br>The chassis number should be 4 digits. Do not enter the type (i.e. 26/0001 enter 0001)<br><br>
+            <small class="form-text text-muted">Required<br>
+                <strong>Before 1970</strong><br>The chassis number should be 4 digits. Do not enter the type (i.e. 26/0001 enter 0001)<br>
                 <strong>1970</strong><br>The chassis several forms<br></small>
-            <ul>
-                <li><small class="form-text text-muted">4 Digits - Do not enter the type (i.e. 26/0001 enter 0001)</small></li>
-                <li><small class="form-text text-muted">4 Digits plus letter - Do not enter the type (i.e. 26/0001x enter 0001x)</small></li>
-                <li><small class="form-text text-muted">11 Digits - Enter as below</small></li>
+            <ul class="form-text text-muted">
+                <li><small>4 Digits - Do not enter the type (i.e. 26/0001 enter 0001)</small></li>
+                <li><small>4 Digits plus letter - Do not enter the type (i.e. 26/0001x enter 0001x)</small></li>
+                <li><small>11 Digits - Enter as below</small></li>
             </ul>
             <small class="form-text text-muted"><strong>After 1970</strong><br>The Chassis number is 11 digits starting with the Year (i.e. YYmmbbssssT)<br></small>
-            <ul>
-                <li><small class="form-text text-muted">YY = 2 digit year</small></li>
-                <li><small class="form-text text-muted">mm = month</small></li>
-                <li><small class="form-text text-muted">bb = batch numner</small></li>
-                <li><small class="form-text text-muted">uuuu = unit number</small></li>
-                <li><small class="form-text text-muted">T = Type Letter</small></li>
+            <ul class="form-text text-muted">
+                <li><small>YY = 2 digit year</small></li>
+                <li><small>mm = month</small></li>
+                <li><small>bb = batch numner</small></li>
+                <li><small>uuuu = unit number</small></li>
+                <li><small>T = Type Letter</small></li>
             </ul>
         </div>
     </div>
@@ -86,6 +87,7 @@
                 <div class="input-group-text"><i class="fas fa-palette"></i></div>
                 <input class="form-control" type="text" name="color" id="color" placeholder="<?= $carprompt['color'] ?>" value="<?= $cardetails['color'] ?>" />
             </div>
+            <small id="colorHelp" class="form-text text-muted">Current color</small>
         </div>
     </div>
 
@@ -97,6 +99,7 @@
                 <div class="input-group-text"><i class="fas fa-car"></i> </div>
                 <input class="form-control" type="text" name="engine" id="engine" placeholder="<?= $carprompt['engine'] ?>" value="<?= $cardetails['engine'] ?>" /> <!-- Add validation -->
             </div>
+            <small id="engineHelp" class="form-text text-muted">Current engine number</small>
         </div>
     </div>
 
@@ -108,6 +111,7 @@
                 <div class="input-group-text"> <i class="fas fa-calendar"></i></div>
                 <input class="form-control" name="purchasedate" id="purchasedate" placeholder="<?= $carprompt['purchasedate'] ?>" value="<?= $cardetails['purchasedate'] ?>" type="text" />
             </div>
+            <small id="purchaseHelp" class="form-text text-muted">Approximate date you purchased the car</small>
         </div>
     </div>
 
@@ -119,9 +123,20 @@
                 <div class="input-group-text"><i class="fas fa-calendar"></i></div>
                 <input class="form-control" name="solddate" id="solddate" placeholder="<?= $carprompt['solddate'] ?>" value="<?= $cardetails['solddate'] ?>" type="text" />
             </div>
+            <small id="purchaseHelp" class="form-text text-muted">If you no longer own the car, approximate date you sold the car</small>
         </div>
     </div>
 
+    <!-- Website -->
+    <div class="form-group row">
+        <label for="color" class="col-3 col-form-label">Website</label>
+        <div class="col-sm-9">
+            <div class="input-group-prepend">
+                <div class="input-group-text"><i class="fas fa-palette"></i></div>
+                <input class="form-control" type="url" name="website" id="website" placeholder="<?= $carprompt['website'] ?>" value="<?= $cardetails['website'] ?>" />
+            </div>
+        </div>
+    </div>
 
     <!-- Comments -->
     <div class="form-group row">
