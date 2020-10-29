@@ -3,6 +3,7 @@
 .github
 .user.ini
 .php_cs.cache
+.scannerwork/*
 USER.INI
 error_log
 TODO
