@@ -1,89 +1,91 @@
 <?php
 require_once '../../../users/init.php';
-// require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
-
-
 
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
 }
 ?>
 
-<?php require_once($abs_us_root.$us_url_root.'users/includes/template/header1_must_include.php'); ?>
+<?php require_once($abs_us_root . $us_url_root . 'users/includes/template/header1_must_include.php'); ?>
 
 
 <!-- Bootstrap Core CSS -->
-<link rel="stylesheet" href="<?=$us_url_root?>usersc/templates/simplex/assets/css/bootstrap.min.css">
+<link rel="stylesheet" href="<?= $us_url_root ?>usersc/templates/simplex/assets/css/bootstrap.min.css">
 
 <!-- Table Sorting and Such -->
-<link href="<?=$us_url_root?>users/css/datatables.css" rel="stylesheet">
+<link href="<?= $us_url_root ?>users/css/datatables.css" rel="stylesheet">
 
 <!-- Custom Fonts/Animation/Styling-->
-<link rel="stylesheet" href="<?=$us_url_root?>users/fonts/css/font-awesome.min.css">
+<link rel="stylesheet" href="<?= $us_url_root ?>users/fonts/css/font-awesome.min.css">
 
 <!-- jQuery Fallback -->
 <script type="text/javascript">
-if (typeof jQuery == 'undefined') {
-  document.write(unescape("%3Cscript src='<?=$us_url_root?>users/js/jquery.js' type='text/javascript'%3E%3C/script%3E"));
-}
+    if (typeof jQuery == 'undefined') {
+        document.write(unescape("%3Cscript src='<?= $us_url_root ?>users/js/jquery.js' type='text/javascript'%3E%3C/script%3E"));
+    }
 </script>
 
-<script src="<?=$us_url_root?>usersc/templates/simplex/assets/js/bootstrap.min.js" type="text/javascript"></script>
+<script src="<?= $us_url_root ?>usersc/templates/simplex/assets/js/bootstrap.min.js" type="text/javascript"></script>
 
 <?php
 //optional
-if(file_exists($abs_us_root.$us_url_root.'usersc/templates/'.$settings->template.'.css')){?> <link href="<?=$us_url_root?>usersc/templates/<?=$settings->template?>.css" rel="stylesheet"> <?php } ?>
+if (file_exists($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '.css')) { ?>
+    <link href="<?= $us_url_root ?>usersc/templates/<?= $settings->template ?>.css" rel="stylesheet"> <?php
+                                                                                                    } ?>
 
 </head>
-<?php require_once($abs_us_root.$us_url_root.'users/includes/template/header3_must_include.php'); ?>
+<?php require_once($abs_us_root . $us_url_root . 'users/includes/template/header3_must_include.php'); ?>
 
 <!-- Grab the initial menu work that UserSpice does for you -->
-<?php require_once($abs_us_root.$us_url_root.'users/includes/template/database_navigation_prep.php');?>
+<?php require_once($abs_us_root . $us_url_root . 'users/includes/template/database_navigation_prep.php'); ?>
 
 <!-- This file is a way of allowing the end user to customize stuff -->
 <!-- without getting in the middle of the whole template itself -->
-<?php require_once($abs_us_root.$us_url_root.'usersc/templates/simplex/assets/functions/style.php');?>
+<?php require_once($abs_us_root . $us_url_root . 'usersc/templates/simplex/assets/functions/style.php'); ?>
 
 <!-- Set your logo and the "header" of the navigation here -->
-  <nav class="navbar navbar-expand-sm navbar-dark bg-dark">
-       <a href="<?=$us_url_root?>"><img src="<?=$us_url_root?>users/images/logo.png"></a>
-       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExample03" aria-controls="navbarsExample03" aria-expanded="false" aria-label="Toggle navigation">
-         <span class="navbar-toggler-icon"></span>
-       </button>
+<nav class="navbar navbar-expand-sm navbar-dark bg-dark">
+    <a href="<?= $us_url_root ?>"><img alt="logo" src="<?= $us_url_root ?>users/images/logo.png"></a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExample03" aria-controls="navbarsExample03" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
 
-       <div class="collapse navbar-collapse" id="navbarsExample03">
-         <ul class="navbar-nav ml-auto">
+    <div class="collapse navbar-collapse" id="navbarsExample03">
+        <ul class="navbar-nav ml-auto">
 
-<!-- Here's where it gets tricky.  We need to concatenate together the html to make the menu. -->
-<!-- Basically you will be editing each function into the "style" of your menu -->
-<?php if($settings->navigation_type==0) {
-    $query = $db->query("SELECT * FROM email");
-$results = $query->first();
+            <!-- Here's where it gets tricky.  We need to concatenate together the html to make the menu. -->
+            <!-- Basically you will be editing each function into the "style" of your menu -->
+            <?php if ($settings->navigation_type == 0) {
+                $query = $db->query("SELECT * FROM email");
+                $results = $query->first();
 
-//Value of email_act used to determine whether to display the Resend Verification link
-$email_act=$results->email_act;
+                //Value of email_act used to determine whether to display the Resend Verification link
+                $email_act = $results->email_act;
 
-// Set up notifications button/modal
-if ($user->isLoggedIn()) {
-    if ($dayLimitQ = $db->query('SELECT notif_daylimit FROM settings', array())) $dayLimit = $dayLimitQ->results()[0]->notif_daylimit;
-    else $dayLimit = 7;
+                // Set up notifications button/modal
+                if ($user->isLoggedIn()) {
+                    if ($dayLimitQ = $db->query('SELECT notif_daylimit FROM settings', array())) {
+                        $dayLimit = $dayLimitQ->results()[0]->notif_daylimit;
+                    } else {
+                        $dayLimit = 7;
+                    }
 
-    // 2nd parameter- true/false for all notifications or only current
-	$notifications = new Notification($user->data()->id, false, $dayLimit);
-}
-require_once($abs_us_root.$us_url_root.'usersc/templates/simplex/assets/functions/nav.php');
-}
-
-
- if($settings->navigation_type==1) {
- require_once($abs_us_root.$us_url_root.'usersc/templates/simplex/assets/functions/dbnav.php');
-} ?>
+                    // 2nd parameter- true/false for all notifications or only current
+                    $notifications = new Notification($user->data()->id, false, $dayLimit);
+                }
+                require_once($abs_us_root . $us_url_root . 'usersc/templates/simplex/assets/functions/nav.php');
+            }
 
 
-<!-- Close everything out and leave the hooks so error and bold messages work on your template -->
-</ul>
-</div>
-</div>
+            if ($settings->navigation_type == 1) {
+                require_once($abs_us_root . $us_url_root . 'usersc/templates/simplex/assets/functions/dbnav.php');
+            } ?>
+
+
+            <!-- Close everything out and leave the hooks so error and bold messages work on your template -->
+        </ul>
+    </div>
+    </div>
 </nav>
 <?php
 require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_open.php'; //custom template container
@@ -105,7 +107,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                 <br>
                 <div id="tabsJustifiedContent" class="tab-content">
                     <div id="home1" class="tab-pane fade">
-                        <div class="list-group"><a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">51</span> Home Link</a> <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">8</span> Link 2</a>                            <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">23</span> Link 3</a> <a href="" class="list-group-item d-inline-block text-muted">Link n..</a></div>
+                        <div class="list-group"><a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">51</span> Home Link</a> <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">8</span> Link 2</a> <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">23</span> Link 3</a> <a href="" class="list-group-item d-inline-block text-muted">Link n..</a></div>
                     </div>
                     <div id="profile1" class="tab-pane fade active show">
                         <div class="row pb-2">
@@ -118,7 +120,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                         </div>
                     </div>
                     <div id="messages1" class="tab-pane fade">
-                        <div class="list-group"><a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">44</span> Message 1</a> <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">8</span> Message 2</a>                            <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">23</span> Message 3</a> <a href="" class="list-group-item d-inline-block text-muted">Message n..</a></div>
+                        <div class="list-group"><a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">44</span> Message 1</a> <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">8</span> Message 2</a> <a href="" class="list-group-item d-inline-block"><span class="float-right badge badge-pill badge-dark">23</span> Message 3</a> <a href="" class="list-group-item d-inline-block text-muted">Message n..</a></div>
                     </div>
                 </div>
             </div>
@@ -238,7 +240,8 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                                     <p class="list-group-item-text m-0">Grapes</p>
                                 </a>
                                 <a href="#" class="list-group-item justify-content-between">
-                                    <p class="list-group-item-text m-0">Milk</p> <span><i class="ion-ios-star-outline"></i></span></a>
+                                    <p class="list-group-item-text m-0">Milk</p> <span><i class="ion-ios-star-outline"></i></span>
+                                </a>
                                 <a href="#" class="list-group-item">
                                     <p class="list-group-item-text m-0">Apple Chips</p>
                                 </a>
@@ -265,7 +268,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                             <div class="card card-default panel"><a href="" data-toggle="collapse" data-target="#collapseOne" class="card-header text-white bg-dark"><span class="card-title">
                                         Accordion Item 1
                                     </span></a>
-                                <div id="collapseOne" class="card-body collapse show" data-parent="#accordion" >
+                                <div id="collapseOne" class="card-body collapse show" data-parent="#accordion">
                                     <p>Food truck quinoa nesciunt laborum for labo lucn. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth
                                         nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
                                     </p>
@@ -313,21 +316,24 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                             <div class="card text-white bg-dark text-center pt-2">
                                 <div class="card-body card-title">
 
-                                    <h6 class="text-light">56 Likes</h6></div>
+                                    <h6 class="text-light">56 Likes</h6>
+                                </div>
                             </div>
                         </div>
                         <div class="col-sm-4">
                             <div class="card text-white bg-primary text-center pt-2">
                                 <div class="card-body card-title">
 
-                                    <h6 class="text-light">209 Followers</h6></div>
+                                    <h6 class="text-light">209 Followers</h6>
+                                </div>
                             </div>
                         </div>
                         <div class="col-sm-4">
                             <div class="card text-white bg-success text-center pt-2">
                                 <div class="card-body card-title">
 
-                                    <h6 class="text-light">20 Snaps</h6></div>
+                                    <h6 class="text-light">20 Snaps</h6>
+                                </div>
                             </div>
                         </div>
                         <div class="w-100 py-3"></div>
@@ -335,21 +341,24 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                             <div class="card text-white bg-danger text-center pt-2">
                                 <div class="card-body card-title">
 
-                                    <h6 class="text-light">1,110 Views</h6></div>
+                                    <h6 class="text-light">1,110 Views</h6>
+                                </div>
                             </div>
                         </div>
                         <div class="col-sm-4">
                             <div class="card text-white bg-info text-center pt-2">
                                 <div class="card-body card-title">
 
-                                    <h6 class="text-light">90 Views</h6></div>
+                                    <h6 class="text-light">90 Views</h6>
+                                </div>
                             </div>
                         </div>
                         <div class="col-sm-4">
                             <div class="card text-white bg-warning text-center pt-2">
                                 <div class="card-body card-title">
 
-                                    <h6 class="text-light">44 Apps</h6></div>
+                                    <h6 class="text-light">44 Apps</h6>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -359,21 +368,24 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                         <div class="card card-default h-100">
                             <div class="card-img-top"><img src="//placehold.it/600x300" alt="card image 1" class="grayscale img-fluid mx-auto d-block"></div>
                             <div class="card-body d-flex flex-column">
-                                <p class="text-justify">Ovi lipsim diro? Wi, wi, garius azdipiscing elit. Duis pha codeply.</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Tammy" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a></div>
+                                <p class="text-justify">Ovi lipsim diro? Wi, wi, garius azdipiscing elit. Duis pha codeply.</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Tammy" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a>
+                            </div>
                         </div>
                     </div>
                     <div class="col-lg-4 col-sm-6 py-3">
                         <div class="card card-default h-100">
                             <div class="card-img-top"><img src="//placehold.it/600x300" alt="card image 3" class="grayscale img-fluid mx-auto d-block"></div>
                             <div class="card-body d-flex flex-column">
-                                <p class="text-justify">Shiny, shiny, shiny.</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Marcus" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a></div>
+                                <p class="text-justify">Shiny, shiny, shiny.</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Marcus" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a>
+                            </div>
                         </div>
                     </div>
                     <div class="col-lg-4 col-sm-6 mx-auto py-3">
                         <div class="card card-default h-100">
                             <div class="card-img-top"><img src="//placehold.it/600x300" alt="card image 3" class="grayscale img-fluid mx-auto d-block"></div>
                             <div class="card-body d-flex flex-column">
-                                <p class="text-justify">Varius azdipiscing elit. Duis pharetra, ovi lipsim diro?</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Carry" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a></div>
+                                <p class="text-justify">Varius azdipiscing elit. Duis pharetra, ovi lipsim diro?</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Carry" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -456,7 +468,8 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                         <div class="modal-content text-center">
                             <div class="modal-body text-center">
                                 <div role="alert" class="alert text-white bg-primary fade show"><span class="font-weight-bold">Womp!</span> There it is.
-                                </div> <a data-dismiss="modal"><span aria-hidden="true" class="display-2">�</span></a></div>
+                                </div> <a data-dismiss="modal"><span aria-hidden="true" class="display-2">�</span></a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -516,12 +529,12 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                     <table class="table table-striped table-hover table-bordered">
                         <thead>
                             <tr>
-                                <th class="id"><a>Id <i class="fa fa-sort"></i></a></th>
-                                <th class="name"><a>Name <i class="fa fa-sort"></i></a></th>
+                                <th class="id"><a>Id <i aria-hidden="true" class="fa fa-sort"></i></a></th>
+                                <th class="name"><a>Name <i aria-hidden="true" class="fa fa-sort"></i></a></th>
                                 <th class="description">Description</th>
-                                <th class="field3"><a>Link <i class="fa fa-sort"></i></a></th>
-                                <th class="field4"><a>Reason <i class="fa fa-sort"></i></a></th>
-                                <th class="field5"><a>Area <i class="fa fa-sort"></i></a></th>
+                                <th class="field3"><a>Link <i aria-hidden="true" class="fa fa-sort"></i></a></th>
+                                <th class="field4"><a>Reason <i aria-hidden="true" class="fa fa-sort"></i></a></th>
+                                <th class="field5"><a>Area <i aria-hidden="true" class="fa fa-sort"></i></a></th>
                                 <th class="text-center"><i class="ion-ios-trash-outline"></i></th>
                             </tr>
                         </thead>
@@ -587,13 +600,13 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                                     <div class="text-center">
                                         <nav aria-label="Page navigation">
                                             <ul class="pagination justify-content-center">
-                                                <li class="page-item"><a href="" aria-label="Previous" class="page-link"><i class="fa fa-chevron-left ion-ios-arrow-left"></i> <span class="sr-only">Previous</span></a></li>
+                                                <li class="page-item"><a href="" aria-label="Previous" class="page-link"><i aria-hidden="true" class="fa fa-chevron-left ion-ios-arrow-left"></i> <span class="sr-only">Previous</span></a></li>
                                                 <li class="page-item"><a href="" class="page-link">1</a></li>
                                                 <li class="page-item"><a href="" class="page-link">2</a></li>
                                                 <li class="page-item"><a href="" class="page-link">3</a></li>
                                                 <li class="page-item"><a href="" class="page-link">4</a></li>
                                                 <li class="page-item"><a href="" class="page-link">5</a></li>
-                                                <li class="page-item"><a href="" aria-label="Next" class="page-link"><i class="fa fa-chevron-right ion-ios-arrow-right"></i> <span class="sr-only">Next</span></a></li>
+                                                <li class="page-item"><a href="" aria-label="Next" class="page-link"><i aria-hidden="true" class="fa fa-chevron-right ion-ios-arrow-right"></i> <span class="sr-only">Next</span></a></li>
                                             </ul>
                                         </nav>
                                     </div>
@@ -821,7 +834,8 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                             <button type="button" class="btn btn-secondary">Split</button>
                             <button type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" class="btn btn-secondary dropdown-toggle dropdown-toggle-split"><span class="sr-only">Toggle Dropdown</span></button>
                             <div class="dropdown-menu"><a href="#" class="dropdown-item">Action</a> <a href="#" class="dropdown-item">Another action</a> <a href="#" class="dropdown-item">Something else here</a>
-                                <div class="dropdown-divider"></div> <a href="#" class="dropdown-item">Separated link</a></div>
+                                <div class="dropdown-divider"></div> <a href="#" class="dropdown-item">Separated link</a>
+                            </div>
                         </div>
                     </div>
                     <div class="col-lg col-3">
@@ -840,10 +854,15 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                         <h6>Normal</h6> <a href=""><span class="badge badge-dark">badge</span></a> <a href=""><span class="badge badge-success">success</span></a> <a href=""><span class="badge badge-danger">danger</span></a>
                         <div class="w-100 my-3"></div> <a href=""><span class="badge badge-warning">warning</span></a> <a href=""><span class="badge badge-info">info</span></a> <a href=""><span class="badge badge-primary">primary</span></a>
                         <div class="w-100 my-3"></div> <a href=""><span class="badge badge-pill badge-dark">pill</span></a> <a href=""><span class="badge badge-pill badge-success">100k</span></a> <a href=""><span class="badge badge-pill badge-info">2</span></a>
-                        <a href=""><span class="badge badge-pill badge-danger">378</span></a> <a href=""><span class="badge badge-pill badge-warning">tag</span></a> <a href=""><span class="badge badge-pill badge-primary">1123</span></a></div>
+                        <a href=""><span class="badge badge-pill badge-danger">378</span></a> <a href=""><span class="badge badge-pill badge-warning">tag</span></a> <a href=""><span class="badge badge-pill badge-primary">1123</span></a>
+                    </div>
                     <div class="col-lg-4 pb-2">
                         <h5>Heading 5</h5>
-                        <h5 class="mt-2"><a href=""><span class="badge badge-dark">badge</span></a> <a href=""><span class="badge badge-success">success</span></a> <a href=""><span class="badge badge-danger">danger</span></a> <div class="w-100 my-3"></div> <a href=""><span class="badge badge-warning">warning</span></a> <a href=""><span class="badge badge-info">info</span></a> <a href=""><span class="badge badge-primary">primary</span></a> <div class="w-100 my-3"></div> <a href=""><span class="badge badge-pill badge-dark">pill</span></a> <a href=""><span class="badge badge-pill badge-success">100k</span></a> <a href=""><span class="badge badge-pill badge-info">2</span></a> <a href=""><span class="badge badge-pill badge-danger">378</span></a> <a href=""><span class="badge badge-pill badge-warning">tag</span></a> <a href=""><span class="badge badge-pill badge-primary">1123</span></a></h5></div>
+                        <h5 class="mt-2"><a href=""><span class="badge badge-dark">badge</span></a> <a href=""><span class="badge badge-success">success</span></a> <a href=""><span class="badge badge-danger">danger</span></a>
+                            <div class="w-100 my-3"></div> <a href=""><span class="badge badge-warning">warning</span></a> <a href=""><span class="badge badge-info">info</span></a> <a href=""><span class="badge badge-primary">primary</span></a>
+                            <div class="w-100 my-3"></div> <a href=""><span class="badge badge-pill badge-dark">pill</span></a> <a href=""><span class="badge badge-pill badge-success">100k</span></a> <a href=""><span class="badge badge-pill badge-info">2</span></a> <a href=""><span class="badge badge-pill badge-danger">378</span></a> <a href=""><span class="badge badge-pill badge-warning">tag</span></a> <a href=""><span class="badge badge-pill badge-primary">1123</span></a>
+                        </h5>
+                    </div>
                     <div class="col-lg-5 pb-2">
                         <h3>Heading 3</h3>
                         <h3>
@@ -883,14 +902,12 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
 </main>
 
 <script>
-
-
     // prevent href=# click jump
-    document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("DOMContentLoaded", function() {
         var links = document.getElementsByTagName("A");
         for (var i = 0; i < links.length; i++) {
             if (links[i].href.indexOf('#') != -1) {
-                links[i].addEventListener("click", function (e) {
+                links[i].addEventListener("click", function(e) {
                     console.debug("prevent href=# click");
                     if (this.hash) {
                         if (this.hash == "#") {
@@ -912,8 +929,10 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
     }, false);
 </script>
 
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_close.php'; //custom template container  ?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_close.php'; //custom template container  
+?>
 
 <?php require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php'; ?>
 
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/footer.php'; //custom template footer ?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/footer.php'; //custom template footer 
+?>

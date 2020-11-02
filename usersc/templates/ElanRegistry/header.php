@@ -10,7 +10,6 @@
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
 
 <!-- Custom Fonts/Animation/Styling from FontAwsome -->
-<!-- <link rel="stylesheet" href="<?= $us_url_root ?>users/fonts/css/font-awesome.min.css"> -->
 <script src="https://kit.fontawesome.com/2d8f489b15.js" crossorigin="anonymous"></script>
 
 <!-- https://jonsuh.com/hamburgers -->
@@ -18,7 +17,9 @@
 <?php
 //optional
 if (file_exists($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '.css')) { ?>
-  <link href="<?= $us_url_root ?>usersc/templates/<?= $settings->template ?>.css" rel="stylesheet"> <?php } ?>
+  <link href="<?= $us_url_root ?>usersc/templates/<?= $settings->template ?>.css" rel="stylesheet"> <?php
+
+                                                                                                  } ?>
 <?php
 require_once($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/assets/functions/style.php');
 ?>

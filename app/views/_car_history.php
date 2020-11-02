@@ -1,25 +1,23 @@
-<table id="historytable" class="table table-striped table-bordered table-sm">
+<table id="historytable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
     <thead>
         <tr>
-            <th>Operation</th>
-            <th>Date Modified</th>
-            <th>Year</th>
-            <th>Type</th>
-            <th>Chassis</th>
-            <th>Series</th>
-            <th>Variant</th>
-            <th>Color</th>
-
-            <th>Engine</th>
-            <th>Purchase Date</th>
-            <th>Sold Date</th>
-            <th>Comments</th>
-
-            <th>Image</th>
-            <th>Owner</th>
-            <th>City</th>
-            <th>State</th>
-            <th>Country</th>
+            <th scope=column>Operation</th>
+            <th scope=column>Date Modified</th>
+            <th scope=column>Year</th>
+            <th scope=column>Type</th>
+            <th scope=column>Chassis</th>
+            <th scope=column>Series</th>
+            <th scope=column>Variant</th>
+            <th scope=column>Color</th>
+            <th scope=column>Engine</th>
+            <th scope=column>Purchase Date</th>
+            <th scope=column>Sold Date</th>
+            <th scope=column>Comments</th>
+            <th scope=column>Image</th>
+            <th scope=column>Owner</th>
+            <th scope=column>City</th>
+            <th scope=column>State</th>
+            <th scope=column>Country</th>
         </tr>
     </thead>
     <tbody>
@@ -43,7 +41,7 @@
                 <td><?= $v1->comments ?></td>
 
                 <td> <?php
-                        if ($v1->image and file_exists($abs_us_root . $us_url_root . "app/userimages/" . $v1->image)) {
+                        if ($v1->image && file_exists($abs_us_root . $us_url_root . "app/userimages/" . $v1->image)) {
                             echo '<img alt="mycar" src=' . $us_url_root . 'app/userimages/thumbs/' . $v1->image . ">";
                         } ?> </td>
                 <td><?= $v1->fname ?></td>
