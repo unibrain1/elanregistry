@@ -5,11 +5,11 @@ ini_set('display_errors', 1);
 
 
 require_once '../../users/init.php';
-require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
+require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
 
 if (!securePage($_SERVER['PHP_SELF'])) {
-    die();
+	die();
 }
 
 // Get the counts of cars that have a vericode and count of cars with a verified date
@@ -24,29 +24,33 @@ $resultsUpdate = $db->query("SELECT count(*) as count  FROM `cars_hist` WHERE op
 <div id="page-wrapper">
 	<div class="container-fluid">
 		<div class="well">
-		<div class="row">
-		<div class="col-8" align="center">
-				<div class="card card-default">
-				<div class="card-header"><h2><strong>Report of Verification Status</strong></h2></div>
-					<div class="card-body">
-                        Sold <?=$resultsSold->count?></br>
-                        Verified <?=$resultsVerified->count?></br>
-                        Updated <?=$resultsUpdate->count?></br>
-                        Requested <?=$resultsRequest->count?></br>
-					</div> <!-- card-body -->
-				</div> <!-- card -->
-			</div> <!-- col -->
-			<div class="col-4" align="center">
-				<div class="card card-default">
-				<div class="card-header"><h2><strong>Verify Cars</strong></h2></div>
-					<div class="card-body">
-                        <button class="btn btn-primary btn-lg btn-block" onclick=" window.open('send_email.php','_blank')">Send Verify Request Email</button>
-					</div> <!-- card-body -->
-				</div> <!-- card -->
-			</div> <!-- col -->
+			<div class="row">
+				<div class="col-8">
+					<div class="card card-default">
+						<div class="card-header">
+							<h2><strong>Report of Verification Status</strong></h2>
+						</div>
+						<div class="card-body">
+							Sold <?= $resultsSold->count ?></br>
+							Verified <?= $resultsVerified->count ?></br>
+							Updated <?= $resultsUpdate->count ?></br>
+							Requested <?= $resultsRequest->count ?></br>
+						</div> <!-- card-body -->
+					</div> <!-- card -->
+				</div> <!-- col -->
+				<div class="col-4">
+					<div class="card card-default">
+						<div class="card-header">
+							<h2><strong>Verify Cars</strong></h2>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary btn-lg btn-block" onclick=" window.open('send_email.php','_blank')">Send Verify Request Email</button>
+						</div> <!-- card-body -->
+					</div> <!-- card -->
+				</div> <!-- col -->
 
-		</div> <!-- row -->
-	
+			</div> <!-- row -->
+
 		</div> <!-- well -->
 	</div><!-- Container -->
 </div><!-- page -->
@@ -57,4 +61,5 @@ $resultsUpdate = $db->query("SELECT count(*) as count  FROM `cars_hist` WHERE op
 
 
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer?>
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer
+?>

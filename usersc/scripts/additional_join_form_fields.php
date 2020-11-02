@@ -5,8 +5,7 @@
 
 // Uncomment out the code below and it will automagically be inserted into your join form.
 ?>
-<!-- <label for="confirm">Pick an account ID number</label>
-<input type="number" class="form-control" min="0" step="1" name="account_id" value="" required> -->
+
 
 
 <?php

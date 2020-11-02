@@ -12,8 +12,8 @@ $db = DB::getInstance();
 echo "Reload Pages and Menus<br>";
 
 // Load pages first because it sets security
-$pages='../SQL/pages.sql';
-$menu='../SQL/menus.sql';
+$pages = '../SQL/pages.sql';
+$menu = '../SQL/menus.sql';
 
 loadSQL($pages);
 loadSQL($menu);
@@ -40,7 +40,7 @@ function loadSQL($filename)
         // If it has a semicolon at the end, it's the end of the query
         if (substr(trim($line), -1, 1) == ';') {
             // Perform the query
-            $db->query($templine) or print('Error performing query \'<strong>' . $templine . '\': ' . mysql_error() . '<br /><br />');
+            $db->query($templine) || print('Error performing query \'<strong>' . $templine . '\': ' . mysqli_error() . '<br /><br />');
             // Reset temp variable to empty
             $templine = '';
         }

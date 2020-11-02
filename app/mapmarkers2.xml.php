@@ -10,29 +10,11 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 
 // Get the cars data
 $db = DB::getInstance();
-
 $carData = $db->findAll("users_carsview")->results();
 
-// require("db.php");
-
-
 // Start XML file, create parent node
-// $doc = domxml_new_doc("1.0");
 $doc = new DOMDocument('1.0', 'utf-8');
 $parnode = $doc->appendChild($doc->createElement('markers'));
-
-// Opens a connection to a MySQL server
-// $db_selected=mysqli_connect ('localhost', $username, $password,$database);
-// if (!$db_selected) {
-//   die('Not connected : ' . mysql_error());
-// }
-
-// // Select all the rows in the markers table
-// $query = "SELECT * FROM markers WHERE 1";
-// $result = mysqli_query($db_selected,$query);
-// if (!$result) {
-//   die('Invalid query: ' . mysqli_error());
-// }
 
 header("Content-type: text/xml");
 
@@ -53,8 +35,6 @@ foreach ($carData as $v1) {
     $newnode->setAttribute("lng", random($v1->lon));
 }
 
-// $xmlfile = $doc->dump_mem();
-// echo $xmlfile;
 echo $doc->saveXML();
 
 // Randomize the lat/lon info so pins don't stack on top of each other

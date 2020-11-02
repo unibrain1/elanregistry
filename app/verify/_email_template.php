@@ -1,6 +1,5 @@
-<!DOCTYPE html
-    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns:v="urn:schemas-microsoft-com:vml">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -14,8 +13,6 @@
             margin-bottom: 10%;
             width: 80%;
         }
-
-        body {}
 
         .button {
             background-color: #337709;
@@ -74,7 +71,7 @@
 
         <!-- pre-header end -->
         <!-- header -->
-        <p>Hello <?=ucfirst($car->fname)?>,
+        <p>Hello <?= ucfirst($car->fname) ?>,
         </p>
         <p>It's been awhile since you created or updated the information in the Lotus Elan Registry.
             Please review the information below and let me know if the information is current, if you've sold the car,
@@ -85,124 +82,122 @@
 
         <!-- end header -->
         <!-- button section -->
-        <a href="<?=$verify_btn?>" class="button">Verify</a>
-        <a href="<?=$edit_btn?>" class="button buttonEdit">Edit</a>
-        <a href="<?=$sold_btn?>" class="button buttonSold">Sold</a>
+        <a href="<?= $verify_btn ?>" class="button">Verify</a>
+        <a href="<?= $edit_btn ?>" class="button buttonEdit">Edit</a>
+        <a href="<?= $sold_btn ?>" class="button buttonSold">Sold</a>
         <br>
         <br>
         <!-- end section -->
         <!-- table section -->
-        <h3>Owner Information</h3>
-        <table class="carTable">
-            <col width="15%" />
-            <col width="85%" />
+        <h3 id="owner">Owner Information</h3>
+        <table class="carTable" aria-describedby="owner">
+            <col style="width: 15%" />
+            <col style="width: 85%" />
 
-            <tr bgcolor="#bcd7a9">
-                <td>User ID</td>
-                <td><?=$car->user_id?>
-                </td>
+            <tr style="background-color: #bcd7a9">
+                <th id="column">User ID</th>
+                <td id="column"><?= $car->user_id ?></th>
             </tr>
             <tr>
                 <td>First Name</td>
-                <td><?=$car->fname?>
+                <td><?= $car->fname ?>
                 </td>
             </tr>
             <tr>
                 <td>Last Name</td>
-                <td><?=$car->lname?>
+                <td><?= $car->lname ?>
                 </td>
             </tr>
             <tr>
                 <td>Email</td>
-                <td><?=$car->email?>
+                <td><?= $car->email ?>
                 </td>
             </tr>
             <tr>
                 <td>City</td>
-                <td><?=$car->city?>
+                <td><?= $car->city ?>
                 </td>
             </tr>
             <tr>
                 <td>State</td>
-                <td><?=$car->state?>
+                <td><?= $car->state ?>
                 </td>
             </tr>
             <tr>
                 <td>Country</td>
-                <td><?=$car->country?>
+                <td><?= $car->country ?>
                 </td>
             </tr>
             <tr>
                 <td>Join Date</td>
-                <td><?=$car->join_date?>
+                <td><?= $car->join_date ?>
                 </td>
             </tr>
         </table>
         <br>
-        <h3>Car Information</h3>
-        <table class="carTable">
+        <h3 id="info">Car Information</h3>
+        <table class="carTable" aria-describedby="info">
             <col width="15%" />
             <col width="85%" />
-            <tr bgcolor="#bcd7a9">
-                <td>Car ID</td>
-                <td><?=$car->id?>
-                </td>
+            <tr style="background-color: #bcd7a9">
+                <th scope=column>Car ID</th>
+                <th scope=column><?= $car->id ?></th>
             </tr>
             <tr>
                 <td>Year</td>
-                <td><?=$car->year?>
+                <td><?= $car->year ?>
                 </td>
             </tr>
             <tr>
                 <td>Type</td>
-                <td><?=$car->type?>
+                <td><?= $car->type ?>
                 </td>
             </tr>
             <tr>
                 <td>Chassis</td>
-                <td><?=$car->chassis?>
+                <td><?= $car->chassis ?>
                 </td>
             </tr>
             <tr>
                 <td>Series</td>
-                <td><?=$car->series?>
+                <td><?= $car->series ?>
                 </td>
             </tr>
             <tr>
                 <td>Variant</td>
-                <td><?=$car->variant?>
+                <td><?= $car->variant ?>
                 </td>
             </tr>
             <tr>
                 <td>Color</td>
-                <td><?=$car->color?>
+                <td><?= $car->color ?>
                 </td>
             </tr>
             <tr>
                 <td>Purchase Date</td>
-                <td><?=$car->purchasedate?>
+                <td><?= $car->purchasedate ?>
                 </td>
             </tr>
             <tr>
                 <td>Sold Date</td>
-                <td><?=$car->solddate?>
+                <td><?= $car->solddate ?>
                 </td>
             </tr>
             <tr>
                 <td>Comment</td>
-                <td><?=$car->comments?>
+                <td><?= $car->comments ?>
                 </td>
             </tr>
             <tr>
                 <td>Image</td>
-                <td><?=$image?>
+                <td><?= $image ?>
                 </td>
             </tr>
             <tr>
                 <td>Website</td>
                 <?php
                 if (!empty($car->website)) {
-                    echo '<td> <a target="_blank" href="'.$car->website.'">Website</a></td>';
+                    echo '<td> <a target="_blank" href="' . $car->website . '">Website</a></td>';
                 } else {
                     echo "<td></td>";
                 }
@@ -210,7 +205,7 @@
             </tr>
             <tr>
                 <td>Date Added</td>
-                <td><?=$car->ctime?>
+                <td><?= $car->ctime ?>
                 </td>
             </tr>
         </table>
