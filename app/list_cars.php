@@ -22,39 +22,39 @@ $carData = $carQ->results();
               <h2><strong>List Cars</strong></h2>
             </div>
             <div class="card-body">
-              <table id="cartable" class="table-sm display compact table-bordered table-list-search ">
+              <table id="cartable" style="width: 100%" class="table-sm display compact table-bordered table-list-search" aria-describedby="card-header">
                 <thead>
                   <tr>
-                    <th></th>
-                    <th>Year</th>
-                    <th>Type</th>
-                    <th>Chassis</th>
-                    <th>Series</th>
-                    <th>Variant</th>
-                    <th>Color</th>
-                    <th>Image</th>
-                    <th>First Name</th>
-                    <th>City</th>
-                    <th>State</th>
-                    <th>Country</th>
-                    <th>Website</th>
-                    <th>Date Added</th>
+                    <th scope=column></th>
+                    <th scope=column>Year</th>
+                    <th scope=column>Type</th>
+                    <th scope=column>Chassis</th>
+                    <th scope=column>Series</th>
+                    <th scope=column>Variant</th>
+                    <th scope=column>Color</th>
+                    <th scope=column>Image</th>
+                    <th scope=column>First Name</th>
+                    <th scope=column>City</th>
+                    <th scope=column>State</th>
+                    <th scope=column>Country</th>
+                    <th scope=column>Website</th>
+                    <th scope=column>Date Added</th>
                   </tr>
                   <tr id="filterrow">
-                    <th>NOSEARCH</th>
-                    <th>Year</th>
-                    <th>Type</th>
-                    <th>Chassis</th>
-                    <th>Series</th>
-                    <th>Variant</th>
-                    <th>Color</th>
-                    <th>NOSEARCH</th>
-                    <th>First Name</th>
-                    <th>City</th>
-                    <th>State</th>
-                    <th>Country</th>
-                    <th>NOSEARCH</th>
-                    <th>Date Added</th>
+                    <th scope=column>NOSEARCH</th>
+                    <th scope=column>Year</th>
+                    <th scope=column>Type</th>
+                    <th scope=column>Chassis</th>
+                    <th scope=column>Series</th>
+                    <th scope=column>Variant</th>
+                    <th scope=column>Color</th>
+                    <th scope=column>NOSEARCH</th>
+                    <th scope=column>First Name</th>
+                    <th scope=column>City</th>
+                    <th scope=column>State</th>
+                    <th scope=column>Country</th>
+                    <th scope=column>NOSEARCH</th>
+                    <th scope=column>Date Added</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -71,10 +71,10 @@ $carData = $carQ->results();
                       <td><?= $v1->variant ?></td>
                       <td><?= $v1->color ?></td>
                       <td>
-                        <!-- TODO alt should be more descriptive --> <?php
-                                                                      if ($v1->image and file_exists($abs_us_root . $us_url_root . "app/userimages/" . $v1->image)) {
-                                                                        echo '<img alt="elan" src=' . $us_url_root . 'app/userimages/thumbs/' . $v1->image . ">";
-                                                                      } ?> </td>
+                        <?php
+                        if ($v1->image && file_exists($abs_us_root . $us_url_root . "app/userimages/" . $v1->image)) {
+                          echo '<img alt="elan" src=' . $us_url_root . 'app/userimages/thumbs/' . $v1->image . ">";
+                        } ?> </td>
                       <td><?= $v1->fname ?></td>
                       <td><?= $v1->city ?></td>
                       <td><?= $v1->state ?></td>

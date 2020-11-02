@@ -93,7 +93,8 @@ $password_match_statement = '<span id="password_match" class="gray_out_text">' .
               <div class="input-group-prepend">
                 <input type="text" class="form-control" id="username" name="username" placeholder="<?= lang("GEN_UNAME"); ?>" value="<?php if (!$form_valid && !empty($_POST)) {
                                                                                                                                         echo $username;
-                                                                                                                                      } ?>" required autofocus autocomplete="username"><?php } ?>
+                                                                                                                                      } ?>" required autofocus autocomplete="username"><?php
+                                                                                                                                                                                      } ?>
               </div>
 
               <div class="form-group row">
@@ -220,7 +221,7 @@ $password_match_statement = '<span id="password_match" class="gray_out_text">' .
       <?php if ($settings->recaptcha == 1 || $settings->recaptcha == 2) { ?>
         <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
       <?php } ?>
-      <button class="submit btn btn-primary " type="submit" id="next_button"><i class="fa fa-plus-square"></i> <?= lang("SIGNUP_TEXT"); ?></button>
+      <button class="submit btn btn-primary " type="submit" id="next_button"><i aria-hidden="true" class="fa fa-plus-square"></i> <?= lang("SIGNUP_TEXT"); ?></button>
 
     </form>
   </div>

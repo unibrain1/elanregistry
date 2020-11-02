@@ -25,7 +25,6 @@ $cardetails['state']        = $userData[0]->state;
 $cardetails['country']      = $userData[0]->country;
 $cardetails['lat']          = $userData[0]->lat;
 $cardetails['lon']          = $userData[0]->lon;
-//$cardetails['website']      = $userData[0]->website;
 
 $cardetails['id']           = null;
 $cardetails['year']         = $select_str;
@@ -62,6 +61,9 @@ $carHist                    = null;
 $title = 'Add Car';
 $action = null; // No one has asked me to do anything yet
 
+$accountPage = $us_url_root . 'users/account.php';
+
+
 function var_error_log($object = null)
 {
     ob_start();                    // start buffer capture
@@ -71,6 +73,16 @@ function var_error_log($object = null)
     error_log($contents);        // log contents of the result of var_dump( $object )
 }
 
+// Allowed file types.  This should also be reflected in getExtension
+$allowed_file_types = ['image/jpeg'];
+
+function getExtension($mime_type)
+{
+    $extensions = array(
+        'image/jpeg' => 'jpg'
+    );
+    return $extensions[$mime_type];
+}
 function get_mime_type($file)
 {
     $mtype = false;
@@ -83,7 +95,6 @@ function get_mime_type($file)
     }
     return $mtype;
 }
-
 
 //Forms posted now process it
 if (!empty($_POST)) {
@@ -102,7 +113,6 @@ if (!empty($_POST)) {
             case "update_car":
                 $title = 'Update Car';
                 update_car();
-                // add_car( $_POST, $cardetails);
                 break;
             default:
                 $errors[] = "No valid action";
@@ -124,6 +134,8 @@ function add_car()
     global $us_url_root;
     global $errors;
     global $successes;
+    global $accountPage;
+    global $allowed_file_types;
 
     if (isset($_POST['car_id'])) {
         $cardetails['id'] = Input::get('car_id');
@@ -168,8 +180,6 @@ function add_car()
             if ($len != 4) { // Chassis number for years < 1970 are 4 digits
                 $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
             }
-            // } elseif ($len != 11) { 	// Chassis number for years >= 1970 are 11 digits
-            //     $errors[] = "Enter Chassis Number. 70xxyy0001z";
         } else {
             $successes[] = 'Chassis Updated';
         }
@@ -220,11 +230,9 @@ function add_car()
         // check if file has one of the allowed mime types
         $mime_type = get_mime_type($_FILES['file']['tmp_name']);
 
-        $allowed_file_types = ['image/png', 'image/jpeg'];
         if (in_array($mime_type, $allowed_file_types)) {
             // get extenstion of the uploaded file
-            $fileNameCmps = explode(".", $_FILES['file']['error']);
-            $fileExtension = strtolower(end($fileNameCmps));
+            $fileExtension = getExtension($mime_type);
 
             //  give the file a random name
             $newFileName = uniqid('img_', 'true') . '.' . $fileExtension;
@@ -262,7 +270,7 @@ function add_car()
                 $errors[] = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
             }
         } else {
-            $errors[] = "Upload failed. You tries to upload <?=$mime_type?> Allowed file types: " . implode(',', $allowed_file_types);
+            $errors[] = "Upload failed. You tried to upload an invalid file type. Allowed file types: " . implode(',', $allowed_file_types);
         }
     }
 
@@ -284,7 +292,7 @@ function add_car()
                 logger($user->data()->id, "ElanRegistry", "Updated car ID " . $cardetails['id']);
 
                 // then redirect to User Account Page
-                Redirect::to($us_url_root . 'users/account.php');
+                Redirect::to($accountPage);
             }
         } else {
             // Insert
@@ -306,13 +314,15 @@ function add_car()
                 // then udate the cross reference table (user_car) with the car_id and user_id,
                 $db->insert('car_user', array('userid' => $user->data()->id, 'carid' => $car_id));
                 // then redirect to User Account Page
-                Redirect::to($us_url_root . 'users/account.php');
+                Redirect::to($accountPage);
             }
         }
     } else {
         $errors[] = 'Cannot add record';
     }
 }
+
+
 
 /*
  * Fill out the form with the existing values
@@ -326,6 +336,7 @@ function update_car()
     global $errors;
     global $successes;
     global $carHist;
+    global $accountPage;
 
     $car_id = $_POST['car_id'];
 
@@ -366,7 +377,7 @@ function update_car()
         }
     } else { /* Empty Car */
         logger($user->data()->id, "ElanRegistry", "Empty car_id field in GET");
-        Redirect::to($us_url_root . 'users/account.php');
+        Redirect::to($accountPage);
     } // empty $car_id
 }
 ?>
@@ -424,7 +435,8 @@ function update_car()
                         <?php } ?>
                         <input type="hidden" name="image" value="<?= $cardetails['image'] ?>" />
                         <input class='bbtn btn-success btn-lg btn-block' type='submit' id='submit' />
-                        <a class="btn btn-info btn-lg btn-block" href=<?= $us_url_root ?>users/account.php>Cancel </a> </div> <div class="col-sm-4">
+                        <a class="btn btn-info btn-lg btn-block" href="<?= $accountPage ?>">Cancel </a> </div>
+                    <div class="col-sm-4">
                     </div>
                 </div> <!-- /.row -->
             </form>
@@ -496,9 +508,10 @@ function update_car()
             $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
             $('#year').trigger("change");
             // Need to escape all the special characters in the MODEL field in order for this to work
-            $('#model option[value=<?php $str = array("|", " ", "/", "+");
+            $('#model option[value=<?php $str = array("|",    " ",    "/",    "+");
                                     $escStr   = array("\\\|", "\\\ ", "\\\/", "\\\+");
-                                    echo str_replace($str, $escStr, $cardetails['model']); ?>]').prop('selected', true);
+                                    $newStr   = str_replace($str, $escStr, $cardetails['model']);
+                                    echo $newStr ?>]').prop('selected', true);
         }
     });
 </script>

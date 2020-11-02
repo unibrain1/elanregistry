@@ -1,10 +1,10 @@
 <?php
 require_once '../users/init.php';
-require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
+require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 ?>
 
 <?php if (!securePage($_SERVER['PHP_SELF'])) {
-    die();
+  die();
 } ?>
 
 <?php
@@ -90,29 +90,29 @@ FROM (
               <h2>Count of Cars by Series</h2>
             </div>
             <div class="card-body">
-              <table id="seriestable" class="table table-striped table-bordered table-sm">
+              <table id="seriestable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
                 <thead>
                   <tr>
-                    <th>Series</th>
-                    <th>Count</th>
-                    <th>Number produced *</th>
-                    <th>Percent recorded</th>
+                    <th scope=columnd>Series</th>
+                    <th scope=columnd>Count</th>
+                    <th scope=columnd>Number produced *</th>
+                    <th scope=columnd>Percent recorded</th>
                   </tr>
                 </thead>
                 <tbody>
                   <?php
-              $total=0;
-              $totalN=0;
-              foreach ($count as $key => $value) {
-                  echo "<tr><td>".ucfirst($key)."</td><td>".$value."</td>";
-                  echo "<td>".$notes[$key]."</td>";
-                  echo "<td>".round(($value*100)/$notes[$key], 0)." %</td></tr>";
+                  $total = 0;
+                  $totalN = 0;
+                  foreach ($count as $key => $value) {
+                    echo "<tr><td>" . ucfirst($key) . "</td><td>" . $value . "</td>";
+                    echo "<td>" . $notes[$key] . "</td>";
+                    echo "<td>" . round(($value * 100) / $notes[$key], 0) . " %</td></tr>";
 
-                  $total += $value;
-                  $totalN += $notes[$key];
-              }
-              echo "<tr><td><strong>Total</strong></td><td><strong>".$total."</strong></td><td>".$totalN."</td><td>".round(($total*100)/$totalN)." %</td></tr>";
-              ?>
+                    $total += $value;
+                    $totalN += $notes[$key];
+                  }
+                  echo "<tr><td><strong>Total</strong></td><td><strong>" . $total . "</strong></td><td>" . $totalN . "</td><td>" . round(($total * 100) / $totalN) . " %</td></tr>";
+                  ?>
                 </tbody>
               </table>
               <p><small>* - Number produced is from
@@ -145,7 +145,7 @@ FROM (
             </div> <!-- body -->
           </div><!-- card block -->
         </div> <!-- col -->
-        <div class="col-6" >
+        <div class="col-6">
           <div class="card-block">
             <div class="card-header">
               <h2>Cars by Series</h2>
@@ -158,7 +158,7 @@ FROM (
       </div> <!-- row -->
 
       <div class="row">
-        <div class="col-6" >
+        <div class="col-6">
           <div class="card-block">
             <div class="card-header">
               <h2>Cars by Variant</h2>
@@ -168,7 +168,7 @@ FROM (
             </div> <!-- body -->
           </div><!-- card block -->
         </div> <!-- col -->
-        <div class="col-6" >
+        <div class="col-6">
           <div class="card-block">
             <div class="card-header">
               <h2>Cars added in the last period</h2>
@@ -181,7 +181,7 @@ FROM (
       </div> <!-- row -->
 
       <div class="row">
-        <div class="col" >
+        <div class="col">
           <div class="card-block">
             <div class="card-header">
               <h2>Cars added over Time</h2>
@@ -197,9 +197,6 @@ FROM (
     </div> <!-- /.container -->
   </div> <!-- /.wrapper -->
 </div> <!-- page -->
-
-<!-- footers -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
 
 <!-- Google Chart https://developers.google.com/chart/interactive/docs/  -->
 <!--Load the AJAX API-->
@@ -234,9 +231,9 @@ FROM (
       ],
       <?php
       foreach ($countryData as $record) {
-          echo "['".$record->country."',".$record->count."],";
+        echo "['" . $record->country . "'," . $record->count . "],";
       }
-           ?>
+      ?>
     ]);
 
     // Set chart options
@@ -264,9 +261,9 @@ FROM (
       ],
       <?php
       foreach ($typeData as $record) {
-          echo "['".$record->type."',".$record->count."],";
+        echo "['" . $record->type . "'," . $record->count . "],";
       }
-           ?>
+      ?>
     ]);
 
     // Set chart options
@@ -294,9 +291,9 @@ FROM (
       ],
       <?php
       foreach ($seriesData as $record) {
-          echo "['".$record->series."',".$record->count."],";
+        echo "['" . $record->series . "'," . $record->count . "],";
       }
-           ?>
+      ?>
     ]);
 
     // Set chart options
@@ -322,10 +319,10 @@ FROM (
         }
       ],
       <?php
-              foreach ($variantData as $record) {
-                  echo "['".$record->variant."',".$record->count."],";
-              }
-           ?>
+      foreach ($variantData as $record) {
+        echo "['" . $record->variant . "'," . $record->count . "],";
+      }
+      ?>
     ]);
 
     // Set chart options
@@ -351,11 +348,11 @@ FROM (
         }
       ],
       <?php
-        $count=0;
-        foreach ($ageData as $record) {
-            $count += $record->count;  // Count returned is the number of cars in the bucket.  Make cumulative
-            echo "['".$record->age."',".$count."],";
-        }
+      $count = 0;
+      foreach ($ageData as $record) {
+        $count += $record->count;  // Count returned is the number of cars in the bucket.  Make cumulative
+        echo "['" . $record->age . "'," . $count . "],";
+      }
       ?>
     ]);
 
@@ -382,8 +379,8 @@ FROM (
       <?php
       $count = 0;
       foreach ($timeData as $car) {
-          $count++;
-          echo "[ new Date(".date('Y, m, d, G, i, s', strtotime($car->ctime))."), ".$count."],";
+        $count++;
+        echo "[ new Date(" . date('Y, m, d, G, i, s', strtotime($car->ctime)) . "), " . $count . "],";
       }
       ?>
     ]);

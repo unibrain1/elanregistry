@@ -9,15 +9,13 @@ $fields['lon']
 
 $fields = array();
 
-$address = $city.",".$state.",".$country;
+$address = $city . "," . $state . "," . $country;
 // url encode the address
 $address = urlencode($address);
 
-//echo "-- Geocode address ".$address."</br>";
-
 // get latitude, longitude
 $data_arr = geocode($address);
-if ($data_arr == false) {
+if ($data_arr === false) {
     echo "    No results </br>";
 } else {
     $fields['lat'] = round($data_arr[0], 4);
@@ -42,7 +40,7 @@ function geocode($address)
     $resp = json_decode($resp_json, true);
 
     // response status will be 'OK', if able to geocode given address
-    if ($resp['status']=='OK') {
+    if ($resp['status'] == 'OK') {
         // get the important data
         $lati = isset($resp['results'][0]['geometry']['location']['lat']) ? $resp['results'][0]['geometry']['location']['lat'] : "";
         $longi = isset($resp['results'][0]['geometry']['location']['lng']) ? $resp['results'][0]['geometry']['location']['lng'] : "";
@@ -64,9 +62,6 @@ function geocode($address)
             return false;
         }
     } else {
-        print_r($resp);
-        echo "</br>$url</br>" ;
-
         return false;
     }
 }

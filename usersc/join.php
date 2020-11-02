@@ -18,12 +18,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-// error_reporting(E_ALL);
-// ini_set('display_errors', 1);
+
 ini_set("allow_url_fopen", 1);
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
-
 ?>
 
 <?php if (!securePage($_SERVER['PHP_SELF'])) {
@@ -34,12 +32,11 @@ if (ipCheckBan()) {
   Redirect::to($us_url_root . 'usersc/scripts/banned.php');
   die();
 }
-if ($user->isLoggedIn()) Redirect::to($us_url_root . 'index.php');
-if ($settings->recaptcha == 1 || $settings->recaptcha == 2) {
-  //require_once($abs_us_root.$us_url_root."users/includes/recaptcha.config.php");
+if ($user->isLoggedIn()) {
+  Redirect::to($us_url_root . 'index.php');
 }
 includeHook($hooks, 'pre');
-//There is a lot of commented out code for a future release of sign ups with payments
+
 $form_method = 'POST';
 $form_action = 'join.php';
 $vericode = randomstring(15);
@@ -61,6 +58,7 @@ if ($act == 1) {
   $pre = 1;
 }
 
+$dateFormat = "Y-m-d H:i:s";
 $reCaptchaValid = FALSE;
 
 if (Input::exists()) {
@@ -78,7 +76,9 @@ if (Input::exists()) {
 
   if ($settings->auto_assign_un == 1) {
     $username = username_helper($fname, $lname, $email);
-    if (!$username) $username = NULL;
+    if (!$username) {
+      $username = NULL;
+    }
   } else {
     $username = Input::get('username');
   }
@@ -180,8 +180,9 @@ if (Input::exists()) {
             'secret' => $settings->recap_private,
             'response' => $user_response
           );
-          foreach ($fields as $key => $value)
+          foreach ($fields as $key => $value) {
             $fields_string .= $key . '=' . $value . '&';
+          }
           $fields_string = rtrim($fields_string, '&');
 
           $ch = curl_init();
@@ -213,7 +214,7 @@ if (Input::exists()) {
       $form_valid = TRUE;
       //add user to the database
       $user = new User();
-      $join_date = date("Y-m-d H:i:s");
+      $join_date = date($dateFormat);
       $params = array(
         'fname' => Input::get('fname'),
         'email' => $email,
@@ -221,17 +222,16 @@ if (Input::exists()) {
         'vericode' => $vericode,
         'join_vericode_expiry' => $settings->join_vericode_expiry
       );
-      $vericode_expiry = date("Y-m-d H:i:s");
+      $vericode_expiry = date($dateFormat);
       if ($act == 1) {
         //Verify email address settings
         $to = rawurlencode($email);
         $subject = html_entity_decode($settings->site_name, ENT_QUOTES);
         $body = email_body('_email_template_verify.php', $params);
         email($to, $subject, $body);
-        $vericode_expiry = date("Y-m-d H:i:s", strtotime("+$settings->join_vericode_expiry hours", strtotime(date("Y-m-d H:i:s"))));
+        $vericode_expiry = date($dateFormat, strtotime("+$settings->join_vericode_expiry hours", strtotime(date("Y-m-d H:i:s"))));
       }
       try {
-        // echo "Trying to create user";
         $theNewId = $user->create(array(
           'username' => $username,
           'fname' => ucfirst(Input::get('fname')),
@@ -255,7 +255,7 @@ if (Input::exists()) {
         }
         die($e->getMessage());
       }
-      if ($form_valid == TRUE) { //this allows the plugin hook to kill the post but it must delete the created user
+      if ($form_valid === TRUE) { //this allows the plugin hook to kill the post but it must delete the created user
         include($abs_us_root . $us_url_root . 'usersc/scripts/during_user_creation.php');
 
         if ($act == 1) {

@@ -20,39 +20,39 @@ $carData = $carQ->results();
     <div class="col-12">
       <div class="card card-default">
         <div class="card-body">
-          <table id="cartable" class="table-sm display compact table-bordered table-list-search ">
+          <table id="cartable" style="width: 100%" class="table-sm display compact table-bordered table-list-search" aria-describedby="card-header">
             <thead>
               <tr>
-                <th>Record #</th>
-                <th>Year</th>
-                <th>Month</th>
-                <th>Batch</th>
-                <th>Type</th>
-                <th>Serial</th>
-                <th>Suffix</th>
-                <th>Chassis/Unit</th>
-                <th>Engine Letter</th>
-                <th>Engine Number</th>
-                <th>Gearbox</th>
-                <th>Color</th>
-                <th>Built / Invoiced / 1ST Registered </th>
-                <th>Note</th>
+                <th scope=column>Record #</th>
+                <th scope=column>Year</th>
+                <th scope=column>Month</th>
+                <th scope=column>Batch</th>
+                <th scope=column>Type</th>
+                <th scope=column>Serial</th>
+                <th scope=column>Suffix</th>
+                <th scope=column>Chassis/Unit</th>
+                <th scope=column>Engine Letter</th>
+                <th scope=column>Engine Number</th>
+                <th scope=column>Gearbox</th>
+                <th scope=column>Color</th>
+                <th scope=column>Built / Invoiced / 1ST Registered </th>
+                <th scope=column>Note</th>
               </tr>
               <tr id="filterrow">
-                <th>Record</th>
-                <th>Year</th>
-                <th>Month</th>
-                <th>Batch</th>
-                <th>Type</th>
-                <th>Serial</th>
-                <th>Suffix</th>
-                <th>Chassis/Unit</th>
-                <th>Engine Letter</th>
-                <th>Engine Number</th>
-                <th>Gearbox</th>
-                <th>Color</th>
-                <th>Built</th>
-                <th>Note</th>
+                <th scope=column>Record</th>
+                <th scope=column>Year</th>
+                <th scope=column>Month</th>
+                <th scope=column>Batch</th>
+                <th scope=column>Type</th>
+                <th scope=column>Serial</th>
+                <th scope=column>Suffix</th>
+                <th scope=column>Chassis/Unit</th>
+                <th scope=column>Engine Letter</th>
+                <th scope=column>Engine Number</th>
+                <th scope=column>Gearbox</th>
+                <th scope=column>Color</th>
+                <th scope=column>Built</th>
+                <th scope=column>Note</th>
               </tr>
             </thead>
             <tbody>

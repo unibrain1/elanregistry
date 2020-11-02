@@ -15,7 +15,7 @@ function validateVIN($vin){
     switch ($len) {
         case 7:  // 26/5890
             sscanf($vin, "%2s/%4d", $type, $serial);
-            if (ctype_digit($type) and ctype_digit($serial) and in_array($type, $valid_type)) {
+            if (ctype_digit($type) && ctype_digit($serial) && in_array($type, $valid_type)) {
                 $successes[] = "$len digits code entered $vin. Type: $type, Serial: $serial";
             } else {
                 $errors[] = "Type should be 26 or 36 or 45.  Serial should be 4 digits.  You entered $vin";
@@ -24,7 +24,7 @@ function validateVIN($vin){
 
         case 8:  // 26/5890x 
             sscanf($vin, "%2s/%4d%1s", $type, $serial, $suffix);
-            if (ctype_digit($type) and ctype_digit($serial) and ctype_alpha($suffix) and in_array($type, $valid_type)) {
+            if (ctype_digit($type) && ctype_digit($serial) && ctype_alpha($suffix) && in_array($type, $valid_type)) {
                 $successes[] = "$len digits code entered $vin. Type: $type, Serial: $serial, Suffix: $suffix";
             } else {
                 $errors[] = "Type should be 26 or 36 or 45.  Serial should be 4 digits.  You entered $vin";
@@ -34,7 +34,7 @@ function validateVIN($vin){
         case 11:
             sscanf($vin, "%2d%2d%2d%4d%1s", $year, $month, $batch, $serial, $suffix);
             $suffix = strtoupper($suffix);
-            if (ctype_digit($year) and ctype_digit($month) and ctype_digit($batch) and ctype_digit($serial) and ctype_alpha($suffix) and in_array($suffix, $valid_suffix)) {
+            if (ctype_digit($year) && ctype_digit($month) && ctype_digit($batch) && ctype_digit($serial) && ctype_alpha($suffix) && in_array($suffix, $valid_suffix)) {
                 $successes[] = "$len digits code entered $vin. Year: $year, Month: $month, Batch: $batch, Serial: $serial, Suffix: $suffix";
             } else {
                 $errors[] = "Incorrect format.  The number should be all digits with 1 character at the end.  You entered $vin";
@@ -45,7 +45,7 @@ function validateVIN($vin){
             $errors[] = "Number is incomplete.  $len digits code entered $vin";
             break;
     }
-    if (!$errors == '') {
+    if (!$errors === '') {
         return false;
     } else {
         return true;
@@ -103,4 +103,3 @@ function suffixtotext( $suffix ) {
     return $desc;
 
 }
-?>

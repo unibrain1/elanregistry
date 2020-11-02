@@ -29,6 +29,7 @@ if (!empty($_POST['uncloak'])) {
 if ($user->isLoggedIn() || !$user->isLoggedIn() && !checkMenu(2, $user->data()->id)) {
 	if (($settings->site_offline == 1) && (!in_array($user->data()->id, $master_account)) && ($currentPage != 'login.php') && ($currentPage != 'maintenance.php')) {
 		$user->logout();
+		logger($user->data()->id, "Errors", "Sending to Maint");
 		Redirect::to($us_url_root . 'users/maintenance.php');
 	}
 }
@@ -65,10 +66,10 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 							<h2><strong>Account Information</strong></h2>
 						</div>
 						<div class="card-body">
-							<table id="accounttable" class="table table-striped table-bordered table-sm">
+							<table id="accounttable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
 								<tr>
-									<td><strong>First name : </strong></td>
-									<td><?= ucfirst($thatUser[0]->fname) ?></td>
+									<th scope=column><strong>First name : </strong></th>
+									<th scope=column><?= ucfirst($thatUser[0]->fname) ?></th>
 								</tr>
 								<tr>
 									<td><strong>Last name : </strong></td>
@@ -133,12 +134,11 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 								foreach ($thatCar as $car) {
 									// output data of each row.  View has both cars and users
 								?>
-									<?php dump($car); ?>
-									<table id="cartable-<?= $car->id ?>" class="table table-striped table-bordered table-sm">
+									<table id="cartable-<?= $car->id ?>" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
 
 										<tr class="table-success">
-											<th><strong>Car ID :</strong></th>
-											<th><?= $car->id ?></th>
+											<th scope=column><strong>Car ID :</strong></th>
+											<th scope=column><?= $car->id ?></th>
 										</tr>
 										<tr>
 											<td><strong>Model :</strong></td>
