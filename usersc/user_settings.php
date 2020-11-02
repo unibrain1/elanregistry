@@ -38,13 +38,12 @@ if ($user->isLoggedIn() && !checkMenu(2, $user->data()->id)) {
 
 $emailQ = $db->query("SELECT * FROM email");
 $emailR = $emailQ->first();
-// dump($emailR);
-// dump($emailR->email_act);
+
 //PHP Goes Here!
 $errors = [];
 $successes = [];
 $userId = $user->data()->id;
-// $grav = get_gravatar(strtolower(trim($user->data()->email)));
+
 $validation = new Validate();
 $userdetails = $user->data();
 // Get User Profile Information
@@ -61,9 +60,7 @@ if ($userQ->count() > 0) {
     $state = $profiledetails->state;
     $country = $profiledetails->country;
 } else {
-    echo 'USER_SETTING(59) something is wrong with the user profile <br>';
-    dump($userId);
-    dump($userQ);
+    logger($user->data()->id, "User", "USER_SETTING(59) something is wrong with the user profile ");
 }
 
 // Get the country list
@@ -177,7 +174,7 @@ if (!empty($_POST)) {
                     'display' => 'City',
                     'required' => true,
                     'min' => 1,
-                    'max' => 25        // TODO Check the field valuidation to be consistant across inputs
+                    'max' => 25
                 )
             ));
             if ($validation->passed()) {
@@ -203,7 +200,7 @@ if (!empty($_POST)) {
                     'display' => 'State',
                     'required' => true,
                     'min' => 1,
-                    'max' => 25        // TODO Check the field valuidation to be consistant across inputs
+                    'max' => 25
                 )
             ));
             if ($validation->passed()) {
@@ -228,7 +225,7 @@ if (!empty($_POST)) {
                     'display' => 'Country',
                     'required' => true,
                     'min' => 1,
-                    'max' => 25        // TODO Check the field valuidation to be consistant across inputs
+                    'max' => 25
                 )
             ));
             if ($validation->passed()) {
@@ -265,7 +262,7 @@ if (!empty($_POST)) {
                 $successes[] = 'website updated.';
                 logger($user->data()->id, "User", "Changed website from $profiledetails->website to $website.");
             } else {
-                echo ("$url is not a valid URL");
+                echo "$url is not a valid URL";
                 //validation did not pass
                 $errors[] = "$url is not a valid URL";
             }
@@ -580,5 +577,6 @@ if ($userQ2->count() > 0) {
 </script>
 
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
 ?>

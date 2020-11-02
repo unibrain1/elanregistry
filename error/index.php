@@ -20,7 +20,7 @@ ErrorDocument 504 /error/index.php
 
 <?php
 require_once '../users/init.php';
-require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
+require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
@@ -53,7 +53,7 @@ $codes = array(
 
 $title = $codes[$status][0];
 $message = $codes[$status][1];
-if ($title == false || strlen($status) != 3) {
+if ($title === false || strlen($status) != 3) {
     $message = 'Please supply a valid status code.';
 }
 
@@ -64,33 +64,36 @@ if ($title == false || strlen($status) != 3) {
     <div class="container-fluid">
         <div class="jumbotron">
 
-                    <div class="card text-white bg-primary">
-                        <div class="card-body">
-                            <h4 class="card-title">Lucas Prince of Darkness has brought you here</h4>
-                            <p class="card-text"><?=$message?><br><br>Redirecting to <?=$url?> in <span id="counter">10</span> second(s)<br> 
-                            </p>
-                        </div>
-                    </div><!-- card block -->
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h4 class="card-title">Lucas Prince of Darkness has brought you here</h4>
+                    <p class="card-text"><?= $message ?><br><br>Redirecting to <?= $url ?> in <span id="counter">10</span> second(s)<br>
+                    </p>
+                </div>
+            </div><!-- card block -->
 
         </div> <!-- /.jumbotron -->
     </div> <!-- /.container -->
 </div> <!-- page-wrapper -->
 
 <script type="text/javascript">
-function countdown() {
-    var i = document.getElementById('counter');
-    if (parseInt(i.innerHTML)<=0) {
-        location.href = '<?=$url?>';
+    function countdown() {
+        var i = document.getElementById('counter');
+        if (parseInt(i.innerHTML) <= 0) {
+            location.href = '<?= $url ?>';
+        }
+        if (parseInt(i.innerHTML) != 0) {
+            i.innerHTML = parseInt(i.innerHTML) - 1;
+        }
     }
-if (parseInt(i.innerHTML)!=0) {
-    i.innerHTML = parseInt(i.innerHTML)-1;
-}
-}
-setInterval(function(){ countdown(); },1000);
+    setInterval(function() {
+        countdown();
+    }, 1000);
 </script>
 
 <!-- footers -->
-<?php require_once $abs_us_root.$us_url_root.'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls?>
+<?php require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls
+?>
 
 <!-- footers -->
 <?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer

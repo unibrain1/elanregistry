@@ -4,10 +4,8 @@
 // You have access to two things that will really be helpful.
 //
 // You have the new user id for your new user. Comment out below to see it.
-// dump($theNewId);
 
 //You also have access to everything that was submitted in the form.
-// dump($_POST);
 
 //If you added additional fields to the join form, you can process them here.
 //For example, in additional_join_form_fields.php we have a sample form field called account_id.
@@ -24,7 +22,6 @@ if ($check < 1) {
 
 // The format of the array is ['column_name'=>Data_for_column]
 
-// $db->update('users',$theNewId,['account_id'=>Input::get('account_id')]);
 $db->update('profiles', ["user_id","=",$theNewId], ['city'=>Input::get('city')]);
 $db->update('profiles', ["user_id","=",$theNewId], ['state'=>Input::get('state')]);
 $db->update('profiles', ["user_id","=",$theNewId], ['country'=>Input::get('country')]);
