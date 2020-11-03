@@ -10,14 +10,14 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 
 
 if (!empty($_POST['uncloak'])) {
-	logger($user->data()->id, "Cloaking", "Attempting Uncloak");
+	logger($user->data()->id, 'Cloaking', 'Attempting Uncloak');
 	if (isset($_SESSION['cloak_to'])) {
 		$to = $_SESSION['cloak_to'];
 		$from = $_SESSION['cloak_from'];
 		unset($_SESSION['cloak_to']);
 		$_SESSION['user'] = $_SESSION['cloak_from'];
 		unset($_SESSION['cloak_from']);
-		logger($from, "Cloaking", "uncloaked from " . $to);
+		logger($from, 'Cloaking', 'uncloaked from ' . $to);
 		Redirect::to($us_url_root . 'users/admin.php?view=users&err=You+are+now+you!');
 	} else {
 		Redirect::to($us_url_root . 'users/logout.php?err=Something+went+wrong.+Please+login+again');
@@ -29,7 +29,7 @@ if (!empty($_POST['uncloak'])) {
 if ($user->isLoggedIn() || !$user->isLoggedIn() && !checkMenu(2, $user->data()->id)) {
 	if (($settings->site_offline == 1) && (!in_array($user->data()->id, $master_account)) && ($currentPage != 'login.php') && ($currentPage != 'maintenance.php')) {
 		$user->logout();
-		logger($user->data()->id, "Errors", "Sending to Maint");
+		logger($user->data()->id, 'Errors', 'Sending to Maint');
 		Redirect::to($us_url_root . 'users/maintenance.php');
 	}
 }
