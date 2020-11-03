@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-ini_set("allow_url_fopen", 1);
+ini_set('allow_url_fopen', 1);
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 ?>
@@ -44,7 +44,7 @@ $vericode = randomstring(15);
 $form_valid = FALSE;
 
 //Decide whether or not to use email activation
-$query = $db->query("SELECT * FROM email");
+$query = $db->query('SELECT * FROM email');
 $results = $query->first();
 $act = $results->email_act;
 
@@ -77,7 +77,7 @@ if (Input::exists()) {
   if ($settings->auto_assign_un == 1) {
     $username = username_helper($fname, $lname, $email);
     if (!$username) {
-      $username = NULL;
+      $username = null;
     }
   } else {
     $username = Input::get('username');
@@ -85,87 +85,87 @@ if (Input::exists()) {
 
   $validation = new Validate();
   if ($settings->auto_assign_un == 0) {
-    if (pluginActive("userInfo", true)) {
+    if (pluginActive('userInfo', true)) {
       $is_not_email = false;
     } else {
       $is_not_email = true;
     }
-    $validation->check($_POST, array(
-      'username' => array(
-        'display' => lang("GEN_UNAME"),
+    $validation->check($_POST, [
+      'username' => [
+        'display' => lang('GEN_UNAME'),
         'is_not_email' => $is_not_email,
         'required' => true,
         'min' => $settings->min_un,
         'max' => $settings->max_un,
         'unique' => 'users',
-      ),
-      'fname' => array(
-        'display' => lang("GEN_FNAME"),
+      ],
+      'fname' => [
+        'display' => lang('GEN_FNAME'),
         'required' => true,
         'min' => 1,
         'max' => 100,
-      ),
-      'lname' => array(
-        'display' => lang("GEN_LNAME"),
+      ],
+      'lname' => [
+        'display' => lang('GEN_LNAME'),
         'required' => true,
         'min' => 1,
         'max' => 100,
-      ),
-      'email' => array(
-        'display' => lang("GEN_EMAIL"),
+      ],
+      'email' => [
+        'display' => lang('GEN_EMAIL'),
         'required' => true,
         'valid_email' => true,
         'unique' => 'users',
-      ),
+      ],
 
-      'password' => array(
-        'display' => lang("GEN_PASS"),
+      'password' => [
+        'display' => lang('GEN_PASS'),
         'required' => true,
         'min' => $settings->min_pw,
         'max' => $settings->max_pw,
-      ),
-      'confirm' => array(
-        'display' => lang("PW_CONF"),
+      ],
+      'confirm' => [
+        'display' => lang('PW_CONF'),
         'required' => true,
         'matches' => 'password',
-      ),
-    ));
+      ],
+    ]);
   }
   if ($settings->auto_assign_un == 1) {
-    $validation->check($_POST, array(
-      'fname' => array(
-        'display' => lang("GEN_FNAME"),
+    $validation->check($_POST, [
+      'fname' => [
+        'display' => lang('GEN_FNAME'),
         'required' => true,
         'min' => 1,
         'max' => 60,
-      ),
-      'lname' => array(
-        'display' => lang("GEN_LNAME"),
+      ],
+      'lname' => [
+        'display' => lang('GEN_LNAME'),
         'required' => true,
         'min' => 1,
         'max' => 60,
-      ),
-      'email' => array(
-        'display' => lang("GEN_EMAIL"),
+      ],
+      'email' => [
+        'display' => lang('GEN_EMAIL'),
         'required' => true,
         'valid_email' => true,
         'unique' => 'users',
         'min' => 5,
         'max' => 100,
-      ),
+      ],
 
-      'password' => array(
-        'display' => lang("GEN_PASS"),
+      'password' => [
+        'display' => lang('GEN_PASS'),
         'required' => true,
         'min' => $settings->min_pw,
         'max' => $settings->max_pw,
-      ),
-      'confirm' => array(
-        'display' => lang("PW_CONF"),
+      ],
+      'confirm' => [
+        'display' => lang('PW_CONF'),
         'required' => true,
         'matches' => 'password',
-      ),
-    ));
+      ],
+    ]);
   }
 
   if ($validation->passed()) {
@@ -176,10 +176,10 @@ if (Input::exists()) {
         {
           global $settings;
           $fields_string = '';
-          $fields = array(
+          $fields = [
             'secret' => $settings->recap_private,
             'response' => $user_response
-          );
+          ];
           foreach ($fields as $key => $value) {
             $fields_string .= $key . '=' . $value . '&';
           }
@@ -215,13 +215,13 @@ if (Input::exists()) {
       //add user to the database
       $user = new User();
       $join_date = date($dateFormat);
-      $params = array(
+      $params = [
         'fname' => Input::get('fname'),
         'email' => $email,
         'username' => $username,
         'vericode' => $vericode,
         'join_vericode_expiry' => $settings->join_vericode_expiry
-      );
+      ];
       $vericode_expiry = date($dateFormat);
       if ($act == 1) {
         //Verify email address settings
@@ -229,15 +229,15 @@ if (Input::exists()) {
         $subject = html_entity_decode($settings->site_name, ENT_QUOTES);
         $body = email_body('_email_template_verify.php', $params);
         email($to, $subject, $body);
-        $vericode_expiry = date($dateFormat, strtotime("+$settings->join_vericode_expiry hours", strtotime(date("Y-m-d H:i:s"))));
+        $vericode_expiry = date($dateFormat, strtotime("+$settings->join_vericode_expiry hours", strtotime(date($dateFormat))));
       }
       try {
-        $theNewId = $user->create(array(
+        $theNewId = $user->create([
           'username' => $username,
           'fname' => ucfirst(Input::get('fname')),
           'lname' => ucfirst(Input::get('lname')),
           'email' => Input::get('email'),
-          'password' => password_hash(Input::get('password', true), PASSWORD_BCRYPT, array('cost' => 12)),
+          'password' => password_hash(Input::get('password', true), PASSWORD_BCRYPT, ['cost' => 12]),
           'permissions' => 1,
           'account_owner' => 1,
           'join_date' => $join_date,
@@ -246,8 +246,12 @@ if (Input::exists()) {
           'vericode' => $vericode,
           'vericode_expiry' => $vericode_expiry,
           'oauth_tos_accepted' => true
-        ));
-
+        ]);
+        $activeCheck = $db->query('SELECT active FROM users');
+        if (!$activeCheck->error()) {
+          $fields['active'] = 1;
+        }
+        $theNewId = $user->create($fields);
         includeHook($hooks, 'post');
       } catch (Exception $e) {
         if ($eventhooks =  getMyHooks(['page' => 'joinFail'])) {
@@ -255,17 +259,17 @@ if (Input::exists()) {
         }
         die($e->getMessage());
       }
-      if ($form_valid === TRUE) { //this allows the plugin hook to kill the post but it must delete the created user
+      if ($form_valid === true) { //this allows the plugin hook to kill the post but it must delete the created user
         include($abs_us_root . $us_url_root . 'usersc/scripts/during_user_creation.php');
 
         if ($act == 1) {
-          logger($theNewId, "User", "Registration completed and verification email sent.");
-          $query = $db->query("SELECT * FROM email");
+          logger($theNewId, 'User', 'Registration completed and verification email sent.');
+          $query = $db->query('SELECT * FROM email');
           $results = $query->first();
           $act = $results->email_act;
           require $abs_us_root . $us_url_root . 'users/views/_joinThankYou_verify.php';
         } else {
-          logger($theNewId, "User", "Registration completed.");
+          logger($theNewId, 'User', 'Registration completed.');
           if (file_exists($abs_us_root . $us_url_root . 'usersc/views/_joinThankYou.php')) {
             require_once $abs_us_root . $us_url_root . 'usersc/views/_joinThankYou.php';
           } else {
