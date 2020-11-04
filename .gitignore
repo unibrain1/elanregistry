@@ -18,9 +18,7 @@ runme.php
 utilities
 # IDE related files
 Elanegistry.sublime-project
-Elanegistry.sublime-workspace
 ElanRegistry.code-workspace
-elan_registry.code-workspace
 # Environment specific files
 .env.enc
 .env.key
@@ -32,10 +30,11 @@ app/userimages/*.*
 !app/userimages/.htaccess
 !app/userimages/thumbs/.htaccess
 # Exclude userspice base
-users
-# Include these file from UserSpice - Patches
-!users/images/logo.png
-!users/css/images/*.png
+# Because I want to include users/cron/backup.php I need to do this
+# https://stackoverflow.com/questions/5533050/gitignore-exclude-folder-but-include-specific-subfolder
+!users/
+users/*
+!users/cron/
 !users/images/logo.png
 # Exclude userspice extentions.  These need to be manually installed
 usersc/plugins/*
