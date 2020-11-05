@@ -1,4 +1,4 @@
-<table id="historytable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
+<table id="historytable" style="width: 100%" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
     <thead>
         <tr>
             <th scope=column>Operation</th>
