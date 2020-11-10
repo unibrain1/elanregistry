@@ -19,11 +19,7 @@ $errors = [];
 $successes = [];
 $command = $settings->backup_source;
 
-//$command = 'everything';
-//$command = 'db_us_files';
-//$command = 'db_only';
-//$command = 'us_files';
-//$command = 'db_table'; $backupPath = 'cars';  - test again
+$backup_age = 60 * 60 * 24 * 30; // 30 days = Secs * Mins * Hours * Days TODO - Get days from configuration
 
 # The name of the script being run
 $self = 'backup.php';
@@ -138,15 +134,17 @@ if ($checkQuery->count() == 1) {
 				$successes[] = lang('AB_FILE_RENAMED') . $backupZipHashFilename;
 
 				// Now that we have a succesful backup and created a backup file, delete old backups
-				$threeDbefore = date("Y-m-d", strtotime("-3 days"));
-				foreach (glob($destPath) as $file) {
-					if (!is_file($file)) {
-						continue;
-					}
-					$fileParts = explode('_', basename($file));
-					if (!empty($fileParts[0]) && $fileParts[0] <= $threeDbefore) {
-						$successes[] = lang('AB_FILE_REMOVED') . $backupZipHashFilename;
-						unlink($file);
+				$successes[] = " -- looking for old files to remove in " . $destPath;
+				$files = glob($destPath . "*");
+				$now   = time();
+
+				foreach ($files as $file) {
+					$successes[] = " -- checking file " . $file;
+					if (is_file($file)) {
+						if ($now - filemtime($file) >= $backup_age) { // 3 days
+							$successes[] = " -- REMOVING" . $file;
+							unlink($file);
+						}
 					}
 				}
 			} else {
