@@ -142,7 +142,7 @@ if ($checkQuery->count() == 1) {
 					$successes[] = " -- checking file " . $file;
 					if (is_file($file)) {
 						if ($now - filemtime($file) >= $backup_age) { // 3 days
-							$successes[] = " -- REMOVING" . $file;
+							$successes[] = " -- REMOVING " . $file;
 							unlink($file);
 						}
 					}
