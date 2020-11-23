@@ -247,8 +247,7 @@ if (!empty($_GET)) {
 
 
 <!-- Table Sorting and Such -->
-<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php'; ?>
 
 <script type="text/javascript">
   $(document).ready(function() {
