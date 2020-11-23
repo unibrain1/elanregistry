@@ -1,7 +1,6 @@
 <?php
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
-require_once 'validate.php';
 
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
@@ -42,7 +41,7 @@ $cardetails['comments']     = null;
 $cardetails['image']        = null;
 
 // 'placeholder' to prompt for response.  Background text in input boxes
-$carprompt['chassis']       = 'Enter Chassis Number - Pre 1970 - xxxx, 1970 and on 70xxyy0001z';
+$carprompt['chassis']       = 'Enter Chassis Number';
 $carprompt['color']         = 'Enter the current color of the car';
 $carprompt['engine']        = 'Enter Engine number - LPAxxxxx';
 $carprompt['purchasedate']  = 'YYYY-MM-DD';
@@ -62,16 +61,6 @@ $title = 'Add Car';
 $action = null; // No one has asked me to do anything yet
 
 $accountPage = $us_url_root . 'users/account.php';
-
-
-function var_error_log($object = null)
-{
-    ob_start();                    // start buffer capture
-    var_dump($object);           // dump the values
-    $contents = ob_get_contents(); // put the buffer into a variable
-    ob_end_clean();                // end capture
-    error_log($contents);        // log contents of the result of var_dump( $object )
-}
 
 // Allowed file types.  This should also be reflected in getExtension
 $allowed_file_types = ['image/jpeg'];
@@ -386,47 +375,22 @@ function update_car()
     <div class="container-fluid">
         <div class="well">
             <br>
-            <form method="POST" name="addCar" action="edit_car.php" enctype="multipart/form-data">
+            <form method='POST' id='addCar' name='addCar' action='edit_car.php' enctype='multipart/form-data' class='needs-validation' novalidate>
                 <div class="row">
                     <div class="col-md-6">
                         <!-- Car Info -->
-                        <div class="card card-default">
-                            <div class="card-header">
-                                <h2><strong><?= $title ?></strong></h2>
-                            </div>
-                            <div class="card-body">
-                                <!-- Here is a place to display errors -->
-                                <?php
-                                if (!$errors == '') {
-                                ?><div class="alert alert-danger"><?= display_errors($errors); ?></div><?php
-                                                                                                    }
-                                                                                                        ?>
-                                <?php if (!$successes == '') {
-                                ?><div class="alert alert-success"><?= display_successes($successes); ?></div><?php
-                                                                                                            }
-                                                                                                                ?>
-                                <!-- Here is the FORM -->
-                                <?php include($abs_us_root . $us_url_root . 'app/views/_car_table.php'); ?>
-                            </div> <!-- card-body -->
-                        </div>
+                        <?php include($abs_us_root . $us_url_root . 'app/views/_car_edit.php'); ?>
                     </div>
                     <div class="col-md-6">
                         <!-- Image Info -->
-                        <div class="card card-default">
-                            <div class="card-header">
-                                <h2><strong>Photos</strong></h2>
-                            </div>
-                            <div class="card-body">
-                                <?php include($abs_us_root . $us_url_root . 'app/views/_image_table.php'); ?>
-                            </div>
-                        </div> <!-- card -->
+                        <?php include($abs_us_root . $us_url_root . 'app/views/_image_upload.php'); ?>
                     </div>
                     <!--col -->
                 </div> <!-- /.row -->
                 <div class="row">
                     <div class="col-sm-4">
                     </div>
-                    <div class="col-sm-4">
+                    <div class="col-sm-2">
                         <input type="hidden" name="csrf" id="csrf" value="<?= Token::generate(); ?>" />
                         <input type="hidden" name="action" id="action" value="add_car" />
                         <?php
@@ -434,8 +398,11 @@ function update_car()
                             <input type="hidden" name="car_id" id="car_id" value="<?= $cardetails['id'] ?>" />
                         <?php } ?>
                         <input type="hidden" name="image" value="<?= $cardetails['image'] ?>" />
-                        <input class='bbtn btn-success btn-lg btn-block' type='submit' id='submit' />
-                        <a class="btn btn-info btn-lg btn-block" href="<?= $accountPage ?>">Cancel </a> </div>
+                        <button class='btn btn-success btn-lg btn-block' type='submit' id='submit'>Submit</button>
+                    </div>
+                    <div class="col-sm-2">
+                        <button class="btn btn-info btn-lg btn-block" href="<?= $accountPage ?>">Cancel </button>
+                    </div>
                     <div class="col-sm-4">
                     </div>
                 </div> <!-- /.row -->
@@ -444,7 +411,6 @@ function update_car()
             <!-- Car History -->
             <?php
             if ($action == 'update_car') { ?>
-
 
                 <div class="row">
                     <div class="col-sm">
@@ -464,22 +430,73 @@ function update_car()
     </div> <!-- /.container -->
 </div><!-- .page-wrapper -->
 
-<!-- Table Sorting and Such -->
-<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
-<!-- Include Date Range Picker -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker3.css" />
+<?php
+if ($action == 'update_car') {
+    //    Table Sorting and Such
+    require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php';
+}
+// Include Date Range Picker
+require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datapicker.php';
+?>
+<!-- Year/Model definitions -->
+<script src="<?= $us_url_root ?>app/assets/js/cardefinition.js"></script>
 
 <script>
-    $(document).ready(function() {
-        var table = $('#historytable').DataTable({
-            "ordering": false,
-            "scrollX": true
-        });
+    var validYear = '';
+    var validModel = '';
+    var validChassis = '';
+    var _action = '<?= $action ?>';
+
+    /*
+     * On form submission check to see if any field is marked is-invalid
+     */
+    $('#submit').click(function(event) {
+        var form_data = $("#addCar").serializeArray();
+        var error_free = true;
+        for (var input in form_data) {
+            var element = $("#" + form_data[input]['name'] + "_icon");
+            var invalid = element.hasClass("fa-thumbs-down");
+            if (invalid) {
+                error_free = false;
+            }
+        }
+        if (!error_free) {
+            alert('Error: There are one or more errors on the form.  Please update and submit');
+            event.preventDefault();
+        }
     });
 
+
     $(document).ready(function() {
+        // Pre-populate dropdown menus if we are updating a car
+        if (_action === 'update_car') {
+            $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
+            $('#year').trigger("change"); // Trigger the change event to populate and validate
+            // Need to escape all the special characters in the MODEL field in order for this to work
+            $('#model option[value=<?php $str = array("|",    " ",    "/",    "+");
+                                    $escStr   = array("\\\|", "\\\ ", "\\\/", "\\\+");
+                                    $newStr   = str_replace($str, $escStr, $cardetails['model']);
+                                    echo $newStr ?>]').prop('selected', true);
+
+            $('#model').trigger("change"); // Trigger the change event to populate and validate
+            $('#chassis').trigger("blur"); // Trigger the change event to populate and validate
+
+            // Show all fields
+            $('#color').prop("disabled", false)
+            $('#engine').prop("disabled", false)
+            $('#purchasedate').prop("disabled", false)
+            $('#solddate').prop("disabled", false)
+            $('#website').prop("disabled", false)
+            $('#comments').prop("disabled", false)
+
+            // Format history table
+            var table = $('#historytable').DataTable({
+                "ordering": false,
+                "scrollX": true
+            });
+        }
+
+        // Pop-up Calendar for date fields
         var date_input = $('input[id="purchasedate"]'); //our date input has the name "date"
         var container = $('.page-wrapper form').length > 0 ? $('.page-wrapper form').parent() : "body";
         date_input.datepicker({
@@ -487,10 +504,8 @@ function update_car()
             container: container,
             todayHighlight: false,
             autoclose: true,
-        })
-    });
+        });
 
-    $(document).ready(function() {
         var date_input = $('input[id="solddate"]'); //our date input has the name "date"
         var container = $('.page-wrapper form').length > 0 ? $('.page-wrapper form').parent() : "body";
         date_input.datepicker({
@@ -498,27 +513,145 @@ function update_car()
             container: container,
             todayHighlight: false,
             autoclose: true,
-        })
+        });
     });
 
-    $(document).ready(function() {
-        var _action = '<?= $action ?>';
 
-        if (_action == 'update_car') {
-            $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
-            $('#year').trigger("change");
-            // Need to escape all the special characters in the MODEL field in order for this to work
-            $('#model option[value=<?php $str = array("|",    " ",    "/",    "+");
-                                    $escStr   = array("\\\|", "\\\ ", "\\\/", "\\\+");
-                                    $newStr   = str_replace($str, $escStr, $cardetails['model']);
-                                    echo $newStr ?>]').prop('selected', true);
+    /* *
+     *  Validate car form before data entry
+     *
+     * Set fields that are valid as green and invalid as red
+     */
+
+
+    /*
+     * When year changes, update the model list and show the appropriate chassis help text
+     */
+    $('#year').change(function() {
+        validYear = $('#year option:selected').val();
+
+        $('#year_icon').toggleClass('fa-thumbs-up', Boolean(validYear)).toggleClass('fa-thumbs-down', !Boolean(validYear)).toggleClass('is-valid', Boolean(validYear)).toggleClass('is-invalid', !Boolean(validYear));
+        $('#year').toggleClass('is-valid', Boolean(validYear)).toggleClass('is-invalid', !Boolean(validYear));
+
+        // Year changed so reset model and chassis
+        if (_action !== 'update_car') {
+            validModel = "";
+            validChassis = "";
+            $('#model_icon').toggleClass('fa-thumbs-up', Boolean(validModel)).toggleClass('fa-thumbs-down', !Boolean(validModel)).toggleClass('is-valid', false).toggleClass('is-invalid', false);
+            $('#model').toggleClass('is-valid', false).toggleClass('is-invalid', false);
+            $('#model').prop("disabled", false).val("");
+
+            $('#chassis_icon').toggleClass('fa-thumbs-up', Boolean(validChassis)).toggleClass('fa-thumbs-down', !Boolean(validChassis)).toggleClass('is-valid', false).toggleClass('is-invalid', false);
+            $('#chassis').toggleClass('is-valid', false).toggleClass('is-invalid', false);
+
+            $('#chassis').val("");
+        } else {
+            $('#model').prop("disabled", false);
+        }
+
+        if (validYear) {
+
+            //Display appropriate chassis text
+            if (validYear < 1970) {
+                $('#chassis_pre1970').show();
+                $('#chassis_1970').hide();
+                $('#chassis_post1970').hide();
+                $('#chassis_taken').hide();
+            } else if (validYear === '1970') {
+                $('#chassis_pre1970').hide();
+                $('#chassis_1970').show();
+                $('#chassis_post1970').hide();
+                $('#chassis_taken').hide();
+            } else {
+                $('#chassis_pre1970').hide();
+                $('#chassis_1970').hide();
+                $('#chassis_post1970').show();
+                $('#chassis_taken').hide();
+            }
+            populateSub($('#year').get(0), $('#model').get(0));
+        }
+    });
+    // Validate Model
+    $('#model').change(function() {
+        validModel = $('#model option:selected').val();
+
+        $('#model_icon').toggleClass('fa-thumbs-up', Boolean(validModel)).toggleClass('fa-thumbs-down', !Boolean(validModel)).toggleClass('is-valid', Boolean(validModel)).toggleClass('is-invalid', !Boolean(validModel));
+        $('#model').toggleClass('is-valid', Boolean(validModel)).toggleClass('is-invalid', !Boolean(validModel));
+        $('#chassis').prop("disabled", false);
+    });
+
+    // Validate Chassis
+    $('#chassis').blur(function() {
+        // validChassis = validateChassis();
+
+        const _valid_suffix = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N'];
+        const _chassis = $('#chassis').val();
+        var _base;
+        var _suffix;
+
+        // If this is a Race model let the chassis be anything
+        if (validModel.indexOf("Race") >= 0) {
+            validChassis = _chassis;
+        } else if (validYear !== '') {
+            // Now validate the chassis number
+            if (validYear < 1970) {
+                validChassis = ($.isNumeric(_chassis) && (_chassis.length === 4)) ? _chassis : "";
+            } else if (validYear === "1970") {
+                if (_chassis.length === 5) {
+                    _base = _chassis.slice(0, 4);
+                    _suffix = _chassis.slice(4, 5).toUpperCase();
+                } else if (_chassis.length === 11) {
+                    _base = _chassis.slice(0, 10);
+                    _suffix = _chassis.slice(10, 11).toUpperCase();
+                }
+                validChassis = ($.isNumeric(_base) && ($.inArray(_suffix, _valid_suffix) !== -1)) ? _chassis : "";
+            } else {
+                if (_chassis.length === 11) {
+                    _base = _chassis.slice(0, 10);
+                    _suffix = _chassis.slice(10, 11).toUpperCase();
+                }
+                validChassis = ($.isNumeric(_base) && ($.inArray(_suffix, _valid_suffix) !== -1)) ? _chassis : "";
+            }
+        }
+
+        $('#chassis_icon').toggleClass('fa-thumbs-up', Boolean(validChassis)).toggleClass('fa-thumbs-down', !Boolean(validChassis)).toggleClass('is-valid', Boolean(validChassis)).toggleClass('is-invalid', !Boolean(validChassis));
+        $('#chassis').toggleClass('is-valid', Boolean(validChassis)).toggleClass('is-invalid', !Boolean(validChassis));
+
+        if (_action !== 'update_car' && (validChassis)) {
+            // add_car
+            if (validChassis) {
+                // Now see if the chassis is taken
+                $.ajax({
+                    url: 'checkChassis.php',
+                    type: 'post',
+                    data: {
+                        'command': 'chassis_check',
+                        'year': validYear,
+                        'model': validModel,
+                        'chassis': validChassis,
+                    },
+                    success: function(response) {
+                        if (response === 'taken') {
+                            validChassis = "";
+                            $('#chassis_icon').toggleClass('fa-thumbs-up', Boolean(validChassis)).toggleClass('fa-thumbs-down', !Boolean(validChassis)).toggleClass('is-valid', Boolean(validChassis)).toggleClass('is-invalid', !Boolean(validChassis));
+                            $('#chassis').toggleClass('is-valid', Boolean(validChassis)).toggleClass('is-invalid', !Boolean(validChassis));
+                            $('#chassis_taken').show();
+                        } else if (response === 'not_taken') {
+                            $('#chassis_taken').hide();
+                            $('#color').prop("disabled", false)
+                            $('#engine').prop("disabled", false)
+                            $('#purchasedate').prop("disabled", false)
+                            $('#solddate').prop("disabled", false)
+                            $('#website').prop("disabled", false)
+                            $('#comments').prop("disabled", false)
+                        }
+                    },
+                    error: function(response) {},
+                });
+            }
         }
     });
 </script>
-
-<!-- Add car validation JS -->
-<script src="<?= $us_url_root ?>assets/js/cardefinition.js"></script>
-
 
 <!-- footers -->
 <?php
