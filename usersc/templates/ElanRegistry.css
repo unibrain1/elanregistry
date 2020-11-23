@@ -1,0 +1,13 @@
+/* Override/Add some formatting    */
+
+.is-invalid {
+    color: red;
+}
+
+.is-valid {
+    color: green;
+}
+
+.hidden {
+    display: none;
+}
