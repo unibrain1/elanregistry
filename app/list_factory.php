@@ -121,12 +121,8 @@ $carData = $carQ->results();
 </div><!-- .page-wrapper -->
 <!-- End of main content section -->
 
-<!-- Place any per-page javascript here -->
 <!-- Table Sorting and Such -->
-<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
-<script src="https://cdn.datatables.net/fixedheader/3.1.2/js/dataTables.fixedHeader.min.js"></script>
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/fixedheader/3.1.2/css/fixedHeader.dataTables.min.css">
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php'; ?>
 
 <script>
   $(document).ready(function() {
