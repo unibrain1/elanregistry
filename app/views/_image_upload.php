@@ -1,6 +1,6 @@
 <div class="card card-default">
     <div class="card-header">
-        <h2><strong>Photos</strong></h2>
+        <h2><strong>Photo Upload</strong></h2>
     </div>
     <div class="card-body">
 
@@ -20,7 +20,6 @@
         <?php
         }
         ?>
-
         <script>
             // Update file select box with filename
             $('#file').on('change', function() {
