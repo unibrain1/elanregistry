@@ -157,9 +157,8 @@ if (!empty($_GET)) {
                   <td><?= $carData[0]->ctime ?></td>
                 </tr>
                 <tr>
-                  <td><strong>Record Modified:</strong>
-                    <t/d> <td><?= $carData[0]->mtime ?>
-                  </td>
+                  <td><strong>Record Modified:</strong></td>
+                  <td><?= $carData[0]->mtime ?></td>
                 </tr>
                 <?php
                 if (!empty($carData[0]->website)) {
