@@ -2,50 +2,50 @@
 require_once 'classes/class.autoloader.php';
 session_start();
 
-$abs_us_root=$_SERVER['DOCUMENT_ROOT'];
+$abs_us_root = $_SERVER['DOCUMENT_ROOT'];
 
-$self_path=explode("/", $_SERVER['PHP_SELF']);
-$self_path_length=count($self_path);
-$file_found=false;
+$self_path = explode("/", $_SERVER['PHP_SELF']);
+$self_path_length = count($self_path);
+$file_found = false;
 
 for ($i = 1; $i < $self_path_length; $i++) {
-    array_splice($self_path, $self_path_length-$i, $i);
-    $us_url_root=implode("/", $self_path)."/";
+    array_splice($self_path, $self_path_length - $i, $i);
+    $us_url_root = implode("/", $self_path) . "/";
 
-    if (file_exists($abs_us_root.$us_url_root.'z_us_root.php')) {
-        $file_found=true;
+    if (file_exists($abs_us_root . $us_url_root . 'z_us_root.php')) {
+        $file_found = true;
         break;
     } else {
-        $file_found=false;
+        $file_found = false;
     }
 }
 
-require_once $abs_us_root.$us_url_root.'users/helpers/helpers.php';
+require_once $abs_us_root . $us_url_root . 'users/helpers/helpers.php';
 
 // Get encrypted environment variables
-require_once $abs_us_root.$us_url_root.'vendor/autoload.php';
+// require_once $abs_us_root.$us_url_root.'vendor/autoload.php';
 use SecureEnvPHP\SecureEnvPHP;
 
-(new SecureEnvPHP())->parse($abs_us_root.$us_url_root.'.env.enc', $abs_us_root.$us_url_root.'.env.key');
+(new SecureEnvPHP())->parse($abs_us_root . $us_url_root . '.env.enc', $abs_us_root . $us_url_root . '.env.key');
 // Back to the UserSpice init
 
 // Set config
 $GLOBALS['config'] = array(
     'mysql'      => array(
-// Set config
-'host'         => getenv('DB_HOST'),
-'username'     => getenv('DB_USER'),
-'password'     => getenv('DB_PASS'),
-'db'           => getenv('DB_NAME'),
-),
-'remember'        => array(
-  'cookie_name'   => 'pmqesoxiw318374csb',
-  'cookie_expiry' => 604800  //One week, feel free to make it longer
-),
-'session' => array(
-  'session_name' => 'user',
-  'token_name' => 'token',
-)
+        // Set config
+        'host'         => getenv('DB_HOST'),
+        'username'     => getenv('DB_USER'),
+        'password'     => getenv('DB_PASS'),
+        'db'           => getenv('DB_NAME'),
+    ),
+    'remember'        => array(
+        'cookie_name'   => 'pmqesoxiw318374csb',
+        'cookie_expiry' => 604800  //One week, feel free to make it longer
+    ),
+    'session' => array(
+        'session_name' => 'user',
+        'token_name' => 'token',
+    )
 );
 
 /* Set some API keys from the environment */
@@ -64,7 +64,7 @@ $currentPage = currentPage();
 //Check to see if user has a remember me cookie
 if (Cookie::exists(Config::get('remember/cookie_name')) && !Session::exists(Config::get('session/session_name'))) {
     $hash = Cookie::get(Config::get('remember/cookie_name'));
-    $hashCheck = DB::getInstance()->query("SELECT * FROM users_session WHERE hash = ? AND uagent = ?", array($hash,Session::uagent_no_version()));
+    $hashCheck = DB::getInstance()->query("SELECT * FROM users_session WHERE hash = ? AND uagent = ?", array($hash, Session::uagent_no_version()));
 
     if ($hashCheck->count()) {
         $user = new User($hashCheck->first()->user_id);

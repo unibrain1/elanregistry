@@ -11,6 +11,7 @@
     ],
     "require": {
         "php": ">=7.1",
-        "johnathanmiller/secure-env-php": "^2.0"
+        "johnathanmiller/secure-env-php": "^2.0",
+		"enyo/dropzone": "5.7.2"
     }
 }
