@@ -1,0 +1,130 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "33bfc1da1504db2ba9ea39a0920150fe",
+    "packages": [
+        {
+            "name": "enyo/dropzone",
+            "version": "v5.7.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/enyo/dropzone.git",
+                "reference": "78424e9c97b569e698cc9175e9bc424168219162"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/enyo/dropzone/zipball/78424e9c97b569e698cc9175e9bc424168219162",
+                "reference": "78424e9c97b569e698cc9175e9bc424168219162",
+                "shasum": ""
+            },
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Matias Meno",
+                    "email": "m@tias.me",
+                    "homepage": "http://www.matiasmeno.com"
+                }
+            ],
+            "description": "Handles drag and drop of files for you.",
+            "homepage": "http://www.dropzonejs.com",
+            "keywords": [
+                "drag and drop",
+                "dragndrop",
+                "file upload",
+                "upload"
+            ],
+            "support": {
+                "source": "https://github.com/enyo/dropzone/tree/v5.7.2"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/[user1",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/enyo] # Replace with up to 4 GitHub Sponsors-enabled usernames e.g.",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/user2",
+                    "type": "github"
+                }
+            ],
+            "time": "2020-07-23T12:58:26+00:00"
+        },
+        {
+            "name": "johnathanmiller/secure-env-php",
+            "version": "v2.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/johnathanmiller/secure-env-php.git",
+                "reference": "59d09ca7093476e6f02a2be9d0d21dbdd384b1c5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/johnathanmiller/secure-env-php/zipball/59d09ca7093476e6f02a2be9d0d21dbdd384b1c5",
+                "reference": "59d09ca7093476e6f02a2be9d0d21dbdd384b1c5",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7.5"
+            },
+            "bin": [
+                "bin/encrypt-env"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "SecureEnvPHP\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Johnathan Miller",
+                    "email": "hello@johnathanmiller.com",
+                    "homepage": "https://johnathanmiller.com"
+                }
+            ],
+            "description": "Encrypt environment files for production use.",
+            "keywords": [
+                "dotenv",
+                "encryption",
+                "env",
+                "environment",
+                "environment-variables",
+                "environment-vars",
+                "secure-env"
+            ],
+            "support": {
+                "issues": "https://github.com/johnathanmiller/secure-env-php/issues",
+                "source": "https://github.com/johnathanmiller/secure-env-php/tree/master"
+            },
+            "time": "2019-01-07T06:56:58+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=7.1"
+    },
+    "platform-dev": [],
+    "plugin-api-version": "2.0.0"
+}

@@ -1,0 +1,70 @@
+#!/usr/bin/env php
+<?php declare(strict_types = 1);
+
+require_once './vendor/autoload.php';
+
+$path = '.env';
+$algo = 'aes256';
+
+try {
+    fwrite(STDOUT, "\nSecure Env PHP encryption tool.\nPress enter to accept default values in the square brackets.\n\n");
+
+    // ENV PATH
+    fwrite(STDOUT, "Path to .env file [\x1b[33m.env\x1b[0m]: ");
+
+    $path_input = trim(fgets(STDIN));
+
+    if (!empty($path_input) && !is_dir($path_input)) {
+        $path = $path_input;
+    }
+
+    if (!file_exists($path)) {
+        throw new RuntimeException('File does not exist.');
+    }
+
+    // SECRET KEY
+    fwrite(STDOUT, "Generate Secret Key file? [y|\x1b[33mn\x1b[0m]: ");
+
+    if (!in_array(trim(strtolower(fgets(STDIN))), ['y', 'yes'], true)) {
+        // INPUT SECRET
+        fwrite(STDOUT, "↳ Path to secret key [\x1b[33m.env.key\x1b[0m]: ");
+
+        $key_path = trim(fgets(STDIN));
+
+        if (empty($key_path)) {
+            $key_path = '.env.key';
+        }
+
+        $secret = (new \SecureEnvPHP\Key)->read($key_path);
+    } else {
+        // GENERATE SECRET KEY
+        $secret = (new \SecureEnvPHP\Key)->generate($path.'.key');
+    }
+
+    // ENCRYPTION ALGORITHM
+    fwrite(STDOUT, "Encryption algorithm [\x1b[33m".$algo."\x1b[0m]: ");
+
+    $algo_input = trim(fgets(STDIN));
+
+    if (!empty($algo_input)) {
+        if (!in_array($algo_input, openssl_get_cipher_methods(true), true)) {
+            throw new RuntimeException("Unknown algorithm. For a list of supported algorithms visit: (\x1b[32mhttps://secure.php.net/manual/en/function.openssl-get-cipher-methods.php\x1b[0m)");
+        }
+
+        $algo = $algo_input;
+    }
+
+    // OUTPUT FILE
+    fwrite(STDOUT, "Save to [\x1b[33m".$path.".enc\x1b[0m]: ");
+
+    $output_input = trim(fgets(STDIN));
+    $output = !empty($output_input) ? $output_input : $path.'.enc';
+
+    (new \SecureEnvPHP\Crypto)->encrypt($path, $secret, $algo, $output);
+
+    if (file_exists($output)) {
+        fwrite(STDOUT, "\n\x1b[32mFile encryption successful!\x1b[0m\n");
+    }
+} catch (Exception $e) {
+    fwrite(STDERR, "\x1b[31m[Error]\x1b[0m ".$e->getMessage()."\n");
+}
