@@ -11,10 +11,10 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 //PHP Goes Here!
 
 
-$countryData     = $db->query("SELECT country, COUNT(country) as count FROM users_carsview GROUP BY country ORDER BY count DESC")->results();
-$typeData        = $db->query("SELECT type, COUNT(type) as count FROM users_carsview GROUP BY type ORDER BY count DESC")->results();
-$seriesData      = $db->query("SELECT series, COUNT(series) as count FROM users_carsview GROUP BY series ORDER BY count DESC")->results();
-$variantData     = $db->query("SELECT variant, COUNT(variant) as count FROM users_carsview GROUP BY variant ORDER BY count DESC")->results();
+$countryData     = $db->query("SELECT country, COUNT(country) as count FROM cars GROUP BY country ORDER BY count DESC")->results();
+$typeData        = $db->query("SELECT type, COUNT(type) as count FROM cars GROUP BY type ORDER BY count DESC")->results();
+$seriesData      = $db->query("SELECT series, COUNT(series) as count FROM cars GROUP BY series ORDER BY count DESC")->results();
+$variantData     = $db->query("SELECT variant, COUNT(variant) as count FROM cars GROUP BY variant ORDER BY count DESC")->results();
 $timeData        = $db->query("SELECT ctime FROM cars WHERE 1 ORDER BY `cars`.`ctime` ASC")->results();
 
 // There should be a more efficient way to do this
