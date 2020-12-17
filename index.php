@@ -5,12 +5,10 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 if (isset($user) && $user->isLoggedIn()) {
 }
 
-// Grab a random car
-
-$carQ = $db->query("SELECT * FROM users_carsview WHERE image <> '' ORDER BY RAND() LIMIT 1");
-if ($carQ->count() > 0) {
-	$thatCar = $carQ->results();
-}
+// Grab a random car with an image!
+$images  = $db->query("SELECT carid,image FROM images WHERE featured = 1 ORDER BY RAND() LIMIT 1")->results()[0];
+$image   = $images->image;
+$thatCar = $db->query("SELECT * FROM cars WHERE id = ?", [$images->carid])->results();
 
 ?>
 <div id="page-wrapper">
@@ -59,9 +57,9 @@ if ($carQ->count() > 0) {
 					</div>
 					<div class="card-body">
 						<?php
-						if ($thatCar[0]->image and file_exists($abs_us_root . $us_url_root . "app/userimages/" . $thatCar[0]->image)) {
+						if ($image && file_exists($abs_us_root . $us_url_root . "app/userimages/" . $image)) {
 						?>
-							<img class="card-img-top" src=<?= $us_url_root ?>app/userimages/<?= $thatCar[0]->image ?> alt="elan">
+							<img class="card-img-top" src=<?= $us_url_root ?>app/userimages/<?= $image ?> alt="elan">
 						<?php
 						} ?>
 

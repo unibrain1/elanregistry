@@ -8,7 +8,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 
 // https://datatables.net/download/
 
-$carQ = $db->findAll("users_carsview");
+$carQ = $db->findAll("cars");
 $carData = $carQ->results();
 ?>
 
@@ -60,38 +60,38 @@ $carData = $carQ->results();
                 <tbody>
                   <?php
                   //Cycle through users
-                  foreach ($carData as $v1) {
+                  foreach ($carData as $car) {
                   ?>
                     <tr>
-                      <td> <a class="btn btn-success btn-sm" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $v1->id ?>">Details</a> </td>
-                      <td><?= $v1->year ?></td>
-                      <td><?= $v1->type ?></td>
-                      <td><?= $v1->chassis ?></td>
-                      <td><?= $v1->series ?></td>
-                      <td><?= $v1->variant ?></td>
-                      <td><?= $v1->color ?></td>
+                      <td> <a class="btn btn-success btn-sm" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>">Details</a> </td>
+                      <td><?= $car->year ?></td>
+                      <td><?= $car->type ?></td>
+                      <td><?= $car->chassis ?></td>
+                      <td><?= $car->series ?></td>
+                      <td><?= $car->variant ?></td>
+                      <td><?= $car->color ?></td>
                       <td>
                         <?php
-                        if ($v1->image && file_exists($abs_us_root . $us_url_root . "app/userimages/" . $v1->image)) {
-                          echo '<img alt="elan" src=' . $us_url_root . 'app/userimages/thumbs/' . $v1->image . ">";
-                        } ?> </td>
-                      <td><?= $v1->fname ?></td>
-                      <td><?= $v1->city ?></td>
-                      <td><?= $v1->state ?></td>
-                      <td><?= $v1->country ?></td>
+                        $carImages = $db->get('images', ['carid', '=', $car->id])->results();
+                        include($abs_us_root . $us_url_root . 'app/views/_carousel.php');
+                        ?>
+                      <td><?= $car->fname ?></td>
+                      <td><?= $car->city ?></td>
+                      <td><?= $car->state ?></td>
+                      <td><?= $car->country ?></td>
                       <?php
-                      if (!empty($v1->website)) {
+                      if (!empty($car->website)) {
                       ?>
-                        <td> <a target="_blank" href="<?= $v1->website ?>">Website</a></td>
+                        <td> <a target="_blank" href="<?= $car->website ?>">Website</a></td>
                       <?php
                       } else {
                         echo "<td></td>";
                       } ?>
                       <td>
-                        <?= date('Y-m-d', strtotime($v1->ctime)); ?>
+                        <?= date('Y-m-d', strtotime($car->ctime)); ?>
 
                         <?php
-                        if (strtotime($v1->ctime) > strtotime('-30 days')) {
+                        if (strtotime($car->ctime) > strtotime('-30 days')) {
                           echo '<img style="-webkit-user-select:none; display:block; margin:auto;" alt="new" src="' . $us_url_root . 'app/images/new.png">';
                         } ?>
                       </td>
@@ -118,7 +118,7 @@ $carData = $carQ->results();
     // Filter each column - http://jsfiddle.net/9bc6upok/ 
 
     // Setup - add a text input to each footer cell
-    $('#cartable thead tr#filterrow th').each(function(i) {
+    $(' #cartable thead tr#filterrow th').each(function(i) {
       var title = $('#cartable thead tr#filterrow th').eq($(this).index()).text();
       if (title != "NOSEARCH") {
         $(this).html('<input type="text" size="5" placeholder=" ' + title + '" data-index="' + i + '" />');
