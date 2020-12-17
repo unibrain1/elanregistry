@@ -1,7 +1,7 @@
 <?php
 
 // Check to see if the chassis number is taken
-require_once '../users/init.php';
+require_once '../../users/init.php';
 // Get the DB
 $db = DB::getInstance();
 

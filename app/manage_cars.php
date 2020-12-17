@@ -274,41 +274,42 @@ if (!empty($_POST)) {
                                     <tbody>
                                         <?php
                                         //Cycle through users
-                                        foreach ($duplicateCars as $v1) {
+                                        foreach ($duplicateCars as $car) {
                                         ?>
                                             <tr>
                                                 <td class="center">
                                                     <div class="form-group">
                                                         <div class="custom-control custom-checkbox">
-                                                            <input type="checkbox" class="custom-control-input" id="customCheck-<?= $v1->id ?>" name="cars[]" value="<?= $v1->id ?>" />
-                                                            <label class="custom-control-label" for="customCheck-<?= $v1->id ?>"></label>
+                                                            <input type="checkbox" class="custom-control-input" id="customCheck-<?= $car->id ?>" name="cars[]" value="<?= $car->id ?>" />
+                                                            <label class="custom-control-label" for="customCheck-<?= $car->id ?>"></label>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td><a class="btn btn-success btn-sm" target="_blank" href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $v1->id ?>'><?= $v1->id ?></a></td>
-                                                <td><?= $v1->username ?></td>
-                                                <td><?= $v1->ctime ?></td>
-                                                <td><?= $v1->mtime ?></td>
-                                                <td><?= $v1->year ?></td>
-                                                <td><?= $v1->type ?></td>
-                                                <td><?= $v1->chassis ?></td>
-                                                <td><?= $v1->series ?></td>
-                                                <td><?= $v1->variant ?></td>
-                                                <td><?= $v1->color ?></td>
-                                                <td><?= $v1->engine ?></td>
-                                                <td><?= $v1->purchasedate ?></td>
-                                                <td><?= $v1->solddate ?></td>
-                                                <td><?= $v1->comments ?></td>
+                                                <td><a class="btn btn-success btn-sm" target="_blank" href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>'><?= $car->id ?></a></td>
+                                                <td><?= $car->username ?></td>
+                                                <td><?= $car->ctime ?></td>
+                                                <td><?= $car->mtime ?></td>
+                                                <td><?= $car->year ?></td>
+                                                <td><?= $car->type ?></td>
+                                                <td><?= $car->chassis ?></td>
+                                                <td><?= $car->series ?></td>
+                                                <td><?= $car->variant ?></td>
+                                                <td><?= $car->color ?></td>
+                                                <td><?= $car->engine ?></td>
+                                                <td><?= $car->purchasedate ?></td>
+                                                <td><?= $car->solddate ?></td>
+                                                <td><?= $car->comments ?></td>
                                                 <td> <?php
-                                                        if ($v1->image && file_exists($abs_us_root . $us_url_root . "app/userimages/" . $v1->image)) {
-                                                            echo '<img src=' . $us_url_root . 'app/userimages/thumbs/' . $v1->image . ">";
-                                                        } ?> </td>
-                                                <td><?= $v1->fname ?></td>
-                                                <td><?= $v1->lname ?></td>
-                                                <td><?= $v1->email ?></td>
-                                                <td><?= $v1->city ?></td>
-                                                <td><?= $v1->state ?></td>
-                                                <td><?= $v1->country ?></td>
+                                                        $carImages = $db->get('images', ['carid', '=', $car->id])->results();
+                                                        include($abs_us_root . $us_url_root . 'app/views/_carousel.php');
+                                                        ?>
+                                                </td>
+                                                <td><?= $car->fname ?></td>
+                                                <td><?= $car->lname ?></td>
+                                                <td><?= $car->email ?></td>
+                                                <td><?= $car->city ?></td>
+                                                <td><?= $car->state ?></td>
+                                                <td><?= $car->country ?></td>
                                             </tr>
                                         <?php
                                         } ?>
