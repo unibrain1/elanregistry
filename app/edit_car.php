@@ -230,18 +230,19 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 
                             // Set the form text for Update
                             $('#submit').attr('value', 'update').html('Update');
-                            $('#carid').html(data.car_id);
+                            $('#carid').html(data.carID);
+                            $('#carHeader').html('<h2><strong>Update car</strong><h2>');
 
                             // Alter the form so it now is an update
-                            $('#car_id').attr('value', data.car_id);
+                            $('#car_id').attr('value', data.carID);
                             $('#action').attr('value', 'update_car');
 
                             // Update the history table
                             $('#historytable').DataTable().ajax.reload();
 
                             // Show the dropzone
-                            // console(' - Ajax add card succesfull - show dropzone');
                             $('#dropzoneCard').removeClass('d-none');
+                            $('#photoMessage').html('');
                         }
                     })
                     .fail(function() { // if fail then getting message
@@ -257,8 +258,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 
         // Pre-populate dropdown menus if we are updating a car
         if ($('#action').val() === 'update_car') {
-            // console(' - Action === update_car');
-
             $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
             $('#year').trigger('change'); // Trigger the change event to populate and validate
             // Need to escape all the special characters in the MODEL field in order for this to work
@@ -284,14 +283,12 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             $('#carHeader').html('<h2><strong>Update car</strong><h2>');
 
             // Show the dropzone
-            // console(' - Action === update_car - Unhide dropzone');
             $('#dropzoneCard').removeClass('d-none');
-            // Pre-fill with any photos that exist TODO
+            $('#photoMessage').html('');
         } else {
             // Hide the dropzone
-            // console(' - Action !== update_car - Hide dropzone');
             $('#dropzoneCard').addClass('d-none');
-            $('#photoMessage').html('<h3>Upload photos after adding a car</h3>');
+            $('#photoMessage').html('Upload photos after adding a car');
         }
     });
 

@@ -216,7 +216,7 @@ Version: 1.0
 				});
 
 				onyxDropzone.on('removedfile', function (file) {
-=					$.ajax({
+					$.ajax({
 						type: "POST",
 						url: ($(target).attr("action")) ? $(target).attr("action") : "action/imageUpdate.php",
 						data: {
