@@ -32,6 +32,7 @@
 require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php';
 ?>
 <script>
+    const img_root = <?= $us_url_root ?> + 'app/userimages/';
     // Format history table
     // Get history from AJAX call TBD
     const id = $('#car_id').val();
@@ -88,7 +89,14 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                 "data": "comments"
             },
             {
-                "data": "image"
+                "data": "image",
+                "render": function(data, type, row, meta) {
+                    if (data) {
+                        return '<img src="' + img_root + 'thumbs/' + data + '">';
+                    } else {
+                        return "";
+                    }
+                }
             },
             {
                 "data": "fname"

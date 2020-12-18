@@ -39,8 +39,8 @@ foreach ($carData as $car) {
 
         //  give the file a random name
         $newFileName = uniqid('img_', 'true') . '.' . $fileExtension;
-        rename($targetFilePath . $car->image, $targetFilePath . $newFileName);
-        rename($targetFilePathThumb . $car->image, $targetFilePathThumb . $newFileName);
+        copy($targetFilePath . $car->image, $targetFilePath . $newFileName);
+        copy($targetFilePathThumb . $car->image, $targetFilePathThumb . $newFileName);
 
         // Create new thumbs
 
