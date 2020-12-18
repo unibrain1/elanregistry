@@ -45,7 +45,7 @@ FROM (
   WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 180 DAY ) AND CURDATE() THEN '180 days'
   WHEN ctime BETWEEN DATE_SUB( CURDATE(), INTERVAL 365 DAY ) AND CURDATE() THEN '365 days'
   END AS age
-  FROM users_carsview  WHERE ctime > DATE_SUB( CURDATE(), INTERVAL 365 DAY )) t
+  FROM cars  WHERE ctime > DATE_SUB( CURDATE(), INTERVAL 365 DAY )) t
   group by t.age ORDER BY CAST(t.age as unsigned) 
 ")->results();
 ?>
