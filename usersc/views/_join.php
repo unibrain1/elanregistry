@@ -237,13 +237,9 @@ $password_match_statement = '<span id="password_match" class="gray_out_text">' .
       var pswd = $("#password").val();
       //validate the length
       if (pswd.length >= '<?= $settings->min_pw ?>' && pswd.length <= '<?= $settings->max_pw ?>') {
-        console.log('-- password OK ', pswd.length);
-
         $("#character_range_icon").removeClass("gray_out_icon");
         $("#character_range").removeClass("gray_out_text");
       } else {
-        console.log('-- password NOT OK ', pswd.length);
-
         $("#character_range_icon").addClass("gray_out_icon");
         $("#character_range").addClass("gray_out_text");
       }
