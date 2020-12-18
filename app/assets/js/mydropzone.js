@@ -216,8 +216,7 @@ Version: 1.0
 				});
 
 				onyxDropzone.on('removedfile', function (file) {
-					// console.log('Remove file ', file)
-					$.ajax({
+=					$.ajax({
 						type: "POST",
 						url: ($(target).attr("action")) ? $(target).attr("action") : "action/imageUpdate.php",
 						data: {
@@ -231,7 +230,6 @@ Version: 1.0
 
 							// Something to happen when file is deleted like showing a message
 							if (typeof parsedResponse.info !== 'undefined') {
-								// console.log(parsedResponse.info);
 								warningsHolder.children('span').html(parsedResponse.info);
 								warningsHolder.slideDown("easeInExpo");
 							}
@@ -254,11 +252,9 @@ Version: 1.0
 					// Make it wait a little bit to take the new element
 					setTimeout(function () {
 						$(".uploaded-files-count").html(base.dropzoneCount());
-						// console.log('Files count: ' + base.dropzoneCount());
 					}, 350);
 					// Something to happen when file is deleted like showing a message
 					if (typeof parsedResponse.info !== 'undefined') {
-						// console.log(parsedResponse.info);
 						warningsHolder.children('span').html(parsedResponse.info);
 						warningsHolder.slideDown("easeInExpo");
 					}

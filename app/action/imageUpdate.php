@@ -1,14 +1,5 @@
 <?php // Allowed file types. This should also be reflected in getExtension
 
-function var_error_log($object = null)
-{
-    // ob_start(); // start buffer capture
-    // var_dump($object); // dump the values
-    // $contents = ob_get_contents(); // put the buffer into a variable
-    // ob_end_clean(); // end capture
-    // error_log($contents); // log contents of the result of var_dump( $object )
-}
-
 // Check to see if the chassis number is taken
 require_once '../../users/init.php';
 // Get the DB
@@ -21,18 +12,9 @@ $targetFilePathThumb = $targetFilePath . 'thumbs/';
 
 /* Dropzone PHP file upload/delete */
 
-var_error_log('=== imageUpdate.php');
-var_error_log(' - POST');
-var_error_log($_POST);
-var_error_log(' - GET');
-var_error_log($_GET);
-var_error_log(' - FILES');
-var_error_log($_FILES);
-
 if (isset($_POST['command'])) {
     $command = $_POST['command'];
 } else {
-    var_error_log("No Command Set");
     $response = array(
         'status' => 'error',
         'info'   => 'Invalid command'
@@ -46,22 +28,18 @@ if (isset($_POST['command'])) {
 switch ($command) {
     case 'upload':
         $carID = Input::get('carID');
-        var_error_log('Upload pictures for carID ' . $carID);
         if (!empty($_FILES)) {
             upload($_FILES, Input::get('carID'));
         }
         break;
     case 'delete':
-        var_error_log("Delete File Set");
         remove(Input::get('target_file'), Input::get('carID'));
         break;
     case 'fetch':
-        var_error_log("Fetching existing files");
         fetch(Input::get('carID'));
         break;
 
     default:
-        var_error_log("Invalid command Set");
         $response = array(
             'status' => 'error',
             'info'   => 'Invalid command'
@@ -82,11 +60,8 @@ function upload($files, $carID)
     // Allowed file types.  This should also be reflected in getExtension
     $allowed_file_types = ['image/jpeg'];
 
-    var_error_log('-- upload');
-
     // Check if the upload folder is exists
     if (file_exists($targetFilePath) && is_dir($targetFilePath) && is_writable($targetFilePath)) {
-        var_error_log('-- upload - directories are OK');
         $tempFile = $files['file']['tmp_name'];
 
         // Create a filename for the new file
@@ -98,11 +73,7 @@ function upload($files, $carID)
         $targetFileThumb = $targetFilePathThumb . $newFileName;
 
         if (in_array($mime_type, $allowed_file_types)) {
-            var_error_log('-- upload - filetpe is OK');
-
             if (move_uploaded_file($tempFile, $targetFile)) {
-                var_error_log('-- upload - moved file');
-
                 // Create a thumbnail
                 list($width, $height) = getimagesize($targetFile);
                 $modwidth = 120;
@@ -122,7 +93,6 @@ function upload($files, $carID)
                         'status' => 'error',
                         'info'   => 'Couldn\'t add the DB record a mysterious error happend.'
                     );
-                    var_error_log($response);
                     logger($user->data()->id, "ElanRegistry", "imageUpdate carID: " . $response['carID'] . " Status: " . $response['status'] . " Info: " . $response['info']);
                     echo json_encode($response);
                     exit;
@@ -151,7 +121,6 @@ function upload($files, $carID)
     }
 
     // Return the response
-    var_error_log($response);
     logger($user->data()->id, "ElanRegistry", "imageUpdate carID: " . $response['carID'] . " Status: " . $response['status'] . " Info: " . $response['info']);
     echo json_encode($response);
     exit;
@@ -198,7 +167,6 @@ function remove($filename = null, $carID = null)
     }
 
     // Return the response
-    var_error_log($response);
     logger($user->data()->id, "ElanRegistry", "imageUpdate carID: " . $carID . " Status: " . $response['status'] . " Info: " . $response['info']);
     echo json_encode($response);
     exit;
@@ -243,7 +211,6 @@ function fetch($carID)
         );
     }
     // Return the response
-    var_error_log($response);
     echo json_encode($response);
     exit;
 }

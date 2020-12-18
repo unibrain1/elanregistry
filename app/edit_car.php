@@ -2,16 +2,6 @@
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
-
-function var_error_log($object = null)
-{
-    ob_start(); // start buffer capture
-    var_dump($object); // dump the values
-    $contents = ob_get_contents(); // put the buffer into a variable
-    ob_end_clean(); // end capture
-    error_log($contents); // log contents of the result of var_dump( $object )
-}
-
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
 }
