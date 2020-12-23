@@ -232,21 +232,19 @@ if (Input::exists()) {
         $vericode_expiry = date($dateFormat, strtotime("+$settings->join_vericode_expiry hours", strtotime(date($dateFormat))));
       }
       try {
-        $theNewId = $user->create([
+        $fields = [
           'username' => $username,
           'fname' => ucfirst(Input::get('fname')),
           'lname' => ucfirst(Input::get('lname')),
           'email' => Input::get('email'),
           'password' => password_hash(Input::get('password', true), PASSWORD_BCRYPT, ['cost' => 12]),
           'permissions' => 1,
-          'account_owner' => 1,
           'join_date' => $join_date,
           'email_verified' => $pre,
-          'active' => 1,
           'vericode' => $vericode,
           'vericode_expiry' => $vericode_expiry,
-          'oauth_tos_accepted' => true
-        ]);
+          'oauth_tos_accepted' => true,
+        ];
         $activeCheck = $db->query('SELECT active FROM users');
         if (!$activeCheck->error()) {
           $fields['active'] = 1;

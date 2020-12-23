@@ -97,7 +97,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 									<td><?= $signupdate->format("Y-m-d") ?></td>
 								</tr>
 								<tr>
-									<td><strong>Member Since : </strong></td>
+									<td><strong>Last Login : </strong></td>
 									<td><?= $lastlogin->format("Y-m-d") ?></td>
 								</tr>
 								<tr>
