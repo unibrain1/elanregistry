@@ -72,8 +72,7 @@ $carData = $carQ->results();
                       <td><?= $car->color ?></td>
                       <td>
                         <?php
-                        $carImages = $db->get('images', ['carid', '=', $car->id])->results();
-                        include($abs_us_root . $us_url_root . 'app/views/_carousel.php');
+                        include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
                         ?>
                       <td><?= $car->fname ?></td>
                       <td><?= $car->city ?></td>
