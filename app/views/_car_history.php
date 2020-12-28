@@ -35,7 +35,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
     const img_root = <?= $us_url_root ?> + 'app/userimages/';
     // Format history table
     // Get history from AJAX call TBD
-    const id = $('#car_id').val();
+    const id = $('#carid').val();
     var table = $('#historytable').DataTable({
         "scrollX": true,
         "order": [
@@ -49,7 +49,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             "dataSrc": "history",
             "type": "POST",
             "data": function(d) {
-                d.car_id = $('#car_id').val();
+                d.car_id = id;
             }
         },
         "columns": [{
