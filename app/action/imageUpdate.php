@@ -9,7 +9,6 @@ $targetFilePath = $abs_us_root . $us_url_root . 'app/userimages/';
 $targetURL = $us_url_root . 'app/userimages/';
 $targetFilePathThumb = $targetFilePath . 'thumbs/';
 
-
 /* Dropzone PHP file upload/delete */
 
 if (isset($_POST['command'])) {
@@ -180,23 +179,25 @@ function fetch($carID)
     global $user;
     global $targetURL;
 
-    $imageQ = $db->get("images", ["carid" => $carID]);
+    $carQ = $db->get("cars", ["id" => $carID]);
 
     // Did it return anything?
-    if ($imageQ->count() !== 0) {
+    if ($carQ->count() !== 0) {
         // Yes it did
-        $images = $imageQ->results();
+        $car = $carQ->results()[0];
 
-        foreach ($images as $v1) {
-            if ($v1->image != '' && $v1->image != '.' && $v1->image != '..') {
+        $images = explode(',', $car->image);
+
+        foreach ($images as $image) {
+            if ($image != '' && $image != '.' && $image != '..') {
 
                 // File path
-                $file_path = $targetFilePath . $v1->image;
+                $file_path = $targetFilePath . $image;
 
                 // Check its not folder
                 if (!is_dir($file_path)) {
                     $size = filesize($file_path);
-                    $response[] = array('name' => $v1->image, 'size' => $size, 'path' => $targetURL  . $v1->image);
+                    $response[] = array('name' => $image, 'size' => $size, 'path' => $targetURL  . $image);
                 }
             }
         }
