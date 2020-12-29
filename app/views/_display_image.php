@@ -45,7 +45,7 @@ if ($j === 1) {
                 for ($i = 0; $i < $j; $i++) {
                     echo '<li class="list-inline-item active">';
                     echo '<a id="carousel-selector-' . $i . '" class="selected" data-slide-to="' . $i . '" data-target="#myCarousel-' . $car->id . '">';
-                    echo '<img src="' . $us_url_root . 'app/userimages/thumbs/' . $carImages[$i] . '" class="img-fluid">';
+                    echo '<img src="' . $us_url_root . 'app/userimages/' . $carImages[$i] . '" class="img-fluid">';
                     echo '</a> </li>';
                 }
                 ?>
