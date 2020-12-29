@@ -6,10 +6,7 @@ if (isset($user) && $user->isLoggedIn()) {
 }
 
 // Grab a random car with an image!
-$images  = $db->query("SELECT carid,image FROM images WHERE featured = 1 ORDER BY RAND() LIMIT 1")->results()[0];
-$image   = $images->image;
-$thatCar = $db->query("SELECT * FROM cars WHERE id = ?", [$images->carid])->results();
-
+$car = $db->query("SELECT * FROM users_carsview WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0];
 ?>
 <div id="page-wrapper">
 	<!-- Page Content -->
@@ -56,32 +53,28 @@ $thatCar = $db->query("SELECT * FROM cars WHERE id = ?", [$images->carid])->resu
 						<h2>One of the Cars</h2>
 					</div>
 					<div class="card-body">
-						<?php
-						if ($image && file_exists($abs_us_root . $us_url_root . "app/userimages/" . $image)) {
-						?>
-							<img class="card-img-top" src=<?= $us_url_root ?>app/userimages/<?= $image ?> alt="elan">
-						<?php
-						} ?>
+						<?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php'); ?>
+
 
 						<table id="cartable" class="table table-striped table-bordered table-sm">
 							<tr>
 								<td><strong>Year :</strong></td>
-								<td><?= $thatCar[0]->year ?></td>
+								<td><?= $car->year ?></td>
 							</tr>
 							<tr>
 								<td><strong>Series :</strong></td>
-								<td><?= $thatCar[0]->series ?></td>
+								<td><?= $car->series ?></td>
 							</tr>
 							<tr>
 								<td><strong>Variant:</strong></td>
-								<td><?= $thatCar[0]->variant ?></td>
+								<td><?= $car->variant ?></td>
 							</tr>
 							<tr>
 								<td><strong>Type:</strong></td>
-								<td><?= $thatCar[0]->type ?></td>
+								<td><?= $car->type ?></td>
 							</tr>
 							<tr>
-								<td colspan="2"><a class="btn btn-success btn-sm" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $thatCar[0]->id ?>">Details</a></td>
+								<td colspan="2"><a class="btn btn-success btn-sm" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>">Details</a></td>
 							</tr>
 						</table>
 					</div> <!-- card-body -->
