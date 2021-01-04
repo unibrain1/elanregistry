@@ -452,8 +452,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 
             this.on("successmultiple", function(file, response) {
                 let parsedResponse = JSON.parse(response);
-                window.location.href = '/elan_registry/app/car_details.php?car_id=' + parsedResponse.carId;
-
+                window.location.href = '<?= $us_url_root ?>' + 'app/car_details.php?car_id=' + parsedResponse.carId;
             });
         }
     });
@@ -480,7 +479,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                     $('#images').empty();
                     for (i = 0; i < r.images.length; i++) {
                         $('#images').append('<div class="form-group row"><div class="col-md-9">' +
-                            '<img class = "card-img-top" src = "' + <?= $us_url_root ?> +
+                            '<img class = "card-img-top" src = "' + '<?= $us_url_root ?>' +
                             'app/userimages/' + r.images[i] + '" >' +
                             '</div><div class="col-md-3"> <button class="btn btn-primary btn-lg btn-block" type="button" id="remove-' + r.images[i] + '" value="' + r.images[i] + '"><i class="far fa-trash-alt"></i></i> Remove</button></div></div > ');
                     }
