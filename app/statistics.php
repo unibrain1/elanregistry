@@ -460,7 +460,7 @@ FROM (
 
         if (image != "") {
           var img = document.createElement('img');
-          img.src = "/app/userimages/thumbs/".concat(image);
+          img.src = "/app/userimages/".concat(image);
           infowincontent.appendChild(img);
           infowincontent.appendChild(document.createElement('br'));
         }
