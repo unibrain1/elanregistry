@@ -4,7 +4,7 @@ require_once 'users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
 // Grab a random car with an image!
-$car = $db->query("SELECT * FROM users_carsview WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0];
+$car = $db->query("SELECT * FROM cars WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0];
 ?>
 <div id='page-wrapper'>
 	<!-- Page Content -->
