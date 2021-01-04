@@ -1,4 +1,5 @@
 <?php
+
 // Check to see if the chassis number is taken
 require_once '../../users/init.php';
 
@@ -6,7 +7,13 @@ require_once '../../users/init.php';
 $errors     = [];
 $successes  = [];
 $cardetails = [];
-$carID      = null;
+$carId      = null;
+
+
+$targetFilePath = $abs_us_root . $us_url_root . 'app/userimages/';
+$targetURL = $us_url_root . 'app/userimages/';
+
+$db = DB::getInstance();
 
 //Forms posted now process it
 if (!empty($_POST)) {
@@ -18,6 +25,7 @@ if (!empty($_POST)) {
         switch ($action) {
             case "add_car":
                 buildCarDetails($cardetails);
+                buildImageDetails($cardetails, $_FILES);
                 if (empty($errors)) {
                     addCar($cardetails);
                 } else {
@@ -25,7 +33,9 @@ if (!empty($_POST)) {
                 }
                 break;
             case "update_car":
-                buildCarDetails($cardetails, Input::get('car_id'));
+                buildCarDetails($cardetails, Input::get('carid'));
+                buildImageDetails($cardetails, $_FILES);
+
                 if (empty($errors)) {
                     updateCar($cardetails);
                 } else {
@@ -38,12 +48,11 @@ if (!empty($_POST)) {
 
         $response = array(
             'action' => $action,
-            'carID'  => $cardetails['id'],
+            'carId'  => $cardetails['id'],
             'status' => (!empty($errors)) ? 'error' : 'success',
             'info'   => array_merge($successes,  $errors),
         );
-        logger($user->data()->id, "ElanRegistry", "carUpdate carID: " . $response['carID'] . " Status: " . $response['status']);
-
+        logger($user->data()->id, "ElanRegistry", "carUpdate carId: " . $response['carId'] . " Status: " . $response['status']);
         echo json_encode($response);
     } // End Post with data
 }
@@ -54,44 +63,47 @@ function buildCarDetails(&$cardetails, $carId = null)
     global $user;
     global $errors;
     global $successes;
-
-    // Get the DB
-    $db = DB::getInstance();
+    global $db;
 
     // Get the combined user+profile
-    $userQ = $db->findById($user->data()->id, "usersview");
-    $userData = $userQ->results();
+    if ($carId) {
+        $car = $db->findById($carId, 'cars')->results()[0];
+        foreach ($car as $key => $value) {
+            $cardetails[$key] = $value;
+        }
+    } else {
+        $userQ = $db->findById($user->data()->id, "usersview")->results()[0];
 
-    /*  Add the User/profile information to the record */
-    $cardetails['user_id']      = $userData[0]->id;
-    $cardetails['email']        = $userData[0]->email;
-    $cardetails['fname']        = $userData[0]->fname;
-    $cardetails['lname']        = $userData[0]->lname;
-    $cardetails['join_date']    = $userData[0]->join_date;
-    $cardetails['city']         = $userData[0]->city;
-    $cardetails['state']        = $userData[0]->state;
-    $cardetails['country']      = $userData[0]->country;
-    $cardetails['lat']          = $userData[0]->lat;
-    $cardetails['lon']          = $userData[0]->lon;
+        /*  Add the User/profile information to the record */
+        $cardetails['user_id']      = $userQ->id;
+        $cardetails['email']        = $userQ->email;
+        $cardetails['fname']        = $userQ->fname;
+        $cardetails['lname']        = $userQ->lname;
+        $cardetails['join_date']    = $userQ->join_date;
+        $cardetails['city']         = $userQ->city;
+        $cardetails['state']        = $userQ->state;
+        $cardetails['country']      = $userQ->country;
+        $cardetails['lat']          = $userQ->lat;
+        $cardetails['lon']          = $userQ->lon;
 
-    $cardetails['id']           = $carId;
-    $cardetails['year']         = null;
-    $cardetails['model']        = null;
-    $cardetails['series']       = null;
-    $cardetails['variant']      = null;
-    $cardetails['type']         = null;
-    $cardetails['chassis']      = null;
-    $cardetails['color']        = null;
-    $cardetails['engine']       = null;
-    $cardetails['purchasedate'] = null;
-    $cardetails['solddate']     = null;
-    $cardetails['website']      = null;
-    $cardetails['comments']     = null;
+        $cardetails['id']           = null;
+        $cardetails['year']         = null;
+        $cardetails['model']        = null;
+        $cardetails['series']       = null;
+        $cardetails['variant']      = null;
+        $cardetails['type']         = null;
+        $cardetails['chassis']      = null;
+        $cardetails['color']        = null;
+        $cardetails['engine']       = null;
+        $cardetails['purchasedate'] = null;
+        $cardetails['solddate']     = null;
+        $cardetails['website']      = null;
+        $cardetails['comments']     = null;
+    }
 
     //Update Year
     if (!empty($_POST['year'])) {
-
-        $cardetails['year'] = Input::get('year');
+        $cardetails['year'] =  Input::get('year');
         $successes[] = 'Year Updated (' . $cardetails['year'] . ')';
     } else {
         $errors[] = "Please select Year";
@@ -114,7 +126,6 @@ function buildCarDetails(&$cardetails, $carId = null)
     }
 
     // Update 'chassis'
-    // TODO - Complete chassis validation to match JS
     if (!empty($_POST['chassis'])) {
         $cardetails['chassis'] = Input::get('chassis');
         $len = strlen($cardetails['chassis']);
@@ -172,9 +183,7 @@ function updateCar(&$cardetails)
     global $user;
     global $errors;
     global $successes;
-
-    // Get the DB
-    $db = DB::getInstance();
+    global $db;
 
     // Update 
     $db->update('cars', $cardetails['id'], $cardetails);
@@ -192,10 +201,8 @@ function addCar(&$cardetails)
     global $user;
     global $errors;
     global $successes;
-
-    // Get the DB
-    $db = DB::getInstance();
-
+    global $db;
+    global $user;
     // Insert
     // Add a create time
     $cardetails['ctime'] = date('Y-m-d G:i:s');
@@ -212,4 +219,67 @@ function addCar(&$cardetails)
         // then udate the cross reference table (user_car) with the car_id and user_id,
         $db->insert('car_user', array('userid' => $user->data()->id, 'carid' => $cardetails['id']));
     }
+}
+
+function buildImageDetails(&$cardetails, $files)
+{
+
+    global $targetFilePath;
+    global $errors;
+    global $successes;
+
+    // Do I have any new files?
+    if ($files['file']['name'][0] == 'blob') {
+        $successes[] = 'No image';
+        return;
+    }
+
+    // Allowed file types.  This should also be reflected in getExtension
+
+    // Check if the upload folder is exists
+    if (file_exists($targetFilePath) && is_dir($targetFilePath) && is_writable($targetFilePath)) {
+        if (isset($cardetails['image'])) {
+            // If the image = '' and we explode it into the array we get an empty 
+            $images = array_filter(explode(',', $cardetails['image']));
+        } else {
+            $images = [];
+        }
+        //  $_FILES['file']['tmp_name'] is an array so have to use loop
+        foreach ($files['file']['tmp_name'] as $key => $value) {
+            $tempFile = $files['file']['tmp_name'][$key];
+            // Create a filename for the new file give the file a random name
+            $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
+
+            if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
+                $successes[] = "Photo has been uploaded " . $newFileName;
+                array_push($images, $newFileName);
+            } else {
+                $errors[] = "Photo failed to uploaded " . $newFileName;
+            }
+        }
+        $cardetails['image'] = implode(',', $images);
+    } else {
+        $errors[] = "Configuration error";
+    }
+}
+
+
+function getExtension($mime_type)
+{
+    $extensions = array(
+        'image/jpeg' => 'jpg'
+    );
+    return $extensions[$mime_type];
+}
+function get_mime_type($file)
+{
+    $mtype = false;
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mtype = finfo_file($finfo, $file);
+        finfo_close($finfo);
+    } elseif (function_exists('mime_content_type')) {
+        $mtype = mime_content_type($file);
+    }
+    return $mtype;
 }
