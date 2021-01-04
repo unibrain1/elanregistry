@@ -33,10 +33,6 @@
     text-indent: initial;
 }
 
-.carousel-indicators>li.active img {
-    opacity: 0.7;
-}
-
 img.card-img-top {
     border: 5px solid transparent;
     border-radius: 8px;
