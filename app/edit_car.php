@@ -1,4 +1,5 @@
 <?php
+
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
@@ -9,8 +10,6 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 // Get the combined user+profile
 $userQ = $db->findById($user->data()->id, 'usersview');
 $userData = $userQ->results();
-
-$cancelPage = $us_url_root . 'users/account.php'; // Cancel redirect location
 
 $cardetails = [];
 /*  Add the User/profile information to the record */
@@ -27,6 +26,7 @@ $cardetails['purchasedate'] = null;
 $cardetails['solddate']     = null;
 $cardetails['website']      = null;
 $cardetails['comments']     = null;
+$cardetails['image']        = null;
 
 // 'placeholder' to prompt for response.  Background text in input boxes
 $carprompt['chassis']       = 'Enter Chassis Number';
@@ -39,7 +39,6 @@ $carprompt['website']       = 'Website URL';
 
 $action = 'add_car'; // No one has asked me to do anything yet
 
-
 if (!empty($_POST)) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
@@ -48,12 +47,10 @@ if (!empty($_POST)) {
 
         $action = Input::get('action');
 
-        switch ($action) {
-            case 'update_car':
-                update_car($cardetails);
-                break;
-            default:
-                $errors[] = 'No valid action';
+        if ($action === 'update_car') {
+            update_car($cardetails);
+        } else {
+            $errors[] = 'No valid action';
         }
     } // End Post with data
 }
@@ -68,7 +65,7 @@ function update_car(&$car)
     global $errors;
     global $successes;
 
-    $car['id'] = Input::get('car_id');
+    $car['id'] = Input::get('carid');
 
     if (!empty($car['id'])) {
         // Let's check to see if this user owns this car`
@@ -76,22 +73,12 @@ function update_car(&$car)
 
         if ($userQ->count() > 0) {
             // Owner so get the car
-            $carQ = $db->get('cars', ['id', '=', $car['id']]);
-            $theCar = $carQ->results();
-            // Get the details from the current car
-            $car['id'] = $theCar[0]->id;
-            $car['year'] = $theCar[0]->year;
-            $car['model'] = $theCar[0]->model;
-            $car['series'] = $theCar[0]->series;
-            $car['variant'] = $theCar[0]->variant;
-            $car['type'] = $theCar[0]->type;
-            $car['chassis'] = $theCar[0]->chassis;
-            $car['color'] = $theCar[0]->color;
-            $car['engine'] = $theCar[0]->engine;
-            $car['purchasedate'] = $theCar[0]->purchasedate;
-            $car['solddate'] = $theCar[0]->solddate;
-            $car['website'] = $theCar[0]->website;
-            $car['comments'] = $theCar[0]->comments;
+            $carQ = $db->get('cars', ['id', '=', $car['id']])->results()[0];
+
+            foreach ($carQ as $key => $value) {
+                // Copy data into the $car
+                $car[$key] = $value;
+            }
         } else {
             // This should never happen unless the user is trying to do something bad. Log it and then log them out
             logger($user->data()->id, 'ElanRegistry', 'Not owner of car! USER ' . $user->data()->id . ' CAR ' . $car['id']);
@@ -103,24 +90,42 @@ function update_car(&$car)
     } // empty $car['id']
 }
 ?>
+<style>
 
+</style>
 <div id='page-wrapper'>
     <div class='container-fluid'>
         <div class='well'>
             <br>
-            <div class='row'>
-                <div class='col-md-6'>
-                    <!-- Car Form -->
-                    <?php include($abs_us_root . $us_url_root . 'app/views/_car_edit.php'); ?>
+            <form method='POST' id='addCar' name='addCar' action='' enctype='multipart/form-data'>
+                <div class='row'>
+                    <div class='alert alert-primary col-md-12 text-center' id='errorMsg' role='alert' style='display: none'>
+                        This is for error messages
+                    </div>
                 </div>
-
-                <div class='col-md-6'>
-                    <!-- Image Form -->
-                    <?php include($abs_us_root . $us_url_root . 'app/views/_image_upload.php'); ?>
+                <div class='row'>
+                    <div class='col-md-12 text-center'>
+                        <input type='hidden' name='csrf' id='csrf' value="<?= Token::generate(); ?>" />
+                        <input type='hidden' name='action' id='action' value="<?= $action ?>" />
+                        <input type='hidden' name='carid' id='carid' value="<?= $cardetails['id'] ?>" />
+                        <button class='btn btn-success btn-lg' type='button' id='submit'>Add</button>
+                        <a href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $cardetails['id'] ?>" class='btn btn-info btn-lg'>Cancel</a>
+                    </div>
                 </div>
-                <!--col -->
-            </div> <!-- /.row -->
+                <br>
+                <div class=' row'>
+                    <div class='col-md-6'>
+                        <!-- Car Form -->
+                        <?php include($abs_us_root . $us_url_root . 'app/views/_car_edit.php'); ?>
+                    </div>
 
+                    <div class='col-md-6'>
+                        <!-- Image Form -->
+                        <?php include($abs_us_root . $us_url_root . 'app/views/_image_upload.php'); ?>
+                    </div>
+                    <!--col -->
+                </div> <!-- /.row -->
+            </form>
             <!-- Car History -->
             <div class='row'>
                 <div class='col-sm-12'>
@@ -130,6 +135,12 @@ function update_car(&$car)
         </div> <!-- well -->
     </div> <!-- /.container -->
 </div><!-- .page-wrapper -->
+</div>
+<div id="overlay" style="display:none;">
+    <div class="spinner"></div>
+    <br />
+    Saving...
+</div>
 
 <?php
 // Include Date Range Picker
@@ -137,20 +148,22 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 ?>
 <!-- Year/Model definitions -->
 <script src="<?= $us_url_root ?>app/assets/js/cardefinition.js"></script>
-<script src="<?= $us_url_root ?>app/assets/js/mydropzone.js"></script>
+
+<!-- Dropzone Init -->
+<script src="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.js"></script>
+<link rel="stylesheet" href="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.css">
+
+<script src="<?= $us_url_root ?>app/assets/js/_edit_car.js"></script>
 
 <script>
     var validYear = '';
     var validModel = '';
     var validChassis = '';
 
-    Dropzone.autoDiscover = false;
-
     $(document).ready(function() {
-
-        // console('Document ready');
-
-        // console(' - Init calendar');
+        $('#errorMsg').hide();
+        // Load any existing car images
+        loadImages();
 
         // Pop-up Calendar for date fields
         var date_input = $('input[id="purchasedate"]'); //our date input has the name "date"
@@ -171,100 +184,20 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             autoclose: true,
         });
 
-
-        $('#addCar').submit(function() {
-            // console(' -- In Submit');
-
-            var form_data = $('#addCar').serializeArray();
-            var error_free = true;
-
-            // Check to see if any of the fields are invalid
-            for (var input in form_data) {
-                var element = $('#' + form_data[input]['name'] + '_icon');
-                var invalid = element.hasClass('fa-thumbs-down');
-                if (invalid) {
-                    error_free = false;
-                }
-            }
-
-            if (!error_free) {
-                alert('Error: There are one or more errors on the form.  Please update and submit');
-                event.preventDefault();
-            } else {
-                // console(' -- Error Free - Updating');
-
-                // show that something is loading
-                $('#carMessage').toggleClass('alert-success', false).toggleClass('alert-primary', false).html('Updating ...');
-
-                // Call ajax for pass data to other place
-                $.ajax({
-                        type: 'POST',
-                        url: 'action/carUpdate.php',
-                        dataType: 'json',
-                        data: $(this).serialize() // getting filled value in serialize form
-                    })
-                    .done(function(data) { // if getting done then call.
-                        // show the response
-
-                        if (data.stats === 'error') { // We have errors
-                            $('#carMessage').toggleClass('alert-success', false).toggleClass('alert-primary', true).html('<b>Errors</b>');
-
-                            var list = $('<ul />'); // create UL
-                            extractResult(data.info); // run function and fill the UL with LI's
-                            $('#carMessage').append(list); // append the completed UL to the body
-
-                            function extractResult(result) {
-                                jQuery.each(result, function(index, value) {
-                                    // create a LI for each iteration and append to the UL
-                                    $('<li />', {
-                                        text: value
-                                    }).appendTo(list);
-                                });
-                            }
-                        } else {
-                            var message = ($('#action').val() === 'update_car') ? 'Car Updated' : 'Car Added';
-                            $('#carMessage').toggleClass('alert-success', true).toggleClass('alert-primary', false).html(message);
-
-                            // Update the Car Card Title
-                            $('#carHeader').html('<h2><strong>Update car</strong><h2>');
-
-                            // Set the form text for Update
-                            $('#submit').attr('value', 'update').html('Update');
-                            $('#carid').html(data.carID);
-                            $('#carHeader').html('<h2><strong>Update car</strong><h2>');
-
-                            // Alter the form so it now is an update
-                            $('#car_id').attr('value', data.carID);
-                            $('#action').attr('value', 'update_car');
-
-                            // Update the history table
-                            $('#historytable').DataTable().ajax.reload();
-
-                            // Show the dropzone
-                            $('#dropzoneCard').removeClass('d-none');
-                            $('#photoMessage').html('');
-                        }
-                    })
-                    .fail(function() { // if fail then getting message
-                        // just in case posting your form failed
-                        $('#carMessage').toggleClass('alert-success', false).toggleClass('alert-primary', true).html('<b>Errors</b><br>Car Add/Update failed');
-                    });
-
-                // to prevent refreshing the whole page page
-                return false;
-            }
-
-        });
-
         // Pre-populate dropdown menus if we are updating a car
         if ($('#action').val() === 'update_car') {
             $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
             $('#year').trigger('change'); // Trigger the change event to populate and validate
             // Need to escape all the special characters in the MODEL field in order for this to work
-            $('#model option[value=<?php $str = array("|",    " ",    "/",    "+");
-                                    $escStr   = array("\\\|", "\\\ ", "\\\/", "\\\+");
-                                    $newStr   = str_replace($str, $escStr, $cardetails['model']);
-                                    echo $newStr ?>]').prop('selected', true);
+            var model = "<?= $cardetails['model'] ?>";
+
+            // Escape the special characters in the model string
+            var model = model.replace(/\|/g, "\\\|");
+            var model = model.replace(/ /g, "\\\ ");
+            var model = model.replace(/\//g, "\\\/");
+            var model = model.replace(/\+/g, "\\\+");
+
+            $('#model option[value=' + model + ']').prop('selected', true);
 
             $('#model').trigger('change'); // Trigger the change event to populate and validate
             $('#chassis').trigger('blur'); // Trigger the change event to populate and validate
@@ -281,24 +214,15 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             $('#submit').attr('value', 'update').html('Update');
             $('#carid').html($('#car_id').val());
             $('#carHeader').html('<h2><strong>Update car</strong><h2>');
-
-            // Show the dropzone
-            $('#dropzoneCard').removeClass('d-none');
-            $('#photoMessage').html('');
-        } else {
-            // Hide the dropzone
-            $('#dropzoneCard').addClass('d-none');
-            $('#photoMessage').html('Upload photos after adding a car');
         }
     });
 
 
     /* *
-     *  Validate car form before data entry
+     *  Validate car form during data entry
      *
      * Set fields that are valid as green and invalid as red
      */
-
 
     /*
      * When year changes, update the model list and show the appropriate chassis help text
@@ -393,6 +317,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             // add_car
             if (validChassis) {
                 // Now see if the chassis is taken
+                const csrf = $('#csrf').val();
                 $.ajax({
                     url: 'action/checkChassis.php',
                     type: 'post',
@@ -401,6 +326,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                         'year': validYear,
                         'model': validModel,
                         'chassis': validChassis,
+                        'csrf': csrf,
                     },
                     success: function(response) {
                         if (response === 'taken') {
@@ -423,9 +349,153 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             }
         }
     });
+
+    // Image remove button
+
+    // https://stackoverflow.com/questions/203198/event-binding-on-dynamically-created-elements
+    $("#images").on('click', '[id^=remove]', function(e) {
+        e.preventDefault();
+        let image = this.getAttribute("value");
+        let carID = $('#carid').val();
+        const csrf = $('#csrf').val();
+
+        if (confirm("This will remove the photo from the car record.  Are you sure?")) {
+            $.ajax({
+                url: 'action/imageUpdate.php',
+                data: {
+                    'command': 'delete',
+                    'target_file': image,
+                    'carID': id,
+                    'csrf': csrf,
+                },
+                type: "post",
+                success: function(response) {
+                    // Update the image display
+                    loadImages();
+                }
+            });
+        }
+    });
+
+    // Dropzone configuration
+    Dropzone.autoDiscover = false;
+
+    var myDropzone = new Dropzone("div.dropzone", {
+        url: 'action/carUpdate.php',
+        autoProcessQueue: false,
+        clickable: true, // Define the element that should be used as click trigger to select files.
+
+        uploadMultiple: true,
+        maxFiles: 5,
+        maxFilesize: 20, // MB
+        parallelUploads: 20,
+
+        acceptedFiles: 'image/*',
+        addRemoveLinks: true,
+
+        resizeWidth: 2048,
+        resizeMimeType: 'image/jpeg',
+
+        init: function() {
+            myDropzone = this; // Makes sure that 'this' is understood inside the functions below.
+
+            // for Dropzone to process the queue instead of default form behavior:
+            document.getElementById("submit").addEventListener("click", function(e) {
+                // Check to see if any of the fields are invalid
+                var form_data = $('#addCar').serializeArray();
+                var error_free = true;
+
+                for (var input in form_data) {
+                    var element = $('#' + form_data[input]['name'] + '_icon');
+                    var invalid = element.hasClass('fa-thumbs-down');
+                    if (invalid) {
+                        error_free = false;
+                    }
+                }
+
+                if (!error_free) {
+                    $('#errorMsg').show().html('Error: There are one or more errors on the page.<br>Please update and submit ');
+                    e.preventDefault();
+                } else {
+                    $('#overlay').show();
+
+                    if (myDropzone.getQueuedFiles().length > 0) {
+                        e.stopPropagation();
+                        myDropzone.processQueue();
+                    } else {
+                        // https://stackoverflow.com/questions/20910571/dropzonejs-submit-form-without-files
+                        var blob = new Blob();
+                        blob.upload = {
+                            'chunked': myDropzone.defaultOptions.chunking
+                        };
+                        myDropzone.uploadFile(blob);
+                    }
+                }
+            });
+
+            //send all the form data along with the files:
+            this.on("sendingmultiple", function(data, xhr, formData) {
+                formData.append('action', $('#action').val());
+                formData.append('csrf', $('#csrf').val());
+                formData.append('carid', $('#carid').val());
+                formData.append('year', $('#year').val());
+                formData.append('model', $('#model').val());
+                formData.append('series', $('#series').val());
+                formData.append('variant', $('#variant').val());
+                formData.append('type', $('#type').val());
+                formData.append('chassis', $('#chassis').val());
+                formData.append('color', $('#color').val());
+                formData.append('engine', $('#engine').val());
+                formData.append('purchasedate', $('#purchasedate').val());
+                formData.append('solddate', $('#solddate').val());
+                formData.append('website', $('#website').val());
+                formData.append('comments', $('#comments').val());
+            });
+
+            this.on("successmultiple", function(file, response) {
+                let parsedResponse = JSON.parse(response);
+                window.location.href = '/elan_registry/app/car_details.php?car_id=' + parsedResponse.carId;
+
+            });
+        }
+    });
+
+    /*
+     * Load existing images for the car and place a delete button near each image. 
+     * This makes it easier to redraw the area when someone deleted an image
+     */
+    function loadImages() {
+        let id = $('#carid').val();
+        const csrf = $('#csrf').val();
+
+        $.ajax({
+            url: 'action/imageUpdate.php',
+            data: {
+                'command': 'fetch',
+                'carID': id,
+                'csrf': csrf,
+            },
+            type: "post",
+            success: function(response) {
+                let r = JSON.parse(response);
+                if (r.status === 'success' && r.count != 0) {
+                    $('#images').empty();
+                    for (i = 0; i < r.images.length; i++) {
+                        $('#images').append('<div class="form-group row"><div class="col-md-9">' +
+                            '<img class = "card-img-top" src = "' + <?= $us_url_root ?> +
+                            'app/userimages/' + r.images[i] + '" >' +
+                            '</div><div class="col-md-3"> <button class="btn btn-primary btn-lg btn-block" type="button" id="remove-' + r.images[i] + '" value="' + r.images[i] + '"><i class="far fa-trash-alt"></i></i> Remove</button></div></div > ');
+                    }
+                } else {
+                    $('#existing').hide();
+                }
+            }
+        });
+    }
 </script>
 
-<!-- footers -->
+
+<!--footers-->
 <?php
 require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
 ?>
