@@ -1,0 +1,2 @@
+
+ALTER TABLE `cars` CHANGE `image` `image` TEXT DEFAULT NULL;

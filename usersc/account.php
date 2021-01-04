@@ -97,7 +97,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 									<td><?= $signupdate->format("Y-m-d") ?></td>
 								</tr>
 								<tr>
-									<td><strong>Member Since : </strong></td>
+									<td><strong>Last Login : </strong></td>
 									<td><?= $lastlogin->format("Y-m-d") ?></td>
 								</tr>
 								<tr>
@@ -206,8 +206,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 											<td><strong>Images:</strong></td>
 											<td>
 												<?php
-												$carImages = $db->get('images', ['carid', '=', $car->id])->results();
-												include($abs_us_root . $us_url_root . 'app/views/_carousel.php');
+												include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
 												?>
 											</td>
 										</tr>
@@ -289,7 +288,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 											<form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
 												<input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
 												<input type="hidden" name="action" value="update_car" />
-												<input type="hidden" name="car_id" value="<?= $car->id ?>" />
+												<input type="hidden" name="carid" value="<?= $car->id ?>" />
 												<button class="btn btn-success" type="submit">Update Car</button>
 											</form>
 											<a class="btn btn-info" role="button" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>">Details</a>

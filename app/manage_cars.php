@@ -299,10 +299,7 @@ if (!empty($_POST)) {
                                                 <td><?= $car->purchasedate ?></td>
                                                 <td><?= $car->solddate ?></td>
                                                 <td><?= $car->comments ?></td>
-                                                <td> <?php
-                                                        $carImages = $db->get('images', ['carid', '=', $car->id])->results();
-                                                        include($abs_us_root . $us_url_root . 'app/views/_carousel.php');
-                                                        ?>
+                                                <td> <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php'); ?>
                                                 </td>
                                                 <td><?= $car->fname ?></td>
                                                 <td><?= $car->lname ?></td>

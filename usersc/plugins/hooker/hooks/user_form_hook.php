@@ -17,7 +17,7 @@ if ($userQ->count() > 0) {
 	$thatUser = $userQ->results();
 }
 
-$carQ = $db->query("SELECT * FROM users_carsview WHERE user_id = ?", array($user_id));
+$carQ = $db->query("SELECT * FROM cars WHERE user_id = ?", array($user_id));
 if ($carQ->count() > 0) {
 	$thatCar = $carQ->results();
 }
@@ -44,20 +44,27 @@ if ($carQ->count() > 0) {
 		<td><strong>LON : </strong></td>
 		<td><?= $thatUser[0]->lon; ?></td>
 	</tr>
-	<tr>
-		<td><strong>CAR ID : </strong></td>
-		<td><?= $thatUser[0]->id; ?></td>
-	</tr>
-	<tr>
-		<td><strong>YEAR : </strong></td>
-		<td><?= $thatCar[0]->year; ?></td>
-	</tr>
-	<tr>
-		<td><strong>TYPE : </strong></td>
-		<td><?= $thatCar[0]->type; ?></td>
-	</tr>
-	<tr>
-		<td><strong>CHASSIS : </strong></td>
-		<td><?= $thatCar[0]->chassis; ?></td>
-	</tr>
+	<?php
+	if (isset($that_Car)) {
+	?>
+
+		<tr>
+			<td><strong>CAR ID : </strong></td>
+			<td><?= $thatUser[0]->id; ?></td>
+		</tr>
+		<tr>
+			<td><strong>YEAR : </strong></td>
+			<td><?= $thatCar[0]->year; ?></td>
+		</tr>
+		<tr>
+			<td><strong>TYPE : </strong></td>
+			<td><?= $thatCar[0]->type; ?></td>
+		</tr>
+		<tr>
+			<td><strong>CHASSIS : </strong></td>
+			<td><?= $thatCar[0]->chassis; ?></td>
+		</tr>
+	<?php
+	}
+	?>
 </table>
