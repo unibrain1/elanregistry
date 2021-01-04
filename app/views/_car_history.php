@@ -36,6 +36,8 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
     // Format history table
     // Get history from AJAX call TBD
     const id = $('#carid').val();
+    const csrf = '<?= Token::generate(); ?>';
+
     var table = $('#historytable').DataTable({
         "scrollX": true,
         "order": [
@@ -49,6 +51,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             "dataSrc": "history",
             "type": "POST",
             "data": function(d) {
+                d.csrf = csrf;
                 d.car_id = id;
             }
         },
@@ -92,7 +95,15 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                 "data": "image",
                 "render": function(data, type, row, meta) {
                     if (data) {
-                        return '<img src="' + img_root + 'thumbs/' + data + '">';
+                        // return '<img src="' + img_root + 'thumbs/' + data + '">';
+                        var images = data.split(',');
+
+                        var i;
+                        var response = '';
+                        for (i = 0; i < images.length; i++) {
+                            response += '<img class="card-img-top" src="<?= $us_url_root ?>app/userimages/' + images[i] + '">';
+                        }
+                        return response;
                     } else {
                         return "";
                     }
