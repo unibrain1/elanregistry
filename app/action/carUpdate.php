@@ -256,8 +256,8 @@ function buildImageDetails(&$cardetails, $files)
             } else {
                 $errors[] = "Photo failed to uploaded " . $newFileName;
             }
-            $cardetails['image'] = implode(',', $images);
         }
+        $cardetails['image'] = implode(',', $images);
     } else {
         $errors[] = "Configuration error";
     }

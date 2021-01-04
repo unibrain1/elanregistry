@@ -153,8 +153,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 <script src="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.js"></script>
 <link rel="stylesheet" href="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.css">
 
-<script src="<?= $us_url_root ?>app/assets/js/_edit_car.js"></script>
-
 <script>
     var validYear = '';
     var validModel = '';
