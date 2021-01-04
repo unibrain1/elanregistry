@@ -139,17 +139,23 @@ function buildCarDetails(&$cardetails, $carId = null)
         } else {
             $successes[] =  'Chassis Updated (' . $cardetails['chassis'] . ')';
         }
+    } else {
+        $errors[] = "Please enter chassis number";
     }
     // Update 'color' 
     if (!empty($_POST['color'])) {
         $cardetails['color'] = Input::get('color');
         $successes[] = 'Color Updated (' . $cardetails['color'] . ')';
+    } else {
+        $cardetails['color'] = null;
     }
     // Update 'engine' 
     if (!empty($_POST['engine'])) {
         $cardetails['engine'] = Input::get('engine');
         $cardetails['engine'] = str_replace(" ", "", strtoupper(trim($cardetails['engine'])));
         $successes[] = 'Engine Updated (' . $cardetails['engine'] . ')';
+    } else {
+        $cardetails['engine'] = null;
     }
 
     // Update 'purchasedate'
@@ -157,6 +163,8 @@ function buildCarDetails(&$cardetails, $carId = null)
         $cardetails['purchasedate'] = Input::get('purchasedate');
         $cardetails['purchasedate'] = date(" Y-m-d H:i:s", strtotime($cardetails['purchasedate']));
         $successes[] = 'Purchase Date Updated (' . $cardetails['purchasedate'] . ')';
+    } else {
+        $cardetails['purchasedate'] = null;
     }
 
     // Update 'solddate' 
@@ -164,16 +172,22 @@ function buildCarDetails(&$cardetails, $carId = null)
         $cardetails['solddate'] = Input::get('solddate');
         $cardetails['solddate'] = date("Y-m-d H:i:s", strtotime($cardetails['solddate']));
         $successes[] = 'Sold Date Updated (' . $cardetails['solddate'] . ')';
+    } else {
+        $cardetails['solddate'] = null;
     }
     // Update 'website' 
     if (!empty($_POST['website'])) {
         $cardetails['website'] = Input::get('website');
         $successes[] = 'Website Updated (' . $cardetails['website'] . ')';
+    } else {
+        $cardetails['website'] = null;
     }
     // Update 'comments' 
     if (!empty($_POST['comments'])) {
         $cardetails['comments'] = Input::get('comments');
         $successes[] = 'Comments Updated (' . $cardetails['comments'] . ')';
+    } else {
+        $cardetails['comments'] = null;
     }
 }
 
