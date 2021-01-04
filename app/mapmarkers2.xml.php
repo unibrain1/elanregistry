@@ -20,7 +20,7 @@ header("Content-type: text/xml");
 
 // Iterate through the rows, adding XML nodes for each
 foreach ($carData as $car) {
-    $carImages = $db->get('images', ['carid', '=', $car->id])->results();
+    $carImages = explode(',', $car->image);
     // Add to XML document node
     $node = $doc->createElement("marker");
     $newnode = $parnode->appendChild($node);
@@ -31,7 +31,7 @@ foreach ($carData as $car) {
     $newnode->setAttribute("variant", $car->variant);
     $count = count($carImages);
     if ($count != 0) {
-        $newnode->setAttribute("image", $carImages[0]->image);
+        $newnode->setAttribute("image", $carImages[0]);
     } else {
         $newnode->setAttribute("image", "");
     }
