@@ -3,7 +3,9 @@
 $carImages = explode(',', $car->image);
 
 $j = count($carImages);
-if ($j === 1) {
+if ($j === 0 || $carImages[0] == '') {
+    // No images or image name is blank
+} else if ($j === 1) {
     if (is_file($abs_us_root . $us_url_root . 'app/userimages/' . $carImages[0])) {
         echo '<img class="card-img-top" src="' . $us_url_root . 'app/userimages/' . $carImages[0] . '">';
     }
