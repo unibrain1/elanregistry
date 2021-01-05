@@ -45,7 +45,7 @@ if ($carQ->count() > 0) {
 		<td><?= $thatUser[0]->lon; ?></td>
 	</tr>
 	<?php
-	if (isset($that_Car)) {
+	if (isset($thatCar)) {
 	?>
 
 		<tr>
