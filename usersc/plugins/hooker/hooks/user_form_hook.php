@@ -50,7 +50,7 @@ if ($carQ->count() > 0) {
 
 		<tr>
 			<td><strong>CAR ID : </strong></td>
-			<td><?= $thatUser[0]->id; ?></td>
+			<td><?= $thatCar[0]->id; ?></td>
 		</tr>
 		<tr>
 			<td><strong>YEAR : </strong></td>
