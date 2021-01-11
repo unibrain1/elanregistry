@@ -21,3 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //Put your custom functions in this file and they will be automatically included.
 
 //bold("<br><br>custom helpers included");
+// Get encrypted environment variables
+require_once $abs_us_root . $us_url_root . 'vendor/autoload.php';
+
+use SecureEnvPHP\SecureEnvPHP;
+
+(new SecureEnvPHP())->parse($abs_us_root . $us_url_root . '.env.enc', $abs_us_root . $us_url_root . '.env.key');
+// Back to the UserSpice init
