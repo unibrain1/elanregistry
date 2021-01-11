@@ -51,3 +51,4 @@ users/updates/
 # exclude Test Cases
 Tests/
 .htaccess
+vendor
