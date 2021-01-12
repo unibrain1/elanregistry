@@ -45,6 +45,9 @@
         <p>Hello <?= $to ?>,</p>
         <p>This is a message from the <a href='https://www.elanregistry.org'>Lotus Elan Registry</a>. Another Elan owner has sent you a message.</p>
         <table>
+            <tr style="background-color:#9fc77f">
+                <th colspan="2">Message</th>
+            </tr>
             <tr>
                 <td><strong>From</strong></td>
                 <td> <?= $from ?> </td>
@@ -54,10 +57,13 @@
                 <td><strong>Email</strong></td>
                 <td> <?= $fromEmail ?> </td>
             </tr>
-
+            <tr class='blank_row'>
+                <td colspan="2"></td>
+            </tr>
             <tr>
-                <td><strong>Message</strong></td>
-                <td> <?= $message ?> </td>
+                <td colspan="2">
+                    <pre><?= $message ?> </pre>
+                </td>
             </tr>
         </table>
     </div>
