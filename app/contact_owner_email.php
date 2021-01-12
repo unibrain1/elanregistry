@@ -24,6 +24,68 @@ function clean_string($string)
     $bad = array('content-type', 'bcc:', 'to:', 'cc:', 'href');
     return str_replace($bad, '', $string);
 }
+
+// Overwrite internal email function for my own to allow additional parameters
+// require $abs_us_root . $us_url_root . 'users/classes/phpmailer/PHPMailerAutoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+
+function myemail($to, $subject, $body, $opts = [], $attachment = null)
+{
+    /*you can now pass in
+    $opts = array(
+    'email' => 'from_email@aol.com',
+    'name'  => 'Bob Smith'
+  );
+  */
+    $db = DB::getInstance();
+    $query = $db->query('SELECT * FROM email');
+    $results = $query->first();
+
+    $mail = new PHPMailer();
+    $mail->CharSet = 'UTF-8';
+    $mail->SMTPDebug = $results->debug_level;               // Enable verbose debug output
+    if ($results->isSMTP == 1) {
+        $mail->isSMTP();
+    }             // Set mailer to use SMTP
+    $mail->Host = $results->smtp_server;                                      // Specify SMTP server
+    $mail->SMTPAuth = $results->useSMTPauth;                // Enable SMTP authentication
+    $mail->Username = $results->email_login;                 // SMTP username
+    $mail->Password = html_entity_decode($results->email_pass);    // SMTP password
+    $mail->SMTPSecure = $results->transport;                 // Enable TLS encryption, `ssl` also accepted
+    $mail->Port = $results->smtp_port;                       // TCP port to connect to
+    if ($attachment !== null) {
+        $mail->addAttachment($attachment);
+    }
+
+    if (isset($opts['email']) && isset($opts['name'])) {
+        $mail->setFrom($opts['email'], $opts['name']);
+    } else {
+        $mail->setFrom($results->from_email, $results->from_name);
+    }
+
+    if (isset($opts['replyEmail']) && isset($opts['replyName'])) {
+        $mail->AddReplyTo($opts['replyEmail'], $opts['replyName']);
+    }
+
+    if (isset($opts['toName'])) {
+        $mail->addAddress(rawurldecode($to), $opts['toName']);
+    } else {                // Add a recipient, name is optional
+        $mail->addAddress(rawurldecode($to));
+    }                  // Add a recipient, name is optional
+    if ($results->isHTML == 'true') {
+        $mail->isHTML(true);
+    }                  // Set email format to HTML
+
+    $mail->Subject = $subject;
+    $mail->Body = $body;
+    if ($attachment !== null) {
+        $mail->addAttachment($attachment);
+    }
+    return $mail->send();
+}
+
+
 //Forms posted now process it
 if (!empty($_POST)) {
     $token = Input::get('csrf');
@@ -37,13 +99,14 @@ if (!empty($_POST)) {
 
             $toEmail        =  $t['email'];
 
-            $toName         =  $t['fname'];
+            $toName         =  $t['fname'] . ' ' . $t['lname'];
             $fromEmail      =  $f['email'];
-            $fromName       = $f['fname'] . ' ' . $f['lname'];
+            $fromName       =  $f['fname'] . ' ' . $f['lname'];
 
-            $from           =  array(
-                'email'     => $fromEmail,
-                'name'      => $fromName
+            $options        =  array(
+                'replyEmail'     => $fromEmail,
+                'replyName'      => $fromName,
+                'toName'    => $toName
             );
 
             $template       =  array(
@@ -55,7 +118,7 @@ if (!empty($_POST)) {
 
             $body = email_body('_email_contact_owner.php', $template);
 
-            $result = email($toEmail, $subject, $body, $from);
+            $result = myemail($toEmail, $subject, $body, $options);
 
             logger($user->data()->id, "ElanRegistry", "contact_owner_email.php from " . $fromEmail . " to " . $toEmail);
         } else {

@@ -52,3 +52,4 @@ users/updates/
 Tests/
 .htaccess
 vendor
+composer.lock
