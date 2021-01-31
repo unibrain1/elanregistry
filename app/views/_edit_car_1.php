@@ -1,31 +1,24 @@
-<div class='card' id='carCard'>
-    <div class='card-header'>
-        <div class='input-group-prepend'>
-            <div class='col-sm-6' id="carHeader">
-                <h2><strong>Add Car</strong></h2>
-            </div>
-            <div class='col-sm'>
-                <div style="text-align: center" id='carMessage'></div>
-            </div>
-        </div>
-    </div>
-    <br>
-    <div class="card-body">
-
         <!-- Car Info -->
-        <div class="form-group row">
-            <label for="carlabel" class="col-3 col-form-label">Car ID</label>
-            <div class="col-sm-1">
-                <div id='carlabel' class='input-group-prepend'><?= $cardetails['id'] ?></div>
+        <?php
+        if (isset($cardetails['id'])) {
+        ?>
+
+            <div class="form-group row">
+                <label for="carlabel" class="col-3 col-form-label">Car ID</label>
+                <div class="col-sm-1">
+                    <div id='carlabel' class='input-group-prepend'><?= $cardetails['id'] ?></div>
+                </div>
             </div>
-        </div>
+        <?php
+        }
+        ?>
         <!-- Year -->
         <div class="form-group row">
             <label for="year" class="col-3 col-form-label">Year *</label>
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-calendar-check"></i> </div>
-                    <select required name='year' id='year' class='custom-select form-control'>
+                    <select name='year' id='year' class='custom-select form-control'>
                         <option value="">--Choose Year--</option>
                         <option value="1963">1963</option>
                         <option value="1964">1964</option>
@@ -51,7 +44,7 @@
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-car-side"></i></div>
-                    <select required disabled class="form-control custom-select" name="model" id="model">
+                    <select disabled class="form-control custom-select" name="model" id="model">
                         <option value="">--Please Select Model--</option>
                     </select>
                     <div class='input-group-text'><i id="model_icon" aria-hidden='true' class="fas fa-thumbs-down "></i></div>
@@ -59,15 +52,18 @@
             </div>
         </div>
 
+
         <!-- Chassis -->
         <div class="form-group row">
             <label for="chassis" class="col-3 col-form-label">Chassis *</label>
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-barcode"></i></div>
-                    <input data-lpignore="true" required disabled class="form-control" type="text" name="chassis" id="chassis" placeholder="<?= $carprompt['chassis'] ?>" value="<?= $cardetails['chassis'] ?>" />
+                    <input data-lpignore="true" disabled class="form-control" type="text" name="chassis" id="chassis" placeholder="<?= $carprompt['chassis'] ?>" value="<?= $cardetails['chassis'] ?>" />
                     <div class='input-group-text'><i id="chassis_icon" aria-hidden='true' class="fas fa-thumbs-down "></i></div>
                 </div>
+
+
                 <div id="chassis_taken" style="color: red" class="hidden">
                     <strong>This chassis number is already in the registry. </strong>
                     <br> Please contact the Registrar<br>
@@ -123,51 +119,3 @@
                 </div>
             </div>
         </div>
-
-        <!-- Purchase Date  -->
-        <div class="form-group row">
-            <label for="purchasedate" class="col-3 col-form-label">Purchase Date</label>
-            <div class="col-sm-9">
-                <div class="input-group-prepend">
-                    <div class="input-group-text"> <i aria-hidden="true" class="fas fa-calendar"></i></div>
-                    <input disabled class="form-control" name="purchasedate" id="purchasedate" placeholder="<?= $carprompt['purchasedate'] ?>" value="<?= $cardetails['purchasedate'] ?>" type="text" />
-                </div>
-                <small id="purchaseHelp" class="form-text text-muted">Approximate date you purchased the car</small>
-            </div>
-        </div>
-
-        <!-- Sold Date -->
-        <div class="form-group row">
-            <label for="solddate" class="col-3 col-form-label">Sold Date</label>
-            <div class="col-sm-9">
-                <div class="input-group-prepend">
-                    <div class="input-group-text"><i aria-hidden="true" class="fas fa-calendar"></i></div>
-                    <input disabled class="form-control" name="solddate" id="solddate" placeholder="<?= $carprompt['solddate'] ?>" value="<?= $cardetails['solddate'] ?>" type="text" />
-                </div>
-                <small id="purchaseHelp" class="form-text text-muted">If you no longer own the car, approximate date you sold the car</small>
-            </div>
-        </div>
-
-        <!-- Website -->
-        <div class="form-group row">
-            <label for="website" class="col-3 col-form-label">Website</label>
-            <div class="col-sm-9">
-                <div class="input-group-prepend">
-                    <div class="input-group-text"><i aria-hidden="true" class="fas fa-palette"></i></div>
-                    <input disabled class="form-control" type="url" name="website" id="website" placeholder="<?= $carprompt['website'] ?>" value="<?= $cardetails['website'] ?>" />
-                </div>
-            </div>
-        </div>
-
-        <!-- Comments -->
-        <div class="form-group row">
-            <label for="comments" class="col-3 col-form-label">Comments</label>
-            <div class="col-sm-9">
-                <div class="input-group-prepend">
-                    <div class="input-group-text"><i aria-hidden="true" class="fas fa-comment-alt"></i></div>
-                    <textarea disabled class="form-control" name="comments" id="comments" rows="10" wrap="soft" placeholder="<?= $carprompt['comments'] ?>"><?= htmlspecialchars($cardetails['comments']); ?></textarea>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
