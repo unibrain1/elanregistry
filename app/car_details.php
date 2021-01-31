@@ -10,8 +10,6 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 
 // Get some interesting user information to display later
 if (!empty($_GET)) {
-
-
     $id = $_GET['car_id'];
     $id = Input::sanitize($id);
 
@@ -67,8 +65,8 @@ if (!empty($_GET)) {
                                     if ($user->data()->id === $car->user_id) { ?>
                                         <form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
                                             <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-                                            <input type="hidden" name="action" value="update_car" />
-                                            <input type="hidden" name="car_id" id='car_id' value="<?= $car->id ?>" />
+                                            <input type="hidden" name="action" value="updateCar" />
+                                            <input type="hidden" name="carid" id='carid' value="<?= $car->id ?>" />
                                             <button class='btn btn-block btn-success' type="submit">Update</button>
                                         </form>
                                     <?php
@@ -263,4 +261,8 @@ if (!empty($_GET)) {
 <!-- footers -->
 <?php
 require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>
+
+<?php
+require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php';
 ?>

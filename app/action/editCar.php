@@ -13,28 +13,28 @@ $carId      = null;
 $targetFilePath = $abs_us_root . $us_url_root . 'app/userimages/';
 $targetURL = $us_url_root . 'app/userimages/';
 
-$db = DB::getInstance();
-
 //Forms posted now process it
 if (!empty($_POST)) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
+        $db = DB::getInstance();
+
         $action = Input::get('action');
         switch ($action) {
-            case "add_car":
+            case "addCar":
                 buildCarDetails($cardetails);
-                buildImageDetails($cardetails, $_FILES);
+                buildImageDetails($cardetails);
                 if (empty($errors)) {
                     addCar($cardetails);
                 } else {
                     $errors[] = 'Add_Car: Cannot add record';
                 }
                 break;
-            case "update_car":
+            case "updateCar":
                 buildCarDetails($cardetails, Input::get('carid'));
-                buildImageDetails($cardetails, $_FILES);
+                buildImageDetails($cardetails);
 
                 if (empty($errors)) {
                     updateCar($cardetails);
@@ -42,22 +42,81 @@ if (!empty($_POST)) {
                     $errors[] = 'Update_Car: Cannot add record';
                 }
                 break;
+            case "fetchImages":
+                $carid = Input::get('carID');
+                fetchImages($carid);
+                break;
+            case "removeImages":
+                $carid = Input::get('carID');
+                $file = Input::get('file');
+                removeImage($carid, $file);
+                break;
             default:
                 $errors[] = "No valid action";
         }
 
         $response = array(
-            'action' => $action,
-            'carId'  => $cardetails['id'],
-            'status' => (!empty($errors)) ? 'error' : 'success',
-            'info'   => array_merge($successes,  $errors),
+            'action'     => $action,
+            'cardetails' => $cardetails,
+            'status'     => (!empty($errors)) ? 'error' : 'success',
+            'info'       => array_merge($successes,  $errors),
         );
-        logger($user->data()->id, "ElanRegistry", "carUpdate carId: " . $response['carId'] . " Status: " . $response['status']);
+        logger($user->data()->id, "ElanRegistry", "carUpdate carId: " . $cardetails['id'] . " Status: " . $response['status']);
+
+        // Blanks instead of NULL for display
+        foreach ($response['cardetails'] as $key => $value) {
+            if (is_null($value)) {
+                $response['cardetails'][$key] = "";
+            }
+        }
         echo json_encode($response);
     } // End Post with data
 }
 
-// Update global cardetails
+
+function updateCar(&$cardetails)
+{
+    global $user;
+    global $errors;
+    global $successes;
+    global $db;
+
+    // Update 
+    $db->update('cars', $cardetails['id'], $cardetails);
+    if ($db->error()) {
+        $errors[] = 'DB ERROR' . $db->errorString();
+        logger($user->data()->id, "ElanRegistry - Update", "edit_car error car " . $db->errorString());
+    } else {
+        // Grab the id of the last insert
+        $successes[] = 'Update Car ID: ' . $cardetails['id'];
+        $successes[] = 'Update BY ID: ' . $cardetails['user_id'];
+    }
+}
+function addCar(&$cardetails)
+{
+    global $user;
+    global $errors;
+    global $successes;
+    global $db;
+    global $user;
+    // Insert
+    // Add a create time
+    $cardetails['ctime'] = date('Y-m-d G:i:s');
+
+    $db->insert('cars', $cardetails);
+    if ($db->error()) {
+        $errors[] = 'DB ERROR' . $db->errorString();
+        logger($user->data()->id, "ElanRegistry - Insert", "edit_car error car " . $db->errorString());
+    } else {
+        // Grab the id of the last insert
+        $cardetails['id'] = $db->lastId();
+        $successes[] = 'Add Car ID: ' . $cardetails['id'];
+        $successes[] = 'Update User ID: ' . $user->data()->id;
+        // then udate the cross reference table (user_car) with the car_id and user_id,
+        $db->insert('car_user', array('userid' => $user->data()->id, 'carid' => $cardetails['id']));
+    }
+}
+
 function buildCarDetails(&$cardetails, $carId = null)
 {
     global $user;
@@ -161,7 +220,7 @@ function buildCarDetails(&$cardetails, $carId = null)
     // Update 'purchasedate'
     if (!empty($_POST['purchasedate'])) {
         $cardetails['purchasedate'] = Input::get('purchasedate');
-        $cardetails['purchasedate'] = date(" Y-m-d H:i:s", strtotime($cardetails['purchasedate']));
+        $cardetails['purchasedate'] = date("Y-m-d", strtotime($cardetails['purchasedate']));
         $successes[] = 'Purchase Date Updated (' . $cardetails['purchasedate'] . ')';
     } else {
         $cardetails['purchasedate'] = null;
@@ -170,7 +229,7 @@ function buildCarDetails(&$cardetails, $carId = null)
     // Update 'solddate' 
     if (!empty($_POST['solddate'])) {
         $cardetails['solddate'] = Input::get('solddate');
-        $cardetails['solddate'] = date("Y-m-d H:i:s", strtotime($cardetails['solddate']));
+        $cardetails['solddate'] = date("Y-m-d", strtotime($cardetails['solddate']));
         $successes[] = 'Sold Date Updated (' . $cardetails['solddate'] . ')';
     } else {
         $cardetails['solddate'] = null;
@@ -191,92 +250,111 @@ function buildCarDetails(&$cardetails, $carId = null)
     }
 }
 
-
-function updateCar(&$cardetails)
+function buildImageDetails(&$cardetails)
 {
-    global $user;
-    global $errors;
-    global $successes;
-    global $db;
-
-    // Update 
-    $db->update('cars', $cardetails['id'], $cardetails);
-    if ($db->error()) {
-        $errors[] = 'DB ERROR' . $db->errorString();
-        logger($user->data()->id, "ElanRegistry - Update", "edit_car error car " . $db->errorString());
-    } else {
-        // Grab the id of the last insert
-        $successes[] = 'Update Car ID: ' . $cardetails['id'];
-        $successes[] = 'Update BY ID: ' . $cardetails['user_id'];
-    }
-}
-function addCar(&$cardetails)
-{
-    global $user;
-    global $errors;
-    global $successes;
-    global $db;
-    global $user;
-    // Insert
-    // Add a create time
-    $cardetails['ctime'] = date('Y-m-d G:i:s');
-
-    $db->insert('cars', $cardetails);
-    if ($db->error()) {
-        $errors[] = 'DB ERROR' . $db->errorString();
-        logger($user->data()->id, "ElanRegistry - Insert", "edit_car error car " . $db->errorString());
-    } else {
-        // Grab the id of the last insert
-        $cardetails['id'] = $db->lastId();
-        $successes[] = 'Add Car ID: ' . $cardetails['id'];
-        $successes[] = 'Update User ID: ' . $user->data()->id;
-        // then udate the cross reference table (user_car) with the car_id and user_id,
-        $db->insert('car_user', array('userid' => $user->data()->id, 'carid' => $cardetails['id']));
-    }
-}
-
-function buildImageDetails(&$cardetails, $files)
-{
-
     global $targetFilePath;
     global $errors;
     global $successes;
 
+    // Order of all images in the dropzone
+    $requestedOrder = array_filter(explode(',', $_POST['filenames']));
+
     // Do I have any new files?
-    if ($files['file']['name'][0] == 'blob') {
+    if ($_FILES['file']['name'][0] == 'blob') {
         $successes[] = 'No image';
-        return;
-    }
-
-    // Allowed file types.  This should also be reflected in getExtension
-
-    // Check if the upload folder is exists
-    if (file_exists($targetFilePath) && is_dir($targetFilePath) && is_writable($targetFilePath)) {
-        if (isset($cardetails['image'])) {
-            // If the image = '' and we explode it into the array we get an empty 
-            $images = array_filter(explode(',', $cardetails['image']));
-        } else {
-            $images = [];
-        }
+    } else {
         //  $_FILES['file']['tmp_name'] is an array so have to use loop
-        foreach ($files['file']['tmp_name'] as $key => $value) {
-            $tempFile = $files['file']['tmp_name'][$key];
-            // Create a filename for the new file give the file a random name
-            $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
+        foreach ($_FILES['file']['tmp_name'] as $key => $value) {
+            $name  = $_FILES['file']['name'][$key];
+            $tempFile = $_FILES['file']['tmp_name'][$key];
 
-            if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
-                $successes[] = "Photo has been uploaded " . $newFileName;
-                array_push($images, $newFileName);
-            } else {
-                $errors[] = "Photo failed to uploaded " . $newFileName;
+            if ($tempFile !== '') { //  deal with empty file name
+                // Create a filename for the new file give the file a random name
+                $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
+
+                if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
+                    $successes[] = "Photo has been uploaded " . $newFileName;
+                    $successes[] = 'Uploaded ' . $name;
+
+                    array_replace_value($requestedOrder, $name, $newFileName);
+                } else {
+                    $errors[] = "Photo failed to uploaded " . $newFileName;
+                }
             }
         }
-        $cardetails['image'] = implode(',', $images);
-    } else {
-        $errors[] = "Configuration error";
     }
+    $cardetails['image'] = implode(',', $requestedOrder);
 }
 
+function fetchImages($carid)
+{
+    global $db;
+
+    $listQ = $db->query("SELECT image FROM cars WHERE id = ?", [$carid]);
+
+    if ($listQ->count() > 0) {
+        $list = $listQ->results()[0]->image;
+
+        if ($list === "") {
+            $response = array(
+                'status' => 'No images'
+            );
+        } else {
+            $images = explode(',', $list);
+
+            $response = array('status' => 'success');
+            for ($i = 0; $i < count($images); $i++) {
+                $response['image'][$i]['name'] =  $images[$i];
+            }
+        }
+    } else {
+        $response = array(
+            'status' => 'No images'
+        );
+    }
+
+    echo json_encode($response);
+    exit;
+}
+
+function removeImage($carID, $file)
+{
+    global $db;
+    global $user;
+
+    $car = $db->findById($carID, 'cars')->results()[0];
+    $carImages = explode(',', $car->image);
+    $idx = array_search($file, $carImages);
+
+    if ($idx !== false) {
+        unset($carImages[$idx]);
+        // Write the new array to the DB
+        $images = implode(',', $carImages);
+        $db->update("cars", $carID, ["image" => $images]);
+        logger($user->data()->id, "ElanRegistry", "SUCCESS:removeImage carId: " . $carID . " Image: " . $file);
+
+        $response = array(
+            'status' => 'success',
+            'count'   => count($carImages),
+            'images' => $carImages
+        );
+    } else {
+        logger($user->data()->id, "ElanRegistry", "ERROR: removeImage carId: " . $carID . "Image not found: " . $file);
+        $response = array(
+            'status' => 'error',
+            'info'   => "image not found"
+        );
+    }
+    echo json_encode($response);
+    exit;
+}
+
+function array_replace_value(&$ar, $value, $replacement)
+{
+    if (($key = array_search($value, $ar,)) !== FALSE) {
+        $ar[$key] = $replacement;
+    }
+}
 
 function getExtension($mime_type)
 {
@@ -285,6 +363,7 @@ function getExtension($mime_type)
     );
     return $extensions[$mime_type];
 }
+
 function get_mime_type($file)
 {
     $mtype = false;

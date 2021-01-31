@@ -287,7 +287,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 										<div class="form-group row">
 											<form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
 												<input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-												<input type="hidden" name="action" value="update_car" />
+												<input type="hidden" name="action" value="updateCar" />
 												<input type="hidden" name="carid" value="<?= $car->id ?>" />
 												<button class="btn btn-success" type="submit">Update Car</button>
 											</form>

@@ -3,9 +3,7 @@
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
-if (!securePage($_SERVER['PHP_SELF'])) {
-    die();
-}
+$maximages = 6;
 
 // Get the combined user+profile
 $userQ = $db->findById($user->data()->id, 'usersview');
@@ -37,7 +35,7 @@ $carprompt['solddate']      = 'YYYY-MM-DD';
 $carprompt['comments']      = 'Please give a brief history of your car and anything special';
 $carprompt['website']       = 'Website URL';
 
-$action = 'add_car'; // No one has asked me to do anything yet
+$action = 'addCar'; // No one has asked me to do anything yet
 
 if (!empty($_POST)) {
     $token = Input::get('csrf');
@@ -47,8 +45,8 @@ if (!empty($_POST)) {
 
         $action = Input::get('action');
 
-        if ($action === 'update_car') {
-            update_car($cardetails);
+        if ($action === 'updateCar') {
+            updateCar($cardetails);
         } else {
             $errors[] = 'No valid action';
         }
@@ -58,7 +56,7 @@ if (!empty($_POST)) {
 /* 
 Called to update a car.  Get the car information and fill in the defaults.
 */
-function update_car(&$car)
+function updateCar(&$car)
 {
     global $user;
     global $db;
@@ -86,104 +84,529 @@ function update_car(&$car)
             exit();
         }
     } else { /* Empty Car */
-        logger($user->data()->id, 'ElanRegistry', 'Empty car_id field in GET');
+        logger($user->data()->id, 'ElanRegistry', 'Empty carid field in GET');
     } // empty $car['id']
 }
 ?>
 <style>
-
+    td:first-child {
+        font-weight: bold;
+        width: 25%;
+        text-align: left;
+    }
 </style>
 <div id='page-wrapper'>
     <div class='container-fluid'>
-        <div class='well'>
-            <br>
-            <form method='POST' id='addCar' name='addCar' action='' enctype='multipart/form-data'>
-                <div class='row'>
-                    <div class='alert alert-primary col-md-12 text-center' id='errorMsg' role='alert' style='display: none'>
-                        This is for error messages
-                    </div>
-                </div>
-                <div class='row'>
-                    <div class='col-md-12 text-center'>
-                        <input type='hidden' name='csrf' id='csrf' value="<?= Token::generate(); ?>" />
-                        <input type='hidden' name='action' id='action' value="<?= $action ?>" />
-                        <input type='hidden' name='carid' id='carid' value="<?= $cardetails['id'] ?>" />
-                        <button class='btn btn-success btn-lg' type='button' id='submit'>Add</button>
-                        <a href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $cardetails['id'] ?>" class='btn btn-info btn-lg'>Cancel</a>
-                    </div>
-                </div>
-                <br>
-                <div class=' row'>
-                    <div class='col-md-6'>
-                        <!-- Car Form -->
-                        <?php include($abs_us_root . $us_url_root . 'app/views/_car_edit.php'); ?>
+        <div class='row justify-content-center'>
+            <div class='col-9 text-center '>
+                <h2 id='heading'>Enter a New Car</h2>
+                <p>Fill all form field to go to next step</p>
+                <form id='editCar' name='editCar' method='post' enctype='multipart/form-data' novalidate>
+                    <!-- progressbar -->
+                    <ul id='progressbar'>
+                        <li class='active' id='cardetails'><strong>Car Details</strong></li>
+                        <li id='addInfo'><strong>Additional Information</strong></li>
+                        <li id='image'><strong>Images</strong></li>
+                        <li id='confirm'><strong>Results</strong></li>
+                    </ul>
+                    <div class='progress'>
+                        <div class='progress-bar bg-success' role='progressbar' aria-valuemin='0' aria-valuemax='100'></div>
                     </div>
 
-                    <div class='col-md-6'>
-                        <!-- Image Form -->
-                        <?php include($abs_us_root . $us_url_root . 'app/views/_image_upload.php'); ?>
-                    </div>
-                    <!--col -->
-                </div> <!-- /.row -->
-            </form>
-            <!-- Car History -->
-            <div class='row'>
-                <div class='col-sm-12'>
-                    <?php include($abs_us_root . $us_url_root . 'app/views/_car_history.php'); ?>
-                </div> <!-- .col -->
-            </div> <!-- /.row -->
-        </div> <!-- well -->
-    </div> <!-- /.container -->
+                    <hr>
+
+                    <br>
+                    <div id='message' style='display: none;'></div>
+                    <fieldset>
+                        <!-- fieldsets page 1 -->
+                        <div class="card card-default">
+                            <div class="card-header">
+                                <div class="row">
+                                    <div class='col-md-7 text-left'>
+                                        <legend class='fs-title'>Car Details:</legend>
+                                    </div>
+                                    <div class='col-5'>
+                                        <h2 class='steps'>Step 1 - 4</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <?php include($abs_us_root . $us_url_root . 'app/views/_edit_car_1.php'); ?>
+                            </div>
+                        </div>
+                        <input type='button' name='next' class='next btn btn-info' value='Next' />
+                    </fieldset>
+
+                    <fieldset>
+                        <!-- fieldsets page 2 -->
+                        <div class="card card-default">
+                            <div class="card-header">
+                                <div class="row">
+                                    <div class='col-md-7'>
+                                        <legend class='fs-title'>Additional Information:</legend>
+                                    </div>
+                                    <div class='col-5'>
+                                        <h2 class='steps'>Step 2 - 4</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <?php include($abs_us_root . $us_url_root . 'app/views/_edit_car_2.php'); ?>
+                            </div>
+                        </div>
+                        <input type='button' name='next' class='next btn btn-info' value='Next' />
+                        <input type='button' name='previous' class='previous btn btn-danger' value='Previous' />
+                    </fieldset>
+
+
+                    <fieldset>
+                        <!-- fieldsets page 3 -->
+                        <div class="card card-default">
+                            <div class="card-header">
+                                <div class="row">
+                                    <div class='col-md-7'>
+                                        <legend class='fs-title'>Image Upload:</legend>
+                                    </div>
+                                    <div class='col-5'>
+                                        <h2 class='steps'>Step 3 - 4</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <?php include($abs_us_root . $us_url_root . 'app/views/_edit_car_3.php'); ?>
+                            </div>
+                        </div>
+                        <!-- End Image panel -->
+                        <input type='hidden' name='csrf' id='csrf' value='<?= Token::generate(); ?>' />
+                        <input type='hidden' name='action' id='action' value='<?= $action ?>' />
+                        <input type='hidden' name='carid' id='carid' value='<?= $cardetails['id'] ?>' />
+                        <input type='submit' name='submit' id='submit' class=' btn btn-success' value='Add Car' />
+                        <input type='button' name='previous' class='previous btn btn-danger' value='Previous' />
+                    </fieldset>
+
+                    <fieldset>
+                        <div class="card card-default">
+                            <div class="card-header">
+                                <div class="row">
+                                    <div class='col-md-4 d-flex text-left'>
+                                        <legend class='fs-title'>Results</legend>
+                                    </div>
+                                    <div class='col-md-4 text-center'>
+                                        <button type='submit' class='btn btn-success' ormaction='<?= $us_url_root ?>app/edit_car.php' data-csrf=<?= Token::generate(); ?>' data-action='<?= $action ?>' data-carid='<?= $cardetails['id'] ?>'>Update Car</button>
+                                        <button type='submit' class='btn btn-info' formaction=<?= $us_url_root ?>app/car_details.php?car_id=<?= $cardetails['id'] ?>'>Details</button>
+                                    </div>
+                                    <div class='col-4'>
+                                        <h2 class='steps'>Step 4 - 4</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class='card-body' id='results'>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
 </div><!-- .page-wrapper -->
-</div>
-<div id="overlay" style="display:none;">
-    <div class="spinner"></div>
-    <br />
-    Saving...
-</div>
+
+<link rel="stylesheet" href="<?= $us_url_root ?>app/assets/css/edit_car.css">
+
+<!-- Year/Model definitions -->
+<script src='<?= $us_url_root ?>app/assets/js/cardefinition.js'></script>
+
+<!-- Dropzone  jqueryui required for sortable dropzone -->
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
+
+<link rel="stylesheet" href="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.css">
+<script src="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.js"></script>
+
 
 <?php
-// Include Date Range Picker
-require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datapicker.php';
+require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datepicker.php';
 ?>
-<!-- Year/Model definitions -->
-<script src="<?= $us_url_root ?>app/assets/js/cardefinition.js"></script>
-
-<!-- Dropzone Init -->
-<script src="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.js"></script>
-<link rel="stylesheet" href="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.css">
 
 <script>
+    Dropzone.autoDiscover = false;
+    const csrf = $('#csrf').val();
+    const carid = $('#carid').val();
+
+    $(document).ready(function() {
+        // BEGIN DROPZONE
+
+        $(function() {
+            $("#myDrop").sortable({
+                items: '.dz-preview',
+                cursor: 'move',
+                opacity: 0.5,
+                containment: '#myDrop',
+                distance: 20,
+                tolerance: 'pointer',
+            });
+
+            $("#myDrop").disableSelection();
+        });
+
+        var myDropzone = new Dropzone("div#myDrop", {
+            url: "action/editCar.php",
+            autoProcessQueue: false,
+            clickable: true,
+
+            uploadMultiple: true,
+            maxFiles: <?= $maximages ?>,
+            maxFilesize: 2, // MB
+            parallelUploads: 10,
+
+            acceptedFiles: 'image/*',
+            addRemoveLinks: true,
+
+            resizeWidth: 2048,
+            resizeMimeType: 'image/jpeg',
+
+            paramName: "file", // The name that will be used to transfer the file
+
+            init: function() {
+                thisDropzone = this;
+                // Load any existing images
+                $.post('action/editCar.php', {
+                        'carID': carid,
+                        'csrf': csrf,
+                        'action': 'fetchImages'
+                    },
+                    function(response) {
+                        let data = JSON.parse(response);
+                        if (data == null || data.status != 'success') {
+                            return;
+                        }
+                        $.each(data.image, function(key, value) {
+                            var mockFile = {
+                                name: value.name,
+                                accepted: true,
+                                status: 'success',
+                            };
+                            thisDropzone.emit("addedfile", mockFile);
+                            thisDropzone.emit("thumbnail", mockFile, '<?= $us_url_root ?>' + 'app/userimages/' + value.name);
+                            $('[data-dz-thumbnail]').css('height', '120');
+                            $('[data-dz-thumbnail]').css('width', '120');
+                            $('[data-dz-thumbnail]').css('object-fit', 'cover');
+
+                            // Make sure that there is no progress bar, etc...
+
+                            // thisDropzone.emit("success", mockFile);
+                            thisDropzone.emit("complete", mockFile);
+
+                            thisDropzone.files.push(mockFile);
+                        });
+
+                    });
+
+                // Grab the submit button.  Make sure it's error free and process the queue  
+                document.getElementById("submit").addEventListener("click", function(e) {
+                    current_fs = $(this).parent();
+                    next_fs = $(this).parent().next();
+
+                    // Check to see if any of the fields are invalid
+                    var form_data = $('#addCar').serializeArray();
+                    var error_free = true;
+
+                    for (var input in form_data) {
+                        var element = $('#' + form_data[input]['name'] + '_icon');
+                        var invalid = element.hasClass('fa-thumbs-down');
+                        if (invalid) {
+                            error_free = false;
+                        }
+                    }
+
+                    if (!error_free) {
+                        $('#message').show().html('Error: There are one or more errors on the page.<br>Please update and submit ');
+                        e.preventDefault();
+                    } else {
+                        // Now process the queue
+                        if (thisDropzone.getQueuedFiles().length > 0) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            thisDropzone.processQueue();
+                        } else {
+                            e.stopPropagation();
+                            e.preventDefault();
+
+                            // https://stackoverflow.com/questions/20910571/dropzonejs-submit-form-without-files
+                            var blob = new Blob();
+                            blob.upload = {
+                                'chunked': thisDropzone.defaultOptions.chunking
+                            };
+                            thisDropzone.uploadFile(blob);
+                        }
+                    }
+                });
+                thisDropzone.on("maxfilesreached", function(file) {
+                    $("#message").show().html('<div class="alert alert-success">Max photos reached</div>');
+                });
+
+                thisDropzone.on("maxfilesexceeded", function(file) {
+                    $("#message").show().html('<div class="alert alert-primary">Only <?= $maximages ?> photos allowed. <br> Please remove 1 or more photos.</div>');
+
+                });
+
+                thisDropzone.on("addedfile", function(file) {
+                    $("#message").hide();
+                });
+
+                thisDropzone.on("removedfile", function(file) {
+                    $("#message").hide();
+
+                    if (file.status === 'success') {
+                        // This file was uploaded.  Delete from server
+                        if (confirm("This will remove the photo from the car record.  Are you sure?")) {
+                            $.ajax({
+                                url: "action/editCar.php",
+                                data: {
+                                    'action': 'removeImages',
+                                    'file': file.name,
+                                    'carID': carid,
+                                    'csrf': csrf,
+                                },
+                                type: 'post',
+                                success: function(response) {
+                                    $("#message").show().html('<div class="alert alert-success">Photo removed from current record.</div>');
+                                }
+                            });
+                        } else { // Put the file back
+                            thisDropzone.emit("addedfile", file);
+                            thisDropzone.emit("thumbnail", file, '<?= $us_url_root ?>' + 'app/userimages/' + file.name);
+                            $('[data-dz-thumbnail]').css('height', '120');
+                            $('[data-dz-thumbnail]').css('width', '120');
+                            $('[data-dz-thumbnail]').css('object-fit', 'cover');
+
+                            // Make sure that there is no progress bar, etc...
+                            thisDropzone.emit("complete", file);
+
+                            thisDropzone.files.push(file);
+                        }
+                    }
+                });
+            }
+        });
+
+        //send all the form data along with the files:
+        myDropzone.on("sendingmultiple", function(data, xhr, formData) {
+            var filenames = [];
+            $('.dz-preview .dz-filename').each(function() {
+                filenames.push($(this).find('span').text());
+            });
+
+            formData.append('action', $('#action').val());
+            formData.append('csrf', $('#csrf').val());
+            formData.append('filenames', filenames);
+            formData.append('carid', $('#carid').val());
+            formData.append('year', $('#year').val());
+            formData.append('model', $('#model').val());
+            formData.append('series', $('#series').val());
+            formData.append('variant', $('#variant').val());
+            formData.append('type', $('#type').val());
+            formData.append('chassis', $('#chassis').val());
+            formData.append('color', $('#color').val());
+            formData.append('engine', $('#engine').val());
+            formData.append('purchasedate', $('#purchasedate').val());
+            formData.append('solddate', $('#solddate').val());
+            formData.append('website', $('#website').val());
+            formData.append('comments', $('#comments').val());
+        });
+
+        myDropzone.on("successmultiple", function(file, message) {
+            var html = "<table id='resultstable' class='table table-striped table-bordered table-sm text-wrap'>";
+            const data = JSON.parse(message);
+
+            // Advance the page progress indicator
+            $('#message').hide();
+            $('#progressbar li').eq($('fieldset').index(next_fs)).addClass('active');
+
+            //show the next fieldset
+            next_fs.show();
+            //hide the current fieldset with style
+            current_fs.animate({
+                opacity: 0
+            }, {
+                step: function(now) {
+                    // for making fielset appear animation
+                    opacity = 1 - now;
+
+                    current_fs.css({
+                        'display': 'none',
+                        'position': 'relative'
+                    });
+                    next_fs.css({
+                        'opacity': opacity
+                    });
+                },
+                duration: 500
+            });
+            setProgressBar(++current);
+
+            if (data.status === 'success') {
+                html += '<tr><td>Status</td><td>' + data.status.charAt(0).toUpperCase() + data.status.slice(1) + '</td></tr>'; // Uppercase 1st character
+                html += '<tr><td>Car ID</td><td>' + data.cardetails.id + '</td></tr>';
+                html += '<tr><td>Year</td><td>' + data.cardetails.year + '</td></tr>';
+                html += '<tr><td>Model</td><td>' + data.cardetails.model + '</td></tr>';
+                html += '<tr><td>Series</td><td>' + data.cardetails.series + '</td></tr>';
+                html += '<tr><td>Type</td><td>' + data.cardetails.type + '</td></tr>';
+                html += '<tr><td>Chassis</td><td>' + data.cardetails.chassis + '</td></tr>';
+                html += '<tr><td>Color</td><td>' + data.cardetails.color + '</td></tr>';
+                html += '<tr><td>Engine</td><td>' + data.cardetails.engine + '</td></tr>';
+                html += '<tr><td>Purchase Date</td><td>' + data.cardetails.purchasedate + '</td></tr>';
+                html += '<tr><td>Sold Date</td><td>' + data.cardetails.solddate + '</td></tr>';
+                html += '<tr><td>Website</td><td>' + data.cardetails.website + '</td></tr>';
+                html += '<tr><td>Comments</td><td>' + data.cardetails.comments + '</td></tr>';
+
+                if (data.cardetails.image !== "") {
+                    const images = data.cardetails.image.split(',');
+                    for (idx in images) {
+                        html += '<tr><td>Image ' + idx + '</td>';
+                        html += '<td><img class="card-img-top" src="' + '<?= $us_url_root ?>' + 'app/userimages/' + images[idx] + '"></td></tr>';
+                    }
+                }
+            } else {
+                html += '<tr><td>Status</td><td>' + data.status + '</td></tr>';
+            }
+            html += '</table>'
+
+            $("#results").html(html);
+        });
+
+
+
+        myDropzone.on("error", function(data) {
+            $("#message").show().html('<div class="alert alert-primary">There is some thing wrong, Please try again!</div>');
+        });
+
+        // END DROPZONE
+
+        // Tabbed interface 
+
+        var current_fs, next_fs, previous_fs; //fieldsets
+        var opacity;
+        var current = 1;
+        var steps = $('fieldset').length;
+
+        setProgressBar(current);
+
+        $('.next').click(function() {
+            current_fs = $(this).parent();
+            next_fs = $(this).parent().next();
+
+            // Check to see if the page is error free
+            var form_data = current_fs.serializeArray();
+            var error_free = true;
+
+            for (var input in form_data) {
+                var element = $('#' + form_data[input]['name'] + '_icon');
+                var invalid = element.hasClass('fa-thumbs-down');
+                if (invalid) {
+                    error_free = false;
+                }
+            }
+
+            if (!error_free) {
+                $('#message').show().html('<div class="alert alert-primary">Error: There are one or more errors on the page.<br>Please update and submit.<div>');
+            } else {
+                $('#message').hide();
+
+                //Add Class Active
+                $('#progressbar li').eq($('fieldset').index(next_fs)).addClass('active');
+
+                //show the next fieldset
+                next_fs.show();
+                //hide the current fieldset with style
+                current_fs.animate({
+                    opacity: 0
+                }, {
+                    step: function(now) {
+                        // for making fielset appear animation
+                        opacity = 1 - now;
+
+                        current_fs.css({
+                            'display': 'none',
+                            'position': 'relative'
+                        });
+                        next_fs.css({
+                            'opacity': opacity
+                        });
+                    },
+                    duration: 500
+                });
+                setProgressBar(++current);
+            }
+        });
+
+        $(".previous").click(function() {
+            current_fs = $(this).parent();
+            previous_fs = $(this).parent().prev();
+
+            //Remove class active
+            $("#progressbar li").eq($("fieldset").index(current_fs)).removeClass("active");
+
+            //show the previous fieldset
+            previous_fs.show();
+
+            //hide the current fieldset with style
+            current_fs.animate({
+                opacity: 0
+            }, {
+                step: function(now) {
+                    // for making fielset appear animation
+                    opacity = 1 - now;
+
+                    current_fs.css({
+                        'display': 'none',
+                        'position': 'relative'
+                    });
+                    previous_fs.css({
+                        'opacity': opacity
+                    });
+                },
+                duration: 500
+            });
+            setProgressBar(--current);
+        });
+
+        function setProgressBar(curStep) {
+            var percent = parseFloat(100 / steps) * curStep;
+            percent = percent.toFixed();
+            $(".progress-bar")
+                .css("width", percent + "%")
+        }
+    });
+
+    // End Tabbed Form
+
+    // Car Validation
     var validYear = '';
     var validModel = '';
     var validChassis = '';
 
     $(document).ready(function() {
-        $('#errorMsg').hide();
-        // Load any existing car images
-        loadImages();
+        $('#message').hide();
 
-        // Pop-up Calendar for date fields
-        var date_input = $('input[id="purchasedate"]'); //our date input has the name "date"
-        var container = $('.page-wrapper form').length > 0 ? $('.page-wrapper form').parent() : 'body';
-        date_input.datepicker({
-            format: 'yyyy-mm-dd',
-            container: container,
-            todayHighlight: false,
-            autoclose: true,
-        });
 
-        var date_input = $('input[id="solddate"]'); //our date input has the name "date"
-        var container = $('.page-wrapper form').length > 0 ? $('.page-wrapper form').parent() : 'body';
-        date_input.datepicker({
-            format: 'yyyy-mm-dd',
-            container: container,
-            todayHighlight: false,
-            autoclose: true,
+        // // Pop-up Calendar for date fields
+        // Avoid conflict with jquery datepicker - https://stackoverflow.com/questions/18507908/bootstrap-datepicker-noconflict#18512888
+        $(function() {
+            var datepicker = $.fn.datepicker.noConflict();
+            $.fn.bootstrapDP = datepicker;
+            $('#purchasedate').bootstrapDP({
+                format: 'yyyy-mm-dd',
+                todayHighlight: false,
+                autoclose: true,
+            });
+            $('#solddate').bootstrapDP({
+                format: 'yyyy-mm-dd',
+                todayHighlight: false,
+                autoclose: true,
+            });
         });
 
         // Pre-populate dropdown menus if we are updating a car
-        if ($('#action').val() === 'update_car') {
+        if ($('#action').val() === 'updateCar') {
             $('#year option[value=<?= $cardetails['year'] ?>]').prop('selected', true);
             $('#year').trigger('change'); // Trigger the change event to populate and validate
             // Need to escape all the special characters in the MODEL field in order for this to work
@@ -209,12 +632,11 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             $('#comments').prop('disabled', false)
 
             // Set the form text for Update
-            $('#submit').attr('value', 'update').html('Update');
-            $('#carid').html($('#car_id').val());
+            $('#submit').attr('value', 'Update Car');
+            $('#carid').html($('#carid').val());
             $('#carHeader').html('<h2><strong>Update car</strong><h2>');
         }
     });
-
 
     /* *
      *  Validate car form during data entry
@@ -231,7 +653,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
         $('#year').toggleClass('is-valid', Boolean(validYear)).toggleClass('is-invalid', !Boolean(validYear));
 
         // Year changed so reset model and chassis
-        if ($('#action').val() === 'add_car') {
+        if ($('#action').val() === 'addCar') {
             validModel = '';
             validChassis = '';
             $('#model_icon').toggleClass('fa-thumbs-up', Boolean(validModel)).toggleClass('fa-thumbs-down', !Boolean(validModel)).toggleClass('is-valid', false).toggleClass('is-invalid', false);
@@ -311,11 +733,11 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
         $('#chassis_icon').toggleClass('fa-thumbs-up', Boolean(validChassis)).toggleClass('fa-thumbs-down', !Boolean(validChassis)).toggleClass('is-valid', Boolean(validChassis)).toggleClass('is-invalid', !Boolean(validChassis));
         $('#chassis').toggleClass('is-valid', Boolean(validChassis)).toggleClass('is-invalid', !Boolean(validChassis));
 
-        if ($('#action').val() === 'add_car' && (validChassis)) {
-            // add_car
+        if ($('#action').val() === 'addCar' && (validChassis)) {
+            // addCar
             if (validChassis) {
                 // Now see if the chassis is taken
-                const csrf = $('#csrf').val();
+                // const csrf = $('#csrf').val();
                 $.ajax({
                     url: 'action/checkChassis.php',
                     type: 'post',
@@ -336,10 +758,10 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                             $('#chassis_taken').hide();
                             $('#color').prop('disabled', false)
                             $('#engine').prop('disabled', false)
-                            $('#purchasedate').prop('disabled', false)
-                            $('#solddate').prop('disabled', false)
-                            $('#website').prop('disabled', false)
-                            $('#comments').prop('disabled', false)
+                            // $('#purchasedate').prop('disabled', false)
+                            // $('#solddate').prop('disabled', false)
+                            // $('#website').prop('disabled', false)
+                            // $('#comments').prop('disabled', false)
                         }
                     },
                     error: function(response) {},
@@ -347,151 +769,8 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             }
         }
     });
-
-    // Image remove button
-
-    // https://stackoverflow.com/questions/203198/event-binding-on-dynamically-created-elements
-    $("#images").on('click', '[id^=remove]', function(e) {
-        e.preventDefault();
-        let image = this.getAttribute("value");
-        let carID = $('#carid').val();
-        const csrf = $('#csrf').val();
-
-        if (confirm("This will remove the photo from the car record.  Are you sure?")) {
-            $.ajax({
-                url: 'action/imageUpdate.php',
-                data: {
-                    'command': 'delete',
-                    'target_file': image,
-                    'carID': id,
-                    'csrf': csrf,
-                },
-                type: "post",
-                success: function(response) {
-                    // Update the image display
-                    loadImages();
-                }
-            });
-        }
-    });
-
-    // Dropzone configuration
-    Dropzone.autoDiscover = false;
-
-    var myDropzone = new Dropzone("div.dropzone", {
-        url: 'action/carUpdate.php',
-        autoProcessQueue: false,
-        clickable: true, // Define the element that should be used as click trigger to select files.
-
-        uploadMultiple: true,
-        maxFiles: 5,
-        maxFilesize: 20, // MB
-        parallelUploads: 20,
-
-        acceptedFiles: 'image/*',
-        addRemoveLinks: true,
-
-        resizeWidth: 2048,
-        resizeMimeType: 'image/jpeg',
-
-        init: function() {
-            myDropzone = this; // Makes sure that 'this' is understood inside the functions below.
-
-            // for Dropzone to process the queue instead of default form behavior:
-            document.getElementById("submit").addEventListener("click", function(e) {
-                // Check to see if any of the fields are invalid
-                var form_data = $('#addCar').serializeArray();
-                var error_free = true;
-
-                for (var input in form_data) {
-                    var element = $('#' + form_data[input]['name'] + '_icon');
-                    var invalid = element.hasClass('fa-thumbs-down');
-                    if (invalid) {
-                        error_free = false;
-                    }
-                }
-
-                if (!error_free) {
-                    $('#errorMsg').show().html('Error: There are one or more errors on the page.<br>Please update and submit ');
-                    e.preventDefault();
-                } else {
-                    $('#overlay').show();
-
-                    if (myDropzone.getQueuedFiles().length > 0) {
-                        e.stopPropagation();
-                        myDropzone.processQueue();
-                    } else {
-                        // https://stackoverflow.com/questions/20910571/dropzonejs-submit-form-without-files
-                        var blob = new Blob();
-                        blob.upload = {
-                            'chunked': myDropzone.defaultOptions.chunking
-                        };
-                        myDropzone.uploadFile(blob);
-                    }
-                }
-            });
-
-            //send all the form data along with the files:
-            this.on("sendingmultiple", function(data, xhr, formData) {
-                formData.append('action', $('#action').val());
-                formData.append('csrf', $('#csrf').val());
-                formData.append('carid', $('#carid').val());
-                formData.append('year', $('#year').val());
-                formData.append('model', $('#model').val());
-                formData.append('series', $('#series').val());
-                formData.append('variant', $('#variant').val());
-                formData.append('type', $('#type').val());
-                formData.append('chassis', $('#chassis').val());
-                formData.append('color', $('#color').val());
-                formData.append('engine', $('#engine').val());
-                formData.append('purchasedate', $('#purchasedate').val());
-                formData.append('solddate', $('#solddate').val());
-                formData.append('website', $('#website').val());
-                formData.append('comments', $('#comments').val());
-            });
-
-            this.on("successmultiple", function(file, response) {
-                let parsedResponse = JSON.parse(response);
-                window.location.href = '<?= $us_url_root ?>' + 'app/car_details.php?car_id=' + parsedResponse.carId;
-            });
-        }
-    });
-
-    /*
-     * Load existing images for the car and place a delete button near each image. 
-     * This makes it easier to redraw the area when someone deleted an image
-     */
-    function loadImages() {
-        let id = $('#carid').val();
-        const csrf = $('#csrf').val();
-
-        $.ajax({
-            url: 'action/imageUpdate.php',
-            data: {
-                'command': 'fetch',
-                'carID': id,
-                'csrf': csrf,
-            },
-            type: "post",
-            success: function(response) {
-                let r = JSON.parse(response);
-                if (r.status === 'success' && r.count != 0) {
-                    $('#images').empty();
-                    for (i = 0; i < r.images.length; i++) {
-                        $('#images').append('<div class="form-group row"><div class="col-md-9">' +
-                            '<img class = "card-img-top" src = "' + '<?= $us_url_root ?>' +
-                            'app/userimages/' + r.images[i] + '" >' +
-                            '</div><div class="col-md-3"> <button class="btn btn-primary btn-lg btn-block" type="button" id="remove-' + r.images[i] + '" value="' + r.images[i] + '"><i class="far fa-trash-alt"></i></i> Remove</button></div></div > ');
-                    }
-                } else {
-                    $('#existing').hide();
-                }
-            }
-        });
-    }
+    // End Car Validation
 </script>
-
-
 <!--footers-->
 <?php
 require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
