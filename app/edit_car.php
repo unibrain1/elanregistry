@@ -188,14 +188,10 @@ function updateCar(&$car)
                         <div class="card card-default">
                             <div class="card-header">
                                 <div class="row">
-                                    <div class='col-md-4 d-flex text-left'>
+                                    <div class='col-6 d-flex text-left'>
                                         <legend class='fs-title'>Results</legend>
                                     </div>
-                                    <div class='col-md-4 text-center'>
-                                        <button type='submit' class='btn btn-success' ormaction='<?= $us_url_root ?>app/edit_car.php' data-csrf=<?= Token::generate(); ?>' data-action='<?= $action ?>' data-carid='<?= $cardetails['id'] ?>'>Update Car</button>
-                                        <button type='submit' class='btn btn-info' formaction=<?= $us_url_root ?>app/car_details.php?car_id=<?= $cardetails['id'] ?>'>Details</button>
-                                    </div>
-                                    <div class='col-4'>
+                                    <div class='col-6'>
                                         <h2 class='steps'>Step 4 - 4</h2>
                                     </div>
                                 </div>
@@ -345,7 +341,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 
                 thisDropzone.on("maxfilesexceeded", function(file) {
                     $("#message").show().html('<div class="alert alert-primary">Only <?= $maximages ?> photos allowed. <br> Please remove 1 or more photos.</div>');
-
                 });
 
                 thisDropzone.on("addedfile", function(file) {
@@ -414,63 +409,48 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
         });
 
         myDropzone.on("successmultiple", function(file, message) {
-            var html = "<table id='resultstable' class='table table-striped table-bordered table-sm text-wrap'>";
             const data = JSON.parse(message);
 
-            // Advance the page progress indicator
-            $('#message').hide();
-            $('#progressbar li').eq($('fieldset').index(next_fs)).addClass('active');
-
-            //show the next fieldset
-            next_fs.show();
-            //hide the current fieldset with style
-            current_fs.animate({
-                opacity: 0
-            }, {
-                step: function(now) {
-                    // for making fielset appear animation
-                    opacity = 1 - now;
-
-                    current_fs.css({
-                        'display': 'none',
-                        'position': 'relative'
-                    });
-                    next_fs.css({
-                        'opacity': opacity
-                    });
-                },
-                duration: 500
-            });
-            setProgressBar(++current);
-
             if (data.status === 'success') {
-                html += '<tr><td>Status</td><td>' + data.status.charAt(0).toUpperCase() + data.status.slice(1) + '</td></tr>'; // Uppercase 1st character
-                html += '<tr><td>Car ID</td><td>' + data.cardetails.id + '</td></tr>';
-                html += '<tr><td>Year</td><td>' + data.cardetails.year + '</td></tr>';
-                html += '<tr><td>Model</td><td>' + data.cardetails.model + '</td></tr>';
-                html += '<tr><td>Series</td><td>' + data.cardetails.series + '</td></tr>';
-                html += '<tr><td>Type</td><td>' + data.cardetails.type + '</td></tr>';
-                html += '<tr><td>Chassis</td><td>' + data.cardetails.chassis + '</td></tr>';
-                html += '<tr><td>Color</td><td>' + data.cardetails.color + '</td></tr>';
-                html += '<tr><td>Engine</td><td>' + data.cardetails.engine + '</td></tr>';
-                html += '<tr><td>Purchase Date</td><td>' + data.cardetails.purchasedate + '</td></tr>';
-                html += '<tr><td>Sold Date</td><td>' + data.cardetails.solddate + '</td></tr>';
-                html += '<tr><td>Website</td><td>' + data.cardetails.website + '</td></tr>';
-                html += '<tr><td>Comments</td><td>' + data.cardetails.comments + '</td></tr>';
-
-                if (data.cardetails.image !== "") {
-                    const images = data.cardetails.image.split(',');
-                    for (idx in images) {
-                        html += '<tr><td>Image ' + idx + '</td>';
-                        html += '<td><img class="card-img-top" src="' + '<?= $us_url_root ?>' + 'app/userimages/' + images[idx] + '"></td></tr>';
-                    }
-                }
+                window.location = '<?= $us_url_root ?>app/car_details.php?car_id=' + data.cardetails.id;
             } else {
-                html += '<tr><td>Status</td><td>' + data.status + '</td></tr>';
-            }
-            html += '</table>'
 
-            $("#results").html(html);
+                // Advance the page progress indicator
+                $('#message').hide();
+                $('#progressbar li').eq($('fieldset').index(next_fs)).addClass('active');
+
+                //show the next fieldset
+                next_fs.show();
+                //hide the current fieldset with style
+                current_fs.animate({
+                    opacity: 0
+                }, {
+                    step: function(now) {
+                        // for making fielset appear animation
+                        opacity = 1 - now;
+
+                        current_fs.css({
+                            'display': 'none',
+                            'position': 'relative'
+                        });
+                        next_fs.css({
+                            'opacity': opacity
+                        });
+                    },
+                    duration: 500
+                });
+                setProgressBar(++current);
+                var html = "<table id='resultstable' class='table table-striped table-bordered table-sm text-wrap'>";
+                html += '<tr><td>Status</td><td>' + data.status + '</td></tr>';
+                html += '<tr><td>Info</td><td><ul>';
+                data.info.forEach(function(element, index, names) {
+                    html += '<li>' + element + '</li>';
+                });
+                html += '<ul></td></tr>';
+                html += '</table>'
+
+                $("#results").html(html);
+            }
         });
 
 
@@ -579,6 +559,22 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 
     // End Tabbed Form
 
+    // JHB
+    //     <button type='submit' id='updateButton' class='btn btn-success' formaction='<?= $us_url_root ?>app/edit_car.php' data-csrf='<?= Token::generate(); ?>' data-actionN='updateCar'>Update Car</button>
+    // <button type='submit' id='detailButton' class='btn btn-info'>Details</button>
+
+    // Set the "Update Button details
+    $('#updateButton').click(function() {
+        console.log('Click! updateButton' + data.cardetails.id);
+    });
+
+    $('#detailButton').click(function() {
+        console.log('Click! detailButton' + data.cardetails.id);
+
+        // window.location = '<?= $us_url_root ?>app/car_details.php?car_id=' + data.cardetails.id;
+    });
+
+
     // Car Validation
     var validYear = '';
     var validModel = '';
@@ -586,7 +582,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 
     $(document).ready(function() {
         $('#message').hide();
-
 
         // // Pop-up Calendar for date fields
         // Avoid conflict with jquery datepicker - https://stackoverflow.com/questions/18507908/bootstrap-datepicker-noconflict#18512888
@@ -758,10 +753,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                             $('#chassis_taken').hide();
                             $('#color').prop('disabled', false)
                             $('#engine').prop('disabled', false)
-                            // $('#purchasedate').prop('disabled', false)
-                            // $('#solddate').prop('disabled', false)
-                            // $('#website').prop('disabled', false)
-                            // $('#comments').prop('disabled', false)
                         }
                     },
                     error: function(response) {},
