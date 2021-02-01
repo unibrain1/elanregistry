@@ -351,7 +351,7 @@ function removeImage($carID, $file)
 
 function array_replace_value(&$ar, $value, $replacement)
 {
-    if (($key = array_search($value, $ar,)) !== FALSE) {
+    if (($key = array_search($value, $ar)) !== FALSE) {
         $ar[$key] = $replacement;
     }
 }
