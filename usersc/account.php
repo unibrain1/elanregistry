@@ -61,7 +61,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 			<br>
 
 			<div class="row">
-				<div class="col-4">
+				<div class="col-md-4 col-xs-12">
 					<div class="card card-default">
 						<div class="card-header">
 							<h2><strong>Account Information</strong></h2>
@@ -114,8 +114,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 						</div>
 					</div>
 				</div>
-				<div class="col">
-
+				<div class="col-md-8 col-xs-12">
 					<div class="card border-default">
 						<div class="card-header">
 							<h2><strong>Your Car Information</strong></h2>
@@ -135,7 +134,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 								foreach ($thatCar as $car) {
 									// output data of each row.  View has both cars and users
 								?>
-									<table id="cartable-<?= $car->id ?>" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
+									<table style='padding: 0;' id="cartable-<?= $car->id ?>" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
 
 										<tr class="table-success">
 											<th scope=column><strong>Car ID :</strong></th>
@@ -230,7 +229,7 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 												if ($carFactory[0]->suffix != "") {
 													$carFactory[0]->suffix = $carFactory[0]->suffix . " (" . suffixtotext($carFactory[0]->suffix) . ")";
 												} ?> <tr class="table-info">
-													<td colspan=2><strong>Factory Data - <small>I've lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small></strong></td>
+													<td colspan=2><strong>Factory Data - <small>I' ve lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small></strong></td>
 												</tr>
 
 												<tr>
