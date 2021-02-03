@@ -301,7 +301,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                     current_fs = $(this).parent();
                     next_fs = $(this).parent().next();
 
-                    // Check to see if any of the fields are invalid
+                    // Check to see if any of the form fields are invalid
                     var form_data = $('#addCar').serializeArray();
                     var error_free = true;
 
@@ -313,8 +313,17 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                         }
                     }
 
+                    // check to see if there are any errors on the images
+                    //  See if data-dz-errormessage is empty for all images.  
+                    $('.dropzone .dz-error-message span').each(function() {
+                        if ($(this).text()) {
+                            error_free = false;
+                        }
+                    });
+
                     if (!error_free) {
-                        $('#message').show().html('Error: There are one or more errors on the page.<br>Please update and submit ');
+                        $('#message').show().append('<div class="alert alert-primary">Error: There are one or more errors on the page.<br>Please update and submit</div>');
+
                         e.preventDefault();
                     } else {
                         // Now process the queue
@@ -334,13 +343,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                             thisDropzone.uploadFile(blob);
                         }
                     }
-                });
-                thisDropzone.on("maxfilesreached", function(file) {
-                    $("#message").show().html('<div class="alert alert-success">Max photos reached</div>');
-                });
-
-                thisDropzone.on("maxfilesexceeded", function(file) {
-                    $("#message").show().html('<div class="alert alert-primary">Only <?= $maximages ?> photos allowed. <br> Please remove 1 or more photos.</div>');
                 });
 
                 thisDropzone.on("addedfile", function(file) {
@@ -453,10 +455,8 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             }
         });
 
-
-
-        myDropzone.on("error", function(data) {
-            $("#message").show().html('<div class="alert alert-primary">There is some thing wrong, Please try again!</div>');
+        myDropzone.on("error", function(data, msg, xhr) {
+            $("#message").show().html('<div class="alert alert-primary">' + msg + '</div>');
         });
 
         // END DROPZONE
@@ -558,22 +558,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
     });
 
     // End Tabbed Form
-
-    // JHB
-    //     <button type='submit' id='updateButton' class='btn btn-success' formaction='<?= $us_url_root ?>app/edit_car.php' data-csrf='<?= Token::generate(); ?>' data-actionN='updateCar'>Update Car</button>
-    // <button type='submit' id='detailButton' class='btn btn-info'>Details</button>
-
-    // Set the "Update Button details
-    $('#updateButton').click(function() {
-        console.log('Click! updateButton' + data.cardetails.id);
-    });
-
-    $('#detailButton').click(function() {
-        console.log('Click! detailButton' + data.cardetails.id);
-
-        // window.location = '<?= $us_url_root ?>app/car_details.php?car_id=' + data.cardetails.id;
-    });
-
 
     // Car Validation
     var validYear = '';
