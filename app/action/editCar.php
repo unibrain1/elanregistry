@@ -159,7 +159,19 @@ function buildCarDetails(&$cardetails, $carId = null)
         $cardetails['website']      = null;
         $cardetails['comments']     = null;
     }
+    updateYear($cardetails);
+    updateModel($cardetails);
+    updateChassis($cardetails);
+    updateColor($cardetails);
+    updateEngine($cardetails);
+    updatePurchasedate($cardetails);
+    updateSolddate($cardetails);
+    updateWebsite($cardetails);
+    updateComments($cardetails);
+}
 
+function updateYear(&$cardetails)
+{
     //Update Year
     if (!empty($_POST['year'])) {
         $cardetails['year'] =  Input::get('year');
@@ -167,7 +179,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $errors[] = "Please select Year";
     }
+}
 
+function updateModel(&$cardetails)
+{
     // Update 'model'
     if (!empty($_POST['model'])) {
         $cardetails['model'] = Input::get('model');
@@ -183,7 +198,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $errors[] = "Please select Model";
     }
+}
 
+function updateChassis(&$cardetails)
+{
     // Update 'chassis'
     if (!empty($_POST['chassis'])) {
         $cardetails['chassis'] = Input::get('chassis');
@@ -201,6 +219,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $errors[] = "Please enter chassis number";
     }
+}
+
+function updateColor(&$cardetails)
+{
     // Update 'color' 
     if (!empty($_POST['color'])) {
         $cardetails['color'] = Input::get('color');
@@ -208,6 +230,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $cardetails['color'] = null;
     }
+}
+
+function updateEngine(&$cardetails)
+{
     // Update 'engine' 
     if (!empty($_POST['engine'])) {
         $cardetails['engine'] = Input::get('engine');
@@ -216,7 +242,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $cardetails['engine'] = null;
     }
+}
 
+function updatePurchasedate(&$cardetails)
+{
     // Update 'purchasedate'
     if (!empty($_POST['purchasedate'])) {
         $cardetails['purchasedate'] = Input::get('purchasedate');
@@ -225,7 +254,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $cardetails['purchasedate'] = null;
     }
+}
 
+function updateSolddate(&$cardetails)
+{
     // Update 'solddate' 
     if (!empty($_POST['solddate'])) {
         $cardetails['solddate'] = Input::get('solddate');
@@ -234,6 +266,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $cardetails['solddate'] = null;
     }
+}
+
+function updateWebsite(&$cardetails)
+{
     // Update 'website' 
     if (!empty($_POST['website'])) {
         $cardetails['website'] = Input::get('website');
@@ -241,6 +277,10 @@ function buildCarDetails(&$cardetails, $carId = null)
     } else {
         $cardetails['website'] = null;
     }
+}
+
+function updateComments(&$cardetails)
+{
     // Update 'comments' 
     if (!empty($_POST['comments'])) {
         $cardetails['comments'] = Input::get('comments');
@@ -255,6 +295,10 @@ function buildImageDetails(&$cardetails)
     global $targetFilePath;
     global $errors;
     global $successes;
+    global $db;
+    global $user;
+
+    error_reporting(E_ALL);
 
     // Order of all images in the dropzone
     $requestedOrder = array_filter(explode(',', $_POST['filenames']));
@@ -273,17 +317,19 @@ function buildImageDetails(&$cardetails)
                 $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
 
                 if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
-                    $successes[] = "Photo has been uploaded " . $newFileName;
-                    $successes[] = 'Uploaded ' . $name;
+                    $successes[] = "Photo has been uploaded " . $name . " as " . $newFileName;
+                    logger($user->data()->id, "ElanRegistry", "SUCCESS: buildImageDetails carId: " . Input::get('carid') . " Photo uploaded " . $name . " as " . $newFileName);
 
                     array_replace_value($requestedOrder, $name, $newFileName);
                 } else {
-                    $errors[] = "Photo failed to uploaded " . $newFileName;
+                    $errors[] = "Photo failed to uploaded " . $name . " as " . $newFileName;
+                    logger($user->data()->id, "ElanRegistry", "ERROR: buildImageDetails carId: " . Input::get('carid') . " Photo failed to uploaded " . $name . " as " . $newFileName);
                 }
             }
         }
     }
     $cardetails['image'] = implode(',', $requestedOrder);
+    error_reporting(0);
 }
 
 function fetchImages($carid)
