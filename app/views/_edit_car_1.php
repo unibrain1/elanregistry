@@ -4,7 +4,7 @@
         ?>
 
             <div class="form-group row">
-                <label for="carlabel" class="col-3 col-form-label">Car ID</label>
+                <label for="carlabel" class="col-md-3 col-xs-12  col-form-label">Car ID</label>
                 <div class="col-sm-1">
                     <div id='carlabel' class='input-group-prepend'><?= $cardetails['id'] ?></div>
                 </div>
@@ -14,7 +14,7 @@
         ?>
         <!-- Year -->
         <div class="form-group row">
-            <label for="year" class="col-3 col-form-label">Year *</label>
+            <label for="year" class="col-md-3 col-xs-12 col-form-label">Year *</label>
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-calendar-check"></i> </div>
@@ -40,7 +40,7 @@
 
         <!-- Model -->
         <div class="form-group row">
-            <label for="model" class="col-3 col-form-label">Model *</label>
+            <label for="model" class="col-md-3 col-xs-12  col-form-label">Model *</label>
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-car-side"></i></div>
@@ -55,7 +55,7 @@
 
         <!-- Chassis -->
         <div class="form-group row">
-            <label for="chassis" class="col-3 col-form-label">Chassis *</label>
+            <label for="chassis" class="col-md-3 col-xs-12  col-form-label">Chassis *</label>
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-barcode"></i></div>
@@ -100,7 +100,7 @@
 
         <!-- Color -->
         <div class="form-group row">
-            <label for="color" class="col-3 col-form-label">Color</label>
+            <label for="color" class="col-md-3 col-xs-12  col-form-label">Color</label>
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-palette"></i></div>
@@ -111,7 +111,7 @@
 
         <!-- Engine Number -->
         <div class="form-group row">
-            <label for="engine" class="col-3 col-form-label">Engine Number</label>
+            <label for="engine" class="col-md-3 col-xs-12  col-form-label">Engine Number</label>
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-car"></i> </div>

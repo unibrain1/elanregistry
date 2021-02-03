@@ -1,6 +1,6 @@
 <!-- Purchase Date  -->
 <div class='form-group row'>
-    <label for='purchasedate' class='col-3 col-form-label'>Purchase Date</label>
+    <label for='purchasedate' class='col-md-3 col-xs-12  col-form-label'>Purchase Date</label>
     <div class='col-sm-9'>
         <div class='input-group-prepend'>
             <div class='input-group-text'> <i aria-hidden='true' class='fas fa-calendar'></i></div>
@@ -12,7 +12,7 @@
 
 <!-- Sold Date -->
 <div class='form-group row'>
-    <label for='solddate' class='col-3 col-form-label'>Sold Date</label>
+    <label for='solddate' class='col-md-3 col-xs-12  col-form-label'>Sold Date</label>
     <div class='col-sm-9'>
         <div class='input-group-prepend'>
             <div class='input-group-text'><i aria-hidden='true' class='fas fa-calendar'></i></div>
@@ -23,7 +23,7 @@
 </div>
 <!-- Website -->
 <div class='form-group row'>
-    <label for='website' class='col-3 col-form-label'>Website</label>
+    <label for='website' class='col-md-3 col-xs-12  col-form-label'>Website</label>
     <div class='col-sm-9'>
         <div class='input-group-prepend'>
             <div class='input-group-text'><i aria-hidden='true' class='fas fa-palette'></i></div>
@@ -32,7 +32,7 @@
     </div>
 </div>
 <div class='form-group row'>
-    <label for='comments' class='col-3 col-form-label'>Comments</label>
+    <label for='comments' class='col-md-3 col-xs-12  col-form-label'>Comments</label>
     <div class='col-sm-9'>
         <div class='input-group-prepend'>
             <div class='input-group-text'><i aria-hidden='true' class='fas fa-comment-alt'></i></div>
