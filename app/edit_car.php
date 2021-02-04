@@ -259,6 +259,12 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
             resizeWidth: 2048,
             resizeMimeType: 'image/jpeg',
 
+            dictRemoveFile: 'Remove photo',
+            dictDefaultMessage: "Drop photos here to upload",
+            dictMaxFilesExceeded: "Only {{maxFiles}} photos are allowed",
+            dictFileTooBig: "Photo is to big ({{filesize}}mb). Max allowed photo size is {{maxFilesize}}mb",
+            dictInvalidFileType: "Invalid File Type - Only images are allowed",
+
             paramName: "file", // The name that will be used to transfer the file
 
             init: function() {
@@ -349,39 +355,6 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                     $("#message").hide();
                 });
 
-                thisDropzone.on("removedfile", function(file) {
-                    $("#message").hide();
-
-                    if (file.status === 'success') {
-                        // This file was uploaded.  Delete from server
-                        if (confirm("This will remove the photo from the car record.  Are you sure?")) {
-                            $.ajax({
-                                url: "action/editCar.php",
-                                data: {
-                                    'action': 'removeImages',
-                                    'file': file.name,
-                                    'carID': carid,
-                                    'csrf': csrf,
-                                },
-                                type: 'post',
-                                success: function(response) {
-                                    $("#message").show().html('<div class="alert alert-success">Photo removed from current record.</div>');
-                                }
-                            });
-                        } else { // Put the file back
-                            thisDropzone.emit("addedfile", file);
-                            thisDropzone.emit("thumbnail", file, '<?= $us_url_root ?>' + 'app/userimages/' + file.name);
-                            $('[data-dz-thumbnail]').css('height', '120');
-                            $('[data-dz-thumbnail]').css('width', '120');
-                            $('[data-dz-thumbnail]').css('object-fit', 'cover');
-
-                            // Make sure that there is no progress bar, etc...
-                            thisDropzone.emit("complete", file);
-
-                            thisDropzone.files.push(file);
-                        }
-                    }
-                });
             }
         });
 
