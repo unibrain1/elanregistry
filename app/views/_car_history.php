@@ -40,6 +40,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
 
     var table = $('#historytable').DataTable({
         "scrollX": true,
+        responsive: true,
         "order": [
             [1, "desc"]
         ],
