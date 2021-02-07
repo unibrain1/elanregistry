@@ -2,20 +2,20 @@
     "packages": [
         {
             "name": "enyo/dropzone",
-            "version": "v5.7.2",
-            "version_normalized": "5.7.2.0",
+            "version": "v5.7.4",
+            "version_normalized": "5.7.4.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/enyo/dropzone.git",
-                "reference": "78424e9c97b569e698cc9175e9bc424168219162"
+                "url": "https://github.com/dropzone/dropzone-packagist.git",
+                "reference": "92c246b8a6d58cb86098a4195378baa9e32a539b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/enyo/dropzone/zipball/78424e9c97b569e698cc9175e9bc424168219162",
-                "reference": "78424e9c97b569e698cc9175e9bc424168219162",
+                "url": "https://api.github.com/repos/dropzone/dropzone-packagist/zipball/92c246b8a6d58cb86098a4195378baa9e32a539b",
+                "reference": "92c246b8a6d58cb86098a4195378baa9e32a539b",
                 "shasum": ""
             },
-            "time": "2020-07-23T12:58:26+00:00",
+            "time": "2021-02-07T16:37:04+00:00",
             "type": "library",
             "installation-source": "dist",
             "notification-url": "https://packagist.org/downloads/",
@@ -38,22 +38,9 @@
                 "upload"
             ],
             "support": {
-                "source": "https://github.com/enyo/dropzone/tree/v5.7.2"
+                "issues": "https://github.com/dropzone/dropzone-packagist/issues",
+                "source": "https://github.com/dropzone/dropzone-packagist/tree/v5.7.4"
             },
-            "funding": [
-                {
-                    "url": "https://github.com/[user1",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/enyo] # Replace with up to 4 GitHub Sponsors-enabled usernames e.g.",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/user2",
-                    "type": "github"
-                }
-            ],
             "install-path": "../enyo/dropzone"
         },
         {
