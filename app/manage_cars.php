@@ -443,6 +443,7 @@ if (!empty($_POST)) {
     $(document).ready(function() {
         $('#duptable').DataTable({
             fixedHeader: true,
+            responsive: true,
             rowGroup: {
                 dataSrc: [6, 7],
                 startClassName: 'table-info',

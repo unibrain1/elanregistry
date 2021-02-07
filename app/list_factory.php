@@ -141,7 +141,8 @@ $carData = $carQ->results();
     // DataTable
     var table = $('#cartable').DataTable({
       fixedHeader: true,
-      pageLength: 35,
+      responsive: true,
+      pageLength: 25,
       scrollX: true,
       "aLengthMenu": [
         [35, 70, -1],
