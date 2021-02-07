@@ -214,7 +214,7 @@ function updateCar(&$car)
 <!-- Dropzone  jqueryui required for sortable dropzone -->
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
 
-<link rel="stylesheet" href="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.css">
+<link rel="stylesheet" href="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/dropzone.css">
 <script src="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.js"></script>
 
 
