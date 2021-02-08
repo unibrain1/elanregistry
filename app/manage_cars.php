@@ -91,15 +91,6 @@ if (!empty($_POST)) {
                     if (count($cars) <> 2) {
                         $errors[] = 'Select 2 cars to merge';
                         break;
-                    } else {
-                        // Determine the newest car
-                        if ($cars[0] > $cars[1]) {
-                            $new_car_id = $cars[0];
-                            $old_car_id = $cars[1];
-                        } else {
-                            $new_car_id = $cars[1];
-                            $old_car_id = $cars[0];
-                        }
                     }
                     if (count($reason) <> 1) {
                         $errors[] = 'Select 1 reason code';
@@ -108,11 +99,39 @@ if (!empty($_POST)) {
                         // Build the reason string
                         switch ($reason[0]) {
                             case "duplicate":
+                                // Determine the newest car
+                                if ($cars[0] > $cars[1]) {
+                                    $new_car_id = $cars[0];
+                                    $old_car_id = $cars[1];
+                                } else {
+                                    $new_car_id = $cars[1];
+                                    $old_car_id = $cars[0];
+                                }
                                 $fields['comments'] = "Car $old_car_id is a duplicate of $new_car_id.  The history of $old_car_id has been merged with $new_car_id and $old_car_id deleted.";
                                 $fields['operation'] = "DUPLICATE";
                                 break;
 
-                            case "newowner":
+                            case "newownerNewToOld":
+                                // Determine the newest car
+                                if ($cars[0] > $cars[1]) {
+                                    $new_car_id = $cars[0];
+                                    $old_car_id = $cars[1];
+                                } else {
+                                    $new_car_id = $cars[1];
+                                    $old_car_id = $cars[0];
+                                }
+                                $fields['comments'] = "Car $old_car_id was sold to a new owner and the new owner created a record for the same car as $new_car_id. The history of $old_car_id has been merged with $new_car_id and $old_car_id deleted.";
+                                $fields['operation'] = "NEWOWNER";
+                                break;
+
+                            case "newownerOldToNew":
+                                if ($cars[0] > $cars[1]) {
+                                    $new_car_id = $cars[1];
+                                    $old_car_id = $cars[0];
+                                } else {
+                                    $new_car_id = $cars[0];
+                                    $old_car_id = $cars[1];
+                                }
                                 $fields['comments'] = "Car $old_car_id was sold to a new owner and the new owner created a record for the same car as $new_car_id. The history of $old_car_id has been merged with $new_car_id and $old_car_id deleted.";
                                 $fields['operation'] = "NEWOWNER";
                                 break;
@@ -143,7 +162,7 @@ if (!empty($_POST)) {
 
                         $db->insert("cars_hist", $fields);
 
-                        $successes[] = 'Admin ' . ($user->data()->id) . ' ' . $fields['comments'];
+                        $successes[] = $fields['comments'];
                         logger($user->data()->id, "ElanRegistry", $fields['comments']);
                     }
                     // Now update suspected duplicates
@@ -239,8 +258,14 @@ if (!empty($_POST)) {
                                 </div>
                                 <div class="form-group">
                                     <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="customCheck-newowner" name="reason[]" value="newowner" />
-                                        <label class="custom-control-label" for="customCheck-newowner">New car is new owner</label>
+                                        <input type="checkbox" class="custom-control-input" id="customCheck-newownerNewToOld" name="reason[]" value="newownerNewToOld" />
+                                        <label class="custom-control-label" for="customCheck-newownerNewToOld">New car is new owner</label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" id="customCheck-newownerOldToNew" name="reason[]" value="newownerOldToNew" />
+                                        <label class="custom-control-label" for="customCheck-newownerOldToNew">Old car is new owner</label>
                                     </div>
                                 </div>
 
