@@ -1,49 +1,6 @@
 {
     "packages": [
         {
-            "name": "enyo/dropzone",
-            "version": "v5.7.4",
-            "version_normalized": "5.7.4.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/dropzone/dropzone-packagist.git",
-                "reference": "92c246b8a6d58cb86098a4195378baa9e32a539b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/dropzone/dropzone-packagist/zipball/92c246b8a6d58cb86098a4195378baa9e32a539b",
-                "reference": "92c246b8a6d58cb86098a4195378baa9e32a539b",
-                "shasum": ""
-            },
-            "time": "2021-02-07T16:37:04+00:00",
-            "type": "library",
-            "installation-source": "dist",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Matias Meno",
-                    "email": "m@tias.me",
-                    "homepage": "http://www.matiasmeno.com"
-                }
-            ],
-            "description": "Handles drag and drop of files for you.",
-            "homepage": "http://www.dropzonejs.com",
-            "keywords": [
-                "drag and drop",
-                "dragndrop",
-                "file upload",
-                "upload"
-            ],
-            "support": {
-                "issues": "https://github.com/dropzone/dropzone-packagist/issues",
-                "source": "https://github.com/dropzone/dropzone-packagist/tree/v5.7.4"
-            },
-            "install-path": "../enyo/dropzone"
-        },
-        {
             "name": "johnathanmiller/secure-env-php",
             "version": "v2.0.1",
             "version_normalized": "2.0.1.0",
