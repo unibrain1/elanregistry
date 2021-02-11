@@ -3,7 +3,7 @@
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
-$maximages = 6;
+$maximages = $settings->elan_image_max;
 
 // Get the combined user+profile
 $userQ = $db->findById($user->data()->id, 'usersview');
@@ -88,13 +88,8 @@ function updateCar(&$car)
     } // empty $car['id']
 }
 ?>
-<style>
-    td:first-child {
-        font-weight: bold;
-        width: 25%;
-        text-align: left;
-    }
-</style>
+<link rel="stylesheet" href="<?= $us_url_root ?>app/assets/css/edit_car.css">
+
 <div id='page-wrapper'>
     <div class='container-fluid'>
         <div class='row justify-content-center'>
@@ -205,22 +200,22 @@ function updateCar(&$car)
         </div>
     </div>
 </div><!-- .page-wrapper -->
+<!--footers-->
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>
 
-<link rel="stylesheet" href="<?= $us_url_root ?>app/assets/css/edit_car.css">
+<!-- Dropzone  jqueryui required for sortable dropzone -->
+<?php echo html_entity_decode($settings->elan_jquery_ui_cdn); ?>
+<?php echo html_entity_decode($settings->elan_dropzone_js_cdn); ?>
+<?php echo html_entity_decode($settings->elan_dropzone_css_cdn); ?>
+
+<!-- Include datapicker -->
+<?php echo html_entity_decode($settings->elan_datepicker_js_cdn); ?>
+<?php echo html_entity_decode($settings->elan_datepicker_css_cdn); ?>
 
 <!-- Year/Model definitions -->
 <script src='<?= $us_url_root ?>app/assets/js/cardefinition.js'></script>
-
-<!-- Dropzone  jqueryui required for sortable dropzone -->
-<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
-
-<link rel="stylesheet" href="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/dropzone.css">
-<script src="<?= $us_url_root ?>usersc/vendor/enyo/dropzone/dist/min/dropzone.min.js"></script>
-
-
-<?php
-require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datepicker.php';
-?>
 
 <script>
     Dropzone.autoDiscover = false;
@@ -287,7 +282,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
                                 status: 'success',
                             };
                             thisDropzone.emit("addedfile", mockFile);
-                            thisDropzone.emit("thumbnail", mockFile, '<?= $us_url_root ?>' + 'app/userimages/' + value.name);
+                            thisDropzone.emit("thumbnail", mockFile, '<?= $us_url_root . $settings->elan_image_dir ?>' + value.name);
                             $('[data-dz-thumbnail]').css('height', '120');
                             $('[data-dz-thumbnail]').css('width', '120');
                             $('[data-dz-thumbnail]').css('object-fit', 'cover');
@@ -719,7 +714,3 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->temp
     });
     // End Car Validation
 </script>
-<!--footers-->
-<?php
-require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
-?>

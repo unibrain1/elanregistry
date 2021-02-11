@@ -141,4 +141,8 @@
     text-align: right;
 }
 
-/* .ui-datepicker{ z-index: 9999 !important; color: blue} */
+td:first-child {
+    font-weight: bold;
+    width: 25%;
+    text-align: left;
+}
