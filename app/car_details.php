@@ -250,36 +250,9 @@ if (!empty($_GET)) {
         <br>
         <div class="row">
             <div class='col-sm-12'>
-                <div class='card' id='historyCard'>
-                    <div class='card-header'>
-                        <h2><strong>Car Update History</strong></h2>
-                    </div>
-                    <div class="card-body">
-                        <table id="historytable" style="width: 100%" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
-                            <thead>
-                                <tr>
-                                    <th scope=column>Operation</th>
-                                    <th scope=column>Date Modified</th>
-                                    <th scope=column>Year</th>
-                                    <th scope=column>Type</th>
-                                    <th scope=column>Chassis</th>
-                                    <th scope=column>Series</th>
-                                    <th scope=column>Variant</th>
-                                    <th scope=column>Color</th>
-                                    <th scope=column>Engine</th>
-                                    <th scope=column>Purchase Date</th>
-                                    <th scope=column>Sold Date</th>
-                                    <th scope=column>Comments</th>
-                                    <th scope=column>Image</th>
-                                    <th scope=column>Owner</th>
-                                    <th scope=column>City</th>
-                                    <th scope=column>State</th>
-                                    <th scope=column>Country</th>
-                                </tr>
-                            </thead>
-                        </table>
-                    </div> <!-- card-body -->
-                </div> <!-- card -->
+
+                <?php include($abs_us_root . $us_url_root . 'app/views/_car_history.php'); ?>
+
             </div> <!-- col -->
         </div> <!-- row -->
     </div> <!-- well -->
@@ -288,99 +261,8 @@ if (!empty($_GET)) {
 <!-- footers -->
 <?php
 require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
-
-// Table Sorting and Such
-echo html_entity_decode($settings->elan_datatables_js_cdn);
-echo html_entity_decode($settings->elan_datatables_css_cdn);
 ?>
 
-<script>
-    const img_root = '<? $us_url_root . $settings->elan_image_dir ?>';
-    // Format history table
-    // Get history from AJAX call TBD
-    const id = $('#carid').val();
-    const csrf = '<?= Token::generate(); ?>';
-
-    var table = $('#historytable').DataTable({
-        "scrollX": true,
-        responsive: true,
-        "order": [
-            [1, "desc"]
-        ],
-        "language": {
-            "emptyTable": "No history"
-        },
-        "ajax": {
-            "url": "action/carGetHistory.php",
-            "dataSrc": "history",
-            "type": "POST",
-            "data": function(d) {
-                d.csrf = csrf;
-                d.car_id = id;
-            }
-        },
-        "columns": [{
-                "data": "operation"
-            },
-            {
-                "data": "mtime"
-            },
-            {
-                "data": "year"
-            },
-            {
-                "data": "type"
-            },
-            {
-                "data": "chassis"
-            },
-            {
-                "data": "series"
-            },
-            {
-                "data": "variant"
-            },
-            {
-                "data": "color"
-            },
-            {
-                "data": "engine"
-            },
-            {
-                "data": "purchasedate"
-            },
-            {
-                "data": "solddate"
-            },
-            {
-                "data": "comments"
-            },
-            {
-                "data": "image",
-                "render": function(data, type, row, meta) {
-                    if (data) {
-                        // return '<img src="' + img_root + 'thumbs/' + data + '">';
-                        var images = data.split(',');
-
-                        var i;
-                        var response = '';
-                        for (i = 0; i < images.length; i++) {
-                            response += '<img class="card-img-top" src="<?= $us_url_root . $settings->elan_image_dir ?>' + images[i] + '">';
-                        }
-                        return response;
-                    } else {
-                        return "";
-                    }
-                }
-            }, {
-                "data": "fname"
-            }, {
-                "data": "city"
-            }, {
-                "data": "state"
-            }, {
-                "data": "country"
-            }
-        ]
-    });
-</script>
+<?php
+require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php';
+?>

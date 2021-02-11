@@ -19,7 +19,7 @@ $errors = [];
 $successes = [];
 $command = $settings->backup_source;
 
-$backup_age = $settings->elan_backup_age; // 30 days = Secs * Mins * Hours * Days TODO - Get days from configuration
+$backup_age = 60 * 60 * 24 * 30; // 30 days = Secs * Mins * Hours * Days TODO - Get days from configuration
 
 # The name of the script being run
 $self = 'backup.php';

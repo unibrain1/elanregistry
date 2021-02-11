@@ -548,9 +548,9 @@ if ($userQ2->count() > 0) {
 </div> <!-- /#page-wrapper -->
 
 <!-- footers -->
-<?php
-require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+<?php require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls
 ?>
+
 <!-- Place any per-page javascript here -->
 <script>
     $(document).ready(function() {
@@ -572,3 +572,8 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
         $('.pwpopover').not(this).popover('hide');
     });
 </script>
+
+<!-- footers -->
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>

@@ -13,7 +13,7 @@ $carData = $carQ->results();
 ?>
 
 <div id="page-wrapper">
-  <div class='container-fluid'>
+  <div class="container-fluid">
     <div class="well">
       <div class="row">
         <div class="col-12">
@@ -108,15 +108,9 @@ $carData = $carQ->results();
 </div><!-- .page-wrapper -->
 <!-- End of main content section -->
 
-<!-- footers -->
-<?php
-require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
 
-// Table Sorting and Such
-echo html_entity_decode($settings->elan_datatables_js_cdn);
-echo html_entity_decode($settings->elan_datatables_css_cdn);
-?>
-
+<!-- Table Sorting and Such -->
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php'; ?>
 
 <script>
   $(document).ready(function() {
@@ -159,5 +153,12 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
         .search(this.value)
         .draw();
     });
+
+
   });
 </script>
+
+<!-- footers -->
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>

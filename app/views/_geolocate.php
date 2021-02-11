@@ -24,12 +24,14 @@ if ($data_arr === false) {
 
 function geocode($address)
 {
-    global $settings;
+    // KEY is set in the initialization routine
+    global $GEO_ENCODE_KEY;
+
     // url encode the address
     $address = urlencode($address);
 
     // google map geocode api url
-    $url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key={$settings->elan_google_geo_key}";
+    $url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key={$GEO_ENCODE_KEY}";
 
     // get the json response
     $resp_json = file_get_contents($url);

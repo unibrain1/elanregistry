@@ -459,13 +459,11 @@ if (!empty($_POST)) {
     </div>
 </div>
 
-<?php
-require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
 
-// Table Sorting and Such
-echo html_entity_decode($settings->elan_datatables_js_cdn);
-echo html_entity_decode($settings->elan_datatables_css_cdn);
-?>
+
+<!-- Table Sorting and Such -->
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/datatables.php'; ?>
+
 <script>
     $(document).ready(function() {
         $('#duptable').DataTable({
@@ -481,3 +479,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
         });
     });
 </script>
+<!-- footers -->
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>
