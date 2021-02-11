@@ -198,6 +198,11 @@ FROM (
   </div> <!-- /.wrapper -->
 </div> <!-- page -->
 
+<!-- footers -->
+<?php
+require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
+?>
+
 <!-- Google Chart https://developers.google.com/chart/interactive/docs/  -->
 <!--Load the AJAX API-->
 <script src="https://www.gstatic.com/charts/loader.js"></script>
@@ -460,7 +465,7 @@ FROM (
 
         if (image != "") {
           var img = document.createElement('img');
-          img.src = "/app/userimages/".concat(image);
+          img.src = "<?= $us_url_root . $settings->elan_image_dir ?>".concat(image);
           infowincontent.appendChild(img);
           infowincontent.appendChild(document.createElement('br'));
         }
@@ -506,10 +511,4 @@ FROM (
 
   function doNothing() {}
 </script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?&key=<?= $MAPS_KEY ?>&callback=initMap"> </script>
-
-
-<!-- footers -->
-<?php
-require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer
-?>
+<script async defer src="https://maps.googleapis.com/maps/api/js?&key=<?= $settings->elan_google_maps_key ?>&callback=initMap"> </script>
