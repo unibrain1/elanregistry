@@ -29,8 +29,8 @@ foreach ($carData as $car) {
     $db->deleteById("cars_hist", $id);
 
 
-    if ($car->image && file_exists($abs_us_root . $us_url_root . 'app/userimages/' . $car->image)) {
-        $image = '<img src="' . $base_url . $us_url_root . 'app/userimages/' . $car->image . '">';
+    if ($car->image && file_exists($abs_us_root . $us_url_root . $settings->elan_image_dir . $car->image)) {
+        $image = '<img src="' . $base_url . $us_url_root . $settings->elan_image_dir . $car->image . '">';
     } else {
         $image = 'No image';
     }

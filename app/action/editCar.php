@@ -3,6 +3,9 @@
 // Check to see if the chassis number is taken
 require_once '../../users/init.php';
 
+$db = DB::getInstance();
+$settings = $db->query("SELECT * FROM settings")->first();
+
 // A place to put some messages
 $errors     = [];
 $successes  = [];
@@ -10,8 +13,8 @@ $cardetails = [];
 $carId      = null;
 
 
-$targetFilePath = $abs_us_root . $us_url_root . 'app/userimages/';
-$targetURL = $us_url_root . 'app/userimages/';
+$targetFilePath = $abs_us_root . $us_url_root . $settings->elan_image_dir;
+$targetURL = $us_url_root . $settings->elan_image_dir;
 
 //Forms posted now process it
 if (!empty($_POST)) {
