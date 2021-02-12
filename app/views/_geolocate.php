@@ -1,10 +1,8 @@
 <?php
 
 /* Sets variables
-
 $fields['lat']
 $fields['lon']
-
 */
 
 $fields = array();
@@ -24,14 +22,12 @@ if ($data_arr === false) {
 
 function geocode($address)
 {
-    // KEY is set in the initialization routine
-    global $GEO_ENCODE_KEY;
-
+    global $settings;
     // url encode the address
     $address = urlencode($address);
 
     // google map geocode api url
-    $url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key={$GEO_ENCODE_KEY}";
+    $url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key={$settings->elan_google_geo_key}";
 
     // get the json response
     $resp_json = file_get_contents($url);

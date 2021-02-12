@@ -2,7 +2,32 @@
 require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/container_close.php'; //custom template container
 require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php';
 ?>
+<div class="<?= $settings->container_open_class ?>">
+  <div class="row">
+    <div class="col-12 text-center">
+      <footer><br>&copy;
+        <?php echo date("Y"); ?>
+        <?= $settings->copyright; ?></footer>
+      <br>
+    </div>
+  </div>
+</div>
 
+<?php
+require_once($abs_us_root . $us_url_root . 'users/includes/html_footer.php');
+
+// jQuery
+echo html_entity_decode($settings->elan_jquery_cdn);
+
+// Bootstrap Core CSS
+echo html_entity_decode($settings->elan_bootstrap_js_cdn);
+
+// Popper
+echo html_entity_decode($settings->elan_popper_cdn);
+
+// Custom Fonts/Animation/Styling from FontAwsome 
+echo html_entity_decode($settings->elan_fontawesome_cdn);
+?>
 
 <script>
   var $hamburger = $(".hamburger");
@@ -24,15 +49,3 @@ require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php';
 
   gtag('config', 'UA-7230761-6');
 </script>
-
-<div class="container">
-  <div class="row">
-    <div class="col-12 text-center">
-      <footer><br>&copy;
-        <?php echo date("Y"); ?>
-        <?= $settings->copyright; ?></footer>
-      <br>
-    </div>
-  </div>
-</div>
-<?php require_once($abs_us_root . $us_url_root . 'users/includes/html_footer.php'); ?>
