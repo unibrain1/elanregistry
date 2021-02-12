@@ -297,6 +297,8 @@ if (Input::exists()) {
 </div>
 
 <!-- footers -->
+<?php require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; // currently just the closing /body and /html 
+?>
 
 <?php if ($settings->recaptcha > 0) { ?>
   <script src="https://www.google.com/recaptcha/api.js?render=<?= $settings->recap_public; ?>"></script>
@@ -312,22 +314,62 @@ if (Input::exists()) {
   </script>
 
 <?php } ?>
-<?php if ($settings->auto_assign_un == 0) { ?>
 
-<?php } ?>
+
 <script>
   $(document).ready(function() {
-    $('#password_view_control').hover(function() {
-      $('#password').attr('type', 'text');
-      $('#confirm').attr('type', 'text');
-    }, function() {
-      $('#password').attr('type', 'password');
-      $('#confirm').attr('type', 'password');
+
+    $("#password").keyup(function() {
+      $('#password_view_control').hover(function() {
+        $('#password').attr('type', 'text');
+        $('#confirm').attr('type', 'text');
+      }, function() {
+        $('#password').attr('type', 'password');
+        $('#confirm').attr('type', 'password');
+      });
+
+      var pswd = $("#password").val();
+      //validate the length
+      if (pswd.length >= '<?= $settings->min_pw ?>' && pswd.length <= '<?= $settings->max_pw ?>') {
+        $("#character_range_icon").removeClass("gray_out_icon");
+        $("#character_range").removeClass("gray_out_text");
+      } else {
+        $("#character_range_icon").addClass("gray_out_icon");
+        $("#character_range").addClass("gray_out_text");
+      }
+
+      //validate capital letter
+      if (pswd.match(/[A-Z]/)) {
+        $("#num_caps_icon").removeClass("gray_out_icon");
+        $("#caps").removeClass("gray_out_text");
+      } else {
+        $("#num_caps_icon").addClass("gray_out_icon");
+        $("#caps").addClass("gray_out_text");
+      }
+
+      //validate number
+      if (pswd.match(/\d/)) {
+        $("#num_numbers_icon").removeClass("gray_out_icon");
+        $("#number").removeClass("gray_out_text");
+      } else {
+        $("#num_numbers_icon").addClass("gray_out_icon");
+        $("#number").addClass("gray_out_text");
+      }
+    });
+
+    $("#confirm").keyup(function() {
+      var pswd = $("#password").val();
+      var confirm_pswd = $("#confirm").val();
+
+      //validate password_match
+      if (pswd == confirm_pswd) {
+        $("#password_match_icon").removeClass("gray_out_icon");
+        $("#password_match").removeClass("gray_out_text");
+      } else {
+        $("#password_match_icon").addClass("gray_out_icon");
+        $("#password_match").addClass("gray_out_text");
+      }
+
     });
   });
 </script>
-
-
-
-<?php require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; // currently just the closing /body and /html 
-?>

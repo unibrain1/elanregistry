@@ -13,9 +13,7 @@ $address = urlencode($address);
 
 // get latitude, longitude
 $data_arr = geocode($address);
-if ($data_arr === false) {
-    echo "    No results </br>";
-} else {
+if ($data_arr !== false) {
     $fields['lat'] = round($data_arr[0], 4);
     $fields['lon'] = round($data_arr[1], 4);
 }
