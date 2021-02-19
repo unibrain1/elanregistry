@@ -51,9 +51,10 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
 ?>
 
 <script>
-  const img_root = '<? $us_url_root . $settings->elan_image_dir ?>';
   const csrf = '<?= Token::generate(); ?>';
   const us_url_root = '<?= $us_url_root ?>';
+  const img_root = '<?= $us_url_root . $settings->elan_image_dir ?>';
+
 
   var table = $('#cartable').DataTable({
     fixedHeader: true,
@@ -142,14 +143,14 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     var images = data.split(',');
     if (images.length == 1) {
       // 1 Image
-      return '<img class="card-img-top" loading="lazy" src="<?= $us_url_root . $settings->elan_image_dir ?>' + images[0] + '">';
+      return '<img class="card-img-top" loading="lazy" src="' + img_root + images[0] + '">';
     }
     var i;
     var response = '<div id="slider"> <div id = "myCarousel" class = "carousel slide shadow"> <div class = "carousel-inner"> <div class = "carousel-inner" > ';
     var active = 'carousel-item active';
     for (i = 0; i < images.length; i++) {
       response += "<div class='" + active + "' data-slide-number='" + i + "'>";
-      response += '<img class="img-fluid card-img-top" loading="lazy" src="' + us_url_root + 'app/userimages/' + images[i] + '">';
+      response += '<img class="img-fluid card-img-top" loading="lazy" src="' + img_root + images[i] + '">';
       response += '</div>';
       active = 'carousel-item';
     }
@@ -164,7 +165,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     for (i = 0; i < images.length; i++) {
       response += '<li class="list-inline-item active">';
       response += '<a id="carousel-selector-' + i + '" class="selected" data-slide-to="' + i + '" data-target="#myCarousel">';
-      response += '<img loading="lazy" src="' + <?= $us_url_root ?> + 'app/userimages/' + images[i] + '" class="img-fluid ">';
+      response += '<img loading="lazy" src="' + img_root + images[i] + '" class="img-fluid ">';
       response += '</a> </li>';
     }
     response += '</ul> </div><div>';

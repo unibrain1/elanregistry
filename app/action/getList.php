@@ -60,7 +60,6 @@ if (!empty($_POST)) {
             $searchQuery .= " 0)";
         }
 
-
         ## Total number of records without filtering
         $totalRecords  = $db->findAll($table)->count();
 
@@ -69,24 +68,16 @@ if (!empty($_POST)) {
         $totalRecordwithFilter = $Q->count();
 
         ## Fetch records
-        // $empQuery = "select * from employee WHERE 1 " . $searchQuery . " order by " . $columnName . " " . $columnSortOrder . " limit " . $row . "," . $rowperpage;
         $Q = $db->query("SELECT * FROM $table WHERE 1 $searchQuery order by $sortValue limit $row,$rowperpage");
 
         $data = $Q->results();
 
-        // $carQ  = $db->findAll('cars');
-        // $cars  = $carQ->results();
-        // $count = $carQ->count();
-        // $error = ""; // Place holder for error messages.  If there is text in here it issues a pop-up.  Do not include if there is no error.
-
-        // echo json_encode(array('draw' => $draw, 'recordsTotal' => $count, 'recordsFiltered' => $count, 'history' => $cars));
-
         ## Response
         $response = array(
-            "draw" => intval($draw),
-            "recordsTotal" => $totalRecords,
-            "recordsFiltered" => $totalRecordwithFilter,
-            "data" => $data
+            'draw' => intval($draw),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $totalRecordwithFilter,
+            'data' => $data
         );
 
         echo json_encode($response);
