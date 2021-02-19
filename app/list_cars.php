@@ -1,15 +1,6 @@
 <?php
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
-
-if (!securePage($_SERVER['PHP_SELF'])) {
-  die();
-}
-
-// https://datatables.net/download/
-
-$carQ = $db->findAll("cars");
-$carData = $carQ->results();
 ?>
 
 <div id="page-wrapper">
@@ -22,10 +13,10 @@ $carData = $carQ->results();
               <h2><strong>List Cars</strong></h2>
             </div>
             <div class="card-body">
-              <table id="cartable" style="width: 100%" class="table-sm display compact table-bordered table-list-search" aria-describedby="card-header">
+              <table id="cartable" style="width: 100%" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
                 <thead>
                   <tr>
-                    <th scope=column></th>
+                    <th scope=column>ID</th>
                     <th scope=column>Year</th>
                     <th scope=column>Type</th>
                     <th scope=column>Chassis</th>
@@ -37,67 +28,9 @@ $carData = $carQ->results();
                     <th scope=column>City</th>
                     <th scope=column>State</th>
                     <th scope=column>Country</th>
-                    <th scope=column>Website</th>
-                    <th scope=column>Date Added</th>
-                  </tr>
-                  <tr id="filterrow">
-                    <th scope=column>NOSEARCH</th>
-                    <th scope=column>Year</th>
-                    <th scope=column>Type</th>
-                    <th scope=column>Chassis</th>
-                    <th scope=column>Series</th>
-                    <th scope=column>Variant</th>
-                    <th scope=column>Color</th>
-                    <th scope=column>NOSEARCH</th>
-                    <th scope=column>First Name</th>
-                    <th scope=column>City</th>
-                    <th scope=column>State</th>
-                    <th scope=column>Country</th>
-                    <th scope=column>NOSEARCH</th>
                     <th scope=column>Date Added</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <?php
-                  //Cycle through users
-                  foreach ($carData as $car) {
-                  ?>
-                    <tr>
-                      <td> <a class="btn btn-success btn-sm" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>">Details</a> </td>
-                      <td><?= $car->year ?></td>
-                      <td><?= $car->type ?></td>
-                      <td><?= $car->chassis ?></td>
-                      <td><?= $car->series ?></td>
-                      <td><?= $car->variant ?></td>
-                      <td><?= $car->color ?></td>
-                      <td>
-                        <?php
-                        include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
-                        ?>
-                      <td><?= $car->fname ?></td>
-                      <td><?= $car->city ?></td>
-                      <td><?= $car->state ?></td>
-                      <td><?= $car->country ?></td>
-                      <?php
-                      if (!empty($car->website)) {
-                      ?>
-                        <td> <a target="_blank" href="<?= $car->website ?>">Website</a></td>
-                      <?php
-                      } else {
-                        echo "<td></td>";
-                      } ?>
-                      <td>
-                        <?= date('Y-m-d', strtotime($car->ctime)); ?>
-
-                        <?php
-                        if (strtotime($car->ctime) > strtotime('-30 days')) {
-                          echo '<img style="-webkit-user-select:none; display:block; margin:auto;" alt="new" src="' . $us_url_root . 'app/images/new.png">';
-                        } ?>
-                      </td>
-                    </tr>
-                  <?php
-                  } ?>
-                </tbody>
               </table>
             </div> <!-- card-body -->
           </div> <!-- car -->
@@ -117,47 +50,126 @@ echo html_entity_decode($settings->elan_datatables_js_cdn);
 echo html_entity_decode($settings->elan_datatables_css_cdn);
 ?>
 
-
 <script>
-  $(document).ready(function() {
-    // Filter each column - http://jsfiddle.net/9bc6upok/ 
+  const img_root = '<? $us_url_root . $settings->elan_image_dir ?>';
+  const csrf = '<?= Token::generate(); ?>';
+  const us_url_root = '<?= $us_url_root ?>';
 
-    // Setup - add a text input to each footer cell
-    $(' #cartable thead tr#filterrow th').each(function(i) {
-      var title = $('#cartable thead tr#filterrow th').eq($(this).index()).text();
-      if (title != "NOSEARCH") {
-        $(this).html('<input type="text" size="5" placeholder=" ' + title + '" data-index="' + i + '" />');
-      } else {
-        $(this).html('');
+  var table = $('#cartable').DataTable({
+    fixedHeader: true,
+    responsive: true,
+    pageLength: 10,
+    scrollX: true,
+    "aLengthMenu": [
+      [10, 25, 50, 100, -1],
+      [10, 25, 50, 100, "All"]
+    ],
+    caseInsensitive: true,
+    "aaSorting": [
+      [1, "asc"],
+      [2, "asc"],
+      [3, "asc"]
+    ],
+    "language": {
+      "emptyTable": "No Cars"
+    },
+    'processing': true,
+    'serverSide': true,
+    'serverMethod': 'post',
+
+    "ajax": {
+      "url": "action/getList.php",
+      "dataSrc": "data",
+      data: function(d) {
+        d.csrf = csrf;
+        d.table = 'cars';
       }
-    });
-
-    // DataTable
-    var table = $('#cartable').DataTable({
-      fixedHeader: true,
-      responsive: true,
-      pageLength: 25,
-      scrollX: true,
-      "aLengthMenu": [
-        [25, 50, 100, -1],
-        [25, 50, 100, "All"]
-      ],
-      "aaSorting": [
-        [1, "asc"],
-        [2, "asc"],
-        [3, "asc"]
-      ],
-      "columnDefs": [{
-        "targets": 0,
-        "orderable": false
-      }]
-    });
-    // Filter event handler
-    $(table.table().container()).on('keyup', 'thead input', function() {
-      table
-        .column($(this).data('index'))
-        .search(this.value)
-        .draw();
-    });
+    },
+    'columns': [{
+        data: "id",
+        'searchable': false,
+        'orderable': false,
+        'render': function(data, type, row, meta) {
+          response = '<a class = "btn btn-success btn-sm" href = "' + us_url_root + 'app/car_details.php?car_id=' + data + '">Details';
+          return response;
+        }
+      },
+      {
+        data: "year",
+      },
+      {
+        data: "type"
+      },
+      {
+        data: "chassis"
+      },
+      {
+        data: "series"
+      },
+      {
+        data: "variant"
+      },
+      {
+        data: "color"
+      },
+      {
+        data: "image",
+        'searchable': false,
+        'render': function(data) {
+          if (data) {
+            return carousel(data);
+          } else {
+            return "";
+          }
+        }
+      }, {
+        data: "fname"
+      }, {
+        data: "city"
+      }, {
+        data: "state"
+      }, {
+        data: "country"
+      },
+      {
+        data: "ctime",
+        'searchable': true,
+      }
+    ]
   });
+
+  function carousel(data) {
+    var images = data.split(',');
+    if (images.length == 1) {
+      // 1 Image
+      return '<img class="card-img-top" loading="lazy" src="<?= $us_url_root . $settings->elan_image_dir ?>' + images[0] + '">';
+    }
+    var i;
+    var response = '<div id="slider"> <div id = "myCarousel" class = "carousel slide shadow"> <div class = "carousel-inner"> <div class = "carousel-inner" > ';
+    var active = 'carousel-item active';
+    for (i = 0; i < images.length; i++) {
+      response += "<div class='" + active + "' data-slide-number='" + i + "'>";
+      response += '<img class="img-fluid card-img-top" loading="lazy" src="' + us_url_root + 'app/userimages/' + images[i] + '">';
+      response += '</div>';
+      active = 'carousel-item';
+    }
+    response += '</div><a class="carousel-control-prev" href="#myCarousel" role="button" data-slide="prev">';
+    response += '<span class = "carousel-control-prev-icon" aria-hidden = "true" > </span>';
+    response += '<span class = "sr-only" > Previous </span> </a> <a class = "carousel-control-next" href = "#myCarousel" role="button" data-slide = "next">';
+    response += '<span class = "carousel-control-next-icon" aria-hidden = "true" > </span> <span class = "sr-only"> Next </span> </a>';
+    response += '</div>';
+
+
+    response += '<ul class="carousel-indicators list-inline mx-auto border px-0">';
+    for (i = 0; i < images.length; i++) {
+      response += '<li class="list-inline-item active">';
+      response += '<a id="carousel-selector-' + i + '" class="selected" data-slide-to="' + i + '" data-target="#myCarousel">';
+      response += '<img loading="lazy" src="' + <?= $us_url_root ?> + 'app/userimages/' + images[i] + '" class="img-fluid ">';
+      response += '</a> </li>';
+    }
+    response += '</ul> </div><div>';
+
+    return response;
+
+  };
 </script>
