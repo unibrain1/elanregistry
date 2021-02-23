@@ -35,14 +35,14 @@ use SecureEnvPHP\SecureEnvPHP;
 include_once $abs_us_root . $us_url_root . 'usersc/classes/Car.php';
 include_once $abs_us_root . $us_url_root . 'usersc/classes/Resize.php';
 
-// 
-
-
+// This is probably not the best place for this function - TODO::
 function load_picture($image, $thumbnail = null)
 {
     global $us_url_root;
     global $abs_us_root;
     global $settings;
+    $thumbsize = 100;
+    $resize = '-resized-';
     $image_dir = $settings->elan_image_dir;
 
     $html = "";
@@ -52,15 +52,16 @@ function load_picture($image, $thumbnail = null)
     $extension = $path['extension'];
 
     if ($thumbnail) {
-        $html = '<img src="' . $us_url_root . $image_dir . $filename . '-resized-100.' . $extension . '" alt="elan" class="img-fluid"> ';
+        $html = '<img src="' . $us_url_root . $image_dir . $filename . $resize . $thumbsize . "." . $extension . '" width="100" alt="elan" loading="lazy" class="img-fluid"> ';
     } else {
-        $html = '<img class="card-img-top" src="' . $us_url_root . $image_dir . $filename . '-resized-100.' . $extension . '"';
+        $html = '<img loading="lazy" class="card-img-top" src="' . $us_url_root . $image_dir . $filename . $resize . $thumbsize  . $extension . '"';
         $html .= ' sizes="50vw" ';
+        $html .= ' width="100" ';
         $html .= 'srcset="';
         $html .= $us_url_root . $image_dir . $filename . '-resized-100.' . $extension . ' 100w,';
         $html .= $us_url_root . $image_dir . $filename . '-resized-300.' . $extension . ' 300w,';
         $html .= $us_url_root . $image_dir . $filename . '-resized-600.' . $extension . ' 600w,';
-        $html .= $us_url_root . $image_dir . $filename . '-resized-1024.' . $extension . ' 1024"';
+        $html .= $us_url_root . $image_dir . $filename . '-resized-1024.' . $extension . ' 1024w"';
         $html .= 'alt="Elan" > ';
     }
     return $html;

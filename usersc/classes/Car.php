@@ -25,9 +25,7 @@ class Car
 
         $fields['ctime'] = date('Y-m-d G:i:s');
         if (!empty($fields['images'])) {
-            // $fields['image'] = implode(',', $fields['images']); //TODO until the DB field is renamed images
             $fields['image'] = json_encode($fields['images']); //TODO until the DB field is renamed images
-
             unset($fields['images']);  //TODO until the DB field is renamed images
         }
 
@@ -45,7 +43,7 @@ class Car
         // Deal with NULL id  - aka new car vs update
 
         if (!empty($fields['images'])) {
-            $fields['image'] = implode(',', $fields['images']); //TODO until the DB field is renamed images
+            $fields['image'] = json_encode($fields['images']); //TODO until the DB field is renamed images
             unset($fields['images']);  //TODO until the DB field is renamed images
         }
 

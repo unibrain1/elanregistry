@@ -2,7 +2,7 @@
 // Image is a comma seperated list of images
 $carImages = explode(',', $car->image);
 
-$sizes = [100, 300, 600, 1024, 2048];  // This should be from config TODO
+$sizes = [100, 300, 600, 1024, 2048];  
 //Remove the smallest since that will be the default
 $small = $sizes[0];
 unset($sizes[0]);
