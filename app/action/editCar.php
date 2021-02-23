@@ -301,7 +301,7 @@ function buildImageDetails(&$cardetails)
     global $db;
     global $user;
 
-    error_reporting(E_ALL);
+    $sizes = [100, 300, 600, 1024, 2048];  // Should get from config
 
     // Order of all images in the dropzone
     $requestedOrder = array_filter(explode(',', $_POST['filenames']));
@@ -316,11 +316,25 @@ function buildImageDetails(&$cardetails)
             $tempFile = $_FILES['file']['tmp_name'][$key];
 
             if ($tempFile !== '') { //  deal with empty file name
-                // Create a filename for the new file give the file a random name
+                // Create a filename for the new file and give the file a random name
                 $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
 
                 if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
                     $successes[] = "Photo has been uploaded " . $name . " as " . $newFileName;
+
+                    //  Create resized images
+                    $fileinfo = pathinfo($targetFilePath . $newFileName);
+                    $filename = $fileinfo['filename'];
+                    $extension = $fileinfo['extension'];
+
+                    foreach ($sizes as $size) {
+                        $thumbname = $targetFilePath . $filename . "-resized-" . $size . "." . $extension;
+
+                        $resizeObj = new Resize($targetFilePath . $newFileName);
+                        $resizeObj->resizeImage($size, $size, 'auto');
+                        $resizeObj->saveImage($thumbname, 80);
+                    }
+
                     logger($user->data()->id, "ElanRegistry", "SUCCESS: buildImageDetails carId: " . Input::get('carid') . " Photo uploaded " . $name . " as " . $newFileName);
 
                     array_replace_value($requestedOrder, $name, $newFileName);
@@ -332,7 +346,6 @@ function buildImageDetails(&$cardetails)
         }
     }
     $cardetails['image'] = implode(',', $requestedOrder);
-    error_reporting(0);
 }
 
 function fetchImages($carid)
