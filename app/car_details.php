@@ -30,31 +30,31 @@ if (!empty($_GET)) {
             // Yes it did
             $carFactory = $carQ->results();
 
-            if ($carFactory[0]->suffix != "") {
-                $carFactory[0]->suffix = $carFactory[0]->suffix . " (" . suffixtotext($carFactory[0]->suffix) . ")";
+            if ($carFactory[0]->suffix != '') {
+                $carFactory[0]->suffix = $carFactory[0]->suffix . ' (' . suffixtotext($carFactory[0]->suffix) . ')';
             }
             break;
         }
     }
 
     $raw = date_parse($car->join_date);
-    $signupdate = $raw['year'] . "-" . $raw['month'] . "-" . $raw['day'];
+    $signupdate = $raw['year'] . '-' . $raw['month'] . '-' . $raw['day'];
 } else {
     // Shouldn't be here unless someone is mangling the url
-    Redirect::to($us_url_root . "/app/list_cars.php");
+    Redirect::to($us_url_root . '/app/list_cars.php');
 }
 ?>
 
 <!-- Now that that is all out of the way, let's display everything -->
-<div id="page-wrapper">
-    <div class="well">
+<div id='page-wrapper'>
+    <div class='well'>
         <br>
-        <div class="row">
-            <div class="col-sm-6">
+        <div class='row'>
+            <div class='col-sm-6'>
                 <!-- Car Info -->
-                <div class="card card-default">
-                    <div class="card-header">
-                        <div class="form-group row">
+                <div class='card card-default'>
+                    <div class='card-header'>
+                        <div class='form-group row'>
                             <div class='col-md-7'>
                                 <h2><strong>Car Information</strong></h2>
                             </div>
@@ -63,19 +63,19 @@ if (!empty($_GET)) {
                                 if (isset($user) && $user->isLoggedIn()) {
                                     if ($user->data()->id === $car->user_id) { ?>
                                         <form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
-                                            <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-                                            <input type="hidden" name="action" value="updateCar" />
-                                            <input type="hidden" name="carid" id='carid' value="<?= $car->id ?>" />
-                                            <button class='btn btn-block btn-success' type="submit">Update</button>
+                                            <input type='hidden' name='csrf' value="<?= Token::generate(); ?>" />
+                                            <input type='hidden' name='action' value='updateCar' />
+                                            <input type='hidden' name='carid' id='carid' value="<?= $car->id ?>" />
+                                            <button class='btn btn-block btn-success' type='submit'>Update</button>
                                         </form>
                                     <?php
                                     } else {
                                     ?>
                                         <form method='POST' action=<?= $us_url_root . 'app/contact_owner.php' ?>>
-                                            <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
-                                            <input type="hidden" name="action" value="contact_owner" />
-                                            <input type="hidden" name="carid" id='carid' value="<?= $car->id ?>" />
-                                            <button class='btn btn-block btn-success' type="submit">Contact Owner</button>
+                                            <input type='hidden' name='csrf' value="<?= Token::generate(); ?>" />
+                                            <input type='hidden' name='action' value='contact_owner' />
+                                            <input type='hidden' name='carid' id='carid' value="<?= $car->id ?>" />
+                                            <button class='btn btn-block btn-success' type='submit'>Contact Owner</button>
                                         </form>
                                 <?php
                                     }
@@ -86,9 +86,9 @@ if (!empty($_GET)) {
                             </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <table id="cartable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
-                            <tr class="table-success">
+                    <div class='card-body'>
+                        <table id='cartable' class='table table-striped table-bordered table-sm' aria-describedby='card-header'>
+                            <tr class='table-success'>
                                 <th scope=column><strong>Car ID:</strong></th>
                                 <th scope=column><?= $car->id ?></th>
                             </tr>
@@ -136,7 +136,7 @@ if (!empty($_GET)) {
                                 <td><strong>Comments:</strong></td>
                                 <td><?= $car->comments ?></td>
                             </tr>
-                            <tr class="table-success">
+                            <tr class='table-success'>
                                 <td><strong>Owner ID:</strong></td>
                                 <td><?= $car->user_id ?></td>
                             </tr>
@@ -173,7 +173,7 @@ if (!empty($_GET)) {
                             ?>
                                 <tr>
                                     <td><strong>Website:</strong></td>
-                                    <td> <a target="_blank" href="<?= $car->website ?>">Website</a></td>
+                                    <td> <a target='_blank' href="<?= $car->website ?>">Website</a></td>
                                 </tr>
                             <?php
                             }
@@ -181,7 +181,7 @@ if (!empty($_GET)) {
                             <?php
                             if ($carFactory !== FALSE) { ?>
 
-                                <tr class="table-info">
+                                <tr class='table-info'>
                                     <td colspan=2><strong>Factory Data - <small>I' ve lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small> </strong> </td>
                                 </tr>
                                 <tr>
@@ -234,27 +234,27 @@ if (!empty($_GET)) {
                     </div>
                 </div>
             </div> <!-- col-xs-12 col-md-6 -->
-            <div class="col-sm-6">
+            <div class='col-sm-6'>
                 <!-- Image -->
-                <div class="card card-default">
-                    <div class="card-header">
+                <div class='card card-default'>
+                    <div class='card-header'>
                         <h2><strong>The Car</strong></h2>
                     </div>
-                    <div class="card-body">
+                    <div class='card-body'>
                         <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php'); ?>
                     </div> <!-- card-body -->
                 </div> <!-- card -->
             </div> <!-- col-xs-12 col-md-6 -->
         </div> <!-- row -->
         <br>
-        <div class="row">
+        <div class='row'>
             <div class='col-sm-12'>
                 <div class='card' id='historyCard'>
                     <div class='card-header'>
                         <h2><strong>Car Update History</strong></h2>
                     </div>
-                    <div class="card-body">
-                        <table id="historytable" style="width: 100%" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
+                    <div class='card-body'>
+                        <table id='historytable' style='width: 100%' class='table table-striped table-bordered table-sm' aria-describedby='card-header'>
                             <thead>
                                 <tr>
                                     <th scope=column>Operation</th>
@@ -294,92 +294,137 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
 ?>
 
 <script>
-    const img_root = '<? $us_url_root . $settings->elan_image_dir ?>';
+    const img_root = '<?= $us_url_root . $settings->elan_image_dir ?>';
     // Format history table
     // Get history from AJAX call TBD
     const id = $('#carid').val();
     const csrf = '<?= Token::generate(); ?>';
 
     var table = $('#historytable').DataTable({
-        "scrollX": true,
+        scrollX: true,
         responsive: true,
-        "order": [
-            [1, "desc"]
+        order: [
+            [1, 'desc']
         ],
-        "language": {
-            "emptyTable": "No history"
+        language: {
+            'emptyTable': 'No history'
         },
-        "ajax": {
-            "url": "action/carGetHistory.php",
-            "dataSrc": "history",
-            "type": "POST",
-            "data": function(d) {
+        ajax: {
+            url: 'action/carGetHistory.php',
+            dataSrc: 'history',
+            type: 'POST',
+            data: function(d) {
                 d.csrf = csrf;
                 d.car_id = id;
             }
         },
-        "columns": [{
-                "data": "operation"
+        columns: [{
+                data: "operation"
             },
             {
-                "data": "mtime"
+                data: "mtime"
             },
             {
-                "data": "year"
+                data: "year"
             },
             {
-                "data": "type"
+                data: "type"
             },
             {
-                "data": "chassis"
+                data: "chassis"
             },
             {
-                "data": "series"
+                data: "series"
             },
             {
-                "data": "variant"
+                data: "variant"
             },
             {
-                "data": "color"
+                data: "color"
             },
             {
-                "data": "engine"
+                data: "engine"
             },
             {
-                "data": "purchasedate"
+                data: "purchasedate"
             },
             {
-                "data": "solddate"
+                data: "solddate"
             },
             {
-                "data": "comments"
+                data: "comments"
             },
             {
-                "data": "image",
-                "render": function(data, type, row, meta) {
+                data: "image",
+                searchable: false,
+                render: function(data) {
                     if (data) {
-                        // return '<img src="' + img_root + 'thumbs/' + data + '">';
-                        var images = data.split(',');
-
-                        var i;
-                        var response = '';
-                        for (i = 0; i < images.length; i++) {
-                            response += '<img class="card-img-top" src="<?= $us_url_root . $settings->elan_image_dir ?>' + images[i] + '">';
-                        }
-                        return response;
+                        return carousel(data);
                     } else {
                         return "";
                     }
                 }
+            },
+            {
+                data: "fname"
             }, {
-                "data": "fname"
+                data: "city"
             }, {
-                "data": "city"
+                data: "state"
             }, {
-                "data": "state"
-            }, {
-                "data": "country"
+                data: 'country'
             }
         ]
     });
+
+    function carousel(data) {
+        var images = data.split(',');
+        var i;
+
+        const id = Math.floor(Math.random() * 100); // Generate and ID number for the carousel in case there are more than 1 per page
+
+        if (images.length == 1) {
+            // 1 Image
+            return load_picture(images[0], true);
+        }
+
+        var response = '<div id="slider"> <div id="myCarousel-' + id + '" class="carousel slide shadow"> <div class="carousel-inner"> <div class="carousel-inner"> ';
+        var active = 'carousel-item active';
+        for (i = 0; i < images.length; i++) {
+            response += "<div class='" + active + "' data-slide-number='" + i + "'>";
+            response += load_picture(images[i]);
+            response += '</div>';
+            active = 'carousel-item';
+        }
+        response += '</div><a class="carousel-control-prev" href="#myCarousel-' + id + '" role="button" data-slide="prev">';
+        response += '<span class="carousel-control-prev-icon" aria-hidden="true" > </span>';
+        response += '<span class="sr-only">Previous</span></a> <a class="carousel-control-next" href="#myCarousel-' + id + '" role="button" data-slide="next">';
+        response += '<span class="carousel-control-next-icon" aria-hidden="true" ></span> <span class="sr-only">Next</span> </a>';
+        response += '</div>';
+
+        return response;
+    };
+
+    function load_picture(image, thumbnail = null) {
+        const url_root = "<?= $us_url_root ?>";
+        const image_dir = "<?= $settings->elan_image_dir ?>";
+        var html;
+
+        const length = image.length;
+        const index = image.lastIndexOf('.');
+        const filename = image.substr(0, index);
+        const extension = image.substr((index + 1));
+
+        if (thumbnail) {
+            html = '<img src="' + url_root + image_dir + filename + '-resized-100.' + extension + '" alt="elan" class="img-fluid"> ';
+        } else {
+            html = '<img class="card-img-top" src="' + url_root + image_dir + filename + '-resized-100.' + extension + '"';
+            html += ' sizes="5vw" ';
+            html += 'srcset="';
+            html += url_root + image_dir + filename + '-resized-100.' + extension + ' 100w,';
+            html += url_root + image_dir + filename + '-resized-300.' + extension + ' 300w"';
+            html += 'alt="Elan" > ';
+        }
+        return html;
+    };
 </script>

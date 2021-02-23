@@ -2,14 +2,20 @@
 // Image is a comma seperated list of images
 $carImages = explode(',', $car->image);
 
-$j = count($carImages);
-if ($j === 0 || $carImages[0] == '') {
+$sizes = [100, 300, 600, 1024, 2048];  // This should be from config TODO
+//Remove the smallest since that will be the default
+$small = $sizes[0];
+unset($sizes[0]);
+
+$count = count($carImages);
+if ($count === 0 || $carImages[0] == '') {
     // No images or image name is blank
-} else if ($j === 1) {
-    if (is_file($abs_us_root . $us_url_root . $settings->elan_image_dir  . $carImages[0])) {
-        echo '<img class="card-img-top" src="' . $us_url_root . $settings->elan_image_dir  . $carImages[0] . '">';
-    }
-} else if ($j > 1) {
+    return;
+}
+
+if ($count === 1) {
+    echo load_picture($carImages[0]);
+} else {
 ?>
     <div id="slider">
         <!-- Carousel -->
@@ -20,10 +26,9 @@ if ($j === 0 || $carImages[0] == '') {
                     <?php
                     $class = 'carousel-item active';
 
-                    $j = count($carImages);
-                    for ($i = 0; $i < $j; $i++) {
-                        echo "<div class='" . $class . "' data-slide-number='" . $i . "'>";
-                        echo '<img class="img-fluid card-img-top" src="' . $us_url_root . $settings->elan_image_dir  . $carImages[$i] . '">';
+                    foreach ($carImages as $key => $image) {
+                        echo "<div class='" . $class . "' data-slide-number='" . $key . "'>";
+                        echo load_picture($carImages[$key]);
                         echo '</div>';
                         $class = 'carousel-item';
                     }
@@ -43,11 +48,11 @@ if ($j === 0 || $carImages[0] == '') {
             <!-- main slider carousel nav controls -->
             <ul class="carousel-indicators list-inline mx-auto border px-0">
                 <?php
-                $j = count($carImages);
-                for ($i = 0; $i < $j; $i++) {
+                foreach ($carImages as $key => $image) {
+
                     echo '<li class="list-inline-item active">';
-                    echo '<a id="carousel-selector-' . $i . '" class="selected" data-slide-to="' . $i . '" data-target="#myCarousel-' . $car->id . '">';
-                    echo '<img src="' . $us_url_root . $settings->elan_image_dir . $carImages[$i] . '" class="img-fluid">';
+                    echo '<a id="carousel-selector-' . $key . '" class="selected" data-slide-to="' . $key . '" data-target="#myCarousel-' . $car->id . '">';
+                    echo load_picture($image, true);
                     echo '</a> </li>';
                 }
                 ?>
@@ -58,4 +63,6 @@ if ($j === 0 || $carImages[0] == '') {
 
 <?php
 }
+
+
 ?>
