@@ -3,7 +3,8 @@
  * Functions to validate various aspectes of a car
  */
 
-function validateVIN($vin){
+function validateVIN($vin)
+{
     global $successes;
     global $errors;
 
@@ -47,13 +48,13 @@ function validateVIN($vin){
     }
     if (!$errors === '') {
         return false;
-    } else {
-        return true;
     }
+    return true;
 }
 
 
-function suffixtotext( $suffix ) {
+function suffixtotext($suffix)
+{
     $s = strtoupper($suffix);
 
     switch ($s) {
@@ -97,9 +98,8 @@ function suffixtotext( $suffix ) {
             $desc = "+2S and +2S/130 Federal";
             break;
 
-    default:
-        $desc = "Error";    
+        default:
+            $desc = "Error";
     }
     return $desc;
-
 }

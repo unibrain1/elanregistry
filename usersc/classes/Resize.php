@@ -2,7 +2,7 @@
 
 
 
-class resize
+class Resize
 {
     // *** Class variables
     private $image;
@@ -95,6 +95,8 @@ class resize
                 $optimalWidth = $optionArray['optimalWidth'];
                 $optimalHeight = $optionArray['optimalHeight'];
                 break;
+            default:
+                break;
         }
         return array('optimalWidth' => $optimalWidth, 'optimalHeight' => $optimalHeight);
     }
@@ -104,15 +106,13 @@ class resize
     private function getSizeByFixedHeight($newHeight)
     {
         $ratio = $this->width / $this->height;
-        $newWidth = $newHeight * $ratio;
-        return $newWidth;
+        return $newHeight * $ratio;
     }
 
     private function getSizeByFixedWidth($newWidth)
     {
         $ratio = $this->height / $this->width;
-        $newHeight = $newWidth * $ratio;
-        return $newHeight;
+        return $newWidth * $ratio;
     }
 
     private function getSizeByAuto($newWidth, $newHeight)
@@ -175,7 +175,6 @@ class resize
         $cropStartY = ($optimalHeight / 2) - ($newHeight / 2);
 
         $crop = $this->imageResized;
-        //imagedestroy($this->imageResized);
 
         // *** Now crop from center to exact requested size
         $this->imageResized = imagecreatetruecolor($newWidth, $newHeight);

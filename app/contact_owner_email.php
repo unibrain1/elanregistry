@@ -26,8 +26,6 @@ function clean_string($string)
 }
 
 // Overwrite internal email function for my own to allow additional parameters
-// require $abs_us_root . $us_url_root . 'users/classes/phpmailer/PHPMailerAutoload.php';
-
 use PHPMailer\PHPMailer\PHPMailer;
 
 function myemail($to, $subject, $body, $opts = [], $attachment = null)

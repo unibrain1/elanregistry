@@ -41,12 +41,12 @@
 </head>
 
 <body>
-    <div class="container">
+    <div class="container" id='message'>
         <p>Hello <?= $to ?>,</p>
         <p>This is a message from the <a href='https://www.elanregistry.org'>Lotus Elan Registry</a>. Another Elan owner has sent you a message.</p>
-        <table>
+        <table aria-describedby='message'>
             <tr style="background-color:#9fc77f">
-                <th colspan="2">Message</th>
+                <th colspan="2" id='email'>Message</th>
             </tr>
             <tr>
                 <td><strong>From</strong></td>

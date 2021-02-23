@@ -179,10 +179,11 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     const extension = image.substr((index + 1));
 
     if (thumbnail) {
-      html = '<img src="' + url_root + image_dir + filename + '-resized-100.' + extension + '" alt="elan" class="img-fluid"> ';
+      html = '<img src="' + url_root + image_dir + filename + '-resized-100.' + extension + '" width="100" alt="elan" loading="lazy" class="img-fluid"> ';
     } else {
-      html = '<img class="card-img-top" src="' + url_root + image_dir + filename + '-resized-100.' + extension + '"';
+      html = '<img loading="lazy" class="card-img-top" src="' + url_root + image_dir + filename + '-resized-100.' + extension + '"';
       html += ' sizes="5vw" ';
+      html += ' width="100" ';
       html += 'srcset="';
       html += url_root + image_dir + filename + '-resized-100.' + extension + ' 100w,';
       html += url_root + image_dir + filename + '-resized-300.' + extension + ' 300w"';
