@@ -4,7 +4,6 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require_once '../users/init.php';
-// require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
 $errors = "";
 // Get the DB
@@ -71,7 +70,7 @@ foreach ($images as $key => $image) {
             $newname = $img_root . $filename . "-resized-" . $size . "." . $extension;
 
             if (!file_exists($newname)) {
-                $resizeObj = new resize($image);
+                $resizeObj = new Resize($image);
                 $resizeObj->resizeImage($size, $size, 'auto');
                 $resizeObj->saveImage($newname, 80);
             }
@@ -100,6 +99,8 @@ function return_bytes($val)
             $val *= 1024;
         case 'k':
             $val *= 1024;
+        case default:
+            break;
     }
 
     return $val;
