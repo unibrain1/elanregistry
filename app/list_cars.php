@@ -61,33 +61,33 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     responsive: true,
     pageLength: 10,
     scrollX: true,
-    "aLengthMenu": [
+    'aLengthMenu': [
       [10, 25, 50, 100, -1],
-      [10, 25, 50, 100, "All"]
+      [10, 25, 50, 100, 'All']
     ],
     caseInsensitive: true,
-    "aaSorting": [
-      [1, "asc"],
-      [2, "asc"],
-      [3, "asc"]
+    'aaSorting': [
+      [1, 'asc'],
+      [2, 'asc'],
+      [3, 'asc']
     ],
-    "language": {
-      "emptyTable": "No Cars"
+    'language': {
+      'emptyTable': 'No Cars'
     },
     'processing': true,
     'serverSide': true,
     'serverMethod': 'post',
 
-    "ajax": {
-      "url": "action/getList.php",
-      "dataSrc": "data",
+    'ajax': {
+      'url': 'action/getList.php',
+      'dataSrc': 'data',
       data: function(d) {
         d.csrf = csrf;
         d.table = 'cars';
       }
     },
     'columns': [{
-        data: "id",
+        data: 'id',
         'searchable': false,
         'orderable': false,
         'render': function(data, type, row, meta) {
@@ -96,44 +96,45 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
         }
       },
       {
-        data: "year",
+        data: 'year',
       },
       {
-        data: "type"
+        data: 'type'
       },
       {
-        data: "chassis"
+        data: 'chassis'
       },
       {
-        data: "series"
+        data: 'series'
       },
       {
-        data: "variant"
+        data: 'variant'
       },
       {
-        data: "color"
+        data: 'color'
       },
       {
-        data: "image",
+        data: 'image',
         'searchable': false,
         'render': function(data) {
           if (data) {
             return carousel(data);
           } else {
-            return "";
+            return '';
           }
         }
-      }, {
-        data: "fname"
-      }, {
-        data: "city"
-      }, {
-        data: "state"
-      }, {
-        data: "country"
       },
       {
-        data: "ctime",
+        data: 'fname'
+      }, {
+        data: 'city'
+      }, {
+        data: 'state'
+      }, {
+        data: 'country'
+      },
+      {
+        data: 'ctime',
         'searchable': true,
       }
     ]
@@ -141,36 +142,52 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
 
   function carousel(data) {
     var images = data.split(',');
+    var i;
+
+    const id = Math.floor(Math.random() * 100); // Generate and ID number for the carousel in case there are more than 1 per page
+
     if (images.length == 1) {
       // 1 Image
-      return '<img class="card-img-top" loading="lazy" src="' + img_root + images[0] + '">';
+      return load_picture(images[0], true);
     }
-    var i;
-    var response = '<div id="slider"> <div id = "myCarousel" class = "carousel slide shadow"> <div class = "carousel-inner"> <div class = "carousel-inner" > ';
+
+    var response = '<div id="slider"> <div id="myCarousel-' + id + '" class="carousel slide shadow"> <div class="carousel-inner"> <div class="carousel-inner"> ';
     var active = 'carousel-item active';
     for (i = 0; i < images.length; i++) {
       response += "<div class='" + active + "' data-slide-number='" + i + "'>";
-      response += '<img class="img-fluid card-img-top" loading="lazy" src="' + img_root + images[i] + '">';
+      response += load_picture(images[i]);
       response += '</div>';
       active = 'carousel-item';
     }
-    response += '</div><a class="carousel-control-prev" href="#myCarousel" role="button" data-slide="prev">';
-    response += '<span class = "carousel-control-prev-icon" aria-hidden = "true" > </span>';
-    response += '<span class = "sr-only" > Previous </span> </a> <a class = "carousel-control-next" href = "#myCarousel" role="button" data-slide = "next">';
-    response += '<span class = "carousel-control-next-icon" aria-hidden = "true" > </span> <span class = "sr-only"> Next </span> </a>';
+    response += '</div><a class="carousel-control-prev" href="#myCarousel-' + id + '" role="button" data-slide="prev">';
+    response += '<span class="carousel-control-prev-icon" aria-hidden="true" > </span>';
+    response += '<span class="sr-only">Previous</span></a> <a class="carousel-control-next" href="#myCarousel-' + id + '" role="button" data-slide="next">';
+    response += '<span class="carousel-control-next-icon" aria-hidden="true" ></span> <span class="sr-only">Next</span> </a>';
     response += '</div>';
 
-
-    response += '<ul class="carousel-indicators list-inline mx-auto border px-0">';
-    for (i = 0; i < images.length; i++) {
-      response += '<li class="list-inline-item active">';
-      response += '<a id="carousel-selector-' + i + '" class="selected" data-slide-to="' + i + '" data-target="#myCarousel">';
-      response += '<img loading="lazy" src="' + img_root + images[i] + '" class="img-fluid ">';
-      response += '</a> </li>';
-    }
-    response += '</ul> </div><div>';
-
     return response;
+  };
 
+  function load_picture(image, thumbnail = null) {
+    const url_root = "<?= $us_url_root ?>";
+    const image_dir = "<?= $settings->elan_image_dir ?>";
+    var html;
+
+    const length = image.length;
+    const index = image.lastIndexOf('.');
+    const filename = image.substr(0, index);
+    const extension = image.substr((index + 1));
+
+    if (thumbnail) {
+      html = '<img src="' + url_root + image_dir + filename + '-resized-100.' + extension + '" alt="elan" class="img-fluid"> ';
+    } else {
+      html = '<img class="card-img-top" src="' + url_root + image_dir + filename + '-resized-100.' + extension + '"';
+      html += ' sizes="5vw" ';
+      html += 'srcset="';
+      html += url_root + image_dir + filename + '-resized-100.' + extension + ' 100w,';
+      html += url_root + image_dir + filename + '-resized-300.' + extension + ' 300w"';
+      html += 'alt="Elan" > ';
+    }
+    return html;
   };
 </script>
