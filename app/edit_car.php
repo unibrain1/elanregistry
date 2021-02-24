@@ -338,9 +338,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
 
                             // https://stackoverflow.com/questions/20910571/dropzonejs-submit-form-without-files
                             var blob = new Blob();
-                            blob.upload = {
-                                'chunked': thisDropzone.defaultOptions.chunking
-                            };
+                            blob.upload = {};
                             thisDropzone.uploadFile(blob);
                         }
                     }
