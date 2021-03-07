@@ -1,22 +1,60 @@
 <?php
 
+/** 
+ * 
+ *  Car is a class for managing Car data  
+ * 
+ *  Car is a class that is used for creating, updating and retrieving information
+ * about a Car for the Lotus Elan Registry 
+ * 
+ *  @author Jim Boone
+ *  @version $Revision: 0.1 $ 
+ *  @access public 
+ */
+
 class Car
 {
     private $_db;
     private $_data;
+    private $_owner;
 
-    public $tableName = 'cars';
-    public $historyTableName = 'cars_hist';
+    private $tableName = 'cars';
+    private $historyTableName = 'cars_hist';
+    private $imageDir = '';
 
+    /*
+     *  Instantiates the Car object.  
+     *  
+     *  @param int Optional Car ID.   If this is given the information for Car will be populated.
+     *  @return Bool Always true
+     *  @access public 
+     */
     public function __construct($id = null)
     {
+        global $user; // Get the logged in user 
+        $settings = getSettings();  // Get global settings from plugin
+
+        // Get the logged in user information
+        if (isset($user) && $user->isLoggedIn()) {
+            $this->_owner = $user->data();
+        }
+
+        $this->imageDir = $settings->elan_image_dir;
+
         $this->_db = DB::getInstance();
         if ($id) {
             $this->find($id);
         }
+        return true;
     }
 
-
+    /*
+     *  Creates a Car in the Database  
+     *  
+     *  @param array Key value pairs for car data
+     *  @return Bool True of car is created.
+     *  @access public 
+     */
     public function create($fields = [])
     {
         if (empty($fields)) {
@@ -31,16 +69,19 @@ class Car
 
         if (!$this->_db->insert($this->tableName, $fields)) {
             throw new Exception($this->_db->errorString());
+            return false;
         } else {
             $id = $this->_db->lastId();
             $this->find($id);  // Populate the car with the data
+            return true;
         }
     }
 
     public function update($fields = [], $id = null)
     {
-        // TODO
-        // Deal with NULL id  - aka new car vs update
+        if (is_null($id)) {
+            return false;
+        }
 
         if (!empty($fields['images'])) {
             $fields['image'] = json_encode($fields['images']); //TODO until the DB field is renamed images
@@ -59,7 +100,9 @@ class Car
         global $us_url_root;
         global $abs_us_root;
 
-        $settings = getSettings();  // Get global settings plugin
+        if (is_null($id)) {
+            return $this->list();
+        }
 
         $data = $this->_db->get($this->tableName, ['id', '=', $id]);
 
@@ -82,12 +125,12 @@ class Car
 
         $images = [];
         foreach ($carImages as $key => $carimage) {
-            $temp = pathinfo($abs_us_root . $us_url_root . $settings->elan_image_dir  . $carImages[$key]);
+            $temp = pathinfo($abs_us_root . $us_url_root . $this->imageDir  . $carImages[$key]);
             $file = $temp['dirname'] . "/" . $temp['basename'];
             if (is_file($file)) {
                 // Do not include name if file does not exist
                 $images[$key] = $temp;
-                $images[$key]['url'] = $us_url_root . $settings->elan_image_dir . $images[$key]['filename'];
+                $images[$key]['url'] = $us_url_root . $this->imageDir . $images[$key]['filename'];
                 $images[$key]['size'] = filesize($file);
                 $images[$key]['type'] = image_type_to_extension(exif_imagetype($file), false);
                 $images[$key]['mime'] = mime_content_type($file);
@@ -126,9 +169,9 @@ class Car
         return true;
     }
 
-    public function list()
+    public function findAll()
     {
-        $this->_db->findAll($this->tableName);
+        $this->_data = $this->_db->findAll($this->tableName)->results();
 
         return true;
     }
@@ -153,6 +196,17 @@ class Car
     public function images()
     {
         return $this->_data->image;
+    }
+
+    public function owner()
+    {
+        return $this->_owner;
+    }
+
+    public function search()
+    {
+        $response = $this->_owner->email;
+        return $response;
     }
 
     private function suffixtotext($suffix)
