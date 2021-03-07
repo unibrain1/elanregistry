@@ -83,12 +83,12 @@
                     <div class="card-body">
                         <div class="form-group">
                             <a style='text-decoration: underline;' rel="noopener noreferrer" target='_blank' href='https://getbootstrap.com'>Get Bootstrap</a><br>
-                            <label for='elan_boostrap_js_cdn'>Bootstrap JS CDN URL</label>
-                            <input type="text" class="form-control ajxtxt" data-desc="Bootstrap JS CDN URL" name="elan_boostrap_js_cdn" id="elan_boostrap_js_cdn" value="<?= $settings->elan_bootstrap_js_cdn; ?>">
+                            <label for='elan_bootstrap_js_cdn'>Bootstrap JS CDN URL</label>
+                            <input type="text" class="form-control ajxtxt" data-desc="Bootstrap JS CDN URL" name="elan_bootstrap_js_cdn" id="elan_bootstrap_js_cdn" value="<?= $settings->elan_bootstrap_js_cdn; ?>">
                         </div>
                         <div class="form-group">
-                            <label for='elan_boostrap_css_cdn'>Bootstrap CSS CDN URL</label>
-                            <input type="text" class="form-control ajxtxt" data-desc="Bootstrap CSS CDN URL" name="elan_boostrap_css_cdn" id="elan_boostrap_css_cdn" value="<?= $settings->elan_bootstrap_css_cdn; ?>">
+                            <label for='elan_bootstrap_css_cdn'>Bootstrap CSS CDN URL</label>
+                            <input type="text" class="form-control ajxtxt" data-desc="Bootstrap CSS CDN URL" name="elan_bootstrap_css_cdn" id="elan_bootstrap_css_cdn" value="<?= $settings->elan_bootstrap_css_cdn; ?>">
                         </div>
 
                         <div class="form-group">
