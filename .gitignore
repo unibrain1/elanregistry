@@ -48,11 +48,10 @@ install/*
 usupdate.zip
 users/updates/
 # exclude Test Cases
-Tests/
+tests/
 .htaccess
 #exclude composer and vendor files
 vendor
 composer.lock
 usersc/vendor
-
-
+usersc/tests
