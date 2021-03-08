@@ -22,8 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // Get encrypted environment variables
 // Need to include now because the init calls usersc/vendor/autoload.php after custom_functions.php
-if (file_exists($abs_us_root . $us_url_root . 'usersc/vendor/autoload.php')) {
-    require_once $abs_us_root . $us_url_root . 'usersc/vendor/autoload.php';
+if (file_exists($abs_us_root . $us_url_root . 'vendor/autoload.php')) {
+    require_once $abs_us_root . $us_url_root . 'vendor/autoload.php';
 }
 
 use SecureEnvPHP\SecureEnvPHP;
