@@ -4,7 +4,8 @@ require_once 'users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
 // Grab a random car with an image!
-$car = $db->query("SELECT * FROM cars WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0];
+$carID = $db->query("SELECT id FROM cars WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0]->id;
+$car = new Car($carID);
 ?>
 <div id='page-wrapper'>
 	<!-- Page Content -->
@@ -51,26 +52,27 @@ $car = $db->query("SELECT * FROM cars WHERE image <> '' ORDER BY RAND() LIMIT 1"
 						<h2>One of the Cars</h2>
 					</div>
 					<div class='card-body'>
-						<?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php'); ?>
-						<table id='cartable' class='table table-striped table-bordered table-sm' aria-describedby='Car ID <?= $car->id ?>'>
+
+						<?php echo display_carousel($car->data()->image); ?>
+						<table id='cartable' class='table table-striped table-bordered table-sm' aria-describedby='Car ID <?= $car->data()->id ?>'>
 							<tr>
 								<th scope='col'><strong>Year :</strong></th>
-								<th scope='col'><?= $car->year ?></th>
+								<th scope='col'><?= $car->data()->year ?></th>
 							</tr>
 							<tr>
 								<td><strong>Series :</strong></td>
-								<td><?= $car->series ?></td>
+								<td><?= $car->data()->series ?></td>
 							</tr>
 							<tr>
 								<td><strong>Variant:</strong></td>
-								<td><?= $car->variant ?></td>
+								<td><?= $car->data()->variant ?></td>
 							</tr>
 							<tr>
 								<td><strong>Type:</strong></td>
-								<td><?= $car->type ?></td>
+								<td><?= $car->data()->type ?></td>
 							</tr>
 							<tr>
-								<td colspan='2'><a class='btn btn-success btn-sm' href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>'>Details</a></td>
+								<td colspan='2'><a class='btn btn-success btn-sm' href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->data()->id ?>'>Details</a></td>
 							</tr>
 						</table>
 					</div> <!-- card-body -->
