@@ -44,9 +44,9 @@ if ($userQ->count() > 0) {
 }
 $carQ = $db->query("SELECT * FROM cars WHERE user_id = ?", array($user_id));
 
-if ($carQ->count() > 0) {
-	$thatCar = $carQ->results();
-}
+
+
+$cars = findByOwner($user_id);
 
 $signupdate = new DateTime($thatUser[0]->join_date);
 $lastlogin = new DateTime($thatUser[0]->last_login);
@@ -124,173 +124,149 @@ $lastlogin = new DateTime($thatUser[0]->last_login);
 
 							// If there is car information then display it
 
-							if (empty($thatCar)) {
+							if (empty($cars)) {
 								// 	If the user does not have a car then display the add car form</li>
 							?>
 								<a class="btn btn-success" href=<?= $us_url_root . "app/edit_car.php" ?> role="button">Add Car</a>
 								<?php
 							} else {
 								// Else there is car information then display it
-								foreach ($thatCar as $car) {
+								foreach ($cars as $car) {
 									// output data of each row.  View has both cars and users
 								?>
-									<table style='padding: 0;' id="cartable-<?= $car->id ?>" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
-
+									<table style='padding: 0;' id="cartable-<?= $car->data()->id ?>" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
 										<tr class="table-success">
 											<th scope=column><strong>Car ID :</strong></th>
-											<th scope=column><?= $car->id ?></th>
+											<th scope=column><?= $car->data()->id ?></th>
 										</tr>
 										<tr>
 											<td><strong>Model :</strong></td>
-											<td><?= $car->model ?></td>
+											<td><?= $car->data()->model ?></td>
 										</tr>
 										<tr>
 											<td><strong>Series :</strong></td>
-											<td><?= $car->series ?></td>
+											<td><?= $car->data()->series ?></td>
 										</tr>
 										<tr>
 											<td><strong>Variant:</strong></td>
-											<td><?= $car->variant ?></td>
+											<td><?= $car->data()->variant ?></td>
 										</tr>
 										<tr>
 											<td><strong>Year :</strong></td>
-											<td><?= $car->year ?></td>
+											<td><?= $car->data()->year ?></td>
 										</tr>
 										<tr>
 											<td><strong>Type:</strong></td>
-											<td><?= $car->type ?></td>
+											<td><?= $car->data()->type ?></td>
 										</tr>
 										<tr>
 											<td><strong>Chassis :</strong></td>
-											<td><?= $car->chassis ?></td>
+											<td><?= $car->data()->chassis ?></td>
 										</tr>
 										<tr>
 											<td><strong>Color:</strong></td>
-											<td><?= $car->color ?></td>
+											<td><?= $car->data()->color ?></td>
 										</tr>
 										<tr>
 											<td><strong>Engine :</strong></td>
-											<td><?= $car->engine ?></td>
+											<td><?= $car->data()->engine ?></td>
 										</tr>
 										<tr>
 											<td><strong>Purchase Date:</strong></td>
-											<td><?= $car->purchasedate ?></td>
+											<td><?= $car->data()->purchasedate ?></td>
 										</tr>
 										<tr>
 											<td><strong>Sold Date :</strong></td>
-											<td><?= $car->solddate ?></td>
+											<td><?= $car->data()->solddate ?></td>
 										</tr>
 										<tr>
 											<td><strong>Website : </strong></td>
 											<?php
-											if (!empty($car->website)) {
-												echo '<td> <a target="_blank"  href=' . $car->website . '>' . $car->website . '</a></td>';
+											if (!empty($car->data()->website)) {
+												echo '<td> <a target="_blank"  href=' . $car->data()->website . '>' . $car->data()->website . '</a></td>';
 											} else {
 												echo "<td></td></tr>";
 											}
 											?>
 										<tr>
 											<td><strong>Comments:</strong></td>
-											<td><?= $car->comments ?></td>
+											<td><?= $car->data()->comments ?></td>
 										</tr>
 										<tr>
 											<td><strong>Created:</strong></td>
-											<td><?= $car->ctime ?></td>
+											<td><?= $car->data()->ctime ?></td>
 										</tr>
 										<tr>
 											<td><strong>Last Modified:</strong></td>
-											<td><?= $car->mtime ?></td>
+											<td><?= $car->data()->mtime ?></td>
 										</tr>
 										<tr>
 											<td><strong>Images:</strong></td>
 											<td>
-												<?php
-												include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
-												?>
+												<?php echo display_carousel($car->data()->image); ?>
 											</td>
 										</tr>
-
-
 										<?php
-										// Search in the elan_factory_info for details on the car.
-										// The car.chassis can either match exactly (car.chassis = elan_factory_info.serial )
-										//    or
-										// The right most 5 digits of the car.chassis (post 1970 and some 1969) will =  elan_factory_info.serial
-
-										$search = array($car->chassis, substr($car->chassis, -5));
-
-										$carFactory = [];
-										foreach ($search as $s) {
-											$factoryQ = $db->query('SELECT * FROM elan_factory_info WHERE serial = ? ', [$s]);
-											// Did it return anything?
-											if ($factoryQ->count() != 0) {
-												// Yes it did
-												$carFactory = $carQ->results();
-												if ($carFactory[0]->suffix != "") {
-													$carFactory[0]->suffix = $carFactory[0]->suffix . " (" . suffixtotext($carFactory[0]->suffix) . ")";
-												} ?> <tr class="table-info">
-													<td colspan=2><strong>Factory Data - <small>I' ve lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small></strong></td>
-												</tr>
-
-												<tr>
-													<td><strong>Year:</strong></td>
-													<td><?= $carFactory[0]->year ?></td>
-												</tr>
-												<tr>
-													<td><strong>Month:</strong></td>
-													<td><?= $carFactory[0]->month ?></td>
-												</tr>
-												<tr>
-													<td><strong>Production Batch:</strong></td>
-													<td><?= $carFactory[0]->batch ?></td>
-												</tr>
-												<tr>
-													<td><strong>Type:</strong></td>
-													<td><?= $carFactory[0]->type ?></td>
-												</tr>
-												<tr>
-													<td><strong>Chassis:</strong></td>
-													<td><?= $carFactory[0]->serial ?></td>
-												</tr>
-												<tr>
-													<td><strong>Suffix:</strong></td>
-													<td><?= $carFactory[0]->suffix ?></td>
-												</tr>
-												<tr>
-													<td><strong>Engine:</strong></td>
-													<td><?= $carFactory[0]->engineletter ?><?= $carFactory[0]->enginenumber ?></td>
-												</tr>
-												<tr>
-													<td><strong>Gearbox:</strong></td>
-													<td><?= $carFactory[0]->gearbox ?></td>
-												</tr>
-												<tr>
-													<td><strong>Color:</strong></td>
-													<td><?= $carFactory[0]->color ?></td>
-												</tr>
-												<tr>
-													<td><strong>Build Date:</strong></td>
-													<td><?= $carFactory[0]->builddate ?></td>
-												</tr>
-												<tr>
-													<td><strong>Notes:</strong></td>
-													<td><?= $carFactory[0]->note ?></td>
-												</tr>
-										<?php
-												break;
-											}
-										} ?>
+										if (!is_null($car->factory())) {
+										?>
+											<tr class="table-info">
+												<td colspan=2><strong>Factory Data - <small>I' ve lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small></strong></td>
+											</tr>
+											<tr>
+												<td><strong>Year:</strong></td>
+												<td><?= $car->factory()->year ?></td>
+											</tr>
+											<tr>
+												<td><strong>Month:</strong></td>
+												<td><?= $car->factory()->month ?></td>
+											</tr>
+											<tr>
+												<td><strong>Production Batch:</strong></td>
+												<td><?= $car->factory()->batch ?></td>
+											</tr>
+											<tr>
+												<td><strong>Type:</strong></td>
+												<td><?= $car->factory()->type ?></td>
+											</tr>
+											<tr>
+												<td><strong>Chassis:</strong></td>
+												<td><?= $car->factory()->serial ?></td>
+											</tr>
+											<tr>
+												<td><strong>Suffix:</strong></td>
+												<td><?= $car->factory()->suffix ?></td>
+											</tr>
+											<tr>
+												<td><strong>Engine:</strong></td>
+												<td><?= $car->factory()->engineletter ?><?= $car->factory()->enginenumber ?></td>
+											</tr>
+											<tr>
+												<td><strong>Gearbox:</strong></td>
+												<td><?= $car->factory()->gearbox ?></td>
+											</tr>
+											<tr>
+												<td><strong>Color:</strong></td>
+												<td><?= $car->factory()->color ?></td>
+											</tr>
+											<tr>
+												<td><strong>Build Date:</strong></td>
+												<td><?= $car->factory()->builddate ?></td>
+											</tr>
+											<tr>
+												<td><strong>Notes:</strong></td>
+												<td><?= $car->factory()->note ?></td>
+											</tr>
+										<?php }	?>
 									</table>
-									<br>
 									<div class="col">
 										<div class="form-group row">
 											<form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
 												<input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
 												<input type="hidden" name="action" value="updateCar" />
-												<input type="hidden" name="carid" value="<?= $car->id ?>" />
+												<input type="hidden" name="carid" value="<?= $car->data()->id ?>" />
 												<button class="btn btn-success" type="submit">Update Car</button>
 											</form>
-											<a class="btn btn-info" role="button" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>">Details</a>
+											<a class="btn btn-info" role="button" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->data()->id ?>">Details</a>
 										</div>
 									</div>
 									<br>
