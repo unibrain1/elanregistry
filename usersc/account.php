@@ -42,9 +42,6 @@ $userQ = $db->query("SELECT * FROM usersview WHERE id = ?", array($user_id));
 if ($userQ->count() > 0) {
 	$thatUser = $userQ->results();
 }
-$carQ = $db->query("SELECT * FROM cars WHERE user_id = ?", array($user_id));
-
-
 
 $cars = findByOwner($user_id);
 
