@@ -9,8 +9,8 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 }
 
 // Get the cars data
-$db = DB::getInstance();
-$carData = $db->findAll("cars")->results();
+$carData = new Car();
+$carData->findAll();
 
 // Start XML file, create parent node
 $doc = new DOMDocument('1.0', 'utf-8');
@@ -19,7 +19,7 @@ $parnode = $doc->appendChild($doc->createElement('markers'));
 header("Content-type: text/xml");
 
 // Iterate through the rows, adding XML nodes for each
-foreach ($carData as $car) {
+foreach ($carData->data() as $car) {
     $carImages = explode(',', $car->image);
     // Add to XML document node
     $node = $doc->createElement("marker");
