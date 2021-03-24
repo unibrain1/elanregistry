@@ -3,11 +3,11 @@
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
-$maximages = $settings->elan_image_max;
+if (!securePage($_SERVER['PHP_SELF'])) {
+    die();
+}
 
-// Get the combined user+profile
-$userQ = $db->findById($user->data()->id, 'usersview');
-$userData = $userQ->results();
+$maximages = $settings->elan_image_max;
 
 $cardetails = [];
 /*  Add the User/profile information to the record */
@@ -44,9 +44,10 @@ if (!empty($_POST)) {
     } else {
 
         $action = Input::get('action');
+        $cardetails['id']  = Input::get('carid');
 
         if ($action === 'updateCar') {
-            updateCar($cardetails);
+            updateCarDetails($cardetails);
         } else {
             $errors[] = 'No valid action';
         }
@@ -56,36 +57,29 @@ if (!empty($_POST)) {
 /* 
 Called to update a car.  Get the car information and fill in the defaults.
 */
-function updateCar(&$car)
+function updateCarDetails(&$car)
 {
     global $user;
-    global $db;
-    global $errors;
-    global $successes;
 
-    $car['id'] = Input::get('carid');
-
-    if (!empty($car['id'])) {
-        // Let's check to see if this user owns this car`
-        $userQ = $db->get('car_user', ['AND', ['userid', '=', $user->data()->id], ['carid', '=', $car['id']]]);
-
-        if ($userQ->count() > 0) {
-            // Owner so get the car
-            $carQ = $db->get('cars', ['id', '=', $car['id']])->results()[0];
-
-            foreach ($carQ as $key => $value) {
-                // Copy data into the $car
-                $car[$key] = $value;
-            }
-        } else {
-            // This should never happen unless the user is trying to do something bad. Log it and then log them out
-            logger($user->data()->id, 'ElanRegistry', 'Not owner of car! USER ' . $user->data()->id . ' CAR ' . $car['id']);
-            $user->logout();
-            exit();
-        }
-    } else { /* Empty Car */
+    if (empty($car['id'])) {
         logger($user->data()->id, 'ElanRegistry', 'Empty carid field in GET');
-    } // empty $car['id']
+        return;
+    }
+
+    $carQ = new Car($car['id']);
+
+    // Let's check to see if this user owns this car`
+    if ($user->data()->id != $carQ->data()->user_id) {
+        // This should never happen unless the user is trying to do something bad. Log it and then log them out
+        logger($user->data()->id, 'ElanRegistry', 'Not owner of car! USER ' . $user->data()->id . ' CAR ' . $car['id']);
+        $user->logout();
+        exit();
+    }
+
+    foreach ($carQ->data() as $key => $value) {
+        // Copy data into the $car
+        $car[$key] = $value;
+    }
 }
 ?>
 <link rel="stylesheet" href="<?= $us_url_root ?>app/assets/css/edit_car.css">
