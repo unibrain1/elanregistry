@@ -3,9 +3,14 @@
 require_once 'users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
+if (!securePage($_SERVER['PHP_SELF'])) {
+	die();
+}
+
 // Grab a random car with an image!
-$carID = $db->query("SELECT id FROM cars WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0]->id;
-$car = new Car($carID);
+$randomCarId = $db->query("SELECT id FROM cars WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0]->id;
+$car = new Car($randomCarId);
+
 ?>
 <div id='page-wrapper'>
 	<!-- Page Content -->
