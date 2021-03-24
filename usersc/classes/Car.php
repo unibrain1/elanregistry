@@ -16,8 +16,10 @@ class Car
 {
     private $_db;
     private $_data;
+    private $_history;
+    private $_images;
+    private $_factory;
     private $_owner;
-
     private $tableName = 'cars';
     private $historyTableName = 'cars_hist';
     private $imageDir = '';
@@ -32,16 +34,16 @@ class Car
     public function __construct($id = null)
     {
         global $user; // Get the logged in user 
+
+        $this->_db = DB::getInstance();
         $settings = getSettings();  // Get global settings from plugin
+        $this->imageDir = $settings->elan_image_dir;
 
         // Get the logged in user information
         if (isset($user) && $user->isLoggedIn()) {
-            $this->_owner = $user->data();
+            $this->_owner = $user->data(); // TODO this should be from the user/profile JOIN
         }
 
-        $this->imageDir = $settings->elan_image_dir;
-
-        $this->_db = DB::getInstance();
         if ($id) {
             $this->find($id);
         }
@@ -69,17 +71,16 @@ class Car
 
         if (!$this->_db->insert($this->tableName, $fields)) {
             throw new Exception($this->_db->errorString());
-            return false;
         } else {
             $id = $this->_db->lastId();
             $this->find($id);  // Populate the car with the data
+            $this->_db->insert('car_user', array('userid' => $this->data()->user_id, 'carid' => $id));
             return true;
         }
     }
-
-    public function update($fields = [], $id = null)
+    public function update($fields = [])
     {
-        if (is_null($id)) {
+        if (is_null($fields['id'])) {
             return false;
         }
 
@@ -88,31 +89,31 @@ class Car
             unset($fields['images']);  //TODO until the DB field is renamed images
         }
 
-        if (!$this->_db->update($this->tableName, $id, $fields)) {
+        if (!$this->_db->update($this->tableName, $fields['id'], $fields)) {
             throw new Exception('There was a problem updating.');
         } else {
-            $this->find($id);  // Populate the car with the data
+            $this->find($fields['id']);  // Populate the car with the data
         }
-    }
 
-    public function find($id = null)
+        return true;
+    }
+    public function find($carID = null)
     {
         global $us_url_root;
         global $abs_us_root;
 
-        if (is_null($id)) {
-            return $this->list();
+        if (is_null($carID)) {
+            return $this->findAll();
         }
 
-        $data = $this->_db->get($this->tableName, ['id', '=', $id]);
+        $data = $this->_db->get($this->tableName, ['id', '=', $carID]);
 
         if ($data->count() === 0) {
             return false;
         }
 
         $this->_data = $data->first();
-
-
+        // Get the car images
         // Turn images into array 
         // Images can be encoded as JSON or simple CSV
         $carImages = json_decode($this->_data->image);
@@ -121,8 +122,6 @@ class Car
             $carImages = explode(',', $this->_data->image);
         }
 
-        unset($this->_data->image);  // We don't need this element.  
-
         $images = [];
         foreach ($carImages as $key => $carimage) {
             $temp = pathinfo($abs_us_root . $us_url_root . $this->imageDir  . $carImages[$key]);
@@ -130,20 +129,20 @@ class Car
             if (is_file($file)) {
                 // Do not include name if file does not exist
                 $images[$key] = $temp;
-                $images[$key]['url'] = $us_url_root . $this->imageDir . $images[$key]['filename'];
+                $images[$key]['url'] = $us_url_root . $this->imageDir . $images[$key]['basename'];
                 $images[$key]['size'] = filesize($file);
                 $images[$key]['type'] = image_type_to_extension(exif_imagetype($file), false);
                 $images[$key]['mime'] = mime_content_type($file);
             }
         }
-        $this->_data->images =  array_values($images);  // Reindex in case a file didn't exist
+        $this->_images =  array_values($images);  // Reindex in case a file didn't exist
 
-        // Car history data
-        $data = $this->_db->query("SELECT * from $this->historyTableName WHERE car_id = ? ORDER BY timestamp DESC", [$id]);
+        // Get the car history
+        $data = $this->_db->query("SELECT * from $this->historyTableName WHERE car_id = ? ORDER BY timestamp DESC", [$carID]);
         if ($data->count()) {
-            $this->_data->history = $data->results();
+            $this->_history = $data->results();
         } else {
-            $this->_data->history = null;
+            $this->_history = null;
         }
 
         // Search in the elan_factory_info for details on the car.
@@ -161,14 +160,29 @@ class Car
                 if ($factory->first()->suffix != "") {
                     $factory->first()->suffix = $factory->first()->suffix . " (" . $this->suffixtotext($factory->first()->suffix) . ")";
                 }
-                $this->_data->factory = $factory->first();
+                $this->_factory = $factory->first();
             } else {
-                $this->_data->factory = null;
+                $this->_factory = null;
             }
         }
+
+        // Get the car owner.  
+        // Owner Information is copied from the _data section for now but could be retrieved from DB
+        $this->_owner = [
+            'user_id'  => $this->_data->user_id,
+            'email'  => $this->_data->email,
+            'fname'  => $this->_data->fname,
+            'lname'  => $this->_data->lname,
+            'join_date' => $this->_data->join_date,
+            'city'  => $this->_data->city,
+            'state'  => $this->_data->state,
+            'country'  => $this->_data->country,
+            'lat'  => $this->_data->lat,
+            'lon'  => $this->_data->lon
+        ];
+
         return true;
     }
-
     public function findAll()
     {
         $this->_data = $this->_db->findAll($this->tableName)->results();
@@ -179,36 +193,26 @@ class Car
     {
         return (!empty($this->_data)) ? true : false;
     }
-
     public function data()
     {
         return $this->_data;
     }
     public function history()
     {
-        return $this->_data->history;
+        return $this->_history;
     }
     public function factory()
     {
-        return $this->_data->factory;
+        return $this->_factory;
     }
-
     public function images()
     {
-        return $this->_data->image;
+        return $this->_images;
     }
-
     public function owner()
     {
         return $this->_owner;
     }
-
-    public function search()
-    {
-        $response = $this->_owner->email;
-        return $response;
-    }
-
     private function suffixtotext($suffix)
     {
         $s = strtoupper($suffix);
@@ -260,4 +264,3 @@ class Car
         return $desc;
     }
 }
-// 
