@@ -1,7 +1,6 @@
 <?php
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
-require_once 'validate.php'; // TBD do I need this?
 
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
@@ -9,35 +8,12 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 
 // Get some interesting user information to display later
 if (!empty($_GET)) {
-    $id = $_GET['car_id'];
-    $id = Input::sanitize($id);
+    $carID = Input::get('car_id');
 
     // Get the car information
-    $car = $db->findById($id, 'cars')->results()[0];
+    $car = new Car($carID);
 
-    // Search in the elan_factory_info for details on the car.
-    // The car.chassis can either match exactly (car.chassis = elan_factory_info.serial )
-    //    or
-    // The right most 5 digits of the car.chassis (post 1970 and some 1969) will =  elan_factory_info.serial
-
-    $search = array($car->chassis, substr($car->chassis, -5));
-
-    $carFactory = FALSE;
-    foreach ($search as $s) {
-        $carQ = $db->query('SELECT * FROM elan_factory_info WHERE serial = ? ', [$s]);
-        // Did it return anything?
-        if ($carQ->count() !== 0) {
-            // Yes it did
-            $carFactory = $carQ->results();
-
-            if ($carFactory[0]->suffix != '') {
-                $carFactory[0]->suffix = $carFactory[0]->suffix . ' (' . suffixtotext($carFactory[0]->suffix) . ')';
-            }
-            break;
-        }
-    }
-
-    $raw = date_parse($car->join_date);
+    $raw = date_parse($car->data()->join_date);
     $signupdate = $raw['year'] . '-' . $raw['month'] . '-' . $raw['day'];
 } else {
     // Shouldn't be here unless someone is mangling the url
@@ -61,11 +37,11 @@ if (!empty($_GET)) {
                             <div class='col-md-5 text-right'>
                                 <?php
                                 if (isset($user) && $user->isLoggedIn()) {
-                                    if ($user->data()->id === $car->user_id) { ?>
+                                    if ($user->data()->id === $car->data()->user_id) { ?>
                                         <form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
                                             <input type='hidden' name='csrf' value="<?= Token::generate(); ?>" />
                                             <input type='hidden' name='action' value='updateCar' />
-                                            <input type='hidden' name='carid' id='carid' value="<?= $car->id ?>" />
+                                            <input type='hidden' name='carid' id='carid' value="<?= $car->data()->id ?>" />
                                             <button class='btn btn-block btn-success' type='submit'>Update</button>
                                         </form>
                                     <?php
@@ -74,13 +50,13 @@ if (!empty($_GET)) {
                                         <form method='POST' action=<?= $us_url_root . 'app/contact_owner.php' ?>>
                                             <input type='hidden' name='csrf' value="<?= Token::generate(); ?>" />
                                             <input type='hidden' name='action' value='contact_owner' />
-                                            <input type='hidden' name='carid' id='carid' value="<?= $car->id ?>" />
+                                            <input type='hidden' name='carid' id='carid' value="<?= $car->data()->id ?>" />
                                             <button class='btn btn-block btn-success' type='submit'>Contact Owner</button>
                                         </form>
                                 <?php
                                     }
                                 } else {
-                                    echo "<input type='hidden' name='carid' id='carid' value='" . $car->id . "' />";
+                                    echo "<input type='hidden' name='carid' id='carid' value='" . $car->data()->id . "' />";
                                 }
                                 ?>
                             </div>
@@ -90,71 +66,71 @@ if (!empty($_GET)) {
                         <table id='cartable' class='table table-striped table-bordered table-sm' aria-describedby='card-header'>
                             <tr class='table-success'>
                                 <th scope=column><strong>Car ID:</strong></th>
-                                <th scope=column><?= $car->id ?></th>
+                                <th scope=column><?= $car->data()->id ?></th>
                             </tr>
                             <tr>
                                 <td><strong>Series:</strong></td>
-                                <td><?= $car->series ?></td>
+                                <td><?= $car->data()->series ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Variant:</strong></td>
-                                <td><?= $car->variant ?></td>
+                                <td><?= $car->data()->variant ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Model:</strong></td>
-                                <td><?= $car->model ?></td>
+                                <td><?= $car->data()->model ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Year:</strong></td>
-                                <td><?= $car->year ?></td>
+                                <td><?= $car->data()->year ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Type:</strong></td>
-                                <td><?= $car->type ?></td>
+                                <td><?= $car->data()->type ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Chassis :</strong></td>
-                                <td><?= $car->chassis ?></td>
+                                <td><?= $car->data()->chassis ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Color:</strong></td>
-                                <td><?= $car->color ?></td>
+                                <td><?= $car->data()->color ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Engine :</strong></td>
-                                <td><?= $car->engine ?></td>
+                                <td><?= $car->data()->engine ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Purchase Date:</strong></td>
-                                <td><?= $car->purchasedate ?></td>
+                                <td><?= $car->data()->purchasedate ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Sold Date :</strong></td>
-                                <td><?= $car->solddate ?></td>
+                                <td><?= $car->data()->solddate ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Comments:</strong></td>
-                                <td><?= $car->comments ?></td>
+                                <td><?= $car->data()->comments ?></td>
                             </tr>
                             <tr class='table-success'>
                                 <td><strong>Owner ID:</strong></td>
-                                <td><?= $car->user_id ?></td>
+                                <td><?= $car->data()->user_id ?></td>
                             </tr>
                             <tr>
                                 <td><strong>First name:</strong></td>
-                                <td><?= ucfirst($car->fname) ?></td>
+                                <td><?= ucfirst($car->data()->fname) ?></td>
                             </tr>
                             <tr>
                                 <td><strong>City</strong></td>
-                                <td><?= html_entity_decode($car->city); ?></td>
+                                <td><?= html_entity_decode($car->data()->city); ?></td>
                             </tr>
                             <tr>
                                 <td><strong>State:</strong></td>
-                                <td><?= html_entity_decode($car->state); ?></td>
+                                <td><?= html_entity_decode($car->data()->state); ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Country:</strong></td>
-                                <td><?= html_entity_decode($car->country); ?></td>
+                                <td><?= html_entity_decode($car->data()->country); ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Member Since:</strong></td>
@@ -162,71 +138,71 @@ if (!empty($_GET)) {
                             </tr>
                             <tr>
                                 <td><strong>Record Created:</strong></td>
-                                <td><?= $car->ctime ?></td>
+                                <td><?= $car->data()->ctime ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Record Modified:</strong></td>
-                                <td><?= $car->mtime ?></td>
+                                <td><?= $car->data()->mtime ?></td>
                             </tr>
                             <?php
-                            if (!empty($car->website)) {
+                            if (!empty($car->data()->website)) {
                             ?>
                                 <tr>
                                     <td><strong>Website:</strong></td>
-                                    <td> <a target='_blank' href="<?= $car->website ?>">Website</a></td>
+                                    <td> <a target='_blank' href="<?= $car->data()->website ?>">Website</a></td>
                                 </tr>
                             <?php
                             }
                             ?>
                             <?php
-                            if ($carFactory !== FALSE) { ?>
+                            if (!is_null($car->factory())) { ?>
 
                                 <tr class='table-info'>
-                                    <td colspan=2><strong>Factory Data - <small>I' ve lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small> </strong> </td>
+                                    <td colspan=2><strong>Factory Data - <small>I've lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small> </strong> </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Year:</strong></td>
-                                    <td><?= $carFactory[0]->year ?></td>
+                                    <td><?= $car->factory()->year ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Month:</strong></td>
-                                    <td><?= $carFactory[0]->month ?></td>
+                                    <td><?= $car->factory()->month ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Production Batch:</strong></td>
-                                    <td><?= $carFactory[0]->batch ?></td>
+                                    <td><?= $car->factory()->batch ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Type:</strong></td>
-                                    <td><?= $carFactory[0]->type ?></td>
+                                    <td><?= $car->factory()->type ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Chassis:</strong></td>
-                                    <td><?= $carFactory[0]->serial ?></td>
+                                    <td><?= $car->factory()->serial ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Suffix:</strong></td>
-                                    <td><?= $carFactory[0]->suffix ?></td>
+                                    <td><?= $car->factory()->suffix ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Engine:</strong></td>
-                                    <td><?= $carFactory[0]->engineletter ?><?= $carFactory[0]->enginenumber ?></td>
+                                    <td><?= $car->factory()->engineletter ?><?= $car->factory()->enginenumber ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Gearbox:</strong></td>
-                                    <td><?= $carFactory[0]->gearbox ?></td>
+                                    <td><?= $car->factory()->gearbox ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Color:</strong></td>
-                                    <td><?= $carFactory[0]->color ?></td>
+                                    <td><?= $car->factory()->color ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Build Date:</strong></td>
-                                    <td><?= $carFactory[0]->builddate ?></td>
+                                    <td><?= $car->factory()->builddate ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Notes:</strong></td>
-                                    <td><?= $carFactory[0]->note ?></td>
+                                    <td><?= $car->factory()->note ?></td>
                                 </tr>
                             <?php } ?>
 
@@ -241,7 +217,7 @@ if (!empty($_GET)) {
                         <h2><strong>The Car</strong></h2>
                     </div>
                     <div class='card-body'>
-                        <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php'); ?>
+                        <?php echo display_carousel($car->data()->image); ?>
                     </div> <!-- card-body -->
                 </div> <!-- card -->
             </div> <!-- col-xs-12 col-md-6 -->
@@ -293,12 +269,19 @@ echo html_entity_decode($settings->elan_datatables_js_cdn);
 echo html_entity_decode($settings->elan_datatables_css_cdn);
 ?>
 
+<!-- Constants needed by the scripts -->
 <script>
+    const csrf = '<?= Token::generate(); ?>';
+    const us_url_root = '<?= $us_url_root ?>';
     const img_root = '<?= $us_url_root . $settings->elan_image_dir ?>';
+</script>
+
+<script src='<?= $us_url_root ?>app/assets/js/imagedisplay.js'></script>
+
+<script>
     // Format history table
     // Get history from AJAX call TBD
     const id = $('#carid').val();
-    const csrf = '<?= Token::generate(); ?>';
 
     var table = $('#historytable').DataTable({
         scrollX: true,
@@ -376,56 +359,4 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
             }
         ]
     });
-
-    function carousel(data) {
-        var images = data.split(',');
-        var i;
-
-        const id = Math.floor(Math.random() * 100); // Generate and ID number for the carousel in case there are more than 1 per page
-
-        if (images.length == 1) {
-            // 1 Image
-            return load_picture(images[0], true);
-        }
-
-        var response = '<div id="slider"> <div id="myCarousel-' + id + '" class="carousel slide shadow"> <div class="carousel-inner"> <div class="carousel-inner"> ';
-        var active = 'carousel-item active';
-        for (i = 0; i < images.length; i++) {
-            response += "<div class='" + active + "' data-slide-number='" + i + "'>";
-            response += load_picture(images[i]);
-            response += '</div>';
-            active = 'carousel-item';
-        }
-        response += '</div><a class="carousel-control-prev" href="#myCarousel-' + id + '" role="button" data-slide="prev">';
-        response += '<span class="carousel-control-prev-icon" aria-hidden="true" > </span>';
-        response += '<span class="sr-only">Previous</span></a> <a class="carousel-control-next" href="#myCarousel-' + id + '" role="button" data-slide="next">';
-        response += '<span class="carousel-control-next-icon" aria-hidden="true" ></span> <span class="sr-only">Next</span> </a>';
-        response += '</div>';
-
-        return response;
-    };
-
-    function load_picture(image, thumbnail = null) {
-        const url_root = "<?= $us_url_root ?>";
-        const image_dir = "<?= $settings->elan_image_dir ?>";
-        var html;
-
-        const length = image.length;
-        const index = image.lastIndexOf('.');
-        const filename = image.substr(0, index);
-        const extension = image.substr((index + 1));
-
-        if (thumbnail) {
-            html = '<img src="' + url_root + image_dir + filename + '-resized-100.' + extension + '" width="100" alt="elan" loading="lazy" class="img-fluid"> ';
-        } else {
-            html = '<img loading="lazy" class="card-img-top" src="' + url_root + image_dir + filename + '-resized-100.' + extension + '"';
-            html += ' sizes="5vw" ';
-            html += ' width="100" ';
-            html += 'srcset="';
-            html += url_root + image_dir + filename + '-resized-100.' + extension + ' 100w,';
-            html += url_root + image_dir + filename + '-resized-300.' + extension + ' 300w"';
-            html += 'alt="Elan" > ';
-        }
-        return html;
-    };
 </script>

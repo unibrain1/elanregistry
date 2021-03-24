@@ -3,8 +3,7 @@
 // Check to see if the chassis number is taken
 require_once '../../users/init.php';
 
-$db = DB::getInstance();
-$settings = $db->query("SELECT * FROM settings")->first();
+$settings = getSettings();  // Get global settings from plugin
 
 // A place to put some messages
 $errors     = [];
@@ -59,12 +58,12 @@ if (!empty($_POST)) {
         }
 
         $response = array(
-            'action'     => $action,
-            'cardetails' => $cardetails,
             'status'     => (!empty($errors)) ? 'error' : 'success',
+            'action'     => $action,
             'info'       => array_merge($successes,  $errors),
+            'cardetails' => $cardetails
         );
-        logger($user->data()->id, "ElanRegistry", "carUpdate carId: " . $cardetails['id'] . " Status: " . $response['status']);
+        logger($user->data()->id, "ElanRegistry: ", "Action: " . $response['action'] . " Status: " . $response['status'] . "  carID: " . $cardetails['id'] . "Messages: " . json_encode($response['info']) . " Data: " . json_encode($response['cardetails']));
 
         // Blanks instead of NULL for display
         foreach ($response['cardetails'] as $key => $value) {
@@ -79,44 +78,31 @@ if (!empty($_POST)) {
 
 function updateCar(&$cardetails)
 {
-    global $user;
     global $errors;
     global $successes;
-    global $db;
+
+    $car = new Car();
 
     // Update 
-    $db->update('cars', $cardetails['id'], $cardetails);
-    if ($db->error()) {
-        $errors[] = 'DB ERROR' . $db->errorString();
-        logger($user->data()->id, "ElanRegistry - Update", "edit_car error car " . $db->errorString());
+    if ($car->update($cardetails)) {
+        $successes[] = 'Update Car ID: ' . $car->data()->id;
+        $successes[] = 'Update BY ID: ' . $car->data()->user_id;
     } else {
-        // Grab the id of the last insert
-        $successes[] = 'Update Car ID: ' . $cardetails['id'];
-        $successes[] = 'Update BY ID: ' . $cardetails['user_id'];
+        $errors[] = 'Update Car ERROR';
     }
 }
 function addCar(&$cardetails)
 {
-    global $user;
     global $errors;
     global $successes;
-    global $db;
-    global $user;
-    // Insert
-    // Add a create time
-    $cardetails['ctime'] = date('Y-m-d G:i:s');
+    $car = new Car();
 
-    $db->insert('cars', $cardetails);
-    if ($db->error()) {
-        $errors[] = 'DB ERROR' . $db->errorString();
-        logger($user->data()->id, "ElanRegistry - Insert", "edit_car error car " . $db->errorString());
+    if ($car->create($cardetails)) {
+        $successes[] = 'Add Car ID: ' . $car->data()->id;
+        $successes[] = 'Added by User ID: ' . $car->data()->user_id;
+        $cardetails['id'] = $car->data()->id;
     } else {
-        // Grab the id of the last insert
-        $cardetails['id'] = $db->lastId();
-        $successes[] = 'Add Car ID: ' . $cardetails['id'];
-        $successes[] = 'Update User ID: ' . $user->data()->id;
-        // then udate the cross reference table (user_car) with the car_id and user_id,
-        $db->insert('car_user', array('userid' => $user->data()->id, 'carid' => $cardetails['id']));
+        $errors[] = 'Car Create ERROR';
     }
 }
 
@@ -129,8 +115,8 @@ function buildCarDetails(&$cardetails, $carId = null)
 
     // Get the combined user+profile
     if ($carId) {
-        $car = $db->findById($carId, 'cars')->results()[0];
-        foreach ($car as $key => $value) {
+        $car = new Car($carId);
+        foreach ($car->data() as $key => $value) {
             $cardetails[$key] = $value;
         }
     } else {
@@ -305,43 +291,42 @@ function buildImageDetails(&$cardetails)
 
     // Order of all images in the dropzone
     $requestedOrder = array_filter(explode(',', $_POST['filenames']));
+    $cardetails['image'] = implode(',', $requestedOrder);
+
 
     // Do I have any new files?
     if ($_FILES['file']['name'][0] == 'blob') {
         $successes[] = 'No image';
-    } else {
-        //  $_FILES['file']['tmp_name'] is an array so have to use loop
-        foreach ($_FILES['file']['tmp_name'] as $key => $value) {
-            $name  = $_FILES['file']['name'][$key];
-            $tempFile = $_FILES['file']['tmp_name'][$key];
+        return;
+    }
+    //  $_FILES['file']['tmp_name'] is an array so have to use loop
+    foreach ($_FILES['file']['tmp_name'] as $key => $value) {
+        $name  = $_FILES['file']['name'][$key];
+        $tempFile = $_FILES['file']['tmp_name'][$key];
 
-            if ($tempFile !== '') { //  deal with empty file name
-                // Create a filename for the new file and give the file a random name
-                $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
+        if ($tempFile !== '') { //  deal with empty file name
+            // Create a filename for the new file and give the file a random name
+            $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
 
-                if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
-                    $successes[] = "Photo has been uploaded " . $name . " as " . $newFileName;
+            if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
+                $successes[] = "Photo has been uploaded " . $name . " as " . $newFileName;
 
-                    //  Create resized images
-                    $fileinfo = pathinfo($targetFilePath . $newFileName);
-                    $filename = $fileinfo['filename'];
-                    $extension = $fileinfo['extension'];
+                //  Create resized images
+                $fileinfo = pathinfo($targetFilePath . $newFileName);
+                $filename = $fileinfo['filename'];
+                $extension = $fileinfo['extension'];
 
-                    foreach ($sizes as $size) {
-                        $thumbname = $targetFilePath . $filename . "-resized-" . $size . "." . $extension;
+                foreach ($sizes as $size) {
+                    $thumbname = $targetFilePath . $filename . "-resized-" . $size . "." . $extension;
 
-                        $resizeObj = new Resize($targetFilePath . $newFileName);
-                        $resizeObj->resizeImage($size, $size, 'auto');
-                        $resizeObj->saveImage($thumbname, 80);
-                    }
-
-                    logger($user->data()->id, "ElanRegistry", "SUCCESS: buildImageDetails carId: " . Input::get('carid') . " Photo uploaded " . $name . " as " . $newFileName);
-
-                    array_replace_value($requestedOrder, $name, $newFileName);
-                } else {
-                    $errors[] = "Photo failed to uploaded " . $name . " as " . $newFileName;
-                    logger($user->data()->id, "ElanRegistry", "ERROR: buildImageDetails carId: " . Input::get('carid') . " Photo failed to uploaded " . $name . " as " . $newFileName);
+                    $resizeObj = new Resize($targetFilePath . $newFileName);
+                    $resizeObj->resizeImage($size, $size, 'auto');
+                    $resizeObj->saveImage($thumbname, 80);
                 }
+                array_replace_value($requestedOrder, $name, $newFileName);
+            } else {
+                $errors[] = "Photo failed to uploaded " . $name . " as " . $newFileName;
+                logger($user->data()->id, "ElanRegistry", "ERROR: buildImageDetails carId: " . Input::get('carid') . " Photo failed to uploaded " . $name . " as " . $newFileName);
             }
         }
     }
@@ -351,6 +336,10 @@ function buildImageDetails(&$cardetails)
 function fetchImages($carid)
 {
     global $db;
+
+    $car = new Car($carid);
+
+    $car->images();
 
     $listQ = $db->query("SELECT image FROM cars WHERE id = ?", [$carid]);
 
@@ -393,7 +382,6 @@ function removeImage($carID, $file)
         // Write the new array to the DB
         $images = implode(',', $carImages);
         $db->update("cars", $carID, ["image" => $images]);
-        logger($user->data()->id, "ElanRegistry", "SUCCESS:removeImage carId: " . $carID . " Image: " . $file);
 
         $response = array(
             'status' => 'success',
