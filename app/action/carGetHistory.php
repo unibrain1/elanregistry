@@ -9,9 +9,6 @@ if (!empty($_POST)) {
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
-        // Get the DB
-        $db = DB::getInstance();
-
         $draw = Input::get('draw');
         $carID = Input::get('car_id');
 
