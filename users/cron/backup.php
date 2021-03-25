@@ -1,6 +1,6 @@
 <?php
 ini_set('max_execution_time', 1356);
-ini_set('memory_limit', '1024M');
+ini_set('memory_limit', '2048');
 require_once '../init.php';
 include $abs_us_root . $us_url_root . 'users/lang/en-US.php';
 
@@ -78,6 +78,7 @@ if ($checkQuery->count() == 1) {
 		mkdir($backupPath . 'sql');
 		$backupItems = [];
 
+		$command = 'everything';
 		switch ($command) {
 			case 'everything':
 				$backupItems[] = $abs_us_root . $us_url_root;
@@ -90,8 +91,6 @@ if ($checkQuery->count() == 1) {
 					$errors[] = lang('AB_BACKUPFAIL');
 				}
 				backupUsTables($backupPath);
-				// $targetZipFile = backupZip($backupPath, true);
-
 				break;
 			case 'db_us_files':
 				$backupItems[] = $abs_us_root . $us_url_root . 'users';
