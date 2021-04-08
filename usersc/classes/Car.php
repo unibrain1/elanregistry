@@ -84,6 +84,7 @@ class Car
             return false;
         }
 
+        $fields['mtime'] = date('Y-m-d G:i:s');
         if (!empty($fields['images'])) {
             $fields['image'] = json_encode($fields['images']); //TODO until the DB field is renamed images
             unset($fields['images']);  //TODO until the DB field is renamed images
