@@ -65,59 +65,59 @@ if (!empty($_GET)) {
                     <div class='card-body'>
                         <table id='cartable' class='table table-striped table-bordered table-sm' aria-describedby='card-header'>
                             <tr class='table-success'>
-                                <th scope=column><strong>Car ID:</strong></th>
+                                <th scope=column><strong>Car ID</strong></th>
                                 <th scope=column><?= $car->data()->id ?></th>
                             </tr>
                             <tr>
-                                <td><strong>Series:</strong></td>
+                                <td><strong>Series</strong></td>
                                 <td><?= $car->data()->series ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Variant:</strong></td>
+                                <td><strong>Variant</strong></td>
                                 <td><?= $car->data()->variant ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Model:</strong></td>
+                                <td><strong>Model</strong></td>
                                 <td><?= $car->data()->model ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Year:</strong></td>
+                                <td><strong>Year</strong></td>
                                 <td><?= $car->data()->year ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Type:</strong></td>
+                                <td><strong>Type</strong></td>
                                 <td><?= $car->data()->type ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Chassis :</strong></td>
+                                <td><strong>Chassis </strong></td>
                                 <td><?= $car->data()->chassis ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Color:</strong></td>
+                                <td><strong>Color</strong></td>
                                 <td><?= $car->data()->color ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Engine :</strong></td>
+                                <td><strong>Engine </strong></td>
                                 <td><?= $car->data()->engine ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Purchase Date:</strong></td>
+                                <td><strong>Purchased</strong></td>
                                 <td><?= $car->data()->purchasedate ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Sold Date :</strong></td>
+                                <td><strong>Sold</strong></td>
                                 <td><?= $car->data()->solddate ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Comments:</strong></td>
+                                <td><strong>Comments</strong></td>
                                 <td><?= $car->data()->comments ?></td>
                             </tr>
                             <tr class='table-success'>
-                                <td><strong>Owner ID:</strong></td>
+                                <td><strong>Owner ID</strong></td>
                                 <td><?= $car->data()->user_id ?></td>
                             </tr>
                             <tr>
-                                <td><strong>First name:</strong></td>
+                                <td><strong>First name</strong></td>
                                 <td><?= ucfirst($car->data()->fname) ?></td>
                             </tr>
                             <tr>
@@ -125,30 +125,30 @@ if (!empty($_GET)) {
                                 <td><?= html_entity_decode($car->data()->city); ?></td>
                             </tr>
                             <tr>
-                                <td><strong>State:</strong></td>
+                                <td><strong>State</strong></td>
                                 <td><?= html_entity_decode($car->data()->state); ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Country:</strong></td>
+                                <td><strong>Country</strong></td>
                                 <td><?= html_entity_decode($car->data()->country); ?></td>
                             </tr>
-                            <tr>
-                                <td><strong>Member Since:</strong></td>
+                            <!-- <tr>
+                                <td><strong>Member Since</strong></td>
                                 <td><?= $signupdate ?></td>
-                            </tr>
+                            </tr> -->
                             <tr>
-                                <td><strong>Record Created:</strong></td>
+                                <td><strong>Created</strong></td>
                                 <td><?= $car->data()->ctime ?></td>
                             </tr>
                             <tr>
-                                <td><strong>Record Modified:</strong></td>
+                                <td><strong>Modified</strong></td>
                                 <td><?= $car->data()->mtime ?></td>
                             </tr>
                             <?php
                             if (!empty($car->data()->website)) {
                             ?>
                                 <tr>
-                                    <td><strong>Website:</strong></td>
+                                    <td><strong>Website</strong></td>
                                     <td> <a target='_blank' href="<?= $car->data()->website ?>">Website</a></td>
                                 </tr>
                             <?php
@@ -161,47 +161,47 @@ if (!empty($_GET)) {
                                     <td colspan=2><strong>Factory Data - <small>I've lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small> </strong> </td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Year:</strong></td>
+                                    <td><strong>Year</strong></td>
                                     <td><?= $car->factory()->year ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Month:</strong></td>
+                                    <td><strong>Month</strong></td>
                                     <td><?= $car->factory()->month ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Production Batch:</strong></td>
+                                    <td><strong>Production Batch</strong></td>
                                     <td><?= $car->factory()->batch ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Type:</strong></td>
+                                    <td><strong>Type</strong></td>
                                     <td><?= $car->factory()->type ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Chassis:</strong></td>
+                                    <td><strong>Chassis</strong></td>
                                     <td><?= $car->factory()->serial ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Suffix:</strong></td>
+                                    <td><strong>Suffix</strong></td>
                                     <td><?= $car->factory()->suffix ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Engine:</strong></td>
+                                    <td><strong>Engine</strong></td>
                                     <td><?= $car->factory()->engineletter ?><?= $car->factory()->enginenumber ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Gearbox:</strong></td>
+                                    <td><strong>Gearbox</strong></td>
                                     <td><?= $car->factory()->gearbox ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Color:</strong></td>
+                                    <td><strong>Color</strong></td>
                                     <td><?= $car->factory()->color ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Build Date:</strong></td>
+                                    <td><strong>Build Date</strong></td>
                                     <td><?= $car->factory()->builddate ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Notes:</strong></td>
+                                    <td><strong>Notes</strong></td>
                                     <td><?= $car->factory()->note ?></td>
                                 </tr>
                             <?php } ?>
