@@ -21,6 +21,15 @@ if (!empty($_GET)) {
 }
 ?>
 
+<style>
+    #map {
+        height: 400px;
+        /* The height is 400 pixels */
+        width: 100%;
+        /* The width is the width of the web page */
+    }
+</style>
+
 <!-- Now that that is all out of the way, let's display everything -->
 <div id='page-wrapper'>
     <div class='well'>
@@ -220,6 +229,14 @@ if (!empty($_GET)) {
                         <?php echo display_carousel($car->data()->image); ?>
                     </div> <!-- card-body -->
                 </div> <!-- card -->
+                <div class='card card-default'>
+                    <div class='card-header'>
+                        <h2><strong>Location</strong></h2>
+                    </div>
+                    <div class='card-body'>
+                        <div id="map"></div>
+                    </div> <!-- card-body -->
+                </div> <!-- card -->
             </div> <!-- col-xs-12 col-md-6 -->
         </div> <!-- row -->
         <br>
@@ -359,4 +376,25 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
             }
         ]
     });
+    // MAP
+
+    function initMap() {
+        // The location of Uluru
+        const uluru = {
+            lat: <?= $car->data()->lat ?>,
+            lng: <?= $car->data()->lon ?>
+        };
+        // The map, centered at Uluru
+        const map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 5,
+            center: uluru,
+            streetViewControl: false
+        });
+        // The marker, positioned at Uluru
+        const marker = new google.maps.Marker({
+            position: uluru,
+            map: map,
+        });
+    }
 </script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?&key=<?= $settings->elan_google_maps_key ?>&callback=initMap"> </script>
