@@ -390,7 +390,7 @@ function removeImage($carID, $file)
             'images' => $carImages
         );
     } else {
-        logger($user->data()->id, "ElanRegistry", "ERROR: removeImage carId: " . $carID . "Image not found: " . $file);
+        logger($user->data()->id, "ElanRegistry", "ERROR: removeImage carId: " . $carID . " Image not found: " . $file);
         $response = array(
             'status' => 'error',
             'info'   => "image not found"
