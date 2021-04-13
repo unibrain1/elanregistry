@@ -34,7 +34,8 @@ function updateTable($table)
 {
 	global $db;
 	global $messages;
-	$profileData = $db->findAll($table)->results();
+	$q = "SELECT * FROM $table ORDER BY id  ASC LIMIT 0,200";
+	$profileData = $db->query($q)->results();
 
 	$total = count($profileData);
 
