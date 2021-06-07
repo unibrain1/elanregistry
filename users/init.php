@@ -76,3 +76,5 @@ if ($user->isLoggedIn()) {
 }
 $timezone_string = 'America/Los_Angeles';
 date_default_timezone_set($timezone_string);
+
+require_once $abs_us_root.$us_url_root."users/includes/loader.php";
