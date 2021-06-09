@@ -28,7 +28,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
             <div class="col">
                 <div class="card bg-secondary">
                     <div class="card-header">
-                        <h2>Elan Manuals and other documents</h2>
+                        <h2>Elan Manuals</h2>
                     </div>
                     <div class="card-body">
                         <ul class="list-group">
