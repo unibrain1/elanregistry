@@ -1,6 +1,6 @@
 <?php
 ini_set('max_execution_time', 1356);
-ini_set('memory_limit', '1024M');
+ini_set('memory_limit', '-1');
 require_once '../init.php';
 include $abs_us_root . $us_url_root . 'users/lang/en-US.php';
 
