@@ -3,7 +3,10 @@
 
 <!-- This file is a way of allowing the end user to customize stuff -->
 <!-- without getting in the middle of the whole template itself -->
+<?php require_once($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/assets/functions/style.php'); ?>
 <?php
+
+
 if (file_exists($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/info.xml')) {
   $xml = simplexml_load_file($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/info.xml');
   $navstyle = $xml->navstyle;
