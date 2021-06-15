@@ -16,26 +16,26 @@ require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php';
 <?php
 require_once($abs_us_root . $us_url_root . 'users/includes/html_footer.php');
 
-// jQuery
-echo html_entity_decode($settings->elan_jquery_cdn);
+// // jQuery
+// echo html_entity_decode($settings->elan_jquery_cdn);
 
-// Bootstrap Core CSS
-echo html_entity_decode($settings->elan_bootstrap_js_cdn);
+// // Bootstrap Core CSS
+// echo html_entity_decode($settings->elan_bootstrap_js_cdn);
 
-// Popper
-echo html_entity_decode($settings->elan_popper_cdn);
+// // Popper
+// echo html_entity_decode($settings->elan_popper_cdn);
 
-// Custom Fonts/Animation/Styling from FontAwsome 
-echo html_entity_decode($settings->elan_fontawesome_cdn);
+// // Custom Fonts/Animation/Styling from FontAwsome 
+// echo html_entity_decode($settings->elan_fontawesome_cdn);
 ?>
 
-<script>
+<!-- <script>
   var $hamburger = $(".hamburger");
   $hamburger.on("click", function(e) {
     $hamburger.toggleClass("is-active");
     // Do something else, like open/close menu
   });
-</script>
+</script> -->
 
 <!-- Global site tag (gtag.js) - Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=UA-7230761-6"></script>
