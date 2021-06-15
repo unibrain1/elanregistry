@@ -63,7 +63,7 @@ if (!empty($_POST)) {
             'info'       => array_merge($successes,  $errors),
             'cardetails' => $cardetails
         );
-        logger($user->data()->id, "ElanRegistry: ", "Action: " . $response['action'] . " Status: " . $response['status'] . "  carID: " . $cardetails['id'] . "Messages: " . json_encode($response['info']) . " Data: " . json_encode($response['cardetails']));
+        logger($user->data()->id, "ElanRegistry: ", "Action: " . $response['action'] . " Status: " . $response['status'] . "  carID: " . $cardetails['id'] . " Messages: " . json_encode($response['info']) . " Data: " . json_encode($response['cardetails']));
 
         // Blanks instead of NULL for display
         foreach ($response['cardetails'] as $key => $value) {
@@ -322,6 +322,7 @@ function buildImageDetails(&$cardetails)
                     $resizeObj = new Resize($targetFilePath . $newFileName);
                     $resizeObj->resizeImage($size, $size, 'auto');
                     $resizeObj->saveImage($thumbname, 80);
+                    $successes[] = " Created " . $thumbname;
                 }
                 array_replace_value($requestedOrder, $name, $newFileName);
             } else {
@@ -389,7 +390,7 @@ function removeImage($carID, $file)
             'images' => $carImages
         );
     } else {
-        logger($user->data()->id, "ElanRegistry", "ERROR: removeImage carId: " . $carID . "Image not found: " . $file);
+        logger($user->data()->id, "ElanRegistry", "ERROR: removeImage carId: " . $carID . " Image not found: " . $file);
         $response = array(
             'status' => 'error',
             'info'   => "image not found"

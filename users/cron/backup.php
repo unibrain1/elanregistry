@@ -1,6 +1,8 @@
 <?php
 ini_set('max_execution_time', 1356);
+
 ini_set('memory_limit', '-1');
+
 require_once '../init.php';
 include $abs_us_root . $us_url_root . 'users/lang/en-US.php';
 
@@ -19,7 +21,7 @@ $errors = [];
 $successes = [];
 $command = $settings->backup_source;
 
-$backup_age = $settings->elan_backup_age; // 30 days = Secs * Mins * Hours * Days TODO - Get days from configuration
+$backup_age = $settings->elan_backup_age * 60 * 60 * 24; // = Days * Secs * Mins * Hours
 
 # The name of the script being run
 $self = 'backup.php';
@@ -78,6 +80,7 @@ if ($checkQuery->count() == 1) {
 		mkdir($backupPath . 'sql');
 		$backupItems = [];
 
+		$command = 'everything';
 		switch ($command) {
 			case 'everything':
 				$backupItems[] = $abs_us_root . $us_url_root;
@@ -90,8 +93,6 @@ if ($checkQuery->count() == 1) {
 					$errors[] = lang('AB_BACKUPFAIL');
 				}
 				backupUsTables($backupPath);
-				$targetZipFile = backupZip($backupPath, true);
-
 				break;
 			case 'db_us_files':
 				$backupItems[] = $abs_us_root . $us_url_root . 'users';
@@ -140,8 +141,10 @@ if ($checkQuery->count() == 1) {
 
 				foreach ($files as $file) {
 					$successes[] = " -- checking file " . $file;
+					$modtime = filemtime($file);
+					$age = $now - $modtime;
 					if (is_file($file)) {
-						if ($now - filemtime($file) >= $backup_age) { // 3 days
+						if ($age >= $backup_age) { // 3 days
 							$successes[] = " -- REMOVING " . $file;
 							unlink($file);
 						}

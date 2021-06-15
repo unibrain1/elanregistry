@@ -638,20 +638,31 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
     });
 
     // Validate Chassis
+    // Pre 1970 = Chassis is 4 digits
+    // 1970 = Chassis is either a) 4 digits plus letter or b) 10 digits (YY MM BB SSSS) plus letter
+    // Post Jan 1 1972 Chassis is 8 digits (YY MM SSSS) plus letter
     $('#chassis').blur(function() {
         const _valid_suffix = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N'];
         const _chassis = $('#chassis').val();
         var _base;
         var _suffix;
 
+
         // If this is a Race model let the chassis be anything
         if (validModel.indexOf('Race') >= 0) {
             validChassis = _chassis;
-        } else if (validYear !== '') {
-            // Now validate the chassis number
-            if (validYear < 1970) {
+        }
+        switch (validYear) {
+            case '1963':
+            case '1964':
+            case '1965':
+            case '1966':
+            case '1967':
+            case '1968':
+            case '1969':
                 validChassis = ($.isNumeric(_chassis) && (_chassis.length === 4)) ? _chassis : '';
-            } else if (validYear === '1970') {
+                break;
+            case '1970':
                 if (_chassis.length === 5) {
                     _base = _chassis.slice(0, 4);
                     _suffix = _chassis.slice(4, 5).toUpperCase();
@@ -660,13 +671,26 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
                     _suffix = _chassis.slice(10, 11).toUpperCase();
                 }
                 validChassis = ($.isNumeric(_base) && ($.inArray(_suffix, _valid_suffix) !== -1)) ? _chassis : '';
-            } else {
+                break;
+            case '1971':
                 if (_chassis.length === 11) {
                     _base = _chassis.slice(0, 10);
                     _suffix = _chassis.slice(10, 11).toUpperCase();
                 }
                 validChassis = ($.isNumeric(_base) && ($.inArray(_suffix, _valid_suffix) !== -1)) ? _chassis : '';
-            }
+                break;
+            case '1972':
+            case '1973':
+            case '1974':
+                if (_chassis.length === 9) {
+                    _base = _chassis.slice(0, 8);
+                    _suffix = _chassis.slice(8, 9).toUpperCase();
+                }
+                validChassis = ($.isNumeric(_base) && ($.inArray(_suffix, _valid_suffix) !== -1)) ? _chassis : '';
+                break;
+            default:
+                break;
+
         }
 
         $('#chassis_icon').toggleClass('fa-thumbs-up', Boolean(validChassis)).toggleClass('fa-thumbs-down', !Boolean(validChassis)).toggleClass('is-valid', Boolean(validChassis)).toggleClass('is-invalid', !Boolean(validChassis));
