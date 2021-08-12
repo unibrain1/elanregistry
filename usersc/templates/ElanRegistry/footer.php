@@ -29,14 +29,6 @@ require_once($abs_us_root . $us_url_root . 'users/includes/html_footer.php');
 // echo html_entity_decode($settings->elan_fontawesome_cdn);
 ?>
 
-<!-- <script>
-  var $hamburger = $(".hamburger");
-  $hamburger.on("click", function(e) {
-    $hamburger.toggleClass("is-active");
-    // Do something else, like open/close menu
-  });
-</script> -->
-
 <!-- Global site tag (gtag.js) - Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=UA-7230761-6"></script>
 <script>
