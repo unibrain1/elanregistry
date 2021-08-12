@@ -20,8 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Special thanks to John Bovey for the password strenth feature.
 */
-
-
 ?>
 <style>
   .gray_out_icon {
@@ -82,7 +80,7 @@ Special thanks to John Bovey for the password strenth feature.
                                                                                                                           echo $email;
                                                                                                                         } ?>" required autocomplete="email">
       </div>
-
+      <!-- Additional Form Fields moved for ElanRegistry -->
       <?php
       include($abs_us_root . $us_url_root . 'usersc/scripts/additional_join_form_fields.php');
       ?>
@@ -149,6 +147,7 @@ Special thanks to John Bovey for the password strenth feature.
 
       <?php
       includeHook($hooks, 'form');
+      // Additional Form Fields moved for ElanRegistry 
       // include($abs_us_root . $us_url_root . 'usersc/scripts/additional_join_form_fields.php');
       ?>
 
