@@ -22,7 +22,6 @@ ElanRegistry.code-workspace
 # Environment specific files
 .env.enc
 .env.key
-assets/js/show_struc.js
 # Include the userimages and thumbs directory but not the files
 app/userimages/thumbs/*.*
 app/userimages/*.*
@@ -32,11 +31,18 @@ app/userimages/*.*
 # Because I want to include users/cron/backup.php I need to do this
 # https://stackoverflow.com/questions/5533050/gitignore-exclude-folder-but-include-specific-subfolder
 !users/
-users/*
+users/**
 !users/cron/
 !users/images/logo.png
 # Exclude userspice extentions.  These need to be manually installed
 usersc/plugins/*
+#
+# Include all the hooks
+!usersc/plugins/hooker/
+usersc/plugins/hooker/*
+!usersc/plugins/hooker/hooks/
+usersc/plugins/hooker/hooks/sample_hook.php
+#
 usersc/templates/*
 usersc/widgets/*
 install/*
