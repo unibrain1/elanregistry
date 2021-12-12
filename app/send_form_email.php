@@ -10,8 +10,6 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 } ?>
 
 <?php
-//PHP Goes Here!
-
 if (isset($_POST['email'])) {
  
     // EDIT THE 2 LINES BELOW AS REQUIRED

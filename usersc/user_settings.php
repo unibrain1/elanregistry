@@ -36,7 +36,6 @@ if ($user->isLoggedIn() && !checkMenu(2, $user->data()->id)) {
 $emailQ = $db->query("SELECT * FROM email");
 $emailR = $emailQ->first();
 
-//PHP Goes Here!
 $errors = [];
 $successes = [];
 $userId = $user->data()->id;
