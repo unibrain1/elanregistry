@@ -61,3 +61,4 @@ vendor
 composer.lock
 usersc/vendor
 usersc/tests
+usersc/plugins/hooker/hooks/uman_tbody.php

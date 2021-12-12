@@ -154,7 +154,7 @@ Special thanks to John Bovey for the password strenth feature.
       <input type="hidden" value="<?= Token::generate(); ?>" name="csrf">
 
       <div class="form-group">
-        <button class="submit btn btn-primary " type="submit" id="next_button"><i class="fa fa-plus-square"></i> <?= lang("SIGNUP_TEXT"); ?></button>
+        <button class="submit btn btn-primary " type="submit" id="next_button"><em class="fa fa-plus-square"></em> <?= lang("SIGNUP_TEXT"); ?></button>
       </div>
 
     </form>

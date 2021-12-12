@@ -60,22 +60,22 @@
 }
 
 #progressbar #cardetails:before {
-    font-family: FontAwesome;
+    font-family: FontAwesome, sans-serif;
     content: "\f1b9"
 }
 
 #progressbar #addInfo:before {
-    font-family: FontAwesome;
+    font-family: FontAwesome, sans-serif;
     content: "\f27a"
 }
 
 #progressbar #image:before {
-    font-family: FontAwesome;
+    font-family: FontAwesome, sans-serif;
     content: "\f030"
 }
 
 #progressbar #confirm:before {
-    font-family: FontAwesome;
+    font-family: FontAwesome, sans-serif;
     content: "\f00c"
 }
 

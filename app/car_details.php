@@ -141,10 +141,6 @@ if (!empty($_GET)) {
                                 <td><strong>Country</strong></td>
                                 <td><?= html_entity_decode($car->data()->country); ?></td>
                             </tr>
-                            <!-- <tr>
-                                <td><strong>Member Since</strong></td>
-                                <td><?= $signupdate ?></td>
-                            </tr> -->
                             <tr>
                                 <td><strong>Created</strong></td>
                                 <td><?= $car->data()->ctime ?></td>

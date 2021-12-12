@@ -12,9 +12,6 @@
                                                                                                                                                                                                         } ?></span></a></li>
   <?php } ?>
 
-  <?php //require_once $abs_us_root.$us_url_root.'usersc/includes/navigation_right_side.php'; 
-  ?>
-
   <!-- Hamburger menu link -->
 
   <li class="nav-item dropdown">
@@ -26,8 +23,6 @@
       <a class="dropdown-item" href="<?= $us_url_root ?>"><i aria-hidden="true" class="fa fa-fw fa-home"></i> Home</a>
       <a class="dropdown-item" href="<?= $us_url_root ?>users/account.php"><i aria-hidden="true" class="fa fa-fw fa-user"></i> Account</a>
       <div class='dropdown-divider'></div>
-      <?php //require_once $abs_us_root.$us_url_root.'usersc/includes/navigation_dropdown.php'; 
-      ?>
 
       <!-- regular user menu link -->
 
