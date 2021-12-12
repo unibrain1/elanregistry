@@ -1,194 +1,189 @@
 <?php
-ini_set('max_execution_time', 1356);
-
-ini_set('memory_limit', '-1');
-
 require_once '../init.php';
-include $abs_us_root . $us_url_root . 'users/lang/en-US.php';
-
 $db = DB::getInstance();
 $ip = ipCheck();
-logger(1, "BackupRequest", "Cron backup request from $ip.");
-$settingsQ = $db->query("Select * FROM settings");
-$settings = $settingsQ->first();
-if ($settings->cron_ip != '') {
-	if ($ip != $settings->cron_ip && $ip != '127.0.0.1') {
-		logger(1, "BackupRequest", "Cron backup request DENIED from $ip.");
-		die;
+logger(1,"CronRequest","Cron request from $ip.");
+$settings = $db->query("Select * FROM settings")->first();
+if($settings->cron_ip != ''){
+if($ip != $settings->cron_ip && $ip != '127.0.0.1'){
+	logger(1,"CronRequest","Cron request DENIED from $ip.");
+	die;
 	}
 }
-$errors = [];
-$successes = [];
-$command = $settings->backup_source;
-
-$backup_age = $settings->elan_backup_age * 60 * 60 * 24; // = Days * Secs * Mins * Hours
-
-# The name of the script being run
-$self = 'backup.php';
+$errors = $successes = [];
 
 $from = Input::get('from');
-if ($from == '') {
-	$from = 'users/cron_manager.php';
-}
-$checkQuery = $db->query("SELECT id,name FROM crons WHERE file = ? AND active = 1", [$self]);
-if ($checkQuery->count() == 1) {
-	$successes[] = lang('AB_COMMAND') . $command;
-
+if($from=='') $from='users/cron_manager.php';
+$checkQuery = $db->query("SELECT id,name FROM crons WHERE file = ? AND active = 1",array("backup.php"));
+if($checkQuery->count()==1) {
 	//Create backup destination folder: $settings->backup_dest
 	//$backup_dest = $settings->backup_dest;
-	$backup_dest = "@" . $settings->backup_dest; //::from us v4.2.9a
+	$backup_dest = "@".$settings->backup_dest;//::from us v4.2.9a
 	$backupTable = $settings->backup_table;
-	if ($command != "db_table") {
-		$backupSource = $command;
-	} elseif ($command == "db_table") {
-		$backupSource = $command . '_' . $backupTable;
+	if($settings->backup_source != "db_table") {
+		$backupSource = $settings->backup_source;
 	}
-	$destPath = $abs_us_root . $us_url_root . $backup_dest;
-	if (!file_exists($destPath)) {
-		if (mkdir($destPath)) {
+	elseif($settings->backup_source == "db_table") {
+		$backupSource = $settings->backup_source.'_'.$backupTable;
+	}
+	$destPath = $abs_us_root.$us_url_root.$backup_dest;
+	if(!file_exists($destPath)){
+		if (mkdir($destPath)){
 			$destPathSuccess = true;
-			$successes[] = lang('AB_PATHCREATE');
-		} else {
+			//$successes[] = lang('AB_PATHCREATE');
+		}else{
 			$destPathSuccess = false;
-			$errors[] = lang('AB_PATHERROR');
+			//$errors[] = lang('AB_PATHERROR');
 		}
-	} else {
-		$successes[] = lang('AB_PATHEXISTED');
+	}else{
+		//$successes[] = lang('AB_PATHEXISTED');
 	}
 	// Generate backup path
 	$backupDateTimeString = date("Y-m-d\TH-i-s");
-	$backupPath = $abs_us_root . $us_url_root . $backup_dest . 'backup_' . $backupSource . '_' . $backupDateTimeString . '/';
-	$backupLogFilename = $abs_us_root . $us_url_root . $backup_dest . 'backup_' . $backupSource . '_' . $backupDateTimeString . '.log';
-	$successes[] = lang('AB_BACKUPFILE') . $backupLogFilename;
-
-	if (!file_exists($backupPath)) {
-		if (mkdir($backupPath)) {
+	$backupPath = $abs_us_root.$us_url_root.$backup_dest.'backup_'.$backupSource.'_'.$backupDateTimeString.'/';
+	if(!file_exists($backupPath)){
+		if (mkdir($backupPath)){
 			$backupPathSuccess = true;
-			$successes[] = lang('AB_PATHCREATE') . $backupPath;
-		} else {
+		}else{
 			$backupPathSuccess = false;
-			$errors[] = lang('AB_PATHERROR') . $backupPath;
 		}
-	} else {
-		$successes[] = lang('AB_PATHEXISTED') . $backupPath;
 	}
-
-	if ($backupPathSuccess) {
+	if($backupPathSuccess) {
 		// Since the backup path is just created with a timestamp,
 		// no need to check if these subfolders exist or if they are writable
-		mkdir($backupPath . 'files');
-		mkdir($backupPath . 'sql');
+		mkdir($backupPath.'files');
+		mkdir($backupPath.'sql');
+	}
+	// Backup All Files & Directories In Root and DB
+	if($backupPathSuccess && $settings->backup_source == 'everything'){
+		// Generate list of files in ABS_TR_ROOT.TR_URL_ROOT including files starting with .
 		$backupItems = [];
-
-		$command = 'everything';
-		switch ($command) {
-			case 'everything':
-				$backupItems[] = $abs_us_root . $us_url_root;
-				$backupItems[] = $abs_us_root . $us_url_root . 'users';
-				$backupItems[] = $abs_us_root . $us_url_root . 'usersc';
-
-				if (backupObjects($backupItems, $backupPath . 'files/')) {
-					$successes[] = lang('AB_BACKUPSUCCESS');
-				} else {
-					$errors[] = lang('AB_BACKUPFAIL');
-				}
-				backupUsTables($backupPath);
-				break;
-			case 'db_us_files':
-				$backupItems[] = $abs_us_root . $us_url_root . 'users';
-				$backupItems[] = $abs_us_root . $us_url_root . 'usersc';
-				if (backupObjects($backupItems, $backupPath . 'files/')) {
-					$successes[] = lang('AB_BACKUPSUCCESS');
-				} else {
-					$errors[] = lang('AB_BACKUPFAIL');
-				}
-				backupUsTables($backupPath);
-				break;
-			case 'db_only':
-				backupUsTables($backupPath);
-				break;
-			case 'us_files':
-				$backupItems[] = $abs_us_root . $us_url_root . 'users';
-				$backupItems[] = $abs_us_root . $us_url_root . 'usersc';
-				if (backupObjects($backupItems, $backupPath . 'files/')) {
-					$successes[] = lang('AB_BACKUPSUCCESS');
-				} else {
-					$errors[] = lang('AB_BACKUPFAIL');
-				}
-				break;
-			case 'db_table':
-				backupUsTable($backupPath);
-				break;
-			default:
-				// Unknown state
-				break;
+		$backupItems[] = $abs_us_root.$us_url_root;
+		$backupItems[] = $abs_us_root.$us_url_root.'users';
+		$backupItems[] = $abs_us_root.$us_url_root.'usersc';
+		if(backupObjects($backupItems,$backupPath.'files/')){
+			//$successes[] = lang('AB_BACKUPSUCCESS');
+		}else{
+			//$errors[] = lang('AB_BACKUPFAIL');
 		}
-
-		// Now create the zip file
-		$targetZipFile = backupZip($backupPath, true);
-		if ($targetZipFile) {
-			$successes[] = lang('AB_DB_FILES_ZIP');
+		backupUsTables($backupPath);
+		$targetZipFile = backupZip($backupPath,true);
+		if($targetZipFile){
+			//$successes[] = lang('AB_DB_FILES_ZIP');
 			$backupZipHash = hash_file('sha1', $targetZipFile);
-			$backupZipHashFilename = substr($targetZipFile, 0, strlen($targetZipFile) - 4) . '_SHA1_' . $backupZipHash . '.zip';
-
-			if (rename($targetZipFile, $backupZipHashFilename)) {
-				$successes[] = lang('AB_FILE_RENAMED') . $backupZipHashFilename;
-
-				// Now that we have a succesful backup and created a backup file, delete old backups
-				$successes[] = " -- looking for old files to remove in " . $destPath;
-				$files = glob($destPath . "*");
-				$now   = time();
-
-				foreach ($files as $file) {
-					$successes[] = " -- checking file " . $file;
-					$modtime = filemtime($file);
-					$age = $now - $modtime;
-					if (is_file($file)) {
-						if ($age >= $backup_age) { // 3 days
-							$successes[] = " -- REMOVING " . $file;
-							unlink($file);
-						}
-					}
-				}
-			} else {
-				$errors[] = lang('AB_NOT_RENAME');
+			$backupZipHashFilename = substr($targetZipFile,0,strlen($targetZipFile)-4).'_SHA1_'.$backupZipHash.'.zip';
+			if(rename($targetZipFile,$backupZipHashFilename)){
+				//$successes[] = lang('AB_FILE_RENAMED').$backupZipHashFilename;
+			}else{
+				//$errors[] = lang('AB_NOT_RENAME');
 			}
-		} else {
-			$errors[] = lang('AB_ERROR_CREATE');
+		}else{
+			//$errors[] = lang('AB_ERROR_CREATE');
 		}
 	}
-
-	# Output some output
-	if (!$errors == '') {
-		foreach ($errors as $error) {
-			file_put_contents($backupLogFilename, "Error: " . $error . "\r\n", FILE_APPEND);
-			echo "Error: " . $error . "\r\n";
+	// Backup Terminus files & all db tables
+	if($backupPathSuccess && $settings->backup_source == 'db_us_files'){
+		// Generate list of files in ABS_TR_ROOT.TR_URL_ROOT including files starting with .
+		$backupItems = [];
+		$backupItems[] = $abs_us_root.$us_url_root.'users';
+		$backupItems[] = $abs_us_root.$us_url_root.'usersc';
+		if(backupObjects($backupItems,$backupPath.'files/')){
+			//$successes[] = lang('AB_BACKUPSUCCESS');
+		}else{
+			//$errors[] = lang('AB_BACKUPFAIL');
+		}
+		backupUsTables($backupPath);
+		$targetZipFile = backupZip($backupPath,true);
+		if($targetZipFile){
+			//$successes[] = lang('AB_DB_FILES_ZIP');
+			$backupZipHash = hash_file('sha1', $targetZipFile);
+			$backupZipHashFilename = substr($targetZipFile,0,strlen($targetZipFile)-4).'_SHA1_'.$backupZipHash.'.zip';
+			if(rename($targetZipFile,$backupZipHashFilename)){
+				//$successes[] = lang('AB_FILE_RENAMED').$backupZipHashFilename;
+			}else{
+				//$errors[] = lang('AB_NOT_RENAME');
+			}
+		}else{
+			//$errors[] = lang('AB_ERROR_CREATE');
 		}
 	}
-
-	if (!$successes == '') {
-		foreach ($successes as $success) {
-			file_put_contents($backupLogFilename, "Success: " . $success . "\r\n", FILE_APPEND);
-			echo "Success: " . $success . "\r\n";
+	// Backup all db tables only
+	if($backupPathSuccess && $settings->backup_source == 'db_only'){
+		backupUsTables($backupPath);
+		$targetZipFile = backupZip($backupPath,true);
+		if($targetZipFile){
+			$successes[] = lang('AB_DB_ZIPPED');
+			$backupZipHash = hash_file('sha1', $targetZipFile);
+			$backupZipHashFilename = substr($targetZipFile,0,strlen($targetZipFile)-4).'_SHA1_'.$backupZipHash.'.zip';
+			if(rename($targetZipFile,$backupZipHashFilename)){
+				//$successes[] = lang('AB_FILE_RENAMED').$backupZipHashFilename;
+			}else{
+				//$errors[] = lang('AB_NOT_RENAME');
+			}
+		}else{
+			//$errors[] = lang('AB_ERROR_CREATE');
+		}
+	}elseif(!$backupPathSuccess){
+		//$errors[] = lang('AB_PATHEXIST');
+	}else{
+		// Unknown state? Do nothing.
+	}
+	// Backup terminus files only
+	if($backupPathSuccess && $settings->backup_source == 'us_files'){
+		// Generate list of files in ABS_TR_ROOT.TR_URL_ROOT including files starting with .
+		$backupItems = [];
+		$backupItems[] = $abs_us_root.$us_url_root.'users';
+		$backupItems[] = $abs_us_root.$us_url_root.'usersc';
+		if(backupObjects($backupItems,$backupPath.'files/')){
+			//$successes[] = lang('AB_BACKUPSUCCESS');
+		}else{
+			//$errors[] = lang('AB_BACKUPFAIL');
+		}
+		$targetZipFile = backupZip($backupPath,true);
+		if($targetZipFile){
+			//$successes[] = lang('AB_T_FILE_ZIP');
+			$backupZipHash = hash_file('sha1', $targetZipFile);
+			$backupZipHashFilename = substr($targetZipFile,0,strlen($targetZipFile)-4).'_SHA1_'.$backupZipHash.'.zip';
+			if(rename($targetZipFile,$backupZipHashFilename)){
+				//$successes[] = lang('AB_FILE_RENAMED').$backupZipHashFilename;
+			}else{
+				//$errors[] = lang('AB_NOT_RENAME');
+			}
+		}else{
+			//$errors[] = lang('AB_ERROR_CREATE');
 		}
 	}
-
-	if ($currentPage == $self) {
-		$query = $db->query("SELECT id,name FROM crons WHERE file = ?", [$self]);
-		if ($user->isLoggedIn()) {
-			$user_id = $user->data()->id;
-		} else {
-			$user_id = 1;
+	// Backup single db table only
+	if($backupPathSuccess && $settings->backup_source == 'db_table'){
+		backupUsTable($backupPath);
+		$targetZipFile = backupZip($backupPath,true);
+		if($targetZipFile){
+			//$successes[] = lang('AB_TABLES_ZIP');
+			$backupZipHash = hash_file('sha1', $targetZipFile);
+			$backupZipHashFilename = substr($targetZipFile,0,strlen($targetZipFile)-4).'_SHA1_'.$backupZipHash.'.zip';
+			if(rename($targetZipFile,$backupZipHashFilename)){
+				//$successes[] = lang('AB_FILE_RENAMED').$backupZipHashFilename;
+			}else{
+				//$errors[] = lang('AB_NOT_RENAME');
+			}
+		}else{
+			//$errors[] = lang('AB_ERROR_CREATE');
 		}
+	}
+	if($currentPage == "backup.php") {
+		$query = $db->query("SELECT id,name FROM crons WHERE file = ?",array("backup.php"));
+		if($user->isLoggedIn()) $user_id=$user->data()->id;
+		else $user_id=1;
 		$results = $query->first();
 		$cronfields = array(
 			'cron_id' => $results->id,
 			'datetime' => date("Y-m-d H:i:s"),
-			'user_id' => $user_id
-		);
-		$db->insert('crons_logs', $cronfields);
-		Redirect::to('../../' . $from);
-	}
-} else {
-	Redirect::to('../../' . $from . '?err=Cron is disabled, cannot be ran.');
-}
+			'user_id' => $user_id);
+			$db->insert('crons_logs',$cronfields);
+			Redirect::to('../../'. $from);
+		}
+	}	else {
+			usError("Cron is disabled, cannot be ran.");
+			Redirect::to('../../'. $from );
+		}
+		?>
