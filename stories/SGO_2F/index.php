@@ -1,21 +1,14 @@
 <?php
 
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-?>
-<?php
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
-?>
 
-<?php if (!securePage($_SERVER['PHP_SELF'])) {
+if (!securePage($_SERVER['PHP_SELF'])) {
     die();
-} ?>
-
-<?php
-//PHP Goes Here!
+}
 ?>
+
+
 <div id="page-wrapper">
     <div class="container">
         <div class="row">
