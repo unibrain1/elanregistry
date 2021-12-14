@@ -45,7 +45,7 @@ if (file_exists($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->t
 
 <!-- Set your logo and the "header" of the navigation here -->
 <nav class="navbar navbar-expand-sm navbar-dark bg-dark">
-    <a href="<?= $us_url_root ?>"><img alt="logo" src="<?= $us_url_root ?>users/images/logo.png"></a>
+    <a href="<?= $us_url_root ?>"><emmg alt="logo" src="<?= $us_url_root ?>users/images/logo.png"></a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExample03" aria-controls="navbarsExample03" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
@@ -116,7 +116,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                                     <a href="" class="link">more</a> information as needed.
                                 </p>
                             </div>
-                            <div class="col-md-5"><img src="//dummyimage.com/800x300.png/5fa2dd/ffffff" class="float-right img-fluid img-rounded"></div>
+                            <div class="col-md-5"><emmg src="//dummyimage.com/800x300.png/5fa2dd/ffffff" class="float-right img-fluid img-rounded"></div>
                         </div>
                     </div>
                     <div id="messages1" class="tab-pane fade">
@@ -191,7 +191,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                         <ul id="contact-list" class="list-group">
                             <li class="list-group-item d-block">
                                 <div class="row">
-                                    <div class="col-12 col-sm-6 col-md-2"><img src="//placehold.it/80" alt="Mike Anamendolla" class="img-fluid rounded-circle mx-auto d-block"></div>
+                                    <div class="col-12 col-sm-6 col-md-2"><emmg src="//placehold.it/80" alt="Mike Anamendolla" class="img-fluid rounded-circle mx-auto d-block"></div>
                                     <div class="col-12 col-sm-6 col-md-10 text-center text-sm-left">
                                         <label class="name">Mike Anamenda</label>
                                         <br> <span class="text-muted">5842 Hillcrest Rd</span>
@@ -201,7 +201,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                             </li>
                             <li class="list-group-item d-block">
                                 <div class="row">
-                                    <div class="col-12 col-sm-6 col-md-2"><img src="//placehold.it/80" alt="Seth Frazier" class="img-fluid rounded-circle mx-auto d-block"></div>
+                                    <div class="col-12 col-sm-6 col-md-2"><emmg src="//placehold.it/80" alt="Seth Frazier" class="img-fluid rounded-circle mx-auto d-block"></div>
                                     <div class="col-12 col-sm-6 col-md-10 text-center text-sm-left">
                                         <label class="name">Seth Frazier</label>
                                         <br> <span class="text-muted">7396 E North St</span>
@@ -211,7 +211,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                             </li>
                             <li class="list-group-item d-block">
                                 <div class="row">
-                                    <div class="col-12 col-sm-6 col-md-2"><img src="//placehold.it/80" alt="Rosemary Porter" class="img-fluid rounded-circle mx-auto d-block"></div>
+                                    <div class="col-12 col-sm-6 col-md-2"><emmg src="//placehold.it/80" alt="Rosemary Porter" class="img-fluid rounded-circle mx-auto d-block"></div>
                                     <div class="col-12 col-sm-6 col-md-10 text-center text-sm-left"><span title="left you a message" class="fa fa-envelope fa-lg text-danger float-right"></span>
                                         <label class="name">Rosemary Porter</label>
                                         <br> <span class="text-muted">5267 Cackson St</span>
@@ -221,7 +221,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                             </li>
                             <li class="list-group-item d-block">
                                 <div class="row">
-                                    <div class="col-12 col-sm-6 col-md-2"><img src="//placehold.it/80" alt="Debbie Schmidt" class="img-fluid rounded-circle mx-auto d-block"></div>
+                                    <div class="col-12 col-sm-6 col-md-2"><emmg src="//placehold.it/80" alt="Debbie Schmidt" class="img-fluid rounded-circle mx-auto d-block"></div>
                                     <div class="col-12 col-sm-6 col-md-10 text-center text-sm-left">
                                         <label class="name">Debbie Schmidt</label>
                                         <br> <span class="text-muted">3903 W Alexander Rd</span>
@@ -240,7 +240,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                                     <p class="list-group-item-text m-0">Grapes</p>
                                 </a>
                                 <a href="#" class="list-group-item justify-content-between">
-                                    <p class="list-group-item-text m-0">Milk</p> <span><i class="ion-ios-star-outline"></i></span>
+                                    <p class="list-group-item-text m-0">Milk</p> <span><em class="ion-ios-star-outline"></em></span>
                                 </a>
                                 <a href="#" class="list-group-item">
                                     <p class="list-group-item-text m-0">Apple Chips</p>
@@ -366,7 +366,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                 <div class="row py-3">
                     <div class="col-lg-4 col-sm-6 py-3">
                         <div class="card card-default h-100">
-                            <div class="card-img-top"><img src="//placehold.it/600x300" alt="card image 1" class="grayscale img-fluid mx-auto d-block"></div>
+                            <div class="card-img-top"><emmg src="//placehold.it/600x300" alt="card image 1" class="grayscale img-fluid mx-auto d-block"></div>
                             <div class="card-body d-flex flex-column">
                                 <p class="text-justify">Ovi lipsim diro? Wi, wi, garius azdipiscing elit. Duis pha codeply.</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Tammy" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a>
                             </div>
@@ -374,7 +374,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                     </div>
                     <div class="col-lg-4 col-sm-6 py-3">
                         <div class="card card-default h-100">
-                            <div class="card-img-top"><img src="//placehold.it/600x300" alt="card image 3" class="grayscale img-fluid mx-auto d-block"></div>
+                            <div class="card-img-top"><emmg src="//placehold.it/600x300" alt="card image 3" class="grayscale img-fluid mx-auto d-block"></div>
                             <div class="card-body d-flex flex-column">
                                 <p class="text-justify">Shiny, shiny, shiny.</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Marcus" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a>
                             </div>
@@ -382,7 +382,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                     </div>
                     <div class="col-lg-4 col-sm-6 mx-auto py-3">
                         <div class="card card-default h-100">
-                            <div class="card-img-top"><img src="//placehold.it/600x300" alt="card image 3" class="grayscale img-fluid mx-auto d-block"></div>
+                            <div class="card-img-top"><emmg src="//placehold.it/600x300" alt="card image 3" class="grayscale img-fluid mx-auto d-block"></div>
                             <div class="card-body d-flex flex-column">
                                 <p class="text-justify">Varius azdipiscing elit. Duis pharetra, ovi lipsim diro?</p> <a href="" data-target="#profileModal" data-toggle="modal" data-caption="Carry" data-image="//placehold.it/600x300" class="btn btn-secondary btn-lg btn-block text-truncate mt-auto">View Profile</a>
                             </div>
@@ -407,7 +407,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                 <div class="row">
                     <div class="col-sm-6">
                         <div role="alert" class="mt-1 alert alert-info alert-dismissible fade show">
-                            <button type="button" data-dismiss="alert" aria-label="Close" class="close"><span aria-hidden="true">�</span></button> <span class="font-weight-bold">Heads up!</span> Vestibulum tincidunt ullamcorper eros eget luctus. Nulla <a href="#" class="alert-link">info</a> porttitor libero.
+                            <button type="button" data-dismiss="alert" aria-label="Close" class="close"><span aria-hidden="true">�</span></button> <span class="font-weight-bold">Heads up!</span>Vestibulum tincidunt ullamcorper eros eget luctus. Nulla <a href="#" class="alert-link">info</a> porttitor libero.
                         </div>
                         <div role="alert" class="mt-1 alert alert-danger alert-dismissible fade show">
                             <button type="button" data-dismiss="alert" aria-label="Close" class="close"><span aria-hidden="true">�</span></button> <span class="font-weight-bold">Yo there!</span> You should check <a href="#" class="alert-link">danger</a> in on some of those fields below.
@@ -529,13 +529,13 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                     <table class="table table-striped table-hover table-bordered">
                         <thead>
                             <tr>
-                                <th class="id"><a>Id <i aria-hidden="true" class="fa fa-sort"></i></a></th>
-                                <th class="name"><a>Name <i aria-hidden="true" class="fa fa-sort"></i></a></th>
+                                <th class="id"><a>Id <em aria-hidden="true" class="fa fa-sort"></em></a></th>
+                                <th class="name"><a>Name <em aria-hidden="true" class="fa fa-sort"></em></a></th>
                                 <th class="description">Description</th>
-                                <th class="field3"><a>Link <i aria-hidden="true" class="fa fa-sort"></i></a></th>
-                                <th class="field4"><a>Reason <i aria-hidden="true" class="fa fa-sort"></i></a></th>
-                                <th class="field5"><a>Area <i aria-hidden="true" class="fa fa-sort"></i></a></th>
-                                <th class="text-center"><i class="ion-ios-trash-outline"></i></th>
+                                <th class="field3"><a>Link <em aria-hidden="true" class="fa fa-sort"></em></a></th>
+                                <th class="field4"><a>Reason <em aria-hidden="true" class="fa fa-sort"></em></a></th>
+                                <th class="field5"><a>Area <em aria-hidden="true" class="fa fa-sort"></em></a></th>
+                                <th class="text-center"><em class="ion-ios-trash-outline"></em></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -600,13 +600,13 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                                     <div class="text-center">
                                         <nav aria-label="Page navigation">
                                             <ul class="pagination justify-content-center">
-                                                <li class="page-item"><a href="" aria-label="Previous" class="page-link"><i aria-hidden="true" class="fa fa-chevron-left ion-ios-arrow-left"></i> <span class="sr-only">Previous</span></a></li>
+                                                <li class="page-item"><a href="" aria-label="Previous" class="page-link"><em aria-hidden="true" class="fa fa-chevron-left ion-ios-arrow-left"></em> <span class="sr-only">Previous</span></a></li>
                                                 <li class="page-item"><a href="" class="page-link">1</a></li>
                                                 <li class="page-item"><a href="" class="page-link">2</a></li>
                                                 <li class="page-item"><a href="" class="page-link">3</a></li>
                                                 <li class="page-item"><a href="" class="page-link">4</a></li>
                                                 <li class="page-item"><a href="" class="page-link">5</a></li>
-                                                <li class="page-item"><a href="" aria-label="Next" class="page-link"><i aria-hidden="true" class="fa fa-chevron-right ion-ios-arrow-right"></i> <span class="sr-only">Next</span></a></li>
+                                                <li class="page-item"><a href="" aria-label="Next" class="page-link"><em aria-hidden="true" class="fa fa-chevron-right ion-ios-arrow-right"></em> <span class="sr-only">Next</span></a></li>
                                             </ul>
                                         </nav>
                                     </div>
@@ -683,7 +683,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/templates/simplex/container_o
                 <div class="row mt-2">
                     <div class="col-lg-6">
                         <div class="card card-default">
-                            <h4 class="card-header"><a href="#" data-target="#collapseMe" data-toggle="collapse" class="float-right"><i class="align-middle fa fa-ellipsis-v"></i></a>
+                            <h4 class="card-header"><a href="#" data-target="#collapseMe" data-toggle="collapse" class="float-right"><em class="align-middle fa fa-ellipsis-v"></em></a>
                                 Heading
                             </h4>
                             <div id="collapseMe" class="collapse show card-body">

@@ -74,7 +74,7 @@
     right:1.5rem;
     width:2rem;
     text-align: center;
-    line-height: 2rem;; */
+    line-height: 2rem; */
     font-size: 1rem;
     /* border-radius: 50%; */
     color: white;
@@ -130,7 +130,7 @@
   /* closed state */
   #sidebar .list-group .list-group-item[aria-expanded="false"]::after {
     content: " \f0d7";
-    font-family: FontAwesome, sans-serif;;
+    font-family: FontAwesome, sans-serif;
     display: inline;
     text-align: right;
     padding-left: 5px;
@@ -143,7 +143,7 @@
 
   #sidebar .list-group .list-group-item[aria-expanded="true"]::after {
     content: " \f0da";
-    font-family: FontAwesome, sans-serif;;
+    font-family: FontAwesome, sans-serif;
     display: inline;
     text-align: right;
     padding-left: 5px;
@@ -282,7 +282,7 @@
   /* closed state */
   #sidebarLeft .list-group .list-group-item[aria-expanded="false"]::after {
     content: " \f0d7";
-    font-family: FontAwesome, sans-serif;;
+    font-family: FontAwesome, sans-serif;
     display: inline;
     text-align: right;
     padding-left: 5px;
@@ -295,7 +295,7 @@
 
   #sidebarLeft .list-group .list-group-item[aria-expanded="true"]::after {
     content: " \f0da";
-    font-family: FontAwesome, sans-serif;;
+    font-family: FontAwesome, sans-serif;
     display: inline;
     text-align: right;
     padding-left: 5px;
