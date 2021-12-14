@@ -69,7 +69,7 @@ FROM (
               <h2>Where are the cars around the world</h2>
             </div>
             <div class="card-body">
-              <div class="mx-auto" id="map" style="height: 400px; width: 80%; margin: 10px; padding: 40px;"></div>
+              <div class="mx-auto" id="map" style="height: 750px; width: 100%; margin: 10px; padding: 40px;"></div>
               26 <img alt="yellow pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png" /> |
               36 <img alt="white pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png" /> |
               45 <img alt="red pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png" /> |
@@ -460,19 +460,21 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
         infowincontent.appendChild(text);
         infowincontent.appendChild(document.createElement('br'));
 
+
+        var a = document.createElement('a');
+        var linkText = document.createTextNode("Car Details");
+        a.appendChild(linkText);
+        a.title = "Details";
+        a.className = "btn btn-success btn-sm";
+        a.href = "/app/car_details.php?car_id=".concat(id);
+        infowincontent.appendChild(a);
+
         if (image != "") {
           var img = document.createElement('img');
           img.src = "<?= $us_url_root . $settings->elan_image_dir ?>".concat(image);
           infowincontent.appendChild(img);
           infowincontent.appendChild(document.createElement('br'));
         }
-
-        var a = document.createElement('a');
-        var linkText = document.createTextNode("Car Details");
-        a.appendChild(linkText);
-        a.title = "Car Details";
-        a.href = "/app/car_details.php?car_id=".concat(id);
-        infowincontent.appendChild(a);
 
         var icon = customIcons[type] || {};
 
