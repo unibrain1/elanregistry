@@ -36,7 +36,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                             <tr>
                                 <td> <a href='<?= $us_url_root ?>app/assets/docs/embed.php?doc=Mag _issue_50_p12-15_Barry-Shapecraft.pdf'>Shapecraft Elan - 26/4992</a>
                                 </td>
-                                <td><a href="http://www.historiclotusclub.uk/the-magazine/no-50-spring-2022">Historic Lotus Racing magazine, No. 50, Spring 2022</a></td>
+                                <td>From <a href="http://www.historiclotusclub.uk/the-magazine/no-50-spring-2022">Historic Lotus Racing magazine, No. 50, Spring 2022</a></td>
                             </tr>
 
                             <tr>
