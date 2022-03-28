@@ -15,7 +15,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
           <div class="card card-default">
             <div class='card-header text-white bg-primary'>
               <h2><strong>Elan Factory Information</strong></h2><br>
-              <h5><strong>WARNING</strong> - I've lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</h5>
+              <h5><strong>WARNING</strong> - This information has not been verified against the Lotus archives.</h5>
             </div>
             <div class="card-body">
               <table id="cartable" style="width: 100%" class="table table-striped table-bordered table-sm" aria-describedby="card-header">

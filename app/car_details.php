@@ -163,7 +163,7 @@ if (!empty($_GET)) {
                             if (!is_null($car->factory())) { ?>
 
                                 <tr class='table-info'>
-                                    <td colspan=2><strong>Factory Data - <small>I've lost track of where this data originated and it may be incomplete, inaccurate, false, or just plain made up.</small> </strong> </td>
+                                    <td colspan=2><strong>Factory Data - <small>This information has not been verified against the Lotus archives.</small> </strong> </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Year</strong></td>
