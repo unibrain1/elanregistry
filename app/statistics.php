@@ -469,13 +469,6 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
         a.href = "/app/car_details.php?car_id=".concat(id);
         infowincontent.appendChild(a);
 
-        if (image != "") {
-          var img = document.createElement('img');
-          img.src = "<?= $us_url_root . $settings->elan_image_dir ?>".concat(image);
-          infowincontent.appendChild(img);
-          infowincontent.appendChild(document.createElement('br'));
-        }
-
         var icon = customIcons[type] || {};
 
         var marker = new google.maps.Marker({
@@ -485,6 +478,12 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
 
         }); // google.maps.Marker
         marker.addListener('click', function() {
+          if (image != "") {
+            var img = document.createElement('img');
+            img.src = "<?= $us_url_root . $settings->elan_image_dir ?>".concat(image);
+            infowincontent.appendChild(img);
+            infowincontent.appendChild(document.createElement('br'));
+          }
           infoWindow.setContent(infowincontent);
           infoWindow.open(map, marker);
         }); // addListener
