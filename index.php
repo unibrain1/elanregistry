@@ -11,6 +11,23 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 $randomCarId = $db->query("SELECT id FROM cars WHERE image <> '' ORDER BY RAND() LIMIT 1")->results()[0]->id;
 $car = new Car($randomCarId);
 
+// Grab count of cars by Series
+// There should be a more efficient way to do this
+$count['s1']     = $db->query("select count(*) as count from cars where series like 's1%'")->results()[0]->count;
+$count['s2']     = $db->query("select count(*) as count from cars where series like 's2%'")->results()[0]->count;
+$count['s3']     = $db->query("select count(*) as count from cars where series like 's3%'")->results()[0]->count;
+$count['s4']     = $db->query("select count(*) as count from cars where series like 's4%'")->results()[0]->count;
+$count['sprint'] = $db->query("select count(*) as count from cars where series like 'sprint%'")->results()[0]->count;
+$count['+2']     = $db->query("select count(*) as count from cars where series like '+2%'")->results()[0]->count;
+
+// Number of cars produced
+$notes['s1']     = "900";
+$notes['s2']     = "1250";
+$notes['s3']     = "2650";
+$notes['s4']     = "2976";
+$notes['sprint'] = "900";
+$notes['+2']     = "4526";
+
 ?>
 <div id='page-wrapper'>
 	<!-- Page Content -->
@@ -19,7 +36,7 @@ $car = new Car($randomCarId);
 		<!-- Heading Row -->
 		<div class='row'>
 			<div class='col-lg-5'>
-				<div class='card card-default'>
+				<div class='card-block'>
 					<div class='card-header'>
 						<h1><?php echo $settings->site_name; ?></h1>
 						<p class='text-muted'>A place to document Lotus Elan and Lotus Elan Plus 2</p>
@@ -49,10 +66,48 @@ $car = new Car($randomCarId);
 						</p>
 					</div> <!-- card-body -->
 				</div> <!-- card -->
+
+				<div class='card-block'>
+					<div class="card-header">
+						<h2>How are we doing?</h2>
+					</div>
+					<div class="card-body">
+						<table id="seriestable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
+							<thead>
+								<tr>
+									<th scope=columnd>Series</th>
+									<th scope=columnd>Registered</th>
+									<th scope=columnd>Number produced *</th>
+									<th scope=columnd>Percent registered</th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php
+								$total = 0;
+								$totalN = 0;
+								foreach ($count as $key => $value) {
+									echo "<tr><td>" . ucfirst($key) . "</td><td>" . $value . "</td>";
+									echo "<td>" . $notes[$key] . "</td>";
+									echo "<td>" . round(($value * 100) / $notes[$key], 0) . " %</td></tr>";
+
+									$total += $value;
+									$totalN += $notes[$key];
+								}
+								echo "<tr><td><strong>Total</strong></td><td><strong>" . $total . "</strong></td><td>" . $totalN . "</td><td>" . round(($total * 100) / $totalN) . " %</td></tr>";
+								?>
+							</tbody>
+						</table>
+						<p><small>* - Number produced is from
+								<a href="https://www.amazon.com/Authentic-Lotus-1962-1974-Marques-Models/dp/0947981950">
+									Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.
+								In cases where there is a range of values, I took the lower.</small></p>
+					</div> <!-- body -->
+				</div><!-- card block -->
+
 			</div>
 			<!-- /.col-lg-8 -->
 			<div class='col-lg-7'>
-				<div class='card card-default'>
+				<div class='card-block'>
 					<div class='card-header'>
 						<h2>One of the Cars</h2>
 					</div>
@@ -88,7 +143,7 @@ $car = new Car($randomCarId);
 		<!-- Content Row -->
 		<div class='row'>
 			<div class='col-md-5'>
-				<div class='card card-default'>
+				<div class='card-block'>
 					<div class='card-header'>
 						<H2>Thanks</H2>
 					</div>
@@ -105,7 +160,7 @@ $car = new Car($randomCarId);
 			</div><!-- /.col -->
 			<!-- /.col-md-4 -->
 			<div class='col-md-7'>
-				<div class='card h-100'>
+				<div class='card-block'>
 					<div class='card-header'>
 						<h2>Important Resources</h2>
 					</div>
