@@ -13,3 +13,13 @@ The Lotus Elan Registry started in January 2003. A thread on LotusElan.net asked
 Many people on the Elan mailing list and the Elan forums have helped with the registry. Little things like asking for there to be a registry, helping test, providing pictures and feedback on what should be included. This is their work. I am just the one who assembled the pieces.
 
 Special thanks to Ross, Tim, Gary, Ed, Terry, Peter, Jeff, Nicholas, Alan, Christian, Michael, Stan, Jason and everyone else who has contributed and will continue to make the registry what it is. A place for us to obsess over little British cars.
+
+Installation
+----------------------------
+- Install UserSpice (userspice.com) using the standard installation.  Version 5.4.3 is the current version
+- Install Elan Registry specific tables
+    - TBD
+- Install ElanRegistry files
+    - TBD
+- Install/Configure secure-env-php
+    - TBD
