@@ -16,7 +16,7 @@ Special thanks to Ross, Tim, Gary, Ed, Terry, Peter, Jeff, Nicholas, Alan, Chris
 
 Installation
 ----------------------------
-- Install UserSpice (userspice.com) using the standard installation.  Version 5.4.3 is the current version
+- Install UserSpice (userspice.com) using the standard installation.  Version 5.4.5 is the current version
 - Install Elan Registry specific tables
     - TBD
 - Install ElanRegistry files
