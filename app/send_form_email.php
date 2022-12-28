@@ -13,7 +13,8 @@ require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 if (isset($_POST['email'])) {
  
     // EDIT THE 2 LINES BELOW AS REQUIRED
-    $email_to = "elanregistry@gmail.com";
+    # $email_to = "jim@elanregistry.org";
+    $email_to = "jim@elanregistry.org";
     $email_subject = "[ELANREGISTRY] Feedback";
  
     function died($error)
@@ -63,7 +64,7 @@ if (isset($_POST['email'])) {
         died($error_message);
     }
  
-    $email_message = "Feedback below.\n\n";
+    $body = "Feedback below.</br></br>";
  
      
     function clean_string($string)
@@ -71,17 +72,23 @@ if (isset($_POST['email'])) {
         $bad = array("content-type","bcc:","to:","cc:","href");
         return str_replace($bad, "", $string);
     }
- 
-    $email_message .= "Name       : ".clean_string($name)."\n";
-    $email_message .= "Email      : ".clean_string($email_from)."\n";
-    $email_message .= "Account ID : ".clean_string($id_from)."\n\n";
-    $email_message .= "Comments   :\n".clean_string($comments)."\n";
- 
-    // create email headers
-    $headers = 'From: '.$email_from."\r\n".
-'Reply-To: '.$email_from."\r\n" .
-'X-Mailer: PHP/' . phpversion();
-    @mail($email_to, $email_subject, $email_message, $headers);
+
+    $body .= "Name       : ".clean_string($name)."</br>";
+    $body .= "Email      : ".clean_string($email_from)."</br>";
+    $body .= "Account ID : ".clean_string($id_from)."</br></br>";
+	$body .= "Comments   : ".clean_string($comments)."</br>";
+
+	$opts = array (
+			'email' => $email_from,
+			'name'  => $name
+	);
+
+
+	$email_sent = email($email_to, $email_subject, $body, $opts);
+	if(!$email_sent){
+        	logger(1,"Feedback form","Error sending email");
+	}
+	logger(1,"Feedback form","Complete");
 }
 
 ?>
