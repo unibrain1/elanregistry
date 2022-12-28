@@ -40,7 +40,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 						</div>
 						
 					</fieldset>
-					<input class='btn btn-primary' type='submit' value='submit' class='Submit' /></p>
+					<input class='btn btn-primary' type='submit' value='Submit' class='Submit' /></p>
 				</form>
 			</div> <!-- /.col -->
 		</div> <!-- /.row -->
