@@ -46,7 +46,7 @@ if (!empty($_POST['login_hook'])) {
     $_POST,
     array(
       'username' => array('display' => lang('GEN_UNAME'), 'required' => true),
-      'password' => array('display' => lang('GEN_PASS'), 'required' => true)
+      'password' => array('display' => lang('GEN_PASS'),  'required' => true)
     )
   );
   // Set $validated to False to kill validation, or run additional checks, in your post hook
@@ -70,8 +70,11 @@ if (!empty($_POST['login_hook'])) {
 
       if (!empty($dest)) {
         $redirect = Input::get('redirect');
-        if (!empty($redirect) || $redirect !== '') Redirect::to($redirect);
-        else Redirect::to($dest);
+        if (!empty($redirect) || $redirect !== '') {
+          Redirect::to($redirect);
+        } else {
+          Redirect::to($dest);
+        }
       } elseif (file_exists($abs_us_root . $us_url_root . 'usersc/scripts/custom_login_script.php')) {
 
         # if site has custom login script, use it
@@ -95,7 +98,7 @@ if (!empty($_POST['login_hook'])) {
   } else {
     $errors = $validation->errors();
   }
-  sessionValMessages($errors, $successes, NULL);
+  sessionValMessages($errors, $successes, null);
 }
 if (empty($dest = sanitizedDest('dest'))) {
   $dest = '';
@@ -130,19 +133,22 @@ $token = Token::generate();
           <input type="hidden" name="login_hook" value="1">
           <input type="hidden" name="csrf" value="<?= $token ?>">
           <input type="hidden" name="redirect" value="<?= Input::get('redirect') ?>" />
-          <button class="submit  btn  btn-primary" id="next_button" type="submit"><i class="fa fa-sign-in"></i> <?= lang("SIGNIN_BUTTONTEXT", ""); ?></button>
+          <button class="submit  btn  btn-primary" id="next_button" type="submit">
+            <i class="fa fa-sign-in"></i> <?= lang("SIGNIN_BUTTONTEXT", ""); ?></button>
 
         </form>
       </div>
     </div>
     <div class="row">
       <div class="col-sm-6"><br>
-        <a class="float-left" href='../users/forgot_password.php'><i class="fa fa-wrench"></i> <?= lang("SIGNIN_FORGOTPASS", ""); ?></a>
+        <a class="float-left" href='../users/forgot_password.php'><i class="fa fa-wrench"></i>
+          <?= lang("SIGNIN_FORGOTPASS", ""); ?></a>
         <br><br>
       </div>
       <?php if ($settings->registration == 1) { ?>
         <div class="col-sm-6"><br>
-          <a class="float-right" href='../users/join.php'><i class="fa fa-plus-square"></i> <?= lang("SIGNUP_TEXT", ""); ?></a><br><br>
+          <a class="float-right" href='../users/join.php'><i class="fa fa-plus-square"></i>
+            <?= lang("SIGNUP_TEXT", ""); ?></a><br><br>
         </div><?php } ?>
       <?php includeHook($hooks, 'bottom'); ?>
       <?php languageSwitcher(); ?>
@@ -150,11 +156,11 @@ $token = Token::generate();
   </div>
 </div>
 
-<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/container_close.php'; //custom template container 
+<?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/container_close.php'; //custom template container
 ?>
 
 <!-- footers -->
-<?php require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls 
+<?php require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php'; // the final html footer copyright row + the external js calls
 ?>
 
 <!-- Place any per-page javascript here -->
