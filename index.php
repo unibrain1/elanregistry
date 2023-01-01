@@ -32,7 +32,6 @@ $notes['+2']     = "4526";
 <div id='page-wrapper'>
 	<!-- Page Content -->
 	<div class='container'>
-
 		<!-- Heading Row -->
 		<div class='row'>
 			<div class='col-lg-5'>
