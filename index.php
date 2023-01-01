@@ -93,7 +93,8 @@ $notes['+2']     = "4526";
 									$total += $value;
 									$totalN += $notes[$key];
 								}
-								echo "<tr><td><strong>Total</strong></td><td><strong>" . $total . "</strong></td><td>" . $totalN . "</td><td>" . round(($total * 100) / $totalN) . " %</td></tr>";
+								echo "<tr><td><strong>Total</strong></td><td><strong>" . $total . "</strong></td><td>" .
+									$totalN . "</td><td>" . round(($total * 100) / $totalN) . " %</td></tr>";
 								?>
 							</tbody>
 						</table>
@@ -132,7 +133,8 @@ $notes['+2']     = "4526";
 								<td><?= $car->data()->type ?></td>
 							</tr>
 							<tr>
-								<td colspan='2'><a class='btn btn-success btn-sm' href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->data()->id ?>'>Details</a></td>
+								<td colspan='2'><a class='btn btn-success btn-sm' href='<?= $us_url_root ?>
+									app/car_details.php?car_id=<?= $car->data()->id ?>'>Details</a></td>
 							</tr>
 						</table>
 					</div> <!-- card-body -->
@@ -148,12 +150,16 @@ $notes['+2']     = "4526";
 						<H2>Thanks</H2>
 					</div>
 					<div class='card-body'>
-						<p class='card-text'>Thank you to the many people on the Elan mailing list and the Elan forums who have helped with the registry.
-							The group has helped with testing, providing pictures, provided feedback on what should be included, and kept me motivated to improve the site.
+						<p class='card-text'>Thank you to the many people on the Elan mailing list and the
+							Elan forums who have helped with the registry.
+							The group has helped with testing, providing pictures, provided feedback on what
+							should be included, and kept me motivated to improve the site.
 							This is their work. I am just the one who assembled the pieces.</p>
 
-						<p class='card-text'>Special thanks to Ross, Tim, Gary, Ed, Terry, Peter, Jeff, Nicholas, Alan, Christian, Michael, Stan,
-							Jason and everyone else who has contributed and will continue to make the registry what it is, a place
+						<p class='card-text'>Special thanks to Ross, Tim, Gary, Ed, Terry, Peter, Jeff, Nicholas,
+							Alan, Christian, Michael, Stan,
+							Jason and everyone else who has contributed and will continue to make the registry
+							what it is, a place
 							for us to obsess over little British cars.</p>
 					</div><!-- /.card-body -->
 				</div><!-- /.card -->
