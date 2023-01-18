@@ -1,4 +1,5 @@
 <?php
+require_once '../users/init.php';
 
 /* Sets variables
 $fields['lat']
@@ -23,12 +24,14 @@ function geocode($address)
     global $settings;
     // url encode the address
     $address = urlencode($address);
+    logger(1, 'Debug', 'Encode ' . $address );
 
     // google map geocode api url
     $url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key={$settings->elan_google_geo_key}";
 
     // get the json response
     $resp_json = file_get_contents($url);
+    logger(1, 'Debug', 'Encode response ' . $resp_json );
 
     // decode the json
     $resp = json_decode($resp_json, true);
