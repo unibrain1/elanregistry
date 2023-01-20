@@ -1,5 +1,7 @@
 <?php
-if (count(get_included_files()) == 1) die(); //Direct Access Not Permitted Leave this line in place
+if (count(get_included_files()) == 1) {
+    die(); //Direct Access Not Permitted Leave this line in place
+}
 
 global $user;
 
@@ -28,7 +30,7 @@ $cars = findByOwner($user_id);
         // If there is car information then display it
 
         if (empty($cars)) {
-            // 	If the user does not have a car then display the add car form</li>
+            //     If the user does not have a car then display the add car form</li>
         ?>
             <a class="btn btn-success" href=<?= $us_url_root . "app/edit_car.php" ?> role="button">Add Car</a>
             <?php
@@ -106,7 +108,7 @@ $cars = findByOwner($user_id);
                     <tr>
                         <td><strong>Images:</strong></td>
                         <td>
-                            <?php echo display_carousel($car->data()->image); ?>
+                            <?php echo displayCarousel($car); ?>
                         </td>
                     </tr>
                     <?php

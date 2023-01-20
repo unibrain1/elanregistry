@@ -113,7 +113,7 @@ $notes['+2']     = "4526";
 					</div>
 					<div class='card-body'>
 
-						<?php echo display_carousel($car->data()->image); ?>
+						<?php echo displayCarousel($car); ?>
 						<table id='cartable' class='table table-striped table-bordered table-sm' aria-describedby='Car ID <?= $car->data()->id ?>'>
 							<tr>
 								<th scope='col'><strong>Year :</strong></th>

@@ -22,11 +22,10 @@ ElanRegistry.code-workspace
 # Environment specific files
 .env.enc
 .env.key
-# Include the userimages and thumbs directory but not the files
-app/userimages/thumbs/*.*
-app/userimages/*.*
-!app/userimages/.htaccess
-!app/userimages/thumbs/.htaccess
+# Include the userimages dir but not the files
+userimages/*/*.*
+userimages/*
+!userimages/.htaccess
 # Exclude userspice base
 # Because I want to include users/cron/backup.php I need to do this
 # https://stackoverflow.com/questions/5533050/gitignore-exclude-folder-but-include-specific-subfolder
@@ -62,3 +61,5 @@ composer.lock
 usersc/vendor
 usersc/tests
 usersc/plugins/hooker/hooks/uman_tbody.php
+
+

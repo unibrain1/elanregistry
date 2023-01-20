@@ -163,7 +163,8 @@ if (!empty($_GET)) {
                             if (!is_null($car->factory())) { ?>
 
                                 <tr class='table-info'>
-                                    <td colspan=2><strong>Factory Data - <small>This information has not been verified against the Lotus archives.</small> </strong> </td>
+                                    <td colspan=2><strong>Factory Data - <small>
+                                                This information has not been verified against the Lotus archives.</small> </strong> </td>
                                 </tr>
                                 <tr>
                                     <td><strong>Year</strong></td>
@@ -222,7 +223,7 @@ if (!empty($_GET)) {
                         <h2><strong>The Car</strong></h2>
                     </div>
                     <div class='card-body'>
-                        <?php echo display_carousel($car->data()->image); ?>
+                        <?php echo displayCarousel($car); ?>
                     </div> <!-- card-body -->
                 </div> <!-- card -->
                 <div class='card card-default'>
@@ -353,11 +354,11 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
             {
                 data: "image",
                 searchable: false,
-                render: function(data) {
+                'render': function(data, type, row) {
                     if (data) {
-                        return carousel(data);
+                        return carousel(row, row.car_id);
                     } else {
-                        return "";
+                        return '';
                     }
                 }
             },

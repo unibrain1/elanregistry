@@ -116,9 +116,9 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     }, {
       data: 'image',
       'searchable': false,
-      'render': function(data) {
+      'render': function(data, type, row) {
         if (data) {
-          return carousel(data);
+          return carousel(row);
         } else {
           return '';
         }
