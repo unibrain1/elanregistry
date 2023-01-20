@@ -1,9 +1,18 @@
+function carousel(row, carid = null) {
+    if (carid == null) {
+        carid = row['id']
+    }
 
+    img_path = img_root + carid + '/';
 
+    // Images can be csv or JSON
+    try {
+        images = JSON.parse(row['image']);
+    } catch (e) {
+        var images = row['image'].split(',');
+    }
 
-function carousel(data) {
-    var images = data.split(',');
-    var i;
+    var slideNumber;
 
     const id = Math.floor(Math.random() * 100); // Generate and ID number for the carousel in case there are more than 1 per page
 
@@ -14,9 +23,9 @@ function carousel(data) {
 
     var response = '<div id="slider"> <div id="myCarousel-' + id + '" class="carousel slide shadow"> <div class="carousel-inner"> <div class="carousel-inner"> ';
     var active = 'carousel-item active';
-    for (i = 0; i < images.length; i++) {
-        response += "<div class='" + active + "' data-slide-number='" + i + "'>";
-        response += load_picture(images[i]);
+    for (slideNumber = 0; slideNumber < images.length; slideNumber++) {
+        response += "<div class='" + active + "' data-slide-number='" + slideNumber + "'>";
+        response += load_picture(images[slideNumber]);
         response += '</div>';
         active = 'carousel-item';
     }
@@ -37,14 +46,14 @@ function load_picture(image, thumbnail = null) {
     const extension = image.substr((index + 1));
 
     if (thumbnail) {
-        html = '<img src="' + img_root + filename + '-resized-100.' + extension + '" width="100" alt="elan" loading="lazy" class="img-fluid"> ';
+        html = '<img src="' + img_path + filename + '-resized-100.' + extension + '" width="100" alt="elan" loading="lazy" class="img-fluid"> ';
     } else {
-        html = '<img loading="lazy" class="card-img-top" src="' + img_root + filename + '-resized-100.' + extension + '"';
+        html = '<img loading="lazy" class="card-img-top" src="' + img_path + filename + '-resized-100.' + extension + '"';
         html += ' sizes="5vw" ';
         html += ' width="100" ';
         html += 'srcset="';
-        html += img_root + filename + '-resized-100.' + extension + ' 100w,';
-        html += img_root + filename + '-resized-300.' + extension + ' 300w"';
+        html += img_path + filename + '-resized-100.' + extension + ' 100w,';
+        html += img_path + filename + '-resized-300.' + extension + ' 300w"';
         html += 'alt="Elan" > ';
     }
     return html;

@@ -10,7 +10,7 @@ class Resize
     private $height;
     private $imageResized;
 
-    function __construct($fileName)
+    public function __construct($fileName)
     {
         // *** Open up the file
         $this->image = $this->openImage($fileName);
@@ -117,23 +117,20 @@ class Resize
 
     private function getSizeByAuto($newWidth, $newHeight)
     {
-        if ($this->height < $this->width)
-        // *** Image to be resized is wider (landscape)
-        {
+        if ($this->height < $this->width) {
+            // *** Image to be resized is wider (landscape)
             $optimalWidth = $newWidth;
             $optimalHeight = $this->getSizeByFixedWidth($newWidth);
-        } elseif ($this->height > $this->width)
-        // *** Image to be resized is taller (portrait)
-        {
+        } elseif ($this->height > $this->width) {
+            // *** Image to be resized is taller (portrait)
             $optimalWidth = $this->getSizeByFixedHeight($newHeight);
             $optimalHeight = $newHeight;
-        } else
-        // *** Image to be resizerd is a square
-        {
+        } else {
+            // *** Image to be resizerd is a square
             if ($newHeight < $newWidth) {
                 $optimalWidth = $newWidth;
                 $optimalHeight = $this->getSizeByFixedWidth($newWidth);
-            } else if ($newHeight > $newWidth) {
+            } elseif ($newHeight > $newWidth) {
                 $optimalWidth = $this->getSizeByFixedHeight($newHeight);
                 $optimalHeight = $newHeight;
             } else {

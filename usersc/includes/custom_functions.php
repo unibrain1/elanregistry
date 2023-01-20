@@ -36,45 +36,45 @@ include_once $abs_us_root . $us_url_root . 'usersc/classes/Car.php';
 include_once $abs_us_root . $us_url_root . 'usersc/classes/Resize.php';
 
 // This is probably not the best place for this function
-function load_picture($image, $thumbnail = null)
+function loadPicture($image, $thumbnail = null)
 {
     global $us_url_root;
     global $abs_us_root;
-    global $settings;
     $thumbsize = 100;
     $resize = '-resized-';
-    $image_dir = $settings->elan_image_dir;
 
-    $html = "<!--Start load_picture -->";
+    $html = "<!--Start loadPicture -->";
 
-    $path = pathinfo($abs_us_root . $us_url_root . $image_dir  . $image);
-    $filename = $path['filename'];
-    $extension = $path['extension'];
+    $path = pathinfo($image['path']);
 
     if ($thumbnail) {
-        $html .= '<img src="' . $us_url_root . $image_dir . $filename . $resize . $thumbsize . "." . $extension . '" width="100" alt="elan" loading="lazy" class="img-fluid"> ';
+        $html .= '<img src="' . $path['dirname'] . "/" .
+            $path['filename'] . $resize . $thumbsize . "." .
+            $path['extension'] . '" width="100" alt="elan" loading="lazy" class="img-fluid"> ';
     } else {
-        $html = '<img loading="lazy" class="card-img-top" src="' . $us_url_root . $image_dir . $filename . $resize . $thumbsize  . $extension . '"';
+        $html = '<img loading="lazy" class="card-img-top" src="' .
+            $path['dirname'] . "/" . $path['filename'] . $resize . $thumbsize  . $path['extension'] . '"';
         $html .= ' sizes="50vw" ';
         $html .= ' width="100" ';
         $html .= 'srcset="';
-        $html .= $us_url_root . $image_dir . $filename . '-resized-100.' . $extension . ' 100w,';
-        $html .= $us_url_root . $image_dir . $filename . '-resized-300.' . $extension . ' 300w,';
-        $html .= $us_url_root . $image_dir . $filename . '-resized-600.' . $extension . ' 600w,';
-        $html .= $us_url_root . $image_dir . $filename . '-resized-1024.' . $extension . ' 1024w"';
+        $html .= $path['dirname'] . "/" . $path['filename'] . '-resized-100.' . $path['extension'] . ' 100w,';
+        $html .= $path['dirname'] . "/" . $path['filename'] . '-resized-300.' . $path['extension'] . ' 300w,';
+        $html .= $path['dirname'] . "/" . $path['filename'] . '-resized-600.' . $path['extension'] . ' 600w,';
+        $html .= $path['dirname'] . "/" . $path['filename'] . '-resized-1024.' . $path['extension'] . ' 1024w"';
         $html .= 'alt="Elan" > ';
     }
-    $html .= '<!--End load_picture -->';
+    $html .= '<!--End loadPicture -->';
 
     return $html;
 }
 
-function display_carousel($images)
+// Given a  CAR display the images
+function displayCarousel($car)
 {
-    $html = "<!--Start display_carousel -->";
-    $carouselId = rand(0, 100);
 
-    $carImages = explode(',', $images);
+    $carImages = $car->images();
+    $html = "<!--Start displayCarousel -->";
+    $carouselId = rand(0, 100);
 
     $sizes = [100, 300, 600, 1024, 2048];
     // Remove the smallest since that will be the default
@@ -83,20 +83,22 @@ function display_carousel($images)
     $count = count($carImages);
     if ($count === 0 || $carImages[0] == '') {
         // No images or image name is blank
+        $html .= '<!--End displayCarousel -->';
         return $html;
     }
 
     if ($count === 1) {
-        echo load_picture($carImages[0]);
+        echo loadPicture($carImages[0]);
     } else {
 
-        $html .= '<div id="slider"><div id="myCarousel-' . $carouselId . '" class="carousel slide shadow"> <div class="carousel-inner"><div class="carousel-inner">';
+        $html .= '<div id="slider"><div id="myCarousel-' . $carouselId .
+            '" class="carousel slide shadow"> <div class="carousel-inner"><div class="carousel-inner">';
 
         $class = 'carousel-item active';
 
         foreach ($carImages as $key => $image) {
             $html .=  "<div class='" . $class . "' data-slide-number='" . $key . "'>";
-            $html .=  load_picture($carImages[$key]);
+            $html .=  loadPicture($image);
             $html .=  '</div>';
             $class = 'carousel-item';
         }
@@ -113,13 +115,14 @@ function display_carousel($images)
             <ul class="carousel-indicators list-inline mx-auto border px-0">';
         foreach ($carImages as $key => $image) {
             $html .= '<li class="list-inline-item active">';
-            $html .= '<a id="carousel-selector-' . $key . '" class="selected" data-slide-to="' . $key . '" data-target="#myCarousel-' . $carouselId . '">';
-            $html .= load_picture($image, true);
+            $html .= '<a id="carousel-selector-' . $key . '" class="selected" data-slide-to="'
+                . $key . '" data-target="#myCarousel-' . $carouselId . '">';
+            $html .= loadPicture($image, true);
             $html .= '</a> </li>';
         }
         $html .= '</ul></div></div>';
     }
-    $html .= '<!--End display_carousel -->';
+    $html .= '<!--End displayCarousel -->';
 
     return $html;
 }
