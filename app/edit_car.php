@@ -40,7 +40,7 @@ $action = 'addCar'; // No one has asked me to do anything yet
 if (!empty($_POST)) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
-        include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
+        include_once($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
 
         $action = Input::get('action');
@@ -54,7 +54,7 @@ if (!empty($_POST)) {
     } // End Post with data
 }
 
-/* 
+/*
 Called to update a car.  Get the car information and fill in the defaults.
 */
 function updateCarDetails(&$car)
@@ -120,7 +120,7 @@ function updateCarDetails(&$car)
                                 </div>
                             </div>
                             <div class="card-body">
-                                <?php include($abs_us_root . $us_url_root . 'app/views/_edit_car_1.php'); ?>
+                                <?php include_once($abs_us_root . $us_url_root . 'app/views/_edit_car_1.php'); ?>
                             </div>
                         </div>
                         <input type='button' name='next' class='next btn btn-info' value='Next' />
@@ -140,7 +140,7 @@ function updateCarDetails(&$car)
                                 </div>
                             </div>
                             <div class="card-body">
-                                <?php include($abs_us_root . $us_url_root . 'app/views/_edit_car_2.php'); ?>
+                                <?php include_once($abs_us_root . $us_url_root . 'app/views/_edit_car_2.php'); ?>
                             </div>
                         </div>
                         <input type='button' name='next' class='next btn btn-info' value='Next' />
@@ -162,7 +162,7 @@ function updateCarDetails(&$car)
                                 </div>
                             </div>
                             <div class="card-body">
-                                <?php include($abs_us_root . $us_url_root . 'app/views/_edit_car_3.php'); ?>
+                                <?php include_once($abs_us_root . $us_url_root . 'app/views/_edit_car_3.php'); ?>
                             </div>
                         </div>
                         <!-- End Image panel -->
@@ -269,14 +269,16 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
                         if (data == null || data.status != 'success') {
                             return;
                         }
-                        $.each(data.image, function(key, value) {
+                        $.each(data.images, function(key, value) {
                             var mockFile = {
-                                name: value.name,
+                                path: value.path,
+                                name: value.basename,
                                 accepted: true,
                                 status: 'success',
                             };
+
                             thisDropzone.emit("addedfile", mockFile);
-                            thisDropzone.emit("thumbnail", mockFile, '<?= $us_url_root . $settings->elan_image_dir ?>' + value.name);
+                            thisDropzone.emit("thumbnail", mockFile, value.path);
                             $('[data-dz-thumbnail]').css('height', '120');
                             $('[data-dz-thumbnail]').css('width', '120');
                             $('[data-dz-thumbnail]').css('object-fit', 'cover');
@@ -291,7 +293,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
 
                     });
 
-                // Grab the submit button.  Make sure it's error free and process the queue  
+                // Grab the submit button.  Make sure it's error free and process the queue
                 document.getElementById("submit").addEventListener("click", function(e) {
                     current_fs = $(this).parent();
                     next_fs = $(this).parent().next();
@@ -309,7 +311,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
                     }
 
                     // check to see if there are any errors on the images
-                    //  See if data-dz-errormessage is empty for all images.  
+                    //  See if data-dz-errormessage is empty for all images.
                     $('.dropzone .dz-error-message span').each(function() {
                         if ($(this).text()) {
                             error_free = false;
@@ -421,7 +423,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
 
         // END DROPZONE
 
-        // Tabbed interface 
+        // Tabbed interface
 
         var current_fs, next_fs, previous_fs; //fieldsets
         var opacity;

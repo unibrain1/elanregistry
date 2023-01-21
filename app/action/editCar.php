@@ -19,7 +19,7 @@ $targetURL = $us_url_root . $settings->elan_image_dir;
 if (!empty($_POST)) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
-        include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
+        include_once($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
         $db = DB::getInstance();
 
@@ -29,7 +29,9 @@ if (!empty($_POST)) {
                 buildCarDetails($cardetails);
                 buildImageDetails($cardetails);
                 if (empty($errors)) {
+                    uploadImages($cardetails);
                     addCar($cardetails);
+                    mvTmpImages($cardetails);
                 } else {
                     $errors[] = 'Add_Car: Cannot add record';
                 }
@@ -37,8 +39,8 @@ if (!empty($_POST)) {
             case "updateCar":
                 buildCarDetails($cardetails, Input::get('carid'));
                 buildImageDetails($cardetails);
-
                 if (empty($errors)) {
+                    uploadImages($cardetails); // On update I know the car number
                     updateCar($cardetails);
                 } else {
                     $errors[] = 'Update_Car: Cannot add record';
@@ -60,10 +62,16 @@ if (!empty($_POST)) {
         $response = array(
             'status'     => (!empty($errors)) ? 'error' : 'success',
             'action'     => $action,
-            'info'       => array_merge($successes,  $errors),
+            'info'       => array_merge($successes, $errors),
             'cardetails' => $cardetails
         );
-        logger($user->data()->id, "ElanRegistry: ", "Action: " . $response['action'] . " Status: " . $response['status'] . "  carID: " . $cardetails['id'] . " Messages: " . json_encode($response['info']) . " Data: " . json_encode($response['cardetails']));
+        logger(
+            $user->data()->id,
+            "ElanRegistry: ",
+            "Action: " . $response['action'] .
+                " Status: " . $response['status'] . "  carID: " . $cardetails['id'] . " Messages: " .
+                json_encode($response['info']) . " Data: " . json_encode($response['cardetails'])
+        );
 
         // Blanks instead of NULL for display
         foreach ($response['cardetails'] as $key => $value) {
@@ -83,7 +91,7 @@ function updateCar(&$cardetails)
 
     $car = new Car();
 
-    // Update 
+    // Update
     if ($car->update($cardetails)) {
         $successes[] = 'Update Car ID: ' . $car->data()->id;
         $successes[] = 'Update BY ID: ' . $car->data()->user_id;
@@ -179,9 +187,9 @@ function updateModel(&$cardetails)
         // We need to explode it into the proper columns
         list($series, $variant, $type) = explode('|', $cardetails['model']);
         /* MST value is from form, so I shouldn't have to do this but to be safe ... */
-        $cardetails['series'] = filter_var($series, FILTER_SANITIZE_STRING);
-        $cardetails['variant'] = filter_var($variant, FILTER_SANITIZE_STRING);
-        $cardetails['type'] = filter_var($type, FILTER_SANITIZE_STRING);
+        $cardetails['series'] = filter_var($series, FILTER_UNSAFE_RAW);
+        $cardetails['variant'] = filter_var($variant, FILTER_UNSAFE_RAW);
+        $cardetails['type'] = filter_var($type, FILTER_UNSAFE_RAW);
 
         $successes[] = 'Model Updated (' . $cardetails['model'] . ')';
     } else {
@@ -199,7 +207,7 @@ function updateChassis(&$cardetails)
         if (strcmp($cardetails['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
             $successes[] =  'Chassis Updated (' . $cardetails['chassis'] . ')';
         } elseif ($cardetails['year'] < 1970) {
-            if ($len != 4) { // Chassis number for years < 1970 are 4 digits 
+            if ($len != 4) { // Chassis number for years < 1970 are 4 digits
                 $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
             }
         } else {
@@ -212,7 +220,7 @@ function updateChassis(&$cardetails)
 
 function updateColor(&$cardetails)
 {
-    // Update 'color' 
+    // Update 'color'
     if (!empty($_POST['color'])) {
         $cardetails['color'] = Input::get('color');
         $successes[] = 'Color Updated (' . $cardetails['color'] . ')';
@@ -223,7 +231,7 @@ function updateColor(&$cardetails)
 
 function updateEngine(&$cardetails)
 {
-    // Update 'engine' 
+    // Update 'engine'
     if (!empty($_POST['engine'])) {
         $cardetails['engine'] = Input::get('engine');
         $cardetails['engine'] = str_replace(" ", "", strtoupper(trim($cardetails['engine'])));
@@ -247,7 +255,7 @@ function updatePurchasedate(&$cardetails)
 
 function updateSolddate(&$cardetails)
 {
-    // Update 'solddate' 
+    // Update 'solddate'
     if (!empty($_POST['solddate'])) {
         $cardetails['solddate'] = Input::get('solddate');
         $cardetails['solddate'] = date("Y-m-d", strtotime($cardetails['solddate']));
@@ -259,7 +267,7 @@ function updateSolddate(&$cardetails)
 
 function updateWebsite(&$cardetails)
 {
-    // Update 'website' 
+    // Update 'website'
     if (!empty($_POST['website'])) {
         $cardetails['website'] = Input::get('website');
         $successes[] = 'Website Updated (' . $cardetails['website'] . ')';
@@ -270,7 +278,7 @@ function updateWebsite(&$cardetails)
 
 function updateComments(&$cardetails)
 {
-    // Update 'comments' 
+    // Update 'comments'
     if (!empty($_POST['comments'])) {
         $cardetails['comments'] = Input::get('comments');
         $successes[] = 'Comments Updated (' . $cardetails['comments'] . ')';
@@ -281,17 +289,27 @@ function updateComments(&$cardetails)
 
 function buildImageDetails(&$cardetails)
 {
+    // This needs to happen before processinging new files to the event the order changes
+    // without adding new files
+
+    $requestedOrder = array_filter(explode(',', $_POST['filenames']));
+    $cardetails['image'] = json_encode($requestedOrder);
+
+    // Order of all images in the dropzone
+    // Do I have any new files?
+    if ($_FILES['file']['name'][0] == 'blob') {
+        $successes[] = 'No image';
+    }
+}
+
+function uploadImages(&$cardetails)
+{
     global $targetFilePath;
     global $errors;
     global $successes;
-    global $db;
     global $user;
 
-    $sizes = [100, 300, 600, 1024, 2048];  // Should get from config
-
-    // Order of all images in the dropzone
-    $requestedOrder = array_filter(explode(',', $_POST['filenames']));
-    $cardetails['image'] = implode(',', $requestedOrder);
+    $sizes = [100, 300, 600, 1024, 2048];  // TODO Should get from config
 
 
     // Do I have any new files?
@@ -299,6 +317,18 @@ function buildImageDetails(&$cardetails)
         $successes[] = 'No image';
         return;
     }
+    if (empty($cardetails['id'])) {
+        $filePath = $targetFilePath . 'temp' . '/';
+    } else {
+        $filePath = $targetFilePath . $cardetails['id'] . '/';
+    }
+
+    if (!is_dir($filePath)) {
+        mkdir($filePath);
+    }
+
+    $requestedOrder = array_filter(explode(',', $_POST['filenames']));
+
     //  $_FILES['file']['tmp_name'] is an array so have to use loop
     foreach ($_FILES['file']['tmp_name'] as $key => $value) {
         $name  = $_FILES['file']['name'][$key];
@@ -306,9 +336,9 @@ function buildImageDetails(&$cardetails)
 
         if ($tempFile !== '') { //  deal with empty file name
             // Create a filename for the new file and give the file a random name
-            $newFileName = uniqid('img_', 'true') . '.' . getExtension(get_mime_type($tempFile));
+            $newFileName = uniqid('img_', 'true') . '.' . getExtension(getMimeType($tempFile));
 
-            if (move_uploaded_file($tempFile, $targetFilePath . $newFileName)) {
+            if (move_uploaded_file($tempFile, $filePath . $newFileName)) {
                 $successes[] = "Photo has been uploaded " . $name . " as " . $newFileName;
 
                 //  Create resized images
@@ -317,56 +347,70 @@ function buildImageDetails(&$cardetails)
                 $extension = $fileinfo['extension'];
 
                 foreach ($sizes as $size) {
-                    $thumbname = $targetFilePath . $filename . "-resized-" . $size . "." . $extension;
+                    $thumbname = $filePath . $filename . "-resized-" . $size . "." . $extension;
 
-                    $resizeObj = new Resize($targetFilePath . $newFileName);
+                    $resizeObj = new Resize($filePath . $newFileName);
                     $resizeObj->resizeImage($size, $size, 'auto');
                     $resizeObj->saveImage($thumbname, 80);
                     $successes[] = " Created " . $thumbname;
                 }
-                array_replace_value($requestedOrder, $name, $newFileName);
+                arrayReplaceValue($requestedOrder, $name, $newFileName);
             } else {
                 $errors[] = "Photo failed to uploaded " . $name . " as " . $newFileName;
-                logger($user->data()->id, "ElanRegistry", "ERROR: buildImageDetails carId: " . Input::get('carid') . " Photo failed to uploaded " . $name . " as " . $newFileName);
+                logger(
+                    $user->data()->id,
+                    "ElanRegistry",
+                    "ERROR: buildImageDetails carId: " .
+                        Input::get('carid') . " Photo failed to uploaded " . $name . " as " . $newFileName
+                );
             }
         }
     }
-    $cardetails['image'] = implode(',', $requestedOrder);
+    $cardetails['image'] = json_encode($requestedOrder);
 }
 
 function fetchImages($carid)
 {
-    global $db;
-
     $car = new Car($carid);
 
-    $car->images();
-
-    $listQ = $db->query("SELECT image FROM cars WHERE id = ?", [$carid]);
-
-    if ($listQ->count() > 0) {
-        $list = $listQ->results()[0]->image;
-
-        if ($list === "") {
-            $response = array(
-                'status' => 'No images'
-            );
-        } else {
-            $images = explode(',', $list);
-
-            $response = array('status' => 'success');
-            for ($i = 0; $i < count($images); $i++) {
-                $response['image'][$i]['name'] =  $images[$i];
-            }
-        }
-    } else {
-        $response = array(
-            'status' => 'No images'
-        );
-    }
+    $response = array(
+        'status' => 'success',
+        'images' => $car->images(),
+    );
 
     echo json_encode($response);
     exit;
+}
+
+function mvTmpImages(&$cardetails)
+{
+    global $targetFilePath;
+
+    $tempPath = $targetFilePath . 'temp' . '/';
+
+    $filePath = $targetFilePath . $cardetails['id'] . '/';
+    if (!is_dir($filePath)) {
+        mkdir($filePath);
+    }
+
+    // Get the car images
+    // Turn images into array
+    // Images can be encoded as JSON or simple CSV
+    $carImages = json_decode($cardetails['image']);
+
+    if (is_null($carImages)) {
+        $carImages = explode(',', $cardetails['image']);
+    }
+
+    foreach ($carImages as $carimage) {
+        $tmpfile = pathinfo($carimage);
+
+        foreach (glob($tempPath . $tmpfile['filename'] . '*' . $tmpfile['extension']) as $name) {
+            $file = pathinfo($name);
+
+            rename($name, $filePath . $file['basename']);
+        }
+    }
 }
 
 function removeImage($carID, $file)
@@ -400,22 +444,22 @@ function removeImage($carID, $file)
     exit;
 }
 
-function array_replace_value(&$ar, $value, $replacement)
+function arrayReplaceValue(&$ar, $value, $replacement)
 {
-    if (($key = array_search($value, $ar)) !== FALSE) {
+    if (($key = array_search($value, $ar)) !== false) {
         $ar[$key] = $replacement;
     }
 }
 
-function getExtension($mime_type)
+function getExtension($mimeType)
 {
     $extensions = array(
         'image/jpeg' => 'jpg'
     );
-    return $extensions[$mime_type];
+    return $extensions[$mimeType];
 }
 
-function get_mime_type($file)
+function getMimeType($file)
 {
     $mtype = false;
     if (function_exists('finfo_open')) {
