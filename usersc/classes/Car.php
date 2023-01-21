@@ -1,15 +1,15 @@
 <?php
 
-/** 
- * 
- *  Car is a class for managing Car data  
- * 
+/**
+ *
+ *  Car is a class for managing Car data
+ *
  *  Car is a class that is used for creating, updating and retrieving information
- * about a Car for the Lotus Elan Registry 
- * 
+ * about a Car for the Lotus Elan Registry
+ *
  *  @author Jim Boone
- *  @version $Revision: 0.1 $ 
- *  @access public 
+ *  @version $Revision: 0.1 $
+ *  @access public
  */
 
 class Car
@@ -25,19 +25,18 @@ class Car
     private $imageDir = '';
 
     /*
-     *  Instantiates the Car object.  
-     *  
+     *  Instantiates the Car object.
+     *
      *  @param int Optional Car ID.   If this is given the information for Car will be populated.
      *  @return Bool Always true
-     *  @access public 
+     *  @access public
      */
     public function __construct($id = null)
     {
-        global $user; // Get the logged in user 
+        global $user; // Get the logged in user
 
         $this->_db = DB::getInstance();
         $settings = getSettings();  // Get global settings from plugin
-        $this->imageDir = $settings->elan_image_dir;
 
         // Get the logged in user information
         if (isset($user) && $user->isLoggedIn()) {
@@ -45,20 +44,23 @@ class Car
         }
 
         if ($id) {
+            $this->imageDir = $settings->elan_image_dir  . $id . '/';
             $this->find($id);
         }
         return true;
     }
 
     /*
-     *  Creates a Car in the Database  
-     *  
+     *  Creates a Car in the Database
+     *
      *  @param array Key value pairs for car data
      *  @return Bool True of car is created.
-     *  @access public 
+     *  @access public
      */
     public function create($fields = [])
     {
+        $settings = getSettings();  // Get global settings from plugin
+
         if (empty($fields)) {
             return false;
         }  //TOD test this
@@ -74,6 +76,7 @@ class Car
         } else {
             $id = $this->_db->lastId();
             $this->find($id);  // Populate the car with the data
+            $this->imageDir = $settings->elan_image_dir  . $id . '/';
             $this->_db->insert('car_user', array('userid' => $this->data()->user_id, 'carid' => $id));
             return true;
         }
@@ -115,7 +118,7 @@ class Car
 
         $this->_data = $data->first();
         // Get the car images
-        // Turn images into array 
+        // Turn images into array
         // Images can be encoded as JSON or simple CSV
         $carImages = json_decode($this->_data->image);
 
@@ -125,12 +128,12 @@ class Car
 
         $images = [];
         foreach ($carImages as $key => $carimage) {
-            $temp = pathinfo($abs_us_root . $us_url_root . $this->imageDir  . $carImages[$key]);
+            $temp = pathinfo($abs_us_root . $us_url_root . $this->imageDir . $carImages[$key]);
             $file = $temp['dirname'] . "/" . $temp['basename'];
             if (is_file($file)) {
                 // Do not include name if file does not exist
                 $images[$key] = $temp;
-                $images[$key]['url'] = $us_url_root . $this->imageDir . $images[$key]['basename'];
+                $images[$key]['path'] = $us_url_root . $this->imageDir . $images[$key]['basename'];
                 $images[$key]['size'] = filesize($file);
                 $images[$key]['type'] = image_type_to_extension(exif_imagetype($file), false);
                 $images[$key]['mime'] = mime_content_type($file);
@@ -159,7 +162,8 @@ class Car
             // Did it return anything?
             if ($factory->count()) {
                 if ($factory->first()->suffix != "") {
-                    $factory->first()->suffix = $factory->first()->suffix . " (" . $this->suffixtotext($factory->first()->suffix) . ")";
+                    $factory->first()->suffix = $factory->first()->suffix .
+                        " (" . $this->suffixtotext($factory->first()->suffix) . ")";
                 }
                 $this->_factory = $factory->first();
             } else {
@@ -167,7 +171,7 @@ class Car
             }
         }
 
-        // Get the car owner.  
+        // Get the car owner
         // Owner Information is copied from the _data section for now but could be retrieved from DB
         $this->_owner = [
             'user_id'  => $this->_data->user_id,
