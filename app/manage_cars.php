@@ -2,6 +2,8 @@
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
+// TODO - Reimagine managing cars for admin
+
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
 }
@@ -317,7 +319,9 @@ if (!empty($_POST)) {
                                                 <td><?= $car->purchasedate ?></td>
                                                 <td><?= $car->solddate ?></td>
                                                 <td><?= $car->comments ?></td>
-                                                <td> <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php'); ?>
+                                                <!-- <td> <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
+                                                            // TODO This needs to change for Car Class 
+                                                            ?>  -->
                                                 </td>
                                                 <td><?= $car->fname ?></td>
                                                 <td><?= $car->lname ?></td>
