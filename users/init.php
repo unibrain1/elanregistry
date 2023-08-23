@@ -71,10 +71,11 @@ $user = new User();
 //Check to see that user is verified
 if ($user->isLoggedIn()) {
     if ($user->data()->email_verified == 0 && $currentPage != 'verify.php' && $currentPage != 'logout.php' && $currentPage != 'verify_thankyou.php') {
-        Redirect::to('users/verify.php');
+        // Redirect::to('users/verify.php');  Hot fix:  We patched a bug in new installs of v5.3.6 where you could find yourself at a 404 through an obscure set of circumstances.  I'm not going to risk editing init.php to fix it,
+        Redirect::to($us_url_root . 'users/verify.php');
     }
 }
 $timezone_string = 'America/Los_Angeles';
 date_default_timezone_set($timezone_string);
 
-require_once $abs_us_root.$us_url_root."users/includes/loader.php";
+require_once $abs_us_root . $us_url_root . "users/includes/loader.php";
