@@ -62,8 +62,11 @@ if (!empty($_POST)) {
                     $db->query("UPDATE car_user SET userid = ? WHERE carid = ?", [$user_id, $car_id]);
 
                     // Add a record to the history with some information on the assignment
-                    $fields['comments'] = "Car was reassigned to new user $user_id.";
+                    $fields['comments'] = "Car was reassigned to new owner $user_id.";
                     $fields['operation'] = "NEWOWNER";
+
+                    $fields['ctime'] = date('Y-m-d G:i:s'); // Set date of this record
+                    $fields['mtime'] = $fields['ctime'];
 
                     $fields['car_id'] = $car_id;
                     $db->insert("cars_hist", $fields);
@@ -154,6 +157,11 @@ if (!empty($_POST)) {
 
                         // Add a record to the history with some information on the assignment
                         $fields['car_id'] = $new_car_id;
+
+
+                        $fields['ctime'] = date('Y-m-d G:i:s'); // Set date of this record
+                        $fields['mtime'] = $fields['ctime'];
+
 
                         $db->insert("cars_hist", $fields);
 
