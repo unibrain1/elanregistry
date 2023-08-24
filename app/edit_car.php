@@ -88,8 +88,8 @@ function updateCarDetails(&$car)
     <div class='container-fluid'>
         <div class='row justify-content-center'>
             <div class='col-9 text-center '>
-                <h2 id='heading'>Enter a New Car</h2>
-                <p>Fill all form field to go to next step</p>
+                <h2 id='heading'>Fill all form field to go to next step</h2>
+                <p></p>
                 <form id='editCar' name='editCar' method='post' enctype='multipart/form-data' novalidate>
                     <!-- progressbar -->
                     <ul id='progressbar'>
