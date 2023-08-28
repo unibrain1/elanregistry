@@ -32,8 +32,8 @@ $stories = $us_url_root . 'stories/'
         </tr>
 
         <tr>
-            <td> <a href="<?= $stories ?>type26registry/index.php">Archive of www.type26registry.com</a> </td>
-            <td>This is an incomplete archive.</td>
+            <td> <a href="<?= $stories ?>type26register.php">type26register.com</td>
+            <td>An incomplete achive of type26register.com retrieved from the <a href='https://web.archive.org/web/20230000000000*/type26register.com' target="_blank">Wayback Machine</a> This is the site as best as can be recreated from July 2010</td>
         </tr>
     </table>
 </div>
