@@ -28,8 +28,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 					<li><a href="#coupe">Coupe</a></li>
 					<li><a href="#race">Race</a></li>
 					<li><a href="#plus2">Plus 2</a></li>
-					<li><a href='<?= $us_url_root ?>app/assets/docs/embed.php?doc=2019_Jan_The_Elan_Super_Safety.pdf'>Super Safety</a></li>
-
+					<li><a href='<?= $us_url_root ?>/docs/embed.php?doc=2019_Jan_The_Elan_Super_Safety.pdf'>Super Safety</a></li>
 				</ul>
 
 				<a id=" roadster"></a>
