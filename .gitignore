@@ -42,6 +42,12 @@ usersc/plugins/hooker/*
 !usersc/plugins/hooker/hooks/
 usersc/plugins/hooker/hooks/sample_hook.php
 #
+# Include updates for the sendinblue plugin
+!usersc/plugins/sendinblue/
+usersc/plugins/sendinblue/*
+!usersc/plugins/sendinblue/override.php
+!usersc/plugins/sendinblue/functions.php
+#
 usersc/templates/*
 usersc/widgets/*
 install/*
