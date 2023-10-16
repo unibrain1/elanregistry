@@ -43,8 +43,7 @@ if (!empty($_POST)) {
             $fromName       =  $f['fname'] . ' ' . $f['lname'];
 
             $options        =  array(
-                'from'     => $fromEmail,
-                'from_name'      => $fromName,
+                'reply_name' => $fromName,
                 'reply'     => $fromEmail,
             );
 

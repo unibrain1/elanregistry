@@ -77,8 +77,9 @@ if (isset($_POST['email'])) {
     $body .= "Comments   : " . cleanString($comments) . "</br>";
 
     $opts = array(
-        'from' => $email_from,
-        'from_name'  => $name,
+        // 'from' => $email_from,  // If you change the from email address gmail thinks it's spam
+        // 'from_name'  => $name,
+        'reply_name'  => $name,
         'reply' => $email_from
     );
 
