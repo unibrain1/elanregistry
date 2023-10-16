@@ -109,7 +109,7 @@ if (isset($_POST['email'])) {
                         //Using setTimeout to execute a function after 5 seconds.
                         setTimeout(function() {
                             //Redirect with JavaScript
-                            window.location.href = '/';
+                            window.location.href = '<?= $us_url_root ?>';
                         }, 5000);
                     </script>
                 </div><!-- End of main content section -->
