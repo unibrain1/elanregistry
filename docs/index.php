@@ -58,6 +58,8 @@ $stories = $abs_us_root . $us_url_root . 'stories/stories.php'
                                             <?php
                                             }
                                             ?>
+                                            <br><br><a href='<?= $us_url_root ?>docs/assets/<?= $file ?>' download><u><small>Direct Download</small></u></a>
+
                                         <td>
                                             <?php
                                             if (file_exists($directory . $description)) {
