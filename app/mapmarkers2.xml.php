@@ -1,6 +1,14 @@
+
 <?php
 
-// From https://developers.google.com/maps/documentation/javascript/mysql-to-maps#domfunctions
+/**
+ * Generates an XML document of car markers for Google Maps integration.
+ *
+ * Source: https://developers.google.com/maps/documentation/javascript/mysql-to-maps#domfunctions
+ *
+ * Requires authentication and pulls car data from the database.
+ * Outputs XML with car attributes for use in map marker rendering.
+ */
 
 require_once '../users/init.php';
 
@@ -18,13 +26,14 @@ $parnode = $doc->appendChild($doc->createElement('markers'));
 
 header("Content-type: text/xml");
 
-// Iterate through the rows, adding XML nodes for each
+// Iterate through the rows, adding XML nodes for each car
 foreach ($carData->data() as $car) {
     $carImages = explode(',', $car->image);
     // Add to XML document node
     $node = $doc->createElement("marker");
     $newnode = $parnode->appendChild($node);
 
+    // Set marker attributes
     $newnode->setAttribute("id", $car->id);
     $newnode->setAttribute("series", $car->series);
     $newnode->setAttribute("year", $car->year);

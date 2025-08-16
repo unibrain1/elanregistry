@@ -1,5 +1,14 @@
 <?php
-
+/**
+ * edit_car.php
+ * Allows users to add or edit car records in the registry.
+ *
+ * Handles form input, validation, image uploads, and updates to car data.
+ * Uses the site template for layout and security checks for access.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
@@ -120,7 +129,7 @@ function updateCarDetails(&$car)
                                 </div>
                             </div>
                             <div class="card-body">
-                                <?php include_once($abs_us_root . $us_url_root . 'app/views/_edit_car_1.php'); ?>
+                                <?php include_once $abs_us_root . $us_url_root . 'app/views/_edit_car_1.php'; ?>
                             </div>
                         </div>
                         <input type='button' name='next' class='next btn btn-info' value='Next' />
@@ -140,7 +149,7 @@ function updateCarDetails(&$car)
                                 </div>
                             </div>
                             <div class="card-body">
-                                <?php include_once($abs_us_root . $us_url_root . 'app/views/_edit_car_2.php'); ?>
+                                <?php include_once $abs_us_root . $us_url_root . 'app/views/_edit_car_2.php'; ?>
                             </div>
                         </div>
                         <input type='button' name='next' class='next btn btn-info' value='Next' />

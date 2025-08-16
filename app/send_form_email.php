@@ -1,4 +1,15 @@
 <?php
+
+/**
+ * send_form_email.php
+ * Handles feedback form submissions and sends emails to the registry admin.
+ *
+ * Validates input, checks CSRF token, and sends feedback via email.
+ * Uses the site template for layout and security.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 ?>
@@ -34,10 +45,6 @@ if (isset($_POST['email'])) {
     ) {
         died('We are sorry, but there appears to be a problem with the form you submitted.');
     }
-
-
-
-    $name = $_POST['name']; // required
     $email_from = $_POST['email']; // required
     $id_from = $_POST['id']; // required
     $comments = $_POST['comments']; // required

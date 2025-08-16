@@ -1,4 +1,15 @@
 <?php
+
+/**
+ * car_details.php
+ * Displays detailed information about a specific car in the registry.
+ *
+ * Shows car data, owner info, factory info, images, location map, and update history.
+ * Uses the site template for layout and security checks for access.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
@@ -289,6 +300,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     const us_url_root = '<?= $us_url_root ?>';
     const img_root = '<?= $us_url_root . $settings->elan_image_dir ?>';
 </script>
+
 
 <script src='<?= $us_url_root ?>app/assets/js/imagedisplay.js'></script>
 

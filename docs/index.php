@@ -1,17 +1,22 @@
 <?php
+
+/**
+ * Document Index Page
+ *
+ * Lists available PDF documents in the docs/assets directory and displays them in a table.
+ * Requires authentication and uses Bootstrap for layout.
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
-
 
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
 }
 
-// Get list of files in the directory
-
+// Get list of PDF files in the directory
 $directory    = $abs_us_root . $us_url_root . 'docs/assets/';
 $files = preg_grep('~\.(pdf)$~', scandir($directory));
-$stories = $abs_us_root . $us_url_root . 'stories/stories.php'
+$stories = $abs_us_root . $us_url_root . 'stories/stories.php';
 
 ?>
 <div id="page-wrapper">
@@ -94,5 +99,7 @@ $stories = $abs_us_root . $us_url_root . 'stories/stories.php'
 
 
 <!-- footers -->
+
+
 <?php require_once $abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '/footer.php'; //custom template footer
 ?>
