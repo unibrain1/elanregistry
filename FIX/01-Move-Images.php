@@ -1,21 +1,23 @@
 <?php
 
+/**
+ * Move User Images Script
+ *
+ * Administrative script to move user images to a new directory and update database settings.
+ * Displays progress and uses error reporting for debugging.
+ */
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-
 require_once '../users/init.php';
-
-
 
 // Get the users data
 $db = DB::getInstance();
 
-$line = 1; // WHere messages go
+$line = 1; // Where messages go
 
 $imageDir = $abs_us_root . $us_url_root . 'userimages';
-
 
 ?>
 

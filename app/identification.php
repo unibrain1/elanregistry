@@ -1,7 +1,19 @@
 <?php
+
+/**
+ * identification.php
+ * Provides a guide for identifying different Lotus Elan models and variants.
+ *
+ * Includes links to documentation and uses the site template for layout and security.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 ?>
+
+
 
 <?php if (!securePage($_SERVER['PHP_SELF'])) {
 	die();

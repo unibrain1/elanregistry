@@ -1,7 +1,19 @@
 <?php
+
+/**
+ * list_cars.php
+ * Displays a searchable, sortable table of all cars in the registry.
+ *
+ * Uses DataTables for client-side features and AJAX for server-side data loading.
+ * Includes site template header and footer for consistent layout.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
+// Security: Only allow access to authorized users
 if (!securePage($_SERVER['PHP_SELF'])) {
   die();
 }

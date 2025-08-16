@@ -1,4 +1,11 @@
 <?php
+
+/**
+ * Type 26 Register Archive Viewer
+ *
+ * Displays an iframe of the archived type26register.com site.
+ * Requires authentication and uses Bootstrap for layout.
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 

@@ -1,4 +1,14 @@
 <?php
+
+/**
+ * privacy.php
+ * Displays the privacy policy for the Lotus Elan Registry project.
+ *
+ * Loads PRIVACY.md, converts markdown to HTML, and renders it using the site template.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
@@ -37,5 +47,7 @@ if (file_exists($mdFile)) {
     </div>
 </div>
 <?php
+
 require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php';
 ?>
+[newline]

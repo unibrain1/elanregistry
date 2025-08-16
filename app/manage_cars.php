@@ -1,4 +1,15 @@
 <?php
+
+/**
+ * manage_cars.php
+ * Admin interface for managing cars and users in the registry.
+ *
+ * Provides tools for finding duplicates, orphaned records, and reassigning cars.
+ * Uses the site template for layout and security checks for access.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
@@ -33,7 +44,7 @@ if (!empty($_POST)) {
 
         if (!empty($_POST) && !empty($_POST['command'])) {
             switch ($_POST['command']) {
-                    // Assign car to a new owner
+                // Assign car to a new owner
                 case "reassign":
                     $user_id = $_POST['user_id'];
                     $car_id  = $_POST['car_id'];
@@ -76,7 +87,7 @@ if (!empty($_POST)) {
 
                     break;
 
-                    // Merge two cars because a car is a) a duplicate or b)the car was sold to a new owner and the new owner created a record.
+                // Merge two cars because a car is a) a duplicate or b)the car was sold to a new owner and the new owner created a record.
                 case "merge":
                     // Validate input
                     if (!isset($_POST['cars']) || !isset($_POST['reason'])) {
@@ -174,7 +185,7 @@ if (!empty($_POST)) {
 
                     break;
 
-                    // This will never happen (Yeah right)
+                // This will never happen (Yeah right)
                 default:
                     echo "The cake is a lie";
                     break;
@@ -254,101 +265,102 @@ if (!empty($_POST)) {
                                 <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
                                 <input type="submit" class="btn btn-success " name="formSubmit" value="Merge" />
                                 <div class="form-group">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="customCheck-duplicate" name="reason[]" value="duplicate" />
-                                        <label class="custom-control-label" for="customCheck-duplicate">Duplicate car</label>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="customCheck-newownerNewToOld" name="reason[]" value="newownerNewToOld" />
-                                        <label class="custom-control-label" for="customCheck-newownerNewToOld">New car is new owner</label>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="customCheck-newownerOldToNew" name="reason[]" value="newownerOldToNew" />
-                                        <label class="custom-control-label" for="customCheck-newownerOldToNew">Old car is new owner</label>
-                                    </div>
-                                </div>
+                                    ?>
 
-                                <table id="duptable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
-                                    <thead>
-                                        <tr>
-                                            <th scope=column>Merge</th>
-                                            <th scope=column>CarID</th>
-                                            <th scope=column>Username</th>
-                                            <th scope=column>Create</th>
-                                            <th scope=column>Modified</th>
-                                            <th scope=column>Year</th>
-                                            <th scope=column>Type</th>
-                                            <th scope=column>Chassis</th>
-                                            <th scope=column>Series</th>
-                                            <th scope=column>Variant</th>
-                                            <th scope=column>Color</th>
-                                            <th scope=column>Engine</th>
-                                            <th scope=column>Purchase Date</th>
-                                            <th scope=column>Sold Date</th>
-                                            <th scope=column>Comments</th>
-                                            <th scope=column>Image</th>
-                                            <th scope=column>Fname</th>
-                                            <th scope=column>Lname</th>
-                                            <th scope=column>email</th>
-                                            <th scope=column>City</th>
-                                            <th scope=column>State</th>
-                                            <th scope=column>Country</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php
-                                        //Cycle through users
-                                        foreach ($duplicateCars as $car) {
-                                        ?>
-                                            <tr>
-                                                <td class="center">
-                                                    <div class="form-group">
-                                                        <div class="custom-control custom-checkbox">
-                                                            <input type="checkbox" class="custom-control-input" id="customCheck-<?= $car->id ?>" name="cars[]" value="<?= $car->id ?>" />
-                                                            <label class="custom-control-label" for="customCheck-<?= $car->id ?>"></label>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td><a class="btn btn-success btn-sm" target="_blank" href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>'><?= $car->id ?></a></td>
-                                                <td><?= $car->username ?></td>
-                                                <td><?= $car->ctime ?></td>
-                                                <td><?= $car->mtime ?></td>
-                                                <td><?= $car->year ?></td>
-                                                <td><?= $car->type ?></td>
-                                                <td><?= $car->chassis ?></td>
-                                                <td><?= $car->series ?></td>
-                                                <td><?= $car->variant ?></td>
-                                                <td><?= $car->color ?></td>
-                                                <td><?= $car->engine ?></td>
-                                                <td><?= $car->purchasedate ?></td>
-                                                <td><?= $car->solddate ?></td>
-                                                <td><?= $car->comments ?></td>
-                                                <!-- <td> <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
-                                                            // TODO This needs to change for Car Class 
-                                                            ?>  -->
-                                                </td>
-                                                <td><?= $car->fname ?></td>
-                                                <td><?= $car->lname ?></td>
-                                                <td><?= $car->email ?></td>
-                                                <td><?= $car->city ?></td>
-                                                <td><?= $car->state ?></td>
-                                                <td><?= $car->country ?></td>
-                                            </tr>
-                                        <?php
-                                        } ?>
-                                    </tbody>
-                                </table>
-                            </form>
-                        </div> <!-- card-body -->
-                    </div> <!-- card -->
-                </div> <!-- col -->
-            </div> <!-- row -->
-        </div> <!-- well -->
-    </div><!-- Container -->
+                                    <input type="checkbox" class="custom-control-input" id="customCheck-duplicate" name="reason[]" value="duplicate" />
+                                    <label class="custom-control-label" for="customCheck-duplicate">Duplicate car</label>
+                                </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="customCheck-newownerNewToOld" name="reason[]" value="newownerNewToOld" />
+                                <label class="custom-control-label" for="customCheck-newownerNewToOld">New car is new owner</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="customCheck-newownerOldToNew" name="reason[]" value="newownerOldToNew" />
+                                <label class="custom-control-label" for="customCheck-newownerOldToNew">Old car is new owner</label>
+                            </div>
+                        </div>
+
+                        <table id="duptable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
+                            <thead>
+                                <tr>
+                                    <th scope=column>Merge</th>
+                                    <th scope=column>CarID</th>
+                                    <th scope=column>Username</th>
+                                    <th scope=column>Create</th>
+                                    <th scope=column>Modified</th>
+                                    <th scope=column>Year</th>
+                                    <th scope=column>Type</th>
+                                    <th scope=column>Chassis</th>
+                                    <th scope=column>Series</th>
+                                    <th scope=column>Variant</th>
+                                    <th scope=column>Color</th>
+                                    <th scope=column>Engine</th>
+                                    <th scope=column>Purchase Date</th>
+                                    <th scope=column>Sold Date</th>
+                                    <th scope=column>Comments</th>
+                                    <th scope=column>Image</th>
+                                    <th scope=column>Fname</th>
+                                    <th scope=column>Lname</th>
+                                    <th scope=column>email</th>
+                                    <th scope=column>City</th>
+                                    <th scope=column>State</th>
+                                    <th scope=column>Country</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                //Cycle through users
+                                foreach ($duplicateCars as $car) {
+                                ?>
+                                    <tr>
+                                        <td class="center">
+                                            <div class="form-group">
+                                                <div class="custom-control custom-checkbox">
+                                                    <input type="checkbox" class="custom-control-input" id="customCheck-<?= $car->id ?>" name="cars[]" value="<?= $car->id ?>" />
+                                                    <label class="custom-control-label" for="customCheck-<?= $car->id ?>"></label>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><a class="btn btn-success btn-sm" target="_blank" href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>'><?= $car->id ?></a></td>
+                                        <td><?= $car->username ?></td>
+                                        <td><?= $car->ctime ?></td>
+                                        <td><?= $car->mtime ?></td>
+                                        <td><?= $car->year ?></td>
+                                        <td><?= $car->type ?></td>
+                                        <td><?= $car->chassis ?></td>
+                                        <td><?= $car->series ?></td>
+                                        <td><?= $car->variant ?></td>
+                                        <td><?= $car->color ?></td>
+                                        <td><?= $car->engine ?></td>
+                                        <td><?= $car->purchasedate ?></td>
+                                        <td><?= $car->solddate ?></td>
+                                        <td><?= $car->comments ?></td>
+                                        <!-- <td> <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
+                                                    // TODO This needs to change for Car Class 
+                                                    ?>  -->
+                                        </td>
+                                        <td><?= $car->fname ?></td>
+                                        <td><?= $car->lname ?></td>
+                                        <td><?= $car->email ?></td>
+                                        <td><?= $car->city ?></td>
+                                        <td><?= $car->state ?></td>
+                                        <td><?= $car->country ?></td>
+                                    </tr>
+                                <?php
+                                } ?>
+                            </tbody>
+                        </table>
+                        </form>
+                    </div> <!-- card-body -->
+                </div> <!-- card -->
+            </div> <!-- col -->
+        </div> <!-- row -->
+    </div> <!-- well -->
+</div><!-- Container -->
 </div><!-- page -->
 
 
@@ -439,10 +451,11 @@ if (!empty($_POST)) {
                 }
 
                 $q = "
-		SELECT t1.id
-		FROM cars t1
-		LEFT JOIN car_user t2 ON t1.id = t2.carid
-		WHERE t2.carid IS NULL";
+
+    SELECT t1.id
+    FROM cars t1
+    LEFT JOIN car_user t2 ON t1.id = t2.carid
+    WHERE t2.carid IS NULL";
 
                 $qResult = $db->query($q);
 
