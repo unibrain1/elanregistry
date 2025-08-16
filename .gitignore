@@ -1,71 +1,88 @@
-# Giberish files
+########################################
+# IDE & Editor Files
+########################################
 .vscode
 .github
+Elanegistry.sublime-project
+ElanRegistry.code-workspace
+*.swp
+*~
+.DS_Store
+
+########################################
+# System & Miscellaneous Files
+########################################
 .user.ini
-.php_cs.cache
-.scannerwork/*
 USER.INI
 error_log
 TODO
-.DS_Store
-*~
-*.swp
-*.bak
-*.sav
+.php_cs.cache
+.scannerwork/*
 .git
+.htaccess
 runme.php
-# Scripts and such
-utilities
-# IDE related files
-Elanegistry.sublime-project
-ElanRegistry.code-workspace
-# Environment specific files
+
+########################################
+# Environment & Config Files
+########################################
 .env.enc
 .env.key
-# Include the userimages dir but not the files
+
+########################################
+# Scripts & Utilities
+########################################
+utilities
+
+########################################
+# User Images (include .htaccess only)
+########################################
 userimages/*/*.*
 userimages/*
 !userimages/.htaccess
-# Exclude userspice base
-# Because I want to include users/cron/backup.php I need to do this
-# https://stackoverflow.com/questions/5533050/gitignore-exclude-folder-but-include-specific-subfolder
+
+########################################
+# Userspice Base & Extensions
+########################################
+# Exclude all users except specific files/folders
 !users/
 users/**
 !users/cron/
 !users/images/logo.png
-# Exclude userspice extentions.  These need to be manually installed
+users/updates/
+# Exclude usersc plugins except specific ones
 usersc/plugins/*
-#
-# Include all the hooks
 !usersc/plugins/hooker/
 usersc/plugins/hooker/*
 !usersc/plugins/hooker/hooks/
 usersc/plugins/hooker/hooks/sample_hook.php
-#
-# Include updates for the sendinblue plugin
+usersc/plugins/hooker/hooks/uman_tbody.php
 !usersc/plugins/sendinblue/
 usersc/plugins/sendinblue/*
 !usersc/plugins/sendinblue/override.php
 !usersc/plugins/sendinblue/functions.php
-#
+
+########################################
+# Usersc Templates, Widgets, Install
+########################################
 usersc/templates/*
+!usersc/templates/ElanRegistry
 usersc/widgets/*
 install/*
-# Now get my template
-!usersc/templates/ElanRegistry
-# exclude backup files
-@backup*
-# exclude UserSpice update backups
-usupdate.zip
-users/updates/
-# exclude Test Cases
-tests/
-.htaccess
-#exclude composer and vendor files
+
+########################################
+# Vendor & Composer
+########################################
 vendor
 composer.lock
 usersc/vendor
+
+########################################
+# Tests & Backups
+########################################
+tests/
 usersc/tests
-usersc/plugins/hooker/hooks/uman_tbody.php
+@backup*
+usupdate.zip
+
 
 
