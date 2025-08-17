@@ -99,7 +99,7 @@ if (isset($_POST['email'])) {
 }
 
 ?>
-<div id="page-wrapper">
+<div class="page-wrapper">
     <div class="container-fluid">
         <div class="row">
             <div class="col-sm-12">

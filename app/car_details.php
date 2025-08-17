@@ -3,13 +3,14 @@
 /**
  * car_details.php
  * Displays detailed information about a specific car in the registry.
+/**
+ * car_details.php
+ * Displays detailed information about a specific car in the registry.
  *
  * Shows car data, owner info, factory info, images, location map, and update history.
  * Uses the site template for layout and security checks for access.
- *
- * @author Elan Registry Admin
- * @copyright 2025
  */
+
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
@@ -31,258 +32,246 @@ if (!empty($_GET)) {
     Redirect::to($us_url_root . '/app/list_cars.php');
 }
 ?>
-
-<style>
-    #map {
-        height: 400px;
-        /* The height is 400 pixels */
-        width: 100%;
-        /* The width is the width of the web page */
-    }
-</style>
-
-<!-- Now that that is all out of the way, let's display everything -->
-<div id='page-wrapper'>
-    <div class='well'>
-        <br>
-        <div class='row'>
-            <div class='col-sm-6'>
-                <!-- Car Info -->
-                <div class='card card-default'>
-                    <div class='card-header'>
-                        <div class='form-group row'>
-                            <div class='col-md-7'>
-                                <h2><strong>Car Information</strong></h2>
-                            </div>
-                            <div class='col-md-5 text-right'>
-                                <?php
-                                if (isset($user) && $user->isLoggedIn()) {
-                                    if ($user->data()->id === $car->data()->user_id) { ?>
-                                        <form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
-                                            <input type='hidden' name='csrf' value="<?= Token::generate(); ?>" />
-                                            <input type='hidden' name='action' value='updateCar' />
-                                            <input type='hidden' name='carid' id='carid' value="<?= $car->data()->id ?>" />
-                                            <button class='btn btn-block btn-success' type='submit'>Update</button>
-                                        </form>
-                                    <?php
-                                    } else {
-                                    ?>
-                                        <form method='POST' action=<?= $us_url_root . 'app/contact_owner.php' ?>>
-                                            <input type='hidden' name='csrf' value="<?= Token::generate(); ?>" />
-                                            <input type='hidden' name='action' value='contact_owner' />
-                                            <input type='hidden' name='carid' id='carid' value="<?= $car->data()->id ?>" />
-                                            <button class='btn btn-block btn-success' type='submit'>Contact Owner</button>
-                                        </form>
-                                <?php
-                                    }
-                                } else {
-                                    echo "<input type='hidden' name='carid' id='carid' value='" . $car->data()->id . "' />";
-                                }
-                                ?>
+<div class="page-wrapper">
+    <div class="container-fluid">
+        <div class="page-container">
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card registry-card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-7">
+                        <h2 class="mb-0">Car Information</h2>
+                    </div>
+                    <div class="col-md-5 text-end">
+                        <?php
+                        if (isset($user) && $user->isLoggedIn()) {
+                            if ($user->data()->id === $car->data()->user_id) { ?>
+                                <form method="POST" action=<?= $us_url_root . 'app/edit_car.php' ?>>
+                                    <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
+                                    <input type="hidden" name="action" value="updateCar" />
+                                    <input type="hidden" name="carid" id="carid" value="<?= $car->data()->id ?>" />
+                                    <button class="btn btn-success" type="submit">Update</button>
+                                </form>
+                            <?php
+                            } else {
+                            ?>
+                                <form method="POST" action=<?= $us_url_root . 'app/contact_owner.php' ?>>
+                                    <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
+                                    <input type="hidden" name="action" value="contact_owner" />
+                                    <input type="hidden" name="carid" id="carid" value="<?= $car->data()->id ?>" />
+                                    <button class="btn btn-success" type="submit">Contact Owner</button>
+                                </form>
+                        <?php
+                            }
+                        } else {
+                            echo "<input type='hidden' name='carid' id='carid' value='" . $car->data()->id . "' />";
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="cartable" class="table table-striped table-bordered table-hover table-sm w-100" aria-describedby="card-header">
+                        <tr class='table-success'>
+                            <th scope="row"><strong>Car ID</strong></th>
+                            <td><?= $car->data()->id ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Series</th>
+                            <td><?= $car->data()->series ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Variant</th>
+                            <td><?= $car->data()->variant ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Model</th>
+                            <td><?= $car->data()->model ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Year</th>
+                            <td><?= $car->data()->year ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Type</th>
+                            <td><?= $car->data()->type ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Chassis</th>
+                            <td><?= $car->data()->chassis ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Color</th>
+                            <td><?= $car->data()->color ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Engine</th>
+                            <td><?= $car->data()->engine ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Purchased</th>
+                            <td><?= $car->data()->purchasedate ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Sold</th>
+                            <td><?= $car->data()->solddate ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Comments</th>
+                            <td><?= $car->data()->comments ?></td>
+                        </tr>
+                        <tr class='table-success'>
+                            <th scope="row">Owner ID</th>
+                            <td><?= $car->data()->user_id ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">First name</th>
+                            <td><?= ucfirst($car->data()->fname) ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">City</th>
+                            <td><?= html_entity_decode($car->data()->city); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">State</th>
+                            <td><?= html_entity_decode($car->data()->state); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Country</th>
+                            <td><?= html_entity_decode($car->data()->country); ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Created</th>
+                            <td><?= $car->data()->ctime ?></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Modified</th>
+                            <td><?= $car->data()->mtime ?></td>
+                        </tr>
+                        <?php if (!empty($car->data()->website)) { ?>
+                            <tr>
+                                <th scope="row">Website</th>
+                                <td><a target="_blank" href="<?= $car->data()->website ?>">Website</a></td>
+                            </tr>
+                        <?php } ?>
+                        <?php if (!is_null($car->factory())) { ?>
+                            <tr class='table-info'>
+                                <th colspan="2"><strong>Factory Data - <small>This information has not been verified against the Lotus archives.</small></strong></th>
+                            </tr>
+                            <tr>
+                                <th scope="row">Year</th>
+                                <td><?= $car->factory()->year ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Month</th>
+                                <td><?= $car->factory()->month ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Production Batch</th>
+                                <td><?= $car->factory()->batch ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Type</th>
+                                <td><?= $car->factory()->type ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Chassis</th>
+                                <td><?= $car->factory()->serial ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Suffix</th>
+                                <td><?= $car->factory()->suffix ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Engine</th>
+                                <td><?= $car->factory()->engineletter ?><?= $car->factory()->enginenumber ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Gearbox</th>
+                                <td><?= $car->factory()->gearbox ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Color</th>
+                                <td><?= $car->factory()->color ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Build Date</th>
+                                <td><?= $car->factory()->builddate ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Notes</th>
+                                <td><?= $car->factory()->note ?></td>
+                            </tr>
+                        <?php } ?>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="card registry-card h-100 mb-4">
+                        <div class="card-header">
+                            <h2 class="mb-0">The Car</h2>
+                        </div>
+                        <div class="card-body">
+                            <?php echo displayCarousel($car); ?>
+                        </div>
+                    </div>
+                    
+                    <div class="card registry-card">
+                        <div class="card-header">
+                            <h2 class="mb-0">Location</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="map-container map-container-small">
+                                <div id="map"></div>
                             </div>
                         </div>
                     </div>
-                    <div class='card-body'>
-                        <table id='cartable' class='table table-striped table-bordered table-sm' aria-describedby='card-header'>
-                            <tr class='table-success'>
-                                <th scope=column><strong>Car ID</strong></th>
-                                <th scope=column><?= $car->data()->id ?></th>
-                            </tr>
+                </div>
+            </div>
+            
+            <!-- Car History full width -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card registry-card" id="historyCard">
+            <div class="card-header mb-3">
+                <h2 class="mb-0">Car Update History</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="historytable" class="table table-striped table-bordered table-hover table-sm w-100" aria-describedby="card-header">
+                        <thead>
                             <tr>
-                                <td><strong>Series</strong></td>
-                                <td><?= $car->data()->series ?></td>
+                                <th scope="col">Operation</th>
+                                <th scope="col">Date Modified</th>
+                                <th scope="col">Year</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Chassis</th>
+                                <th scope="col">Series</th>
+                                <th scope="col">Variant</th>
+                                <th scope="col">Color</th>
+                                <th scope="col">Engine</th>
+                                <th scope="col">Purchase Date</th>
+                                <th scope="col">Sold Date</th>
+                                <th scope="col">Comments</th>
+                                <th scope="col">Image</th>
+                                <th scope="col">Owner</th>
+                                <th scope="col">City</th>
+                                <th scope="col">State</th>
+                                <th scope="col">Country</th>
                             </tr>
-                            <tr>
-                                <td><strong>Variant</strong></td>
-                                <td><?= $car->data()->variant ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Model</strong></td>
-                                <td><?= $car->data()->model ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Year</strong></td>
-                                <td><?= $car->data()->year ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Type</strong></td>
-                                <td><?= $car->data()->type ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Chassis </strong></td>
-                                <td><?= $car->data()->chassis ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Color</strong></td>
-                                <td><?= $car->data()->color ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Engine </strong></td>
-                                <td><?= $car->data()->engine ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Purchased</strong></td>
-                                <td><?= $car->data()->purchasedate ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Sold</strong></td>
-                                <td><?= $car->data()->solddate ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Comments</strong></td>
-                                <td><?= $car->data()->comments ?></td>
-                            </tr>
-                            <tr class='table-success'>
-                                <td><strong>Owner ID</strong></td>
-                                <td><?= $car->data()->user_id ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>First name</strong></td>
-                                <td><?= ucfirst($car->data()->fname) ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>City</strong></td>
-                                <td><?= html_entity_decode($car->data()->city); ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>State</strong></td>
-                                <td><?= html_entity_decode($car->data()->state); ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Country</strong></td>
-                                <td><?= html_entity_decode($car->data()->country); ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Created</strong></td>
-                                <td><?= $car->data()->ctime ?></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Modified</strong></td>
-                                <td><?= $car->data()->mtime ?></td>
-                            </tr>
-                            <?php
-                            if (!empty($car->data()->website)) {
-                            ?>
-                                <tr>
-                                    <td><strong>Website</strong></td>
-                                    <td> <a target='_blank' href="<?= $car->data()->website ?>">Website</a></td>
-                                </tr>
-                            <?php
-                            }
-                            ?>
-                            <?php
-                            if (!is_null($car->factory())) { ?>
-
-                                <tr class='table-info'>
-                                    <td colspan=2><strong>Factory Data - <small>
-                                                This information has not been verified against the Lotus archives.</small> </strong> </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Year</strong></td>
-                                    <td><?= $car->factory()->year ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Month</strong></td>
-                                    <td><?= $car->factory()->month ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Production Batch</strong></td>
-                                    <td><?= $car->factory()->batch ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Type</strong></td>
-                                    <td><?= $car->factory()->type ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Chassis</strong></td>
-                                    <td><?= $car->factory()->serial ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Suffix</strong></td>
-                                    <td><?= $car->factory()->suffix ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Engine</strong></td>
-                                    <td><?= $car->factory()->engineletter ?><?= $car->factory()->enginenumber ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Gearbox</strong></td>
-                                    <td><?= $car->factory()->gearbox ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Color</strong></td>
-                                    <td><?= $car->factory()->color ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Build Date</strong></td>
-                                    <td><?= $car->factory()->builddate ?></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Notes</strong></td>
-                                    <td><?= $car->factory()->note ?></td>
-                                </tr>
-                            <?php } ?>
-
-                        </table>
+                        </thead>
+                    </table>
+                </div>
+            </div>
                     </div>
                 </div>
-            </div> <!-- col-xs-12 col-md-6 -->
-            <div class='col-sm-6'>
-                <!-- Image -->
-                <div class='card card-default'>
-                    <div class='card-header'>
-                        <h2><strong>The Car</strong></h2>
-                    </div>
-                    <div class='card-body'>
-                        <?php echo displayCarousel($car); ?>
-                    </div> <!-- card-body -->
-                </div> <!-- card -->
-                <div class='card card-default'>
-                    <div class='card-header'>
-                        <h2><strong>Location</strong></h2>
-                    </div>
-                    <div class='card-body'>
-                        <div id="map"></div>
-                    </div> <!-- card-body -->
-                </div> <!-- card -->
-            </div> <!-- col-xs-12 col-md-6 -->
-        </div> <!-- row -->
-        <br>
-        <div class='row'>
-            <div class='col-sm-12'>
-                <div class='card' id='historyCard'>
-                    <div class='card-header'>
-                        <h2><strong>Car Update History</strong></h2>
-                    </div>
-                    <div class='card-body'>
-                        <table id='historytable' style='width: 100%' class='table table-striped table-bordered table-sm' aria-describedby='card-header'>
-                            <thead>
-                                <tr>
-                                    <th scope=column>Operation</th>
-                                    <th scope=column>Date Modified</th>
-                                    <th scope=column>Year</th>
-                                    <th scope=column>Type</th>
-                                    <th scope=column>Chassis</th>
-                                    <th scope=column>Series</th>
-                                    <th scope=column>Variant</th>
-                                    <th scope=column>Color</th>
-                                    <th scope=column>Engine</th>
-                                    <th scope=column>Purchase Date</th>
-                                    <th scope=column>Sold Date</th>
-                                    <th scope=column>Comments</th>
-                                    <th scope=column>Image</th>
-                                    <th scope=column>Owner</th>
-                                    <th scope=column>City</th>
-                                    <th scope=column>State</th>
-                                    <th scope=column>Country</th>
-                                </tr>
-                            </thead>
-                        </table>
-                    </div> <!-- card-body -->
-                </div> <!-- card -->
-            </div> <!-- col -->
-        </div> <!-- row -->
-    </div> <!-- well -->
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- footers -->

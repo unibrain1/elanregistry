@@ -1,4 +1,5 @@
 <?php
+
 /**
  * edit_car.php
  * Allows users to add or edit car records in the registry.
@@ -93,116 +94,109 @@ function updateCarDetails(&$car)
 ?>
 <link rel="stylesheet" href="<?= $us_url_root ?>app/assets/css/edit_car.css">
 
-<div id='page-wrapper'>
-    <div class='container-fluid'>
-        <div class='row justify-content-center'>
-            <div class='col-9 text-center '>
-                <h2 id='heading'>Fill all form field to go to next step</h2>
-                <p></p>
-                <form id='editCar' name='editCar' method='post' enctype='multipart/form-data' novalidate>
-                    <!-- progressbar -->
-                    <ul id='progressbar'>
-                        <li class='active' id='cardetails'><strong>Car Details</strong></li>
-                        <li id='addInfo'><strong>Additional Information</strong></li>
-                        <li id='image'><strong>Images</strong></li>
-                        <li id='confirm'><strong>Results</strong></li>
-                    </ul>
-                    <div class='progress'>
-                        <div class='progress-bar bg-success' role='progressbar' aria-valuemin='0' aria-valuemax='100'></div>
+<div class="page-wrapper">
+    <div class="container-fluid">
+        <div class="page-container">
+            <div class="row justify-content-center">
+                <div class="col-xl-10 col-lg-11 col-md-12">
+            <h2 id="heading" class="mt-4 mb-3 text-center">Fill all form fields to go to next step</h2>
+            <form id="editCar" name="editCar" method="post" enctype="multipart/form-data" novalidate>
+                <!-- progressbar -->
+                <ul id="progressbar" class="mb-4">
+                    <li class="active" id="cardetails"><strong>Car Details</strong></li>
+                    <li id="addInfo"><strong>Additional Information</strong></li>
+                    <li id="image"><strong>Images</strong></li>
+                    <li id="confirm"><strong>Results</strong></li>
+                </ul>
+                <div class="mb-4">
+                    <progress id="carProgress" value="0" max="100" class="w-100 car-progress"></progress>
+                </div>
+                <div id="message" class="d-none"></div>
+                <fieldset>
+                    <!-- fieldsets page 1 -->
+                    <div class="card registry-card">
+                        <div class="card-header">
+                            <div class="row">
+                                <div class="col-md-7 text-left">
+                                    <legend class="fs-title mb-0">Car Details:</legend>
+                                </div>
+                                <div class="col-5">
+                                    <h2 class="steps mb-0">Step 1 - 4</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <?php include_once $abs_us_root . $us_url_root . 'app/views/_edit_car_1.php'; ?>
+                        </div>
                     </div>
-
-                    <hr>
-
-                    <br>
-                    <div id='message' style='display: none;'></div>
-                    <fieldset>
-                        <!-- fieldsets page 1 -->
-                        <div class="card card-default">
-                            <div class="card-header">
-                                <div class="row">
-                                    <div class='col-md-7 text-left'>
-                                        <legend class='fs-title'>Car Details:</legend>
-                                    </div>
-                                    <div class='col-5'>
-                                        <h2 class='steps'>Step 1 - 4</h2>
-                                    </div>
+                    <input type="button" name="next" class="next btn btn-info" value="Next" />
+                </fieldset>
+                <fieldset>
+                    <!-- fieldsets page 2 -->
+                    <div class="card registry-card">
+                        <div class="card-header">
+                            <div class="row">
+                                <div class="col-md-7">
+                                    <legend class="fs-title mb-0">Additional Information:</legend>
+                                </div>
+                                <div class="col-5">
+                                    <h2 class="steps mb-0">Step 2 - 4</h2>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <?php include_once $abs_us_root . $us_url_root . 'app/views/_edit_car_1.php'; ?>
-                            </div>
                         </div>
-                        <input type='button' name='next' class='next btn btn-info' value='Next' />
-                    </fieldset>
-
-                    <fieldset>
-                        <!-- fieldsets page 2 -->
-                        <div class="card card-default">
-                            <div class="card-header">
-                                <div class="row">
-                                    <div class='col-md-7'>
-                                        <legend class='fs-title'>Additional Information:</legend>
-                                    </div>
-                                    <div class='col-5'>
-                                        <h2 class='steps'>Step 2 - 4</h2>
-                                    </div>
+                        <div class="card-body">
+                            <?php include_once $abs_us_root . $us_url_root . 'app/views/_edit_car_2.php'; ?>
+                        </div>
+                    </div>
+                    <input type="button" name="next" class="next btn btn-info" value="Next" />
+                    <input type="button" name="previous" class="previous btn btn-danger" value="Previous" />
+                </fieldset>
+                <fieldset>
+                    <!-- fieldsets page 3 -->
+                    <div class="card registry-card">
+                        <div class="card-header">
+                            <div class="row">
+                                <div class="col-md-7">
+                                    <legend class="fs-title mb-0">Image Upload:</legend>
+                                </div>
+                                <div class="col-5">
+                                    <h2 class="steps mb-0">Step 3 - 4</h2>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <?php include_once $abs_us_root . $us_url_root . 'app/views/_edit_car_2.php'; ?>
-                            </div>
                         </div>
-                        <input type='button' name='next' class='next btn btn-info' value='Next' />
-                        <input type='button' name='previous' class='previous btn btn-danger' value='Previous' />
-                    </fieldset>
-
-
-                    <fieldset>
-                        <!-- fieldsets page 3 -->
-                        <div class="card card-default">
-                            <div class="card-header">
-                                <div class="row">
-                                    <div class='col-md-7'>
-                                        <legend class='fs-title'>Image Upload:</legend>
-                                    </div>
-                                    <div class='col-5'>
-                                        <h2 class='steps'>Step 3 - 4</h2>
-                                    </div>
+                        <div class="card-body">
+                            <?php include_once $abs_us_root . $us_url_root . 'app/views/_edit_car_3.php'; ?>
+                        </div>
+                    </div>
+                    <!-- End Image panel -->
+                    <input type="hidden" name="csrf" id="csrf" value="<?= Token::generate(); ?>" />
+                    <input type="hidden" name="action" id="action" value="<?= $action ?>" />
+                    <input type="hidden" name="carid" id="carid" value="<?= $cardetails['id'] ?>" />
+                    <input type="submit" name="submit" id="submit" class="btn btn-success" value="Add Car" />
+                    <input type="button" name="previous" class="previous btn btn-danger" value="Previous" />
+                </fieldset>
+                <fieldset>
+                    <div class="card registry-card">
+                        <div class="card-header">
+                            <div class="row">
+                                <div class="col-6 d-flex text-left">
+                                    <legend class="fs-title mb-0">Results</legend>
+                                </div>
+                                <div class="col-6">
+                                    <h2 class="steps mb-0">Step 4 - 4</h2>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <?php include_once($abs_us_root . $us_url_root . 'app/views/_edit_car_3.php'); ?>
-                            </div>
                         </div>
-                        <!-- End Image panel -->
-                        <input type='hidden' name='csrf' id='csrf' value='<?= Token::generate(); ?>' />
-                        <input type='hidden' name='action' id='action' value='<?= $action ?>' />
-                        <input type='hidden' name='carid' id='carid' value='<?= $cardetails['id'] ?>' />
-                        <input type='submit' name='submit' id='submit' class=' btn btn-success' value='Add Car' />
-                        <input type='button' name='previous' class='previous btn btn-danger' value='Previous' />
-                    </fieldset>
-
-                    <fieldset>
-                        <div class="card card-default">
-                            <div class="card-header">
-                                <div class="row">
-                                    <div class='col-6 d-flex text-left'>
-                                        <legend class='fs-title'>Results</legend>
-                                    </div>
-                                    <div class='col-6'>
-                                        <h2 class='steps'>Step 4 - 4</h2>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='card-body' id='results'>
-                            </div>
+                        <div class="card-body" id="results">
                         </div>
-                    </fieldset>
-                </form>
+                    </div>
+                </fieldset>
+            </form>
+                </div>
             </div>
         </div>
     </div>
-</div><!-- .page-wrapper -->
+</div>
 <!--footers-->
 <?php
 require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //custom template footer

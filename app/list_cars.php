@@ -19,42 +19,43 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 }
 ?>
 
-<div id="page-wrapper">
-  <div class='container-fluid'>
-    <div class="well">
-      <div class="row">
-        <div class="col-12">
-          <div class="card card-default">
-            <div class="card-header">
-              <h2><strong>List Cars</strong></h2>
-            </div>
-            <div class="card-body">
-              <table id="cartable" style="width: 100%" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
+<div class="page-wrapper">
+  <div class="container-fluid">
+    <div class="page-container">
+    <div class="row">
+      <div class="col-12">
+        <div class="card registry-card mb-4">
+          <div class="card-header">
+            <h2 class="mb-0">List Cars</h2>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table id="cartable" class="table table-striped table-bordered table-hover table-sm w-100" aria-describedby="card-header">
                 <thead>
                   <tr>
-                    <th scope=column>ID</th>
-                    <th scope=column>Year</th>
-                    <th scope=column>Type</th>
-                    <th scope=column>Chassis</th>
-                    <th scope=column>Series</th>
-                    <th scope=column>Variant</th>
-                    <th scope=column>Color</th>
-                    <th scope=column>Image</th>
-                    <th scope=column>First Name</th>
-                    <th scope=column>City</th>
-                    <th scope=column>State</th>
-                    <th scope=column>Country</th>
-                    <th scope=column>Date Added</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Year</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Chassis</th>
+                    <th scope="col">Series</th>
+                    <th scope="col">Variant</th>
+                    <th scope="col">Color</th>
+                    <th scope="col">Image</th>
+                    <th scope="col">First Name</th>
+                    <th scope="col">City</th>
+                    <th scope="col">State</th>
+                    <th scope="col">Country</th>
+                    <th scope="col">Date Added</th>
                   </tr>
                 </thead>
               </table>
-            </div> <!-- card-body -->
-          </div> <!-- car -->
-        </div> <!-- row -->
-      </div><!-- row -->
-    </div> <!-- well -->
-  </div> <!-- /.container -->
-</div><!-- .page-wrapper -->
+            </div>
+          </div> <!-- card-body -->
+        </div> <!-- card -->
+      </div> <!-- col-12 -->
+    </div> <!-- row -->
+  </div> <!-- container-fluid -->
+</div><!-- page-wrapper -->
 <!-- End of main content section -->
 
 <!-- footers -->
@@ -79,7 +80,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
   var table = $('#cartable').DataTable({
     fixedHeader: true,
     responsive: true,
-    pageLength: 10,
+    pageLength: 15,
     scrollX: true,
     'aLengthMenu': [
       [10, 25, 50, 100, -1],
@@ -149,3 +150,6 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     }]
   });
 </script>
+    </div> <!-- page-container -->
+  </div> <!-- container-fluid -->
+</div> <!-- page-wrapper -->

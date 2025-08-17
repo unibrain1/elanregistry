@@ -51,12 +51,13 @@ if (!empty($_POST)) {
 ?>
 
 
-<div id="page-wrapper">
-    <div class="container">
+<div class="page-wrapper">
+    <div class="container-fluid">
+        <div class="page-container">
         <br>
-        <div class="card card-default">
+        <div class="card registry-card">
             <div class="card-header">
-                <h2><strong>Contact Owner</strong></h2>
+                <h2 class="mb-0">Contact Owner</h2>
             </div>
             <div class="card-body">
                 <form name="contactform" method="post" action="contact_owner_email.php">
@@ -102,8 +103,9 @@ if (!empty($_POST)) {
             </div> <!-- car body -->
         </div> <!-- /.col -->
     </div> <!-- /.row -->
-</div> <!-- /.container -->
-</div> <!-- /.wrapper -->
+        </div> <!-- page-container -->
+    </div> <!-- container-fluid -->
+</div> <!-- page-wrapper -->
 
 
 <!-- footers -->

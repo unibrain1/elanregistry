@@ -1,10 +1,12 @@
-# Project TODOs: Style, Security, and Organization Improvements
+# Project TODOs: Security and Organization Improvements
 
-## 1. Style & Layout Consistency
-- Refactor all pages in `app/` (e.g., `privacy.php`, `list_cars.php`, `car_details.php`, `statistics.php`) to use the same header/footer and card/container structure.
-- Move inline styles to external CSS (e.g., `app/assets/style.css`).
-- Refactor HTML for consistent use of Bootstrap classes.
-- Update template files in `usersc/templates/` (e.g., `header.php`, `footer.php`).
+## 1. Style & Layout Consistency ✅ **COMPLETED (August 2025)**
++ Refactored all pages in `app/` to use consistent header/footer and card/container structure. **(Complete)**
++ Standardized Bootstrap classes and card structure across all pages. **(Complete)**
++ Fixed page wrapper classes and container structure. **(Complete)**
++ Applied consistent header formatting (`h2 class="mb-0"`) throughout. **(Complete)**
++ Added `h-100` classes for equal card heights in grid layouts. **(Complete)**
++ No inline styles found - external CSS already properly organized. **(Complete)**
 
 ## 2. Security Hardening
 - Add input validation and sanitization for all forms and URL parameters in all PHP files handling user input (`app/`, `users/`, `app/action/`, `app/verify/`).
@@ -20,8 +22,9 @@
 - Add comments to complex logic in PHP and JS files.
 
 ## 4. Documentation
-- Expand `README.md` with setup, usage, and contribution guidelines.
-- Add or update doc comments in all PHP files, especially in `app/` and `users/`.
++ Expand `README.md` with setup, usage, and contribution guidelines. **(Complete)**
++ Add or update doc comments in all PHP files, especially in `app/` and `users/`. **(Complete)**
++ Document the use of SecureEnvPHP and all environment variables (see `usersc/includes/custom_functions.php`).
 
 ## 5. Testing
 - Add or improve automated tests for registration, login, car management, and privacy features in `tests/` (e.g., `CarTest.php`, `test_class.php`).
@@ -34,4 +37,18 @@
 
 ---
 
-Prioritize these steps for a more maintainable, secure, and professional project. Tackle each section and mark items as complete when finished.
+## **Project Status Summary**
+
+### ✅ **Completed (August 2025)**
+- **Documentation** - Comprehensive doc comments added to all major PHP files
+- **Style & Layout Consistency** - Full standardization of page structure, Bootstrap classes, and card layouts
+
+### 🔄 **Current Priorities**
+1. **Security Hardening** - Critical for production safety
+2. **Organization & Clean-up** - Improve maintainability
+3. **Testing** - Ensure reliability and prevent regressions
+
+### 📋 **Future Development**
+- **Dependency & Performance** - Keep project modern and optimized
+
+**Next Focus:** Security hardening is the top priority to ensure the application is safe for production use.

@@ -7,18 +7,20 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 }
 ?>
 
-<div id="page-wrapper">
-  <div class='container-fluid'>
-    <div class="well">
+<div class="page-wrapper">
+  <div class="container-fluid">
+    <div class="page-container">
       <div class="row">
         <div class="col-12">
-          <div class="card card-default">
-            <div class='card-header text-white bg-primary'>
-              <h2><strong>Elan Factory Information</strong></h2><br>
-              <h5><strong>WARNING</strong> - This information has not been verified against the Lotus archives.</h5>
+          <div class="card registry-card">
+            <div class="card-header">
+              <h2 class="mb-0">Elan Factory Information</h2>
+              <div class="mt-2">
+                <h5><strong>WARNING</strong> - This information has not been verified against the Lotus archives.</h5>
+              </div>
             </div>
             <div class="card-body">
-              <table id="cartable" style="width: 100%" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
+              <table id="cartable" class="table table-striped table-bordered table-sm w-100 registry-table" aria-describedby="card-header">
                 <thead>
                   <tr>
                     <th scope=column>Record #</th>
@@ -38,12 +40,12 @@ if (!securePage($_SERVER['PHP_SELF'])) {
                 </thead>
               </table>
             </div> <!-- card-body -->
-          </div> <!-- car -->
-        </div> <!-- row -->
-      </div><!-- row -->
-    </div> <!-- well -->
-  </div> <!-- /.container -->
-</div><!-- .page-wrapper -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- End of main content section -->
 
 <!-- footers -->
