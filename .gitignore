@@ -79,7 +79,10 @@ usersc/vendor
 ########################################
 # Tests & Backups
 ########################################
-tests/
+# Include test source files but exclude generated files
+tests/.phpunit.result.cache
+tests/coverage/
+tests/temp/
 usersc/tests
 @backup*
 usupdate.zip
