@@ -26,17 +26,17 @@ if (file_exists($mdFile)) {
     $policy = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $policy);
 }
 ?>
-<div id="page-wrapper">
+<div class="page-wrapper">
     <div class="container-fluid">
-        <div class="well">
+        <div class="page-container">
             <div class="row">
                 <div class="col-12">
-                    <div class="card card-default">
+                    <div class="card registry-card">
                         <div class="card-header">
-                            <h2><strong>Privacy Policy</strong></h2>
+                            <h2 class="mb-0">Privacy Policy</h2>
                         </div>
                         <div class="card-body">
-                            <div style="max-width:800px;margin:auto;">
+                            <div class="content-wrapper">
                                 <?php echo $policy; ?>
                             </div>
                         </div>

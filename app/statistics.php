@@ -46,45 +46,37 @@ FROM (
   group by t.age ORDER BY CAST(t.age as unsigned) 
 ")->results();
 ?>
-<style>
-  /* Always set the map height explicitly to define the size of the div
-   * element that contains the map. */
-  #map {
-    height: 100%;
-  }
 
-  #map-container img {
-    max-width: none;
-  }
-</style>
-
-<div id="page-wrapper">
+<div class="page-wrapper">
   <div class="container-fluid">
-    <div class="well">
-      <!-- Here are the blocks  -->
+    <div class="page-container">
+      <!-- Map Section -->
       <div class="row">
-        <div class="col-12 text-center">
-          <div class="card-block">
+        <div class="col-12">
+          <div class="card registry-card">
             <div class="card-header">
-              <h2>Where are the cars around the world</h2>
+              <h2 class="mb-0">Where are the cars around the world</h2>
             </div>
-            <div class="card-body">
-              <div class="mx-auto" id="map" style="height: 750px; width: 100%; margin: 10px; padding: 40px;"></div>
+            <div class="card-body text-center">
+              <div class="map-container">
+                <div id="map"></div>
+              </div>
               26 <img alt="yellow pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_yellow.png" /> |
               36 <img alt="white pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_white.png" /> |
               45 <img alt="red pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_red.png" /> |
               50 <img alt="blue pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images//mm_20_blue.png" /> |
               26R <img alt="purple pin" src="https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_purple.png" />
-            </div> <!-- body -->
-          </div><!-- card block -->
-        </div> <!-- col -->
-      </div> <!-- row -->
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <!-- Statistics Grid -->
       <div class="row">
-        <div class="col-6">
-          <div class="card-block">
+        <div class="col-lg-6 mb-4">
+          <div class="card registry-card h-100">
             <div class="card-header">
-              <h2>Count of Cars by Series</h2>
+              <h2 class="mb-0">Count of Cars by Series</h2>
             </div>
             <div class="card-body">
               <table id="seriestable" class="table table-striped table-bordered table-sm" aria-describedby="card-header">
@@ -117,83 +109,82 @@ FROM (
                     Authentic Lotus Elan & Plus 2 1962 - 1974 by Robinshaw and Ross</a>, page 22 and page 138.
                   In cases where there is a range of values, I took the lower.</small></p>
             </div> <!-- body -->
-          </div><!-- card block -->
+          </div><!-- card -->
         </div> <!-- col -->
-        <div class="col-6">
-          <div class="card-block">
+        <div class="col-lg-6 mb-4">
+          <div class="card registry-card h-100">
             <div class="card-header">
-              <h2>Cars by Country</h2>
+              <h2 class="mb-0">Cars by Country</h2>
             </div>
             <div class="card-body">
               <div id="chart_country"></div>
             </div> <!-- body -->
-          </div><!-- card block -->
+          </div><!-- card -->
         </div> <!-- col -->
       </div> <!-- row -->
 
       <div class="row">
-        <div class="col-6">
-          <div class="card-block">
+        <div class="col-lg-6 mb-4">
+          <div class="card registry-card h-100">
             <div class="card-header">
-              <h2>Cars by Type</h2>
+              <h2 class="mb-0">Cars by Type</h2>
             </div>
             <div class="card-body">
               <div id="chart_type"></div>
-            </div> <!-- body -->
-          </div><!-- card block -->
-        </div> <!-- col -->
-        <div class="col-6">
-          <div class="card-block">
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+          <div class="card registry-card h-100">
             <div class="card-header">
-              <h2>Cars by Series</h2>
+              <h2 class="mb-0">Cars by Series</h2>
             </div>
             <div class="card-body">
               <div id="chart_series"></div>
-            </div> <!-- body -->
-          </div><!-- card block -->
-        </div> <!-- col -->
-      </div> <!-- row -->
-
-      <div class="row">
-        <div class="col-6">
-          <div class="card-block">
+            </div>
+          </div>
+        </div>
+      
+        <div class="col-lg-6 mb-4">
+          <div class="card registry-card h-100">
             <div class="card-header">
-              <h2>Cars by Variant</h2>
+              <h2 class="mb-0">Cars by Variant</h2>
             </div>
             <div class="card-body">
               <div id="chart_variant"></div>
-            </div> <!-- body -->
-          </div><!-- card block -->
-        </div> <!-- col -->
-        <div class="col-6">
-          <div class="card-block">
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+          <div class="card registry-card h-100">
             <div class="card-header">
-              <h2>Cars added in the last period</h2>
+              <h2 class="mb-0">Cars added in the last period</h2>
             </div>
             <div class="card-body">
               <div id="chart_age"></div>
-            </div> <!-- body -->
-          </div><!-- card block -->
-        </div> <!-- col -->
-      </div> <!-- row -->
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <!-- Timeline Chart -->
       <div class="row">
-        <div class="col">
-          <div class="card-block">
+        <div class="col-12">
+          <div class="card registry-card">
             <div class="card-header">
-              <h2>Cars added over Time</h2>
+              <h2 class="mb-0">Cars added over Time</h2>
             </div>
             <div class="card-body">
               <div id="car_chart"></div>
-            </div> <!-- body -->
-          </div><!-- card block -->
-        </div> <!-- col -->
-      </div><!-- row -->
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <!-- End blocks -->
-    </div> <!-- /.container -->
-  </div> <!-- /.wrapper -->
-</div> <!-- page -->
+    </div>
+  </div>
+</div>
 
 <!-- footers -->
 <?php
