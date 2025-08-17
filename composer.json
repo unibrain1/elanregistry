@@ -10,5 +10,8 @@
             "name": "Jim Boone",
             "email": "jim@unibrain.org"
         }
-    ]
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^12.3"
+    }
 }
