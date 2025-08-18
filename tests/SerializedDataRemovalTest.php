@@ -64,7 +64,7 @@ class SerializedDataRemovalTest extends TestCase
      */
     public function testContactOwnerUsesSecureFields()
     {
-        $contactOwnerFile = $this->projectRoot . '/app/contact_owner.php';
+        $contactOwnerFile = $this->projectRoot . '/app/contact/owner.php';
         $this->assertFileExists($contactOwnerFile);
         
         $content = file_get_contents($contactOwnerFile);
@@ -82,7 +82,7 @@ class SerializedDataRemovalTest extends TestCase
      */
     public function testContactOwnerEmailUsesSecureLookups()
     {
-        $contactEmailFile = $this->projectRoot . '/app/contact_owner_email.php';
+        $contactEmailFile = $this->projectRoot . '/app/contact/send-owner-email.php';
         $this->assertFileExists($contactEmailFile);
         
         $content = file_get_contents($contactEmailFile);
@@ -100,7 +100,7 @@ class SerializedDataRemovalTest extends TestCase
      */
     public function testUserIdFieldsAreHTMLEncoded()
     {
-        $contactOwnerFile = $this->projectRoot . '/app/contact_owner.php';
+        $contactOwnerFile = $this->projectRoot . '/app/contact/owner.php';
         $content = file_get_contents($contactOwnerFile);
         
         // Should use htmlspecialchars for security
@@ -115,7 +115,7 @@ class SerializedDataRemovalTest extends TestCase
      */
     public function testCSRFProtectionMaintained()
     {
-        $contactOwnerFile = $this->projectRoot . '/app/contact_owner.php';
+        $contactOwnerFile = $this->projectRoot . '/app/contact/owner.php';
         $content = file_get_contents($contactOwnerFile);
         
         // Should maintain CSRF token
