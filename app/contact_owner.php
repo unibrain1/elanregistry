@@ -20,7 +20,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 if (!empty($_POST)) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
-        include $abs_us_root . $us_url_root . 'usersc/scripts/token_error.php';
+        include_once $abs_us_root . $us_url_root . 'usersc/scripts/token_error.php';
     } else {
         $action = Input::get('action');
         if ($action === 'contact_owner') {
@@ -93,8 +93,8 @@ if (!empty($_POST)) {
                             <td>
                                 <input type='hidden' name='csrf' value='<?= Token::generate(); ?>' />
                                 <input type='hidden' name='action' value='send_message' />
-                                <input type='hidden' name='from' id='from' value='<?php echo serialize($from); ?>' />
-                                <input type='hidden' name='to' id='to' value='<?php echo serialize($to); ?>' />
+                                <input type='hidden' name='from_user_id' id='from_user_id' value='<?= htmlspecialchars($from['id'], ENT_QUOTES, 'UTF-8'); ?>' />
+                                <input type='hidden' name='to_user_id' id='to_user_id' value='<?= htmlspecialchars($to['id'], ENT_QUOTES, 'UTF-8'); ?>' />
                                 <input class='btn btn-primary' type='submit' value='Send' class='Submit' />
                             </td>
                         </tr>
