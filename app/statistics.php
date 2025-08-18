@@ -1,4 +1,15 @@
 <?php
+/**
+ * statistics.php
+ * Displays comprehensive statistics and analytics for the car registry.
+ *
+ * Shows various charts and visualizations including car counts by country, series, 
+ * variant, registration timeline, and an interactive world map of car locations.
+ * Uses Google Charts and Google Maps APIs for data visualization.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 ?>
