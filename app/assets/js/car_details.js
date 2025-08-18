@@ -8,7 +8,7 @@
  */
 
 // Global variables (will be injected by PHP)
-let carDetailsConfig = {};
+// carDetailsConfig is defined in the PHP page
 
 // Initialize DataTables for car history
 function initializeHistoryTable() {
@@ -30,7 +30,7 @@ function initializeHistoryTable() {
             'emptyTable': 'No history'
         },
         ajax: {
-            url: 'action/carGetHistory.php',
+            url: 'actions/history.php',
             dataSrc: 'history',
             type: 'POST',
             data: function(d) {
@@ -128,6 +128,9 @@ function initMap() {
         });
     }
 }
+
+// Make initMap available globally for Google Maps callback
+window.initMap = initMap;
 
 // Initialize when DOM is ready
 $(document).ready(function() {

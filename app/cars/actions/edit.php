@@ -11,7 +11,7 @@
  */
 
 // Check to see if the chassis number is taken
-require_once '../../users/init.php';
+require_once '../../../users/init.php';
 
 $settings = getSettings();  // Get global settings from plugin
 
