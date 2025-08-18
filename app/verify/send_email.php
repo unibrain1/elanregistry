@@ -34,9 +34,14 @@ foreach ($carData as $car) {
     } else {
         $image = 'No image';
     }
-    $verify_btn = $verify_url . '?code=' . $verificationCode . "&action=verify";
-    $sold_btn   = $verify_url . '?code=' . $verificationCode . "&action=sold";
-    $edit_btn   = $verify_url . '?code=' . $verificationCode . "&action=edit";
+    // Generate CSRF tokens for secure verification links
+    $verifyToken = Token::generate();
+    $soldToken = Token::generate();
+    $editToken = Token::generate();
+    
+    $verify_btn = $verify_url . '?code=' . urlencode($verificationCode) . "&action=verify&token=" . urlencode($verifyToken);
+    $sold_btn   = $verify_url . '?code=' . urlencode($verificationCode) . "&action=sold&token=" . urlencode($soldToken);
+    $edit_btn   = $verify_url . '?code=' . urlencode($verificationCode) . "&action=edit&token=" . urlencode($editToken);
 
 
     $to = $car->email;
