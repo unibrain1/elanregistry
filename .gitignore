@@ -70,11 +70,29 @@ usersc/widgets/*
 install/*
 
 ########################################
-# Vendor & Composer
+# Vendor & Dependencies
 ########################################
 vendor
 composer.lock
 usersc/vendor
+
+########################################
+# Node.js & NPM
+########################################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+########################################
+# Playwright
+########################################
+/test-results/
+/playwright-report/
+/playwright/.cache/
+.playwright.result.cache
 
 ########################################
 # Tests & Backups
