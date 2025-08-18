@@ -1,4 +1,15 @@
 <?php
+/**
+ * contact_owner_email.php
+ * Processes contact owner requests and sends emails between users.
+ *
+ * Handles the backend processing for the contact owner functionality, including
+ * email composition, validation, and delivery. Includes security measures and
+ * user privacy protection.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 

@@ -1,4 +1,14 @@
 <?php
+/**
+ * contact.php
+ * Contact form for user feedback and inquiries to the registry administrators.
+ *
+ * Provides a simple feedback form for registered users to submit comments,
+ * questions, or suggestions. Includes CSRF protection and input validation.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
 
