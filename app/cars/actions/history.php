@@ -1,7 +1,7 @@
 <?php
 
 // Get the car history
-require_once '../../users/init.php';
+require_once '../../../users/init.php';
 
 //Forms posted now process it
 if (!empty($_POST)) {

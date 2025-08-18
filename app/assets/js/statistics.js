@@ -9,8 +9,7 @@
 
 // Load Google Charts
 google.charts.load('current', {
-  'packages': ['corechart', 'line'],
-  'packages': ['annotationchart']
+  'packages': ['corechart', 'annotationchart']
 });
 
 // Set callbacks for when Google Charts API is loaded
@@ -23,8 +22,8 @@ google.charts.setOnLoadCallback(drawChart_carbytime);
 
 // Chart drawing functions
 function drawChart_carsbycountry() {
-  // Data will be injected by PHP
-  var data = window.statisticsData.countryData;
+  // Create data table from raw PHP data
+  var data = google.visualization.arrayToDataTable(window.statisticsRawData.countryData);
   
   var options = {
     'height': 400,
@@ -36,7 +35,7 @@ function drawChart_carsbycountry() {
 }
 
 function drawChart_carsbytype() {
-  var data = window.statisticsData.typeData;
+  var data = google.visualization.arrayToDataTable(window.statisticsRawData.typeData);
   
   var options = {
     'height': 400,
@@ -48,7 +47,7 @@ function drawChart_carsbytype() {
 }
 
 function drawChart_carsbyseries() {
-  var data = window.statisticsData.seriesData;
+  var data = google.visualization.arrayToDataTable(window.statisticsRawData.seriesData);
   
   var options = {
     'height': 400,
@@ -60,7 +59,7 @@ function drawChart_carsbyseries() {
 }
 
 function drawChart_carsbyvariant() {
-  var data = window.statisticsData.variantData;
+  var data = google.visualization.arrayToDataTable(window.statisticsRawData.variantData);
   
   var options = {
     'height': 400,
@@ -72,7 +71,7 @@ function drawChart_carsbyvariant() {
 }
 
 function drawChart_carsbyage() {
-  var data = window.statisticsData.ageData;
+  var data = google.visualization.arrayToDataTable(window.statisticsRawData.ageData);
   
   var options = {
     'height': 400,
@@ -86,7 +85,10 @@ function drawChart_carsbyage() {
 }
 
 function drawChart_carbytime() {
-  var data = window.statisticsData.timeData;
+  var data = new google.visualization.DataTable();
+  data.addColumn('date', 'Date');
+  data.addColumn('number', 'Count of Cars');
+  data.addRows(window.statisticsRawData.timeDataRows);
 
   var chart = new google.visualization.AnnotationChart(document.getElementById('car_chart'));
 
@@ -127,7 +129,7 @@ function initMap() {
   var infoWindow = new google.maps.InfoWindow;
 
   // Change this depending on the name of your PHP or XML file
-  downloadUrl('mapmarkers2.xml.php', function(data) {
+  downloadUrl('../cars/mapmarkers.xml.php', function(data) {
     var xml = data.responseXML;
     
     // Check if XML is valid before processing
@@ -183,7 +185,7 @@ function initMap() {
       marker.addListener('click', function() {
         if (image != "") {
           var img = document.createElement('img');
-          img.src = window.statisticsData.imageDir.concat(image);
+          img.src = window.statisticsRawData.imageDir.concat(image);
           infowincontent.appendChild(img);
           infowincontent.appendChild(document.createElement('br'));
         }
