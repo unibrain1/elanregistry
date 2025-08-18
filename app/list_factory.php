@@ -1,4 +1,14 @@
 <?php
+/**
+ * list_factory.php
+ * Displays factory information for Lotus Elan cars.
+ * 
+ * Shows a searchable, sortable table of factory records with warnings about data verification.
+ * Uses DataTables for client-side features and AJAX for server-side data loading.
+ * 
+ * @author Elan Registry Team
+ * @copyright 2025
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
@@ -23,19 +33,19 @@ if (!securePage($_SERVER['PHP_SELF'])) {
               <table id="cartable" class="table table-striped table-bordered table-sm w-100 registry-table" aria-describedby="card-header">
                 <thead>
                   <tr>
-                    <th scope=column>Record #</th>
-                    <th scope=column>Year</th>
-                    <th scope=column>Month</th>
-                    <th scope=column>Batch</th>
-                    <th scope=column>Type</th>
-                    <th scope=column>Serial</th>
-                    <th scope=column>Suffix</th>
-                    <th scope=column>Engine Letter</th>
-                    <th scope=column>Engine Number</th>
-                    <th scope=column>Gearbox</th>
-                    <th scope=column>Color</th>
-                    <th scope=column>Built / Invoiced / 1ST Registered </th>
-                    <th scope=column>Note</th>
+                    <th scope="column">Record #</th>
+                    <th scope="column">Year</th>
+                    <th scope="column">Month</th>
+                    <th scope="column">Batch</th>
+                    <th scope="column">Type</th>
+                    <th scope="column">Serial</th>
+                    <th scope="column">Suffix</th>
+                    <th scope="column">Engine Letter</th>
+                    <th scope="column">Engine Number</th>
+                    <th scope="column">Gearbox</th>
+                    <th scope="column">Color</th>
+                    <th scope="column">Built / Invoiced / 1ST Registered </th>
+                    <th scope="column">Note</th>
                   </tr>
                 </thead>
               </table>
@@ -58,11 +68,11 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
 ?>
 
 <script>
-  const img_root = '<? $us_url_root . $settings->elan_image_dir ?>';
+  const img_root = '<?= $us_url_root . $settings->elan_image_dir ?>';
   const csrf = '<?= Token::generate(); ?>';
   const us_url_root = '<?= $us_url_root ?>';
 
-  var table = $('#cartable').DataTable({
+  const table = $('#cartable').DataTable({
     fixedHeader: true,
     responsive: true,
     pageLength: 25,
@@ -83,7 +93,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     'serverMethod': 'post',
 
     "ajax": {
-      "url": "action/getList.php",
+      "url": "action/getDataTables.php",
       "dataSrc": "data",
       data: function(d) {
         d.csrf = csrf;
