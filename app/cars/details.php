@@ -28,11 +28,11 @@ if (!empty($_GET)) {
     // Validate that car exists
     if (!$car->exists()) {
         // Redirect to list if car not found
-        Redirect::to($us_url_root . '/app/list_cars.php');
+        Redirect::to($us_url_root . '/app/cars/index.php');
     }
 } else {
     // Shouldn't be here unless someone is mangling the url
-    Redirect::to($us_url_root . '/app/list_cars.php');
+    Redirect::to($us_url_root . '/app/cars/index.php');
 }
 ?>
 <div class="page-wrapper">

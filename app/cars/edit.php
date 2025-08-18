@@ -243,7 +243,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
         });
 
         var myDropzone = new Dropzone("div#myDrop", {
-            url: "action/editCar.php",
+            url: "actions/edit.php",
             autoProcessQueue: false,
             clickable: true,
 
@@ -269,7 +269,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
             init: function() {
                 thisDropzone = this;
                 // Load any existing images
-                $.post('action/editCar.php', {
+                $.post('actions/edit.php', {
                         'carID': carid,
                         'csrf': csrf,
                         'action': 'fetchImages'
@@ -386,7 +386,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
             const data = JSON.parse(message);
 
             if (data.status === 'success') {
-                window.location = '<?= $us_url_root ?>app/car_details.php?car_id=' + data.cardetails.id;
+                window.location = '<?= $us_url_root ?>app/cars/details.php?car_id=' + data.cardetails.id;
             } else {
 
                 // Advance the page progress indicator
