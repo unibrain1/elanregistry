@@ -19,8 +19,8 @@
 
 ## 3. Organization & Clean-up 🔄 **IN PROGRESS (August 2025)**
 + Convert TODO comments to tracked GitHub issues #213 and #214. **(Complete)**
-+ Add standardized PHP documentation headers to key app files. **(In Progress)**
-- Extract inline JavaScript from statistics.php and car_details.php to separate files.
++ Add standardized PHP documentation headers to key app files. **(Complete)**
++ Extract inline JavaScript from statistics.php and car_details.php to separate files. **(Complete)**
 - Group files by function (e.g., move all car-related logic to `app/cars/`).
 - Rename files for clarity (e.g., `edit_car.php` → `car_edit.php`).
 - Remove unused or commented-out code throughout the project.
