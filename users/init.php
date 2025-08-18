@@ -1,5 +1,16 @@
 <?php
 require_once 'classes/class.autoloader.php';
+
+// Set secure session cookie parameters before starting session
+session_set_cookie_params([
+    'lifetime' => 0,           // Session cookie (expires when browser closes)
+    'path' => '/',             // Available across entire site
+    'domain' => '',            // Use default domain
+    'secure' => isset($_SERVER['HTTPS']), // Only send over HTTPS if available
+    'httponly' => true,        // Prevent JavaScript access to session cookie
+    'samesite' => 'Strict'     // CSRF protection - only send with same-site requests
+]);
+
 session_start();
 
 $abs_us_root = $_SERVER['DOCUMENT_ROOT'];
