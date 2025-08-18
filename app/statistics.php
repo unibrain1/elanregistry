@@ -422,6 +422,12 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
     // Change this depending on the name of your PHP or XML file
     downloadUrl('mapmarkers2.xml.php', function(data) {
       var xml = data.responseXML;
+      
+      // Check if XML is valid before processing
+      if (!xml || !xml.documentElement) {
+        console.error('Invalid XML response from mapmarkers2.xml.php');
+        return;
+      }
 
       var markers = xml.documentElement.getElementsByTagName('marker');
       Array.prototype.forEach.call(markers, function(markerElem) {
