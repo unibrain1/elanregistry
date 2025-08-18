@@ -20,6 +20,13 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
 <?php
 if (isset($_POST['email'])) {
+    
+    // CSRF Protection
+    $token = Input::get('csrf');
+    if (!Token::check($token)) {
+        include_once $abs_us_root . $us_url_root . 'usersc/scripts/token_error.php';
+        exit;
+    }
 
     // EDIT THE 2 LINES BELOW AS REQUIRED
     $email_to = "jim@elanregistry.org";
@@ -36,18 +43,16 @@ if (isset($_POST['email'])) {
     }
 
 
-    // validation expected data exists
-    if (
-        !isset($_POST['name']) ||
-        !isset($_POST['email']) ||
-        !isset($_POST['id']) ||
-        !isset($_POST['comments'])
-    ) {
+    // Get and validate form data using secure Input::get()
+    $name = Input::get('name');
+    $email_from = Input::get('email');
+    $id_from = Input::get('id');
+    $comments = Input::get('comments');
+    
+    // Validation expected data exists
+    if (empty($name) || empty($email_from) || empty($id_from) || empty($comments)) {
         died('We are sorry, but there appears to be a problem with the form you submitted.');
     }
-    $email_from = $_POST['email']; // required
-    $id_from = $_POST['id']; // required
-    $comments = $_POST['comments']; // required
 
     $error_message = "";
     $email_exp = '/^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/';
