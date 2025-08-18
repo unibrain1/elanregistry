@@ -171,7 +171,7 @@ function initMap() {
       a.appendChild(linkText);
       a.title = "Details";
       a.className = "btn btn-success btn-sm";
-      a.href = "/app/car_details.php?car_id=".concat(id);
+      a.href = "/app/cars/details.php?car_id=".concat(id);
       infowincontent.appendChild(a);
 
       var icon = customIcons[type] || {};

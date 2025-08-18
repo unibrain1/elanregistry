@@ -68,7 +68,7 @@ if (Input::exists('get') && Input::get('code') && Input::get('action')) {
             logger($car->user_id, "Car Verification", "Car verified successfully - ID: " . $car->id . " Chassis: " . $car->chassis);
 
             // Redirect to the car detail page
-            $redirect = $base_url . $us_url_root . 'app/car_details.php?car_id=' . $car->id;
+            $redirect = $base_url . $us_url_root . 'app/cars/details.php?car_id=' . $car->id;
             break;
 
         case 'edit':
@@ -92,7 +92,7 @@ if (Input::exists('get') && Input::get('code') && Input::get('action')) {
             // Log sold notification
             logger($car->user_id, "Car Verification", "Car reported as sold via verification - ID: " . $car->id . " Chassis: " . $car->chassis);
             
-            $redirect = $base_url . $us_url_root . 'app/car_details.php?car_id=' . $car->id;
+            $redirect = $base_url . $us_url_root . 'app/cars/details.php?car_id=' . $car->id;
             break;
 
         default:

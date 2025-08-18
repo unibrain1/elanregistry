@@ -325,7 +325,7 @@ if (Input::exists('post')) {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td><a class="btn btn-success btn-sm" target="_blank" href='<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->id ?>'><?= $car->id ?></a></td>
+                                        <td><a class="btn btn-success btn-sm" target="_blank" href='<?= $us_url_root ?>app/cars/details.php?car_id=<?= $car->id ?>'><?= $car->id ?></a></td>
                                         <td><?= $car->username ?></td>
                                         <td><?= $car->ctime ?></td>
                                         <td><?= $car->mtime ?></td>

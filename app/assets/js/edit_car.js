@@ -52,7 +52,7 @@ function initializeDropzone() {
     }).disableSelection();
 
     const myDropzone = new Dropzone("div#myDrop", {
-        url: "action/editCar.php",
+        url: "actions/edit.php",
         autoProcessQueue: false,
         clickable: true,
         uploadMultiple: true,
@@ -85,7 +85,7 @@ function initializeDropzone() {
  * Load existing images for editing
  */
 function loadExistingImages(csrf, carid) {
-    $.post('action/editCar.php', {
+    $.post('actions/edit.php', {
         'carID': carid,
         'csrf': csrf,
         'action': 'fetchImages'
@@ -216,7 +216,7 @@ function setupDropzoneEvents(myDropzone) {
         try {
             const data = JSON.parse(message);
             if (data.status === 'success') {
-                window.location = window.us_url_root + 'app/car_details.php?car_id=' + data.cardetails.id;
+                window.location = window.us_url_root + 'app/cars/details.php?car_id=' + data.cardetails.id;
             } else {
                 showResults(data);
             }
@@ -541,7 +541,7 @@ function checkChassisAvailability() {
     const csrf = $('#csrf').val();
     
     $.ajax({
-        url: 'action/checkChassis.php',
+        url: 'actions/check-chassis.php',
         type: 'post',
         data: {
             'command': 'chassis_check',
