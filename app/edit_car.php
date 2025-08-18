@@ -9,6 +9,8 @@
  *
  * @author Elan Registry Admin
  * @copyright 2025
+ * @package ElanRegistry
+ * @version 2.0
  */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
@@ -20,7 +22,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 $maximages = $settings->elan_image_max;
 
 $cardetails = [];
-/*  Add the User/profile information to the record */
+// Initialize car details array with default null values
 $cardetails['id']           = null;
 $cardetails['year']         = null;
 $cardetails['model']        = null;
@@ -36,7 +38,7 @@ $cardetails['website']      = null;
 $cardetails['comments']     = null;
 $cardetails['image']        = null;
 
-// 'placeholder' to prompt for response.  Background text in input boxes
+// Placeholder text for form input fields
 $carprompt['chassis']       = 'Enter Chassis Number';
 $carprompt['color']         = 'Enter the current color of the car';
 $carprompt['engine']        = 'Enter Engine number - LPAxxxxx';
@@ -45,12 +47,13 @@ $carprompt['solddate']      = 'YYYY-MM-DD';
 $carprompt['comments']      = 'Please give a brief history of your car and anything special';
 $carprompt['website']       = 'Website URL';
 
-$action = 'addCar'; // No one has asked me to do anything yet
+// Default action when no form submission
+$action = 'addCar';
 
-if (!empty($_POST)) {
+if (Input::exists('post')) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
-        include_once($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
+        include_once $abs_us_root . $us_url_root . 'usersc/scripts/token_error.php';
     } else {
 
         $action = Input::get('action');
@@ -64,10 +67,14 @@ if (!empty($_POST)) {
     } // End Post with data
 }
 
-/*
-Called to update a car.  Get the car information and fill in the defaults.
-*/
-function updateCarDetails(&$car)
+/**
+ * Update car details from database for editing
+ *
+ * @param array &$car Reference to car details array
+ * @return void
+ * @throws Exception If user doesn't own the car
+ */
+function updateCarDetails(array &$car): void
 {
     global $user;
 
@@ -78,9 +85,9 @@ function updateCarDetails(&$car)
 
     $carQ = new Car($car['id']);
 
-    // Let's check to see if this user owns this car`
+    // Security: Verify user ownership of the car
     if ($user->data()->id != $carQ->data()->user_id) {
-        // This should never happen unless the user is trying to do something bad. Log it and then log them out
+        // Security violation: User attempting to access car they don't own
         logger($user->data()->id, 'ElanRegistry', 'Not owner of car! USER ' . $user->data()->id . ' CAR ' . $car['id']);
         $user->logout();
         exit();
@@ -169,9 +176,9 @@ function updateCarDetails(&$car)
                         </div>
                     </div>
                     <!-- End Image panel -->
-                    <input type="hidden" name="csrf" id="csrf" value="<?= Token::generate(); ?>" />
-                    <input type="hidden" name="action" id="action" value="<?= $action ?>" />
-                    <input type="hidden" name="carid" id="carid" value="<?= $cardetails['id'] ?>" />
+                    <input type="hidden" name="csrf" id="csrf" value="<?= htmlspecialchars(Token::generate(), ENT_QUOTES, 'UTF-8'); ?>" />
+                    <input type="hidden" name="action" id="action" value="<?= htmlspecialchars($action, ENT_QUOTES, 'UTF-8'); ?>" />
+                    <input type="hidden" name="carid" id="carid" value="<?= htmlspecialchars($cardetails['id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
                     <input type="submit" name="submit" id="submit" class="btn btn-success" value="Add Car" />
                     <input type="button" name="previous" class="previous btn btn-danger" value="Previous" />
                 </fieldset>
