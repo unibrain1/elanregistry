@@ -290,124 +290,29 @@ echo html_entity_decode($settings->elan_datatables_js_cdn);
 echo html_entity_decode($settings->elan_datatables_css_cdn);
 ?>
 
-<!-- Constants needed by the scripts -->
+<!-- Configuration for external JavaScript -->
 <script>
-    const csrf = '<?= Token::generate(); ?>';
-    const us_url_root = '<?= $us_url_root ?>';
-    const img_root = '<?= $us_url_root . $settings->elan_image_dir ?>';
-</script>
-
-
-<script src='<?= $us_url_root ?>app/assets/js/imagedisplay.js'></script>
-
-<script>
-    // Format history table
-    // Get history from AJAX call TBD
-    const id = $('#carid').val();
-
-    const table = $('#historytable').DataTable({
-        scrollX: true,
-        responsive: true,
-        order: [
-            [1, 'desc']
-        ],
-        language: {
-            'emptyTable': 'No history'
-        },
-        ajax: {
-            url: 'action/carGetHistory.php',
-            dataSrc: 'history',
-            type: 'POST',
-            data: function(d) {
-                d.csrf = csrf;
-                d.car_id = id;
-            }
-        },
-        columns: [{
-                data: "operation"
-            },
-            {
-                data: "mtime"
-            },
-            {
-                data: "year"
-            },
-            {
-                data: "type"
-            },
-            {
-                data: "chassis"
-            },
-            {
-                data: "series"
-            },
-            {
-                data: "variant"
-            },
-            {
-                data: "color"
-            },
-            {
-                data: "engine"
-            },
-            {
-                data: "purchasedate"
-            },
-            {
-                data: "solddate"
-            },
-            {
-                data: "comments"
-            },
-            {
-                data: "image",
-                searchable: false,
-                'render': function(data, type, row) {
-                    if (data) {
-                        return carousel(row, row.car_id);
-                    } else {
-                        return '';
-                    }
-                }
-            },
-            {
-                data: "fname"
-            }, {
-                data: "city"
-            }, {
-                data: "state"
-            }, {
-                data: 'country'
-            }
-        ]
-    });
-    // MAP
-    function initMap() {
+    // Global configuration for car details page
+    const carDetailsConfig = {
+        csrf: '<?= Token::generate(); ?>',
+        usUrlRoot: '<?= $us_url_root ?>',
+        imgRoot: '<?= $us_url_root . $settings->elan_image_dir ?>',
+        hasLocation: <?= (!empty($car->data()->lat) && !empty($car->data()->lon)) ? 'true' : 'false' ?>
         <?php if (!empty($car->data()->lat) && !empty($car->data()->lon)) { ?>
-            // Car location coordinates
-            const carLocation = {
-                lat: <?= (float)$car->data()->lat ?>,
-                lng: <?= (float)$car->data()->lon ?>
-            };
-
-            const mapElement = document.getElementById("map");
-
-            if (mapElement) {
-                // The map, centered at car location
-                const map = new google.maps.Map(mapElement, {
-                    zoom: 8,
-                    center: carLocation,
-                    streetViewControl: false
-                });
-
-                // Use classic marker (reliable and widely supported)
-                const marker = new google.maps.Marker({
-                    position: carLocation,
-                    map: map,
-                    title: "Car Location"
-                });
-            }
+        ,latitude: <?= (float)$car->data()->lat ?>
+        ,longitude: <?= (float)$car->data()->lon ?>
         <?php } ?>
-    }
+    };
+    
+    // Legacy constants for backward compatibility
+    const csrf = carDetailsConfig.csrf;
+    const us_url_root = carDetailsConfig.usUrlRoot;
+    const img_root = carDetailsConfig.imgRoot;
 </script>
+
+<!-- Load external JavaScript files -->
+<script src='<?= $us_url_root ?>app/assets/js/imagedisplay.js'></script>
+<script src='<?= $us_url_root ?>app/assets/js/car_details.js'></script>
+<?php if (!empty($car->data()->lat) && !empty($car->data()->lon)) { ?>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=<?= $settings->elan_google_maps_key ?>&loading=async&callback=initMap"></script>
+<?php } ?>
