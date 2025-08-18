@@ -26,15 +26,15 @@ This is a PHP web application for the Lotus Elan Registry hosted at https://elan
 ### Core Application Files
 
 **Car Management:**
-- `app/list_cars.php` - Searchable car listing with DataTables
-- `app/car_details.php` - Individual car detail pages
-- `app/edit_car.php` - Car editing forms
-- `app/identification.php` - Car identification/registration
-- `app/action/` - AJAX endpoints for car operations
+- `app/cars/index.php` - Searchable car listing with DataTables
+- `app/cars/details.php` - Individual car detail pages
+- `app/cars/edit.php` - Car editing forms
+- `app/cars/identify.php` - Car identification/registration
+- `app/cars/actions/` - AJAX endpoints for car operations
 
 **User Features:**
-- `app/statistics.php` - Registry statistics
-- `app/contact_owner.php` - Owner contact functionality
+- `app/reports/statistics.php` - Registry statistics
+- `app/contact/send-owner-email.php` - Owner contact functionality
 - `app/privacy.php` - GDPR-compliant privacy policy
 
 ## Development Commands
@@ -43,7 +43,20 @@ This is a PHP web application for the Lotus Elan Registry hosted at https://elan
 ```bash
 # Run PHPUnit tests
 vendor/bin/phpunit tests/
+
+# Run Playwright browser tests
+npm test
+
+# Run specific Playwright test suites
+npm run test:security      # Security-focused tests
+npm run test:ui           # UI consistency tests
+npm run test:navigation   # Navigation and redirects
+npm run test:functionality # Core functionality
+npm run test:maps         # Maps and charts
 ```
+
+### Frontend Testing Policy
+**IMPORTANT**: Anytime we make changes to the frontend, we should run the appropriate Playwright test. If a test is not available, develop a test and execute it before considering the work complete.
 
 ### Dependencies
 ```bash
@@ -69,7 +82,9 @@ composer update
 - Secure session handling implemented
 
 ### File Organization
-- Car-related logic in `/app/`
+- Car-related logic in `/app/cars/`
+- Contact forms and email handling in `/app/contact/`
+- Statistics and reporting in `/app/reports/`
 - Authentication handled by UserSpice in `/users/`
 - Custom UserSpice modifications in `/usersc/`
 - User uploads organized by car ID in `/userimages/`

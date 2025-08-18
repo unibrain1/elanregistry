@@ -133,7 +133,7 @@ $notes['+2']     = "4526";
 							</tr>
 							<tr>
 								<td colspan='2'><a class='btn btn-success btn-sm' href='<?= $us_url_root ?>
-									app/car_details.php?car_id=<?= $car->data()->id ?>'>Details</a></td>
+									app/cars/details.php?car_id=<?= $car->data()->id ?>'>Details</a></td>
 							</tr>
 						</table>
 					</div> <!-- card-body -->
