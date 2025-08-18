@@ -20,7 +20,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 if (!empty($_POST)) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
-        include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
+        include $abs_us_root . $us_url_root . 'usersc/scripts/token_error.php';
     } else {
         $action = Input::get('action');
         if ($action === 'contact_owner') {
