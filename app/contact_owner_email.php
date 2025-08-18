@@ -26,15 +26,30 @@ function clean_string($string)
 }
 
 //Forms posted now process it
-if (!empty($_POST)) {
+if (Input::exists('post')) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
         $action = Input::get('action');
-        if ($action === 'send_message' &&  $_POST['from'] && $_POST['to'] && $_POST['message']) {
-            $f              =  unserialize($_POST['from']);
-            $t              =  unserialize($_POST['to']);
+        if ($action === 'send_message' && Input::get('from_user_id') && Input::get('to_user_id') && Input::get('message')) {
+            // Security: Get user data from database instead of trusting serialized data
+            $fromUserId = (int) Input::get('from_user_id');
+            $toUserId = (int) Input::get('to_user_id');
+            
+            // Validate user IDs and get user data from database
+            $db = DB::getInstance();
+            $fromUser = $db->query('SELECT id, email, fname, lname FROM users WHERE id = ?', [$fromUserId])->first();
+            $toUser = $db->query('SELECT id, email, fname, lname FROM users WHERE id = ?', [$toUserId])->first();
+            
+            if (!$fromUser || !$toUser) {
+                $errors[] = 'Invalid user data';
+                include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
+                exit();
+            }
+            
+            $f = (array) $fromUser;
+            $t = (array) $toUser;
 
             $toEmail        =  $t['email'];
 

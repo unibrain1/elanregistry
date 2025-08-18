@@ -34,20 +34,20 @@ $errors                     = [];
 $successes                  = [];
 
 //Form is posted now process it
-if (!empty($_POST)) {
-    $token = $_POST['csrf'];
+if (Input::exists('post')) {
+    $token = Input::get('csrf');
     if (!Token::check($token)) {
-        include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
+        include $abs_us_root . $us_url_root . 'usersc/scripts/token_error.php';
     } else {
         // Do something!
-        $_POST  = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+        $command = Input::get('command');
 
-        if (!empty($_POST) && !empty($_POST['command'])) {
-            switch ($_POST['command']) {
+        if ($command) {
+            switch ($command) {
                 // Assign car to a new owner
                 case "reassign":
-                    $user_id = $_POST['user_id'];
-                    $car_id  = $_POST['car_id'];
+                    $user_id = (int) Input::get('user_id');
+                    $car_id  = (int) Input::get('car_id');
 
                     // Get the new user details
                     $userQ                    = $db->findById($user_id, "usersview");
@@ -90,12 +90,12 @@ if (!empty($_POST)) {
                 // Merge two cars because a car is a) a duplicate or b)the car was sold to a new owner and the new owner created a record.
                 case "merge":
                     // Validate input
-                    if (!isset($_POST['cars']) || !isset($_POST['reason'])) {
+                    $cars = Input::get('cars');
+                    $reason = Input::get('reason');
+                    if (!$cars || !$reason) {
                         $errors[] = 'Select 2 cars to merge and a reason';
                         break;
                     }
-                    $cars    = $_POST['cars'];
-                    $reason  = $_POST['reason'];
 
                     if (count($cars) <> 2) {
                         $errors[] = 'Select 2 cars to merge';
@@ -339,8 +339,8 @@ if (!empty($_POST)) {
                                         <td><?= $car->purchasedate ?></td>
                                         <td><?= $car->solddate ?></td>
                                         <td><?= $car->comments ?></td>
-                                        <!-- <td> <?php include($abs_us_root . $us_url_root . 'app/views/_display_image.php');
-                                                    // TODO This needs to change for Car Class 
+                                        <!-- <td> <?php include $abs_us_root . $us_url_root . 'app/views/_display_image.php';
+                                                    // TODO This needs to change for Car Class
                                                     ?>  -->
                                         </td>
                                         <td><?= $car->fname ?></td>
