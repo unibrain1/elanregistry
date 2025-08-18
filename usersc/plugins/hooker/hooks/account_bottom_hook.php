@@ -32,7 +32,7 @@ $cars = findByOwner($user_id);
         if (empty($cars)) {
             //     If the user does not have a car then display the add car form</li>
         ?>
-            <a class="btn btn-success" href=<?= $us_url_root . "app/edit_car.php" ?> role="button">Add Car</a>
+            <a class="btn btn-success" href=<?= $us_url_root . "app/cars/edit.php" ?> role="button">Add Car</a>
             <?php
         } else {
             // Else there is car information then display it
@@ -165,13 +165,13 @@ $cars = findByOwner($user_id);
                 </table>
                 <div class="col">
                     <div class="form-group row">
-                        <form method='POST' action=<?= $us_url_root . 'app/edit_car.php' ?>>
+                        <form method='POST' action=<?= $us_url_root . 'app/cars/edit.php' ?>>
                             <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
                             <input type="hidden" name="action" value="updateCar" />
                             <input type="hidden" name="carid" value="<?= $car->data()->id ?>" />
                             <button class="btn btn-success" type="submit">Update Car</button>
                         </form>
-                        <a class="btn btn-info" role="button" href="<?= $us_url_root ?>app/car_details.php?car_id=<?= $car->data()->id ?>">Details</a>
+                        <a class="btn btn-info" role="button" href="<?= $us_url_root ?>app/cars/details.php?car_id=<?= $car->data()->id ?>">Details</a>
                     </div>
                 </div>
                 <br>
