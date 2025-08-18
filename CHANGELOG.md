@@ -3,8 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Add CSRF protection to verification endpoints
 - Review and secure remaining SQL queries with prepared statements
+
+## [2025-08-18] - Latest Security & Infrastructure Updates
+
+### 🚨 CRITICAL SECURITY FIXES COMPLETED (Latest)
+- **ELIMINATED SQL INJECTION VULNERABILITY**: Removed deprecated backup_util.php containing critical SQL injection on line 385
+- **DEPRECATED CODE CLEANUP**: Removed 554.php and Notification.php deprecated files reducing attack surface  
+- **GOOGLE MAPS SECURITY FIX**: Fixed PHP deprecation warnings and XML generation issues in statistics.php maps
+- **CSRF PROTECTION VERIFICATION**: Added comprehensive CSRF token validation to all verification endpoints
+
+### 🗺️ GOOGLE MAPS IMPROVEMENTS
+- **Fixed Map Display Issues**: Resolved pin display problems on statistics.php page
+- **Enhanced XML Generation**: Added null safety checks and proper error handling in mapmarkers2.xml.php
+- **Coordinate Validation**: Skip cars without valid lat/lng data to prevent display errors
+- **Improved Error Handling**: Enhanced JavaScript XML parsing with better debugging information
 
 ## [2025-08-18] - Major Security Hardening & Infrastructure Improvements
 
