@@ -39,6 +39,7 @@ if (!securePage($_SERVER['PHP_SELF'])) {
 							</div>
 						</div>
 						
+						<input type="hidden" name="csrf" value="<?= htmlspecialchars(Token::generate(), ENT_QUOTES, 'UTF-8'); ?>" />
 					</fieldset>
 					<input class='btn btn-primary' type='submit' value='Submit' class='Submit' /></p>
 				</form>
