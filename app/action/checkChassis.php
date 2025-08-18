@@ -6,16 +6,17 @@ require_once '../../users/init.php';
 $db = DB::getInstance();
 
 //Forms posted now process it
-if (!empty($_POST)) {
+if (Input::exists('post')) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
         include($abs_us_root . $us_url_root . 'usersc/scripts/token_error.php');
     } else {
-        if (isset($_POST['command'])) {
-            if ($_POST['command'] === 'chassis_check') {
-                $year = $_POST['year'];
-                list($series, $variant, $type) = explode('|', $_POST['model']);
-                $chassis = $_POST['chassis'];
+        $command = Input::get('command');
+        if ($command) {
+            if ($command === 'chassis_check') {
+                $year = Input::get('year');
+                list($series, $variant, $type) = explode('|', Input::get('model'));
+                $chassis = Input::get('chassis');
                 $carQ = $db->query('SELECT * FROM cars WHERE year=? AND type = ? AND chassis=?', [$year, $type, $chassis]);
                 // Did it return anything?
                 if ($carQ->count() !== 0) {
