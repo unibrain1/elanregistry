@@ -13,7 +13,7 @@
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
-// TODO - Reimagine managing cars for admin
+// TODO - Reimagine managing cars for admin - Tracked in GitHub Issue #213
 
 if (!securePage($_SERVER['PHP_SELF'])) {
     die();
@@ -340,7 +340,7 @@ if (Input::exists('post')) {
                                         <td><?= $car->solddate ?></td>
                                         <td><?= $car->comments ?></td>
                                         <!-- <td> <?php include $abs_us_root . $us_url_root . 'app/views/_display_image.php';
-                                                    // TODO This needs to change for Car Class
+                                                    // TODO This needs to change for Car Class - Tracked in GitHub Issue #214
                                                     ?>  -->
                                         </td>
                                         <td><?= $car->fname ?></td>
