@@ -77,7 +77,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
 <script src='<?= $us_url_root ?>app/assets/js/imagedisplay.js'></script>
 
 <script>
-  var table = $('#cartable').DataTable({
+  const table = $('#cartable').DataTable({
     fixedHeader: true,
     responsive: true,
     pageLength: 15,
@@ -99,7 +99,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
     'serverSide': true,
     'serverMethod': 'post',
     'ajax': {
-      'url': 'action/getList.php',
+      'url': 'action/getDataTables.php',
       'dataSrc': 'data',
       data: function(d) {
         d.csrf = csrf;
@@ -111,8 +111,7 @@ echo html_entity_decode($settings->elan_datatables_css_cdn);
       'searchable': false,
       'orderable': false,
       'render': function(data, type, row, meta) {
-        response = '<a class="btn btn-success btn-sm" href="' + us_url_root + 'app/car_details.php?car_id=' + data + '">Details';
-        return response;
+        return '<a class="btn btn-success btn-sm" href="' + us_url_root + 'app/car_details.php?car_id=' + data + '">Details';
       }
     }, {
       data: 'year',
