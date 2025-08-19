@@ -209,16 +209,16 @@ This is a CRITICAL step that must NEVER be skipped when working on any code-rela
 - Add and commit automatically whenever an entire task is finished
 - Use descriptive commit messages that capture the full scope of changes
 
-## GitHub Projects & Issue Management
+## GitHub Issues & Development Management
 
-### 🏗️ Project Management Structure (August 2025)
+### 🏗️ Issue Management Structure (August 2025)
 
-**Comprehensive GitHub Projects implementation for systematic issue tracking and development workflow management.**
+**Comprehensive GitHub Issues-based workflow for systematic development tracking and milestone management.**
 
-#### Project Organization
-- **Master Project Board:** "Elan Registry Development Roadmap" - High-level overview of all phases
-- **Phase-Specific Projects:** Individual boards for each development phase
-- **Automated Workflows:** GitHub Actions for project board automation
+#### Development Organization
+- **GitHub Issues:** All development tasks tracked as issues with comprehensive labeling
+- **Milestones:** Phase-based development milestones with realistic timelines
+- **Automated Workflows:** GitHub Actions for issue labeling and automation
 
 #### Issue Classification System
 
