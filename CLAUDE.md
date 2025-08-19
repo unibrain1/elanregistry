@@ -206,8 +206,30 @@ This is a CRITICAL step that must NEVER be skipped when working on any code-rela
 
 ## Git & Version Control
 
+### Branch Management Strategy
+
+**Main Branch Protection:**
+- `main` branch always contains production-ready code
+- All development work happens on feature/phase branches
+- Direct commits to main are discouraged
+
+**Branch Naming Convention:**
+- Feature branches: `feature/issue-{number}-brief-description`
+- Phase branches: `phase-{number}-{name}`
+- Hotfix branches: `hotfix/issue-{number}-brief-description`
+
+**Branch Lifecycle:**
+1. **Create** branch from latest main: `git checkout -b feature/issue-123-new-feature`
+2. **Develop** with regular commits and descriptive messages
+3. **Test** thoroughly before merging (run all tests: PHPUnit + Playwright)
+4. **Merge** to main with merge commit (no fast-forward): `git merge --no-ff`
+5. **Cleanup** merged branches immediately after successful merge
+6. **Push** updated main to origin
+
+**Commit Standards:**
 - Add and commit automatically whenever an entire task is finished
 - Use descriptive commit messages that capture the full scope of changes
+- Include 🤖 Generated with Claude Code footer for AI-assisted work
 
 ## GitHub Issues & Development Management
 
