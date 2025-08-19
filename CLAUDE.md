@@ -209,6 +209,122 @@ This is a CRITICAL step that must NEVER be skipped when working on any code-rela
 - Add and commit automatically whenever an entire task is finished
 - Use descriptive commit messages that capture the full scope of changes
 
+## GitHub Projects & Issue Management
+
+### 🏗️ Project Management Structure (August 2025)
+
+**Comprehensive GitHub Projects implementation for systematic issue tracking and development workflow management.**
+
+#### Project Organization
+- **Master Project Board:** "Elan Registry Development Roadmap" - High-level overview of all phases
+- **Phase-Specific Projects:** Individual boards for each development phase
+- **Automated Workflows:** GitHub Actions for project board automation
+
+#### Issue Classification System
+
+**Priority Labels:**
+- `priority: critical` - Production-breaking issues requiring immediate attention
+- `priority: high` - Important functionality fixes  
+- `priority: medium` - Standard enhancements and improvements
+- `priority: low` - Nice-to-have improvements
+
+**Phase Labels:**
+- `phase: 1-critical` - Critical Bug Fixes & Stability (2 weeks)
+- `phase: 2-core` - Core System Enhancements (3 weeks)  
+- `phase: 3-ux` - User Experience Enhancements (3 weeks)
+- `phase: 4-optional` - Optional Enhancements & Testing (4 weeks)
+- `phase: 5-longterm` - Long-term Improvements (3 weeks)
+
+**Component Labels:**
+- `component: database` - Database-related issues and queries
+- `component: ui` - User interface and frontend changes
+- `component: security` - Security improvements and fixes
+- `component: performance` - Performance optimizations
+- `component: testing` - Testing-related work and validation
+- `component: documentation` - Documentation updates and improvements
+- `component: maps` - Google Maps functionality and integration
+- `component: admin` - Admin interface and management features
+- `component: images` - Image handling and processing features
+
+**Status Labels:**
+- `status: needs-planning` - Requires detailed planning before development
+- `status: ready-dev` - Ready for development work
+- `status: in-progress` - Currently being worked on
+- `status: needs-review` - Awaiting code review
+- `status: needs-testing` - Awaiting testing validation
+- `status: blocked` - Blocked by dependencies or external factors
+
+**Effort Labels:**
+- `effort: xs` - 1-2 hours of work
+- `effort: s` - Half day of work
+- `effort: m` - 1-2 days of work
+- `effort: l` - 3-5 days of work
+- `effort: xl` - 1+ weeks of work
+
+#### Development Milestones
+
+**Phase 1: Critical Fixes** (Due: Sept 2, 2025)
+- Critical bug fixes and stability improvements
+- Issues: #204, #202, #195, #193, #169, #154, #146, #106, #190
+
+**Phase 2: Core Enhancements** (Due: Sept 16, 2025) 
+- Admin interface improvements and data management
+- Issues: #213, #214, #168, #158, #136, #135, #134
+
+**Phase 3: UX Enhancements** (Due: Sept 30, 2025)
+- User experience improvements and accessibility
+- Issues: #188, #186, #179, #176, #161, #159, #127, #125
+
+**Phase 4: Optional Enhancements** (Due: Oct 14, 2025)
+- Performance optimization and testing improvements  
+- Issues: #215, #216, #217, #218
+
+**Phase 5: Long-term Improvements** (Due: Oct 28, 2025)
+- Advanced features and documentation
+- Issues: #208, #205, #89, #75, #45, #35, #32, #31, #10, #7
+
+#### Issue Templates
+
+**Available Templates:**
+- **🐛 Bug Report** - Standardized bug reporting with environment details
+- **✨ Feature Request** - Comprehensive feature planning with acceptance criteria
+- **📋 Phase Planning** - Multi-issue development phase planning
+
+#### Automated Workflows
+
+**GitHub Actions Integration:**
+- Auto-label new issues based on content keywords
+- Link pull requests to issues automatically
+- Update issue status based on PR state transitions
+- Track milestone progress and celebrate completions
+- Remove conflicting status labels automatically
+
+#### Development Workflow
+
+**Issue Lifecycle:**
+1. **Creation** → Auto-labeled with `status: needs-planning`
+2. **Planning** → Add phase, component, effort, priority labels
+3. **Development** → Move to `status: in-progress` 
+4. **Review** → Move to `status: needs-review`
+5. **Testing** → Move to `status: needs-testing`
+6. **Completion** → Auto-close when PR merges
+
+**Branch Strategy:**
+- Feature branches: `feature/issue-{number}-brief-description`
+- Phase branches: `phase-{number}-{name}`
+- Link PRs to issues using "fixes #123" syntax
+
+#### Success Metrics
+
+**Project Health Tracking:**
+- Velocity: Issues completed per week
+- Burndown: Progress against milestone deadlines  
+- Cycle Time: Time from issue creation to completion
+- Quality: Bugs introduced vs bugs fixed
+
+### 🎯 Current Status: 39 Issues Organized & Labeled
+All existing issues have been categorized with appropriate labels, milestones, and effort estimates for systematic development progression.
+
 ## Rule Improvement Triggers
 
 - New code patterns not covered by existing rules
