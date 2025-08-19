@@ -2,7 +2,6 @@
 # IDE & Editor Files
 ########################################
 .vscode
-.github
 Elanegistry.sublime-project
 ElanRegistry.code-workspace
 *.swp
