@@ -91,10 +91,10 @@
         <!-- table section -->
         <h3 id="owner">Owner Information</h3>
         <table class="carTable" aria-describedby="owner">
-            <col style="width: 15%" />
-            <col style="width: 85%" />
+            <col class="w-15" />
+            <col class="w-85" />
 
-            <tr style="background-color: #bcd7a9">
+            <tr class="email-header-row">
                 <th id="column">User ID</th>
                 <td id="column"><?= $car->user_id ?></th>
             </tr>
@@ -139,7 +139,7 @@
         <table class="carTable" aria-describedby="info">
             <col width="15%" />
             <col width="85%" />
-            <tr style="background-color: #bcd7a9">
+            <tr class="email-header-row">
                 <th scope=column>Car ID</th>
                 <th scope=column><?= $car->id ?></th>
             </tr>

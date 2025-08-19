@@ -64,7 +64,7 @@
                 </div>
 
 
-                <div id="chassis_taken" style="color: red" class="hidden">
+                <div id="chassis_taken" class="text-danger hidden">
                     <strong>This chassis number is already in the registry. </strong>
                     <br> Please contact the Registrar<br>
                 </div>

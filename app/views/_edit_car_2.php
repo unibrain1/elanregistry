@@ -36,7 +36,7 @@
     <div class='col-sm-9'>
         <div class='input-group-prepend'>
             <div class='input-group-text'><i aria-hidden='true' class='fas fa-comment-alt'></i></div>
-            <textarea class='form-control' name='comments' id='comments' rows='10' wrap='soft' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments']); ?></textarea>
+            <textarea class='form-control' name='comments' id='comments' rows='10' wrap='soft' placeholder='<?= $carprompt['comments'] ?>'><?= htmlspecialchars($cardetails['comments'] ?? ''); ?></textarea>
         </div>
     </div>
 

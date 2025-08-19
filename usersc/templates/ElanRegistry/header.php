@@ -24,6 +24,9 @@ echo html_entity_decode($settings->elan_fontawesome_cdn);
 <!-- https://jonsuh.com/hamburgers -->
 <link href="<?= $us_url_root ?>usersc/templates/<?= $settings->template ?>/assets/css/hamburgers.min.css" rel="stylesheet">
 
+<!-- Registry Application Styles -->
+<link href="<?= $us_url_root ?>usersc/templates/<?= $settings->template ?>/assets/css/style.css" rel="stylesheet">
+
 <?php
 //optional
 if (file_exists($abs_us_root . $us_url_root . 'usersc/templates/' . $settings->template . '.css')) { ?>

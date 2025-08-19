@@ -1,12 +1,16 @@
 <?php
 
+/**
+ * Document Embed Page
+ *
+ * Embeds a selected document (PDF) in an iframe for viewing.
+ * Requires authentication and uses Bootstrap for layout.
+ */
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
-
 if (!empty($_GET['doc'])) {
     $document = $_GET['doc'];
-
     $path_parts = pathinfo($document);
 }
 

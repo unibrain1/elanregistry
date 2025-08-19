@@ -5,9 +5,13 @@ require_once $abs_us_root . $us_url_root . 'users/includes/page_footer.php';
 <div class="<?= $settings->container_open_class ?>">
   <div class="row">
     <div class="col-12 text-center">
-      <footer><br>&copy;
-        <?php echo date("Y"); ?>
-        <?= $settings->copyright; ?></footer>
+      <footer>
+        <br>
+        <div class="mb-2">
+          <a href="<?= $us_url_root ?>app/privacy.php" class="text-muted me-3">Privacy Policy</a>
+        </div>
+        &copy; <?php echo date("Y"); ?> <?= $settings->copyright; ?>
+      </footer>
       <br>
     </div>
   </div>
