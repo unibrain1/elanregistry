@@ -1,0 +1,36 @@
+{
+  "name": "elan_registry",
+  "version": "1.0.0",
+  "description": "This is code for the Lotus Elan Registry hosted at https://elanregistry.org. It is used in conjunction with Userspice (https://userspice.com) to build an online database for Lotus Elan and Lotus Elan +2 cars.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:security": "playwright test tests/playwright/security.test.js",
+    "test:ui": "playwright test tests/playwright/ui-consistency.test.js",
+    "test:navigation": "playwright test tests/playwright/navigation.test.js",
+    "test:functionality": "playwright test tests/playwright/functionality.test.js",
+    "test:maps": "playwright test tests/playwright/maps-charts.test.js",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unibrain1/elanregistry.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/unibrain1/elanregistry/issues"
+  },
+  "homepage": "https://github.com/unibrain1/elanregistry#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  }
+}

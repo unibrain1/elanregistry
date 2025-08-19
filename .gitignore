@@ -2,7 +2,6 @@
 # IDE & Editor Files
 ########################################
 .vscode
-.github
 Elanegistry.sublime-project
 ElanRegistry.code-workspace
 *.swp
@@ -70,16 +69,37 @@ usersc/widgets/*
 install/*
 
 ########################################
-# Vendor & Composer
+# Vendor & Dependencies
 ########################################
 vendor
 composer.lock
 usersc/vendor
 
 ########################################
+# Node.js & NPM
+########################################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+########################################
+# Playwright
+########################################
+/test-results/
+/playwright-report/
+/playwright/.cache/
+.playwright.result.cache
+
+########################################
 # Tests & Backups
 ########################################
-tests/
+# Include test source files but exclude generated files
+tests/.phpunit.result.cache
+tests/coverage/
+tests/temp/
 usersc/tests
 @backup*
 usupdate.zip
