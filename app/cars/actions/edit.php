@@ -1,7 +1,17 @@
 <?php
 
+/**
+ * editCar.php - Car management endpoint
+ * 
+ * Handles AJAX requests for car creation, updates, and image management.
+ * Provides secure file upload with validation and CSRF protection.
+ * 
+ * @author Elan Registry Team
+ * @copyright 2025
+ */
+
 // Check to see if the chassis number is taken
-require_once '../../users/init.php';
+require_once '../../../users/init.php';
 
 $settings = getSettings();  // Get global settings from plugin
 
@@ -9,7 +19,6 @@ $settings = getSettings();  // Get global settings from plugin
 $errors     = [];
 $successes  = [];
 $cardetails = [];
-$carId      = null;
 
 
 $targetFilePath = $abs_us_root . $us_url_root . $settings->elan_image_dir;
@@ -84,7 +93,13 @@ if (!empty($_POST)) {
 }
 
 
-function updateCar(&$cardetails)
+/**
+ * Update an existing car record
+ * 
+ * @param array $cardetails Car data to update
+ * @return void Updates global $errors and $successes arrays
+ */
+function updateCar(array &$cardetails): void
 {
     global $errors;
     global $successes;
@@ -99,7 +114,13 @@ function updateCar(&$cardetails)
         $errors[] = 'Update Car ERROR';
     }
 }
-function addCar(&$cardetails)
+/**
+ * Create a new car record
+ * 
+ * @param array $cardetails Car data to create
+ * @return void Updates global $errors and $successes arrays
+ */
+function addCar(array &$cardetails): void
 {
     global $errors;
     global $successes;
@@ -114,7 +135,14 @@ function addCar(&$cardetails)
     }
 }
 
-function buildCarDetails(&$cardetails, $carId = null)
+/**
+ * Build car details from form input and existing data
+ * 
+ * @param array $cardetails Car details array to populate
+ * @param int|null $carId Optional car ID for updates
+ * @return void
+ */
+function buildCarDetails(array &$cardetails, ?int $carId = null): void
 {
     global $user;
     global $errors;
@@ -167,10 +195,18 @@ function buildCarDetails(&$cardetails, $carId = null)
     updateComments($cardetails);
 }
 
-function updateYear(&$cardetails)
+/**
+ * Update car year from form input
+ * 
+ * @param array $cardetails Car details array to update
+ * @return void
+ */
+function updateYear(array &$cardetails): void
 {
+    global $errors, $successes;
+    
     //Update Year
-    if (!empty($_POST['year'])) {
+    if (Input::get('year')) {
         $cardetails['year'] =  Input::get('year');
         $successes[] = 'Year Updated (' . $cardetails['year'] . ')';
     } else {
@@ -178,10 +214,18 @@ function updateYear(&$cardetails)
     }
 }
 
-function updateModel(&$cardetails)
+/**
+ * Update car model information from form input
+ * 
+ * @param array $cardetails Car details array to update
+ * @return void
+ */
+function updateModel(array &$cardetails): void
 {
+    global $errors, $successes;
+    
     // Update 'model'
-    if (!empty($_POST['model'])) {
+    if (Input::get('model')) {
         $cardetails['model'] = Input::get('model');
         // Model isn't really a thing.
         // We need to explode it into the proper columns
@@ -197,18 +241,30 @@ function updateModel(&$cardetails)
     }
 }
 
-function updateChassis(&$cardetails)
+/**
+ * Update car chassis number from form input with validation
+ * 
+ * @param array $cardetails Car details array to update
+ * @return void
+ */
+function updateChassis(array &$cardetails): void
 {
+    global $errors, $successes;
+    
     // Update 'chassis'
-    if (!empty($_POST['chassis'])) {
+    if (Input::get('chassis')) {
         $cardetails['chassis'] = Input::get('chassis');
-        $len = strlen($cardetails['chassis']);
-        // Validate
-        if (strcmp($cardetails['variant'], 'Race') == 0) { /* For the 26R let them do what they want */
+        $chassisLength = strlen($cardetails['chassis']);
+        
+        // Validate based on car type and year
+        if (strcmp($cardetails['variant'], 'Race') === 0) { /* For the 26R let them do what they want */
             $successes[] =  'Chassis Updated (' . $cardetails['chassis'] . ')';
         } elseif ($cardetails['year'] < 1970) {
-            if ($len != 4) { // Chassis number for years < 1970 are 4 digits
+            // Chassis number for years < 1970 are 4 digits
+            if ($chassisLength !== 4) {
                 $errors[] = "Enter Chassis Number. Four Digits,6490 not 36/6490";
+            } else {
+                $successes[] =  'Chassis Updated (' . $cardetails['chassis'] . ')';
             }
         } else {
             $successes[] =  'Chassis Updated (' . $cardetails['chassis'] . ')';
@@ -221,7 +277,7 @@ function updateChassis(&$cardetails)
 function updateColor(&$cardetails)
 {
     // Update 'color'
-    if (!empty($_POST['color'])) {
+    if (Input::get('color')) {
         $cardetails['color'] = Input::get('color');
         $successes[] = 'Color Updated (' . $cardetails['color'] . ')';
     } else {
@@ -232,7 +288,7 @@ function updateColor(&$cardetails)
 function updateEngine(&$cardetails)
 {
     // Update 'engine'
-    if (!empty($_POST['engine'])) {
+    if (Input::get('engine')) {
         $cardetails['engine'] = Input::get('engine');
         $cardetails['engine'] = str_replace(" ", "", strtoupper(trim($cardetails['engine'])));
         $successes[] = 'Engine Updated (' . $cardetails['engine'] . ')';
@@ -244,7 +300,7 @@ function updateEngine(&$cardetails)
 function updatePurchasedate(&$cardetails)
 {
     // Update 'purchasedate'
-    if (!empty($_POST['purchasedate'])) {
+    if (Input::get('purchasedate')) {
         $cardetails['purchasedate'] = Input::get('purchasedate');
         $cardetails['purchasedate'] = date("Y-m-d", strtotime($cardetails['purchasedate']));
         $successes[] = 'Purchase Date Updated (' . $cardetails['purchasedate'] . ')';
@@ -256,7 +312,7 @@ function updatePurchasedate(&$cardetails)
 function updateSolddate(&$cardetails)
 {
     // Update 'solddate'
-    if (!empty($_POST['solddate'])) {
+    if (Input::get('solddate')) {
         $cardetails['solddate'] = Input::get('solddate');
         $cardetails['solddate'] = date("Y-m-d", strtotime($cardetails['solddate']));
         $successes[] = 'Sold Date Updated (' . $cardetails['solddate'] . ')';
@@ -268,7 +324,7 @@ function updateSolddate(&$cardetails)
 function updateWebsite(&$cardetails)
 {
     // Update 'website'
-    if (!empty($_POST['website'])) {
+    if (Input::get('website')) {
         $cardetails['website'] = Input::get('website');
         $successes[] = 'Website Updated (' . $cardetails['website'] . ')';
     } else {
@@ -279,7 +335,7 @@ function updateWebsite(&$cardetails)
 function updateComments(&$cardetails)
 {
     // Update 'comments'
-    if (!empty($_POST['comments'])) {
+    if (Input::get('comments')) {
         $cardetails['comments'] = Input::get('comments');
         $successes[] = 'Comments Updated (' . $cardetails['comments'] . ')';
     } else {
@@ -292,7 +348,7 @@ function buildImageDetails(&$cardetails)
     // This needs to happen before processinging new files to the event the order changes
     // without adding new files
 
-    $requestedOrder = array_filter(explode(',', $_POST['filenames']));
+    $requestedOrder = array_filter(explode(',', Input::get('filenames')));
     $cardetails['image'] = json_encode($requestedOrder);
 
     // Order of all images in the dropzone
@@ -309,7 +365,8 @@ function uploadImages(&$cardetails)
     global $successes;
     global $user;
 
-    $sizes = [100, 300, 600, 1024, 2048];  // TODO Should get from config
+    // Image resize dimensions - consider moving to configuration
+    $imageSizes = [100, 300, 600, 1024, 2048];
 
 
     // Do I have any new files?
@@ -317,17 +374,34 @@ function uploadImages(&$cardetails)
         $successes[] = 'No image';
         return;
     }
+    // Secure path construction with validation
     if (empty($cardetails['id'])) {
         $filePath = $targetFilePath . 'temp' . '/';
     } else {
-        $filePath = $targetFilePath . $cardetails['id'] . '/';
+        // Validate car ID is numeric to prevent directory traversal
+        $carId = filter_var($cardetails['id'], FILTER_VALIDATE_INT);
+        if ($carId === false || $carId <= 0) {
+            throw new Exception("Invalid car ID for file upload");
+        }
+        $filePath = $targetFilePath . $carId . '/';
+    }
+
+    // Ensure the path is within expected directory structure
+    $realTargetPath = realpath($targetFilePath);
+    $realFilePath = realpath(dirname($filePath));
+    
+    if ($realFilePath === false || strpos($realFilePath, $realTargetPath) !== 0) {
+        throw new Exception("Invalid upload path detected");
     }
 
     if (!is_dir($filePath)) {
-        mkdir($filePath);
+        // Create directory with secure permissions (755)
+        if (!mkdir($filePath, 0755, true)) {
+            throw new Exception("Failed to create upload directory");
+        }
     }
 
-    $requestedOrder = array_filter(explode(',', $_POST['filenames']));
+    $requestedOrder = array_filter(explode(',', Input::get('filenames')));
 
     //  $_FILES['file']['tmp_name'] is an array so have to use loop
     foreach ($_FILES['file']['tmp_name'] as $key => $value) {
@@ -335,33 +409,59 @@ function uploadImages(&$cardetails)
         $tempFile = $_FILES['file']['tmp_name'][$key];
 
         if ($tempFile !== '') { //  deal with empty file name
-            // Create a filename for the new file and give the file a random name
-            $newFileName = uniqid('img_', 'true') . '.' . getExtension(getMimeType($tempFile));
+            try {
+                // Create file info array for validation
+                $fileInfo = [
+                    'name' => $_FILES['file']['name'][$key],
+                    'tmp_name' => $tempFile,
+                    'error' => $_FILES['file']['error'][$key],
+                    'size' => $_FILES['file']['size'][$key]
+                ];
+                
+                // Validate file upload security constraints
+                validateFileUpload($fileInfo);
+                
+                // Get and validate MIME type
+                $mimeType = getMimeType($tempFile);
+                $extension = getExtension($mimeType);
+                
+                // Generate cryptographically secure filename
+                $newFileName = generateSecureFilename($extension);
 
-            if (move_uploaded_file($tempFile, $filePath . $newFileName)) {
-                $successes[] = "Photo has been uploaded " . $name . " as " . $newFileName;
+                if (move_uploaded_file($tempFile, $filePath . $newFileName)) {
+                    $successes[] = "Photo has been uploaded " . $name . " as " . $newFileName;
 
-                //  Create resized images
-                $fileinfo = pathinfo($targetFilePath . $newFileName);
-                $filename = $fileinfo['filename'];
-                $extension = $fileinfo['extension'];
+                    //  Create resized images
+                    $fileinfo = pathinfo($filePath . $newFileName);
+                    $filename = $fileinfo['filename'];
+                    $extension = $fileinfo['extension'];
 
-                foreach ($sizes as $size) {
-                    $thumbname = $filePath . $filename . "-resized-" . $size . "." . $extension;
+                    foreach ($imageSizes as $size) {
+                        $thumbname = $filePath . $filename . "-resized-" . $size . "." . $extension;
 
-                    $resizeObj = new Resize($filePath . $newFileName);
-                    $resizeObj->resizeImage($size, $size, 'auto');
-                    $resizeObj->saveImage($thumbname, 80);
-                    $successes[] = " Created " . $thumbname;
+                        $resizeObj = new Resize($filePath . $newFileName);
+                        $resizeObj->resizeImage($size, $size, 'auto');
+                        $resizeObj->saveImage($thumbname, 80);
+                        $successes[] = " Created " . $thumbname;
+                    }
+                    arrayReplaceValue($requestedOrder, $name, $newFileName);
+                } else {
+                    $errors[] = "Photo failed to upload " . $name . " as " . $newFileName;
+                    logger(
+                        $user->data()->id,
+                        "ElanRegistry",
+                        "ERROR: File upload failed for carId: " .
+                            Input::get('carid') . " File: " . $name . " Target: " . $newFileName
+                    );
                 }
-                arrayReplaceValue($requestedOrder, $name, $newFileName);
-            } else {
-                $errors[] = "Photo failed to uploaded " . $name . " as " . $newFileName;
+            } catch (Exception $e) {
+                // Log security violation and reject file
+                $errors[] = "File upload rejected: " . $e->getMessage();
                 logger(
                     $user->data()->id,
                     "ElanRegistry",
-                    "ERROR: buildImageDetails carId: " .
-                        Input::get('carid') . " Photo failed to uploaded " . $name . " as " . $newFileName
+                    "SECURITY: File upload rejected for carId: " .
+                        Input::get('carid') . " File: " . $name . " Reason: " . $e->getMessage()
                 );
             }
         }
@@ -369,20 +469,32 @@ function uploadImages(&$cardetails)
     $cardetails['image'] = json_encode($requestedOrder);
 }
 
-function fetchImages($carid)
+/**
+ * Fetch images for a specific car
+ * 
+ * @param int $carid Car ID
+ * @return void Outputs JSON response and exits
+ */
+function fetchImages(int $carid): void
 {
     $car = new Car($carid);
 
-    $response = array(
+    $response = [
         'status' => 'success',
         'images' => $car->images(),
-    );
+    ];
 
     echo json_encode($response);
     exit;
 }
 
-function mvTmpImages(&$cardetails)
+/**
+ * Move temporary images to permanent car directory
+ * 
+ * @param array $cardetails Car details containing ID and image info
+ * @return void
+ */
+function mvTmpImages(array &$cardetails): void
 {
     global $targetFilePath;
 
@@ -390,7 +502,7 @@ function mvTmpImages(&$cardetails)
 
     $filePath = $targetFilePath . $cardetails['id'] . '/';
     if (!is_dir($filePath)) {
-        mkdir($filePath);
+        mkdir($filePath, 0755, true);
     }
 
     // Get the car images
@@ -413,61 +525,159 @@ function mvTmpImages(&$cardetails)
     }
 }
 
-function removeImage($carID, $file)
+/**
+ * Remove an image from a car's image list
+ * 
+ * @param int $carID Car ID
+ * @param string $file Image filename to remove
+ * @return void Outputs JSON response and exits
+ */
+function removeImage(int $carID, string $file): void
 {
     global $db;
     global $user;
 
     $car = $db->findById($carID, 'cars')->results()[0];
     $carImages = explode(',', $car->image);
-    $idx = array_search($file, $carImages);
+    $imageIndex = array_search($file, $carImages, true);
 
-    if ($idx !== false) {
-        unset($carImages[$idx]);
+    if ($imageIndex !== false) {
+        unset($carImages[$imageIndex]);
         // Write the new array to the DB
         $images = implode(',', $carImages);
         $db->update("cars", $carID, ["image" => $images]);
 
-        $response = array(
+        $response = [
             'status' => 'success',
             'count'   => count($carImages),
             'images' => $carImages
-        );
+        ];
     } else {
         logger($user->data()->id, "ElanRegistry", "ERROR: removeImage carId: " . $carID . " Image not found: " . $file);
-        $response = array(
+        $response = [
             'status' => 'error',
             'info'   => "image not found"
-        );
+        ];
     }
     echo json_encode($response);
     exit;
 }
 
-function arrayReplaceValue(&$ar, $value, $replacement)
+/**
+ * Replace a value in an array with a new value
+ * 
+ * @param array $array Array to modify
+ * @param mixed $value Value to find and replace
+ * @param mixed $replacement New value
+ * @return void
+ */
+function arrayReplaceValue(array &$array, $value, $replacement): void
 {
-    if (($key = array_search($value, $ar)) !== false) {
-        $ar[$key] = $replacement;
+    $key = array_search($value, $array, true);
+    if ($key !== false) {
+        $array[$key] = $replacement;
     }
 }
 
-function getExtension($mimeType)
+/**
+ * Get file extension from MIME type
+ * 
+ * @param string $mimeType MIME type to convert
+ * @return string File extension
+ * @throws Exception If MIME type is not supported
+ */
+function getExtension(string $mimeType): string
 {
-    $extensions = array(
-        'image/jpeg' => 'jpg'
-    );
-    return $extensions[$mimeType];
+    // Comprehensive secure image type validation
+    $allowedExtensions = [
+        'image/jpeg' => 'jpg',
+        'image/jpg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp'
+    ];
+    
+    if (!isset($allowedExtensions[$mimeType])) {
+        throw new Exception("Unsupported file type: " . $mimeType);
+    }
+    
+    return $allowedExtensions[$mimeType];
 }
 
-function getMimeType($file)
+/**
+ * Get MIME type of uploaded file with security validation
+ * 
+ * @param string $file File path to analyze
+ * @return string MIME type
+ * @throws Exception If unable to determine type or type is invalid
+ */
+function getMimeType(string $file): string
 {
-    $mtype = false;
+    // Secure MIME type detection with multiple validation layers
+    $mimeType = false;
+    
+    // Primary method: Use finfo (most reliable)
     if (function_exists('finfo_open')) {
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mtype = finfo_file($finfo, $file);
+        $mimeType = finfo_file($finfo, $file);
         finfo_close($finfo);
     } elseif (function_exists('mime_content_type')) {
-        $mtype = mime_content_type($file);
+        $mimeType = mime_content_type($file);
+    } else {
+        throw new Exception("Unable to determine file MIME type");
     }
-    return $mtype;
+    
+    // Additional validation: Check if detected MIME type is in our allowlist
+    $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array($mimeType, $allowedTypes, true)) {
+        throw new Exception("Invalid file type detected: " . $mimeType);
+    }
+    
+    return $mimeType;
+}
+
+/**
+ * Generate cryptographically secure filename
+ * 
+ * @param string $extension File extension
+ * @return string Secure filename
+ */
+function generateSecureFilename(string $extension): string
+{
+    // Use cryptographically secure random bytes instead of uniqid()
+    $randomBytes = random_bytes(16);
+    return 'img_' . bin2hex($randomBytes) . '.' . $extension;
+}
+
+/**
+ * Validate file upload security constraints
+ * 
+ * @param array $file File upload array from $_FILES
+ * @param int $maxSize Maximum file size in bytes (default 5MB)
+ * @return bool Always returns true if validation passes
+ * @throws Exception If validation fails
+ */
+function validateFileUpload(array $file, int $maxSize = 5242880): bool // Default 5MB
+{
+    // Check for upload errors
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new Exception("File upload error: " . $file['error']);
+    }
+    
+    // Check file size (default 5MB limit)
+    if ($file['size'] > $maxSize) {
+        throw new Exception("File too large. Maximum size: " . ($maxSize / 1024 / 1024) . "MB");
+    }
+    
+    // Verify the file was actually uploaded via HTTP POST
+    if (!is_uploaded_file($file['tmp_name'])) {
+        throw new Exception("Invalid file upload");
+    }
+    
+    // Additional security: Check for minimum file size (avoid empty files)
+    if ($file['size'] < 100) {
+        throw new Exception("File too small - minimum 100 bytes required");
+    }
+    
+    return true;
 }

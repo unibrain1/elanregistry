@@ -1,4 +1,14 @@
 <?php
+/**
+ * index.php
+ * Default verification page - redirects or provides verification interface.
+ *
+ * Part of the car verification system that allows owners to verify their car information
+ * via email links. Handles security and authentication.
+ *
+ * @author Elan Registry Admin
+ * @copyright 2025
+ */
 
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
