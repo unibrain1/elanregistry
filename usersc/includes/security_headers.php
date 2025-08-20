@@ -9,9 +9,45 @@
 1. Content Security Policy
 
 The content-security-policy HTTP header provides an additional layer of security. This policy helps prevent attacks such as Cross Site Scripting (XSS) and other code injection attacks by defining content sources which are approved and thus allowing the browser to load them.
-
-** Not specified because you cannot predict what content sources will be required by the users of UserSpice **
 */
+
+// Content Security Policy for ElanRegistry
+// Allows Google Maps, Google Analytics, Bootstrap CDN, and other required external resources
+header("Content-Security-Policy: " .
+    "default-src 'self'; " .
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' " .
+        "https://maps.googleapis.com " .
+        "https://www.google-analytics.com " .
+        "https://www.googletagmanager.com " .
+        "https://cdn.jsdelivr.net " .
+        "https://cdnjs.cloudflare.com " .
+        "https://code.jquery.com " .
+        "https://maxcdn.bootstrapcdn.com " .
+        "https://stackpath.bootstrapcdn.com; " .
+    "style-src 'self' 'unsafe-inline' " .
+        "https://fonts.googleapis.com " .
+        "https://cdn.jsdelivr.net " .
+        "https://cdnjs.cloudflare.com " .
+        "https://maxcdn.bootstrapcdn.com " .
+        "https://stackpath.bootstrapcdn.com; " .
+    "img-src 'self' data: blob: " .
+        "https://maps.googleapis.com " .
+        "https://maps.gstatic.com " .
+        "https://www.google-analytics.com " .
+        "https://ssl.gstatic.com; " .
+    "font-src 'self' " .
+        "https://fonts.gstatic.com " .
+        "https://cdn.jsdelivr.net " .
+        "https://cdnjs.cloudflare.com " .
+        "https://maxcdn.bootstrapcdn.com " .
+        "https://stackpath.bootstrapcdn.com; " .
+    "connect-src 'self' " .
+        "https://maps.googleapis.com " .
+        "https://www.google-analytics.com; " .
+    "frame-src 'self'; " .
+    "object-src 'none'; " .
+    "base-uri 'self'"
+);
 
 
 /*
@@ -20,10 +56,13 @@ The content-security-policy HTTP header provides an additional layer of security
 The strict-transport-security header is a security enhancement that restricts web browsers to access web servers solely over HTTPS. This ensures the connection cannot be establish through an insecure HTTP connection which could be susceptible to attacks.
 */
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+// Check if we're running over HTTPS
+$is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+            $_SERVER['SERVER_PORT'] == 443 || 
+            (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
 
-if ($protocol === "https://") {
-    header("Strict-Transport-Security:max-age=31536000; includeSubdomains; preload");
+if ($is_https) {
+    header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
 }
 
 
