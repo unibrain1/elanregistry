@@ -66,6 +66,8 @@ usersc/plugins/sendinblue/*
 usersc/templates/*
 !usersc/templates/ElanRegistry
 usersc/widgets/*
+!usersc/widgets/settings/
+usersc/widgets/settings/*.png
 install/*
 
 ########################################

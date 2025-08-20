@@ -29,7 +29,7 @@ if (isset($_POST['email'])) {
     }
 
     // EDIT THE 2 LINES BELOW AS REQUIRED
-    $email_to = "jim@elanregistry.org";
+    $email_to = "elanregistry-admins@googlegroups.com";
     $email_subject = "[ELANREGISTRY] Feedback";
 
     function died($error)
