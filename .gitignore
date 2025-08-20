@@ -108,3 +108,6 @@ usupdate.zip
 
 
 
+
+users/logs/*.log.php
+usersc/includes/totp_key.php
