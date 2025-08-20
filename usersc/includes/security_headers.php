@@ -12,38 +12,59 @@ The content-security-policy HTTP header provides an additional layer of security
 */
 
 // Content Security Policy for ElanRegistry
-// Allows Google Maps, Google Analytics, Bootstrap CDN, and other required external resources
+// Optimized policy without duplicates, allowing UserSpice framework while maintaining security
 header("Content-Security-Policy: " .
     "default-src 'self'; " .
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' " .
+        // Google Services
         "https://maps.googleapis.com " .
         "https://www.google-analytics.com " .
         "https://www.googletagmanager.com " .
+        "https://www.gstatic.com " .
+        "https://ssl.gstatic.com " .
+        "https://charts.googleapis.com " .
+        // JavaScript CDNs
         "https://cdn.jsdelivr.net " .
         "https://cdnjs.cloudflare.com " .
+        "https://unpkg.com " .
         "https://code.jquery.com " .
+        "https://ajax.googleapis.com " .
         "https://maxcdn.bootstrapcdn.com " .
-        "https://stackpath.bootstrapcdn.com; " .
+        "https://stackpath.bootstrapcdn.com " .
+        "https://cdn.datatables.net " .
+        "https://kit.fontawesome.com " .
+        "https://cdn.popper.js.org; " .
     "style-src 'self' 'unsafe-inline' " .
+        // CSS CDNs and services
         "https://fonts.googleapis.com " .
         "https://cdn.jsdelivr.net " .
         "https://cdnjs.cloudflare.com " .
         "https://maxcdn.bootstrapcdn.com " .
-        "https://stackpath.bootstrapcdn.com; " .
+        "https://stackpath.bootstrapcdn.com " .
+        "https://bootswatch.com " .
+        "https://cdn.bootswatch.com " .
+        "https://cdn.datatables.net " .
+        "https://use.fontawesome.com " .
+        "https://kit.fontawesome.com; " .
     "img-src 'self' data: blob: " .
+        // Image sources
         "https://maps.googleapis.com " .
         "https://maps.gstatic.com " .
         "https://www.google-analytics.com " .
         "https://ssl.gstatic.com; " .
     "font-src 'self' " .
+        // Font sources
         "https://fonts.gstatic.com " .
-        "https://cdn.jsdelivr.net " .
-        "https://cdnjs.cloudflare.com " .
-        "https://maxcdn.bootstrapcdn.com " .
-        "https://stackpath.bootstrapcdn.com; " .
+        "https://use.fontawesome.com " .
+        "https://kit.fontawesome.com; " .
     "connect-src 'self' " .
+        // API and AJAX endpoints
         "https://maps.googleapis.com " .
-        "https://www.google-analytics.com; " .
+        "https://www.google-analytics.com " .
+        "https://www.gstatic.com " .
+        "https://ssl.gstatic.com " .
+        "https://charts.googleapis.com " .
+        "https://kit.fontawesome.com; " .
     "frame-src 'self'; " .
     "object-src 'none'; " .
     "base-uri 'self'"
