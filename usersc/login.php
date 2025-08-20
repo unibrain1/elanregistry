@@ -116,6 +116,21 @@ $token = Token::generate();
     </div>
     <div class="row">
       <div class="col-sm-12">
+        <div class="usmsgblock">
+          <?php
+          $usmsgs = array(
+            'err',
+            'msg',
+            'valSuc',
+            'valErr',
+            'genMsg',
+          );
+          foreach ($usmsgs as $u) { ?>
+            <div style="" id="<?= $u ?>UserSpiceMessages" class="show d-none">
+              <span id="<?= $u ?>UserSpiceMessage"></span>
+            </div>
+          <?php } ?>
+        </div>
         <form name="login" id="login-form" class="form-signin" action="" method="post">
           <h2 class="form-signin-heading"><?= lang("SIGNIN_TITLE", ""); ?></h2>
           <input type="hidden" name="dest" value="<?= $dest ?>" />
