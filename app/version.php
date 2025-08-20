@@ -10,15 +10,21 @@
 class ApplicationVersion
 {
     /**
-     * Returns the current git tag/hash and commit date in formatted string.
+     * Returns the current version from VERSION file with deployment timestamp.
      * @return string Version string
      */
     public static function get()
     {
-        $commitHash = trim(exec('git describe --tags'));
-        $commitDate = new \DateTime(trim(exec('git log -n1 --pretty=%ci HEAD')));
-        $commitDate->setTimezone(new \DateTimeZone('PST'));
-        return sprintf('%s (%s)', $commitHash, $commitDate->format('Y-m-d H:i:s'));
+        // Get version from static VERSION file
+        $versionFile = dirname(__DIR__) . '/VERSION';
+        $version = file_exists($versionFile) ? trim(file_get_contents($versionFile)) : 'unknown';
+        
+        // Get deployment timestamp from file modification time or current time
+        $deployTime = file_exists($versionFile) ? filemtime($versionFile) : time();
+        $deployDate = new \DateTime('@' . $deployTime);
+        $deployDate->setTimezone(new \DateTimeZone('PST'));
+        
+        return sprintf('%s (%s)', $version, $deployDate->format('Y-m-d H:i:s'));
     }
 }
 

@@ -104,7 +104,7 @@
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-palette"></i></div>
-                    <input disabled class="form-control" type="text" name="color" id="color" placeholder="<?= $carprompt['color'] ?>" value="<?= $cardetails['color'] ?>" />
+                    <input class="form-control" type="text" name="color" id="color" placeholder="<?= $carprompt['color'] ?>" value="<?= $cardetails['color'] ?>" />
                 </div>
             </div>
         </div>
@@ -115,7 +115,7 @@
             <div class="col-sm-9">
                 <div class="input-group-prepend">
                     <div class="input-group-text"><i aria-hidden="true" class="fas fa-car"></i> </div>
-                    <input disabled class="form-control" type="text" name="engine" id="engine" placeholder="<?= $carprompt['engine'] ?>" value="<?= $cardetails['engine'] ?>" /> <!-- Add validation -->
+                    <input class="form-control" type="text" name="engine" id="engine" placeholder="<?= $carprompt['engine'] ?>" value="<?= $cardetails['engine'] ?>" /> <!-- Add validation -->
                 </div>
             </div>
         </div>
