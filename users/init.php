@@ -1,4 +1,5 @@
 <?php
+define('USERSPICE_ACTIVE_LOGGING', false);
 require_once 'classes/class.autoloader.php';
 
 // Set secure session cookie parameters before starting session
@@ -11,6 +12,7 @@ session_set_cookie_params([
     'samesite' => 'Strict'     // CSRF protection - only send with same-site requests
 ]);
 
+ini_set('session.cookie_httponly', 1);
 session_start();
 
 $abs_us_root = $_SERVER['DOCUMENT_ROOT'];
@@ -72,6 +74,8 @@ if (Cookie::exists(Config::get('remember/cookie_name')) && !Session::exists(Conf
 
     if ($hashCheck->count()) {
         $user = new User($hashCheck->first()->user_id);
+        $inst = Config::get('session/session_name');
+        $_SESSION[$inst . '_login_method'] = "cookie";
         $user->login();
     }
 }
