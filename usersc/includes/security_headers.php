@@ -9,9 +9,66 @@
 1. Content Security Policy
 
 The content-security-policy HTTP header provides an additional layer of security. This policy helps prevent attacks such as Cross Site Scripting (XSS) and other code injection attacks by defining content sources which are approved and thus allowing the browser to load them.
-
-** Not specified because you cannot predict what content sources will be required by the users of UserSpice **
 */
+
+// Content Security Policy for ElanRegistry
+// Optimized policy without duplicates, allowing UserSpice framework while maintaining security
+header("Content-Security-Policy: " .
+    "default-src 'self'; " .
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' " .
+        // Google Services
+        "https://maps.googleapis.com " .
+        "https://www.google-analytics.com " .
+        "https://www.googletagmanager.com " .
+        "https://www.gstatic.com " .
+        "https://ssl.gstatic.com " .
+        "https://charts.googleapis.com " .
+        // JavaScript CDNs
+        "https://cdn.jsdelivr.net " .
+        "https://cdnjs.cloudflare.com " .
+        "https://unpkg.com " .
+        "https://code.jquery.com " .
+        "https://ajax.googleapis.com " .
+        "https://maxcdn.bootstrapcdn.com " .
+        "https://stackpath.bootstrapcdn.com " .
+        "https://cdn.datatables.net " .
+        "https://kit.fontawesome.com " .
+        "https://cdn.popper.js.org; " .
+    "style-src 'self' 'unsafe-inline' " .
+        // CSS CDNs and services
+        "https://fonts.googleapis.com " .
+        "https://cdn.jsdelivr.net " .
+        "https://cdnjs.cloudflare.com " .
+        "https://maxcdn.bootstrapcdn.com " .
+        "https://stackpath.bootstrapcdn.com " .
+        "https://bootswatch.com " .
+        "https://cdn.bootswatch.com " .
+        "https://cdn.datatables.net " .
+        "https://use.fontawesome.com " .
+        "https://kit.fontawesome.com; " .
+    "img-src 'self' data: blob: " .
+        // Image sources
+        "https://maps.googleapis.com " .
+        "https://maps.gstatic.com " .
+        "https://www.google-analytics.com " .
+        "https://ssl.gstatic.com; " .
+    "font-src 'self' " .
+        // Font sources
+        "https://fonts.gstatic.com " .
+        "https://use.fontawesome.com " .
+        "https://kit.fontawesome.com; " .
+    "connect-src 'self' " .
+        // API and AJAX endpoints
+        "https://maps.googleapis.com " .
+        "https://www.google-analytics.com " .
+        "https://www.gstatic.com " .
+        "https://ssl.gstatic.com " .
+        "https://charts.googleapis.com " .
+        "https://kit.fontawesome.com; " .
+    "frame-src 'self'; " .
+    "object-src 'none'; " .
+    "base-uri 'self'"
+);
 
 
 /*
@@ -20,10 +77,13 @@ The content-security-policy HTTP header provides an additional layer of security
 The strict-transport-security header is a security enhancement that restricts web browsers to access web servers solely over HTTPS. This ensures the connection cannot be establish through an insecure HTTP connection which could be susceptible to attacks.
 */
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+// Check if we're running over HTTPS
+$is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+            $_SERVER['SERVER_PORT'] == 443 || 
+            (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
 
-if ($protocol === "https://") {
-    header("Strict-Transport-Security:max-age=31536000; includeSubdomains; preload");
+if ($is_https) {
+    header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
 }
 
 
