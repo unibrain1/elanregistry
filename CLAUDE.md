@@ -222,14 +222,55 @@ This is a CRITICAL step that must NEVER be skipped when working on any code-rela
 1. **Create** branch from latest main: `git checkout -b feature/issue-123-new-feature`
 2. **Develop** with regular commits and descriptive messages
 3. **Test** thoroughly before merging (run all tests: PHPUnit + Playwright)
-4. **Merge** to main with merge commit (no fast-forward): `git merge --no-ff`
-5. **Cleanup** merged branches immediately after successful merge
-6. **Push** updated main to origin
+4. **Update VERSION file** with appropriate version number (required for all merged branches)
+5. **Create git tag** matching VERSION file content
+6. **Merge** to main with merge commit (no fast-forward): `git merge --no-ff`
+7. **Cleanup** merged branches immediately after successful merge
+8. **Push** updated main and tags to origin
 
 **Commit Standards:**
 - Add and commit automatically whenever an entire task is finished
 - Use descriptive commit messages that capture the full scope of changes
 - Include 🤖 Generated with Claude Code footer for AI-assisted work
+
+### Post-Deployment Configuration Requirements
+
+**CRITICAL:** After deploying code changes to production, always verify and update:
+
+#### Google Maps API Configuration
+- **Problem:** File reorganization affects API referrer restrictions
+- **Solution:** Update Google Cloud Console API restrictions to include new file paths
+- **Check:** Verify maps display correctly on statistics and detail pages
+- **Location:** Google Cloud Console → APIs & Services → Credentials → API Keys
+
+#### UserSpice Page Permissions
+- **Problem:** New pages and redirects need proper access permissions configured
+- **Solution:** Update page permissions in UserSpice admin panel
+- **Required for:** Both redirect pages AND new destination pages
+- **Access:** Admin Panel → Manage Pages → Set appropriate permission levels
+- **Test:** Verify all user roles can access reorganized pages correctly
+
+#### Deployment Verification Checklist
+- [ ] Google Maps display correctly on all pages
+- [ ] All redirected pages work and maintain proper permissions
+- [ ] New pages have appropriate UserSpice permission levels
+- [ ] Contact forms send to correct email addresses
+- [ ] Version information displays correctly in footer
+- [ ] Test critical user workflows (car registration, editing, contact forms)
+
+### Version Management
+
+**Static VERSION File Approach:**
+- Version information stored in `/VERSION` file in project root
+- `ApplicationVersion::get()` reads from this file (no git dependencies)
+- Production deployment timestamp shows file modification time
+- **REQUIRED:** All merged branches must update VERSION file and create matching git tag
+
+**Version Update Process:**
+1. Update `/VERSION` file with new version (e.g., `v2.0.1`)
+2. Create matching git tag: `git tag -a v2.0.1 -m "Release v2.0.1"`
+3. VERSION file modification time becomes deployment timestamp on production
+4. Footer automatically displays: `v2.0.1 (deployment-timestamp)`
 
 ## GitHub Issues & Development Management
 
