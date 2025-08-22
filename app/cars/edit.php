@@ -424,6 +424,34 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
                 html += '</table>'
 
                 $("#results").html(html);
+                
+                // Repopulate form fields with submitted values to prevent data loss
+                if (data.cardetails) {
+                    // Repopulate Year dropdown
+                    if (data.cardetails.year) {
+                        $('#year option[value=' + data.cardetails.year + ']').prop('selected', true);
+                        $('#year').trigger('change');
+                    }
+                    
+                    // Repopulate Model dropdown  
+                    if (data.cardetails.model) {
+                        var model = data.cardetails.model.replace(/\|/g, "\\\|")
+                                                         .replace(/ /g, "\\\ ")
+                                                         .replace(/\//g, "\\\/")
+                                                         .replace(/\+/g, "\\\+");
+                        $('#model option[value=' + model + ']').prop('selected', true);
+                        $('#model').trigger('change');
+                    }
+                    
+                    // Repopulate other fields as needed
+                    if (data.cardetails.chassis) $('#chassis').val(data.cardetails.chassis);
+                    if (data.cardetails.color) $('#color').val(data.cardetails.color);
+                    if (data.cardetails.engine) $('#engine').val(data.cardetails.engine);
+                    if (data.cardetails.comments) $('#comments').val(data.cardetails.comments);
+                    if (data.cardetails.website) $('#website').val(data.cardetails.website);
+                    if (data.cardetails.purchasedate) $('#purchasedate').val(data.cardetails.purchasedate);
+                    if (data.cardetails.solddate) $('#solddate').val(data.cardetails.solddate);
+                }
             }
         });
 

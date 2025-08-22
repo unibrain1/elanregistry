@@ -44,6 +44,45 @@
 * **`cars` → `cars_hist`**: One-to-many audit trail
 * **`car_user` → `car_user_hist`**: One-to-many audit trail
 
+---
+
+## User Deletion Process
+
+### Automatic History Tracking
+Database triggers automatically capture all car ownership changes in `cars_hist`:
+
+* **`cars_insert`** - Records new car creation (AFTER INSERT)
+* **`cars_update`** - Records ownership transfers and modifications (AFTER UPDATE)
+  - Uses `@disable_triggers` variable to allow bypassing when needed
+  - Captures OLD values before changes for complete audit trail
+* **`cars_delete`** - Records car deletion (AFTER DELETE)
+
+All ownership changes during user deletion are automatically logged without additional code.
+
+### User Deletion Cleanup Process
+When users are deleted via `deleteUsers()` function in `/users/helpers/users.php`, the cleanup process:
+
+1. **Profile Cleanup**: Remove orphaned records from `profiles` table
+2. **Car Access Cleanup**: Remove user's records from `car_user` junction table  
+3. **Car Reassignment**: Transfer car ownership to `noowner` user (preserves car data)
+4. **Automatic Audit**: All changes logged in `cars_hist` via database triggers
+
+**Implementation**: `/usersc/scripts/after_user_deletion.php`
+- Dynamically finds `noowner` user (no hardcoded IDs)
+- Preserves car-user relationships by reassigning to `noowner`
+- Includes fallback handling if `noowner` user missing
+- Comprehensive GDPR-compliant audit logging
+
+### Maintenance Scripts
+Administrative cleanup utilities in `/FIX/` directory:
+
+* **`/FIX/02-Cleanup-Orphaned-Profiles.php`** - Cleanup utility for orphaned records
+  - Identifies and removes orphaned `profiles` records
+  - Cleans up orphaned `car_user` relationships  
+  - Reassigns ownerless cars to `noowner` user
+  - Real-time progress display with before/after statistics
+
+---
 
 ## Core Tables
 
@@ -51,6 +90,20 @@
 
 #### `users`
 Primary user account table containing authentication and profile information.
+
+##### Special System Accounts
+
+The registry uses special system accounts for critical operations:
+
+| Username | ID | Purpose | Description |
+| :--- | :--- | :--- | :--- |
+| `noowner` | 83 | Car Ownership Fallback | Receives ownership of cars when users are deleted for GDPR compliance |
+| `admin` | 1 | System Administration | Primary administrative account with full system access |
+
+**Important Notes:**
+- **Dynamic Lookup**: The `noowner` user is located dynamically by username, not hardcoded ID
+- **GDPR Compliance**: Cars are transferred to `noowner` instead of being deleted to preserve registry data
+- **Fallback Handling**: System gracefully handles missing `noowner` user with appropriate logging
 
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
