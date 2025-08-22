@@ -23,6 +23,9 @@ header("Content-Security-Policy: " .
         "https://www.gstatic.com " .
         "https://ssl.gstatic.com " .
         "https://charts.googleapis.com " .
+        // Google reCAPTCHA
+        "https://www.google.com " .
+        "https://www.gstatic.com/recaptcha/ " .
         // JavaScript CDNs
         "https://cdn.jsdelivr.net " .
         "https://cdnjs.cloudflare.com " .
@@ -64,8 +67,10 @@ header("Content-Security-Policy: " .
         "https://www.gstatic.com " .
         "https://ssl.gstatic.com " .
         "https://charts.googleapis.com " .
+        // Google reCAPTCHA API
+        "https://www.google.com " .
         "https://kit.fontawesome.com; " .
-    "frame-src 'self'; " .
+    "frame-src 'self' https://www.google.com; " .
     "object-src 'none'; " .
     "base-uri 'self'"
 );
