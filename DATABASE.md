@@ -91,6 +91,20 @@ Administrative cleanup utilities in `/FIX/` directory:
 #### `users`
 Primary user account table containing authentication and profile information.
 
+##### Special System Accounts
+
+The registry uses special system accounts for critical operations:
+
+| Username | ID | Purpose | Description |
+| :--- | :--- | :--- | :--- |
+| `noowner` | 83 | Car Ownership Fallback | Receives ownership of cars when users are deleted for GDPR compliance |
+| `admin` | 1 | System Administration | Primary administrative account with full system access |
+
+**Important Notes:**
+- **Dynamic Lookup**: The `noowner` user is located dynamically by username, not hardcoded ID
+- **GDPR Compliance**: Cars are transferred to `noowner` instead of being deleted to preserve registry data
+- **Fallback Handling**: System gracefully handles missing `noowner` user with appropriate logging
+
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | `int` | PRIMARY KEY, AUTO_INCREMENT | Unique user identifier |

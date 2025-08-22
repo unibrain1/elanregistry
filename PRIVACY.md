@@ -45,6 +45,33 @@ Under GDPR, you have the right to:
 
 **Please note:** Deletion of your data may decrease the quality and completeness of information provided by the registry and goes against the basic purpose of the service, which is to maintain a comprehensive and accurate registry for the benefit of all users.
 
+### Technical Implementation of Data Rights
+
+**Data Deletion Process:**
+When you request deletion of your personal data, our system implements a balanced approach that respects your GDPR rights while preserving the integrity of the car registry:
+
+1. **Personal Information**: Your user profile, contact information, and personal data are permanently removed
+2. **Car Registry Data**: Cars you registered remain in the registry but ownership is transferred to a system account (`noowner`) to preserve historical vehicle information for the community
+3. **Audit Trail**: All deletion actions are logged for compliance and administrative purposes
+4. **Data Anonymization**: Your cars become anonymized - no longer associated with your personal identity
+
+**Why This Approach:**
+- **Community Benefit**: Preserves valuable historical car information for other registry users
+- **GDPR Compliance**: Removes your personal data while maintaining legitimate business interest in historical vehicle data
+- **Data Integrity**: Prevents broken relationships and maintains database consistency
+- **Transparency**: Complete audit trail of all deletion activities
+
+**What Gets Deleted:**
+- User account and authentication data
+- Profile information (name, email, location, bio)
+- Contact preferences and personal settings
+- Direct association between you and your registered cars
+
+**What Gets Preserved (Anonymized):**
+- Car technical specifications and historical information
+- Registry completeness and accuracy for community benefit
+- Database integrity and referential consistency
+
 To exercise these rights, please contact the site administrator.
 
 ## Contact
