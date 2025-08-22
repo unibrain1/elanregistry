@@ -1,6 +1,6 @@
 # Elan Registry Test Suite
 
-This directory contains automated test cases for the Elan Registry car update functionality.
+This directory contains comprehensive automated test cases for the Elan Registry application, including car functionality, security validations, and GDPR compliance testing.
 
 ## Test Coverage
 
@@ -26,6 +26,23 @@ Tests file upload security enhancements including:
 - 🔒 **Malicious File Protection** - Polyglot and script injection prevention
 - 🔒 **Entropy Testing** - Filename randomness quality
 
+### UserDeletionCleanupTest.php
+Tests GDPR-compliant user deletion and database cleanup including:
+- 🔒 **Dynamic noowner Lookup** - No hardcoded user IDs
+- 🔒 **Profile Cleanup** - Orphaned profile removal
+- 🔒 **Car Ownership Transfer** - Preserves cars while respecting deletion rights
+- 🔒 **Audit Trail Compliance** - Complete logging for GDPR requirements  
+- 🔒 **Fallback Handling** - Graceful degradation when noowner missing
+- 🔒 **Batch Processing** - Multiple user deletion scenarios
+- 🔒 **Data Integrity** - Database consistency after cleanup operations
+
+### Database Testing Architecture
+All database operations use **comprehensive mocking system**:
+- **Mock DB Class** - Complete database interface simulation in `bootstrap.php`
+- **No Real Database** - Tests run without database connections
+- **Global Mock Data** - Configurable test datasets for realistic scenarios
+- **Query Intelligence** - Smart mock responses based on SQL query content
+
 ## Security Validations
 
 The test suite validates protection against:
@@ -35,6 +52,8 @@ The test suite validates protection against:
 - **Directory Traversal** - Path sanitization and validation
 - **CSRF Attacks** - Token verification for all state-changing operations
 - **Input Validation** - Comprehensive field validation and sanitization
+- **GDPR Violations** - User deletion rights balanced with data preservation
+- **Data Integrity Issues** - Database consistency during cleanup operations
 
 ## Running Tests
 
@@ -48,6 +67,8 @@ composer require --dev phpunit/phpunit
 
 # Run specific test class
 ./vendor/bin/phpunit tests/CarUpdateTest.php
+./vendor/bin/phpunit tests/UserDeletionCleanupTest.php  # GDPR compliance tests
+./vendor/bin/phpunit tests/SecurityFunctionsTest.php    # File security tests
 
 # Run with coverage report
 ./vendor/bin/phpunit --coverage-html coverage/ tests/
@@ -69,16 +90,18 @@ php tests/FileUploadSecurityTest.php
 ## Test Requirements
 
 - **PHP 7.4+** with PHPUnit framework
-- **Database connection** to test database (configured in phpunit.xml)
+- **No Database Required** - All tests use mock database system
 - **File system permissions** for temporary file creation during upload tests
-- **UserSpice framework** properly initialized
+- **UserSpice framework** mocked for isolated testing
 
 ## Test Data
 
 Tests use:
+- **Mock Database System** - Complete DB simulation without real connections
+- **Global Mock Variables** - `$mockUsers`, `$mockProfiles`, `$mockCarUser`, `$mockCars`
 - **Temporary test data** - Created and cleaned up automatically
 - **Mock file uploads** - Simulated file upload scenarios
-- **Isolated database operations** - Tests don't affect production data
+- **Isolated operations** - Tests completely isolated from production systems
 
 ## Test Configuration
 
