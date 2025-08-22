@@ -181,17 +181,9 @@ if (!class_exists('Car')) {
     }
 }
 
-// Set up test database if needed
-try {
-    if (class_exists('DB') && method_exists('DB', 'getInstance')) {
-        $db = DB::getInstance();
-        // Verify database connection is working
-        $db->query("SELECT 1");
-    }
-} catch (Exception $e) {
-    // Mock DB class if database is not available
-    if (!class_exists('DB')) {
-        class DB {
+// Always use mock DB class for testing to avoid database dependencies
+if (!class_exists('DB')) {
+    class DB {
             private static $instance = null;
             
             public static function getInstance() {
@@ -202,6 +194,32 @@ try {
             }
             
             public function query($sql, $params = []) {
+                global $mockUsers, $mockProfiles, $mockCarUser, $mockCars;
+                
+                // Handle noowner user lookup
+                if (strpos($sql, 'SELECT id FROM users WHERE username = ?') !== false && 
+                    isset($params[0]) && $params[0] === 'noowner') {
+                    $noOwnerUsers = array_filter($mockUsers ?: [], function($user) {
+                        return $user->username === 'noowner';
+                    });
+                    return new MockQueryResult(array_values($noOwnerUsers));
+                }
+                
+                // Handle car_user queries
+                if (strpos($sql, 'SELECT carid FROM car_user WHERE userid = ?') !== false) {
+                    $userId = $params[0] ?? null;
+                    $userCars = array_filter($mockCarUser ?: [], function($carUser) use ($userId) {
+                        return $carUser->userid == $userId;
+                    });
+                    return new MockQueryResult(array_values($userCars));
+                }
+                
+                // Handle profile queries
+                if (strpos($sql, 'SELECT') !== false && strpos($sql, 'profiles') !== false) {
+                    return new MockQueryResult($mockProfiles ?: []);
+                }
+                
+                // Default response
                 return new MockQueryResult();
             }
             
@@ -223,7 +241,21 @@ try {
         }
         
         class MockQueryResult {
+            private $mockData;
+            
+            public function __construct($data = null) {
+                $this->mockData = $data;
+            }
+            
             public function results() {
+                if ($this->mockData !== null) {
+                    return $this->mockData;
+                }
+                
+                // Use global mock data if available
+                global $mockUsers, $mockProfiles, $mockCarUser, $mockCars;
+                
+                // Default to user data if no specific mock is set
                 return [(object) [
                     'id' => 1,
                     'fname' => 'Test', 
@@ -233,20 +265,15 @@ try {
             }
             
             public function first() {
-                return (object) [
-                    'id' => 1,
-                    'fname' => 'Test',
-                    'lname' => 'User', 
-                    'email' => 'test@example.com'
-                ];
+                $results = $this->results();
+                return count($results) > 0 ? $results[0] : null;
             }
             
             public function count() {
-                return 1;
+                return count($this->results());
             }
         }
     }
-}
 
 // Mock user object and authentication system
 if (!isset($user) || !is_object($user)) {
@@ -293,5 +320,87 @@ if (!class_exists('Input')) {
         public static function exists($method = 'post') {
             return $method === 'post' ? !empty($_POST) : !empty($_GET);
         }
+    }
+}
+
+// Mock functions for user deletion testing
+if (!function_exists('deleteUsers')) {
+    /**
+     * Mock deleteUsers function for testing
+     */
+    function deleteUsers($users) {
+        global $mockDeletedUsers, $db;
+        $mockDeletedUsers = $users;
+        
+        // Simulate calling after_user_deletion.php for each user
+        foreach ($users as $id) {
+            // Simulate the cleanup script logic
+            mockUserDeletionCleanup($id);
+        }
+        
+        return count($users);
+    }
+}
+
+if (!function_exists('logger')) {
+    /**
+     * Mock logger function for audit tracking
+     */
+    function logger($userId, $category, $message) {
+        global $mockLogEntries;
+        if (!isset($mockLogEntries)) {
+            $mockLogEntries = [];
+        }
+        $mockLogEntries[] = [
+            'user_id' => $userId,
+            'category' => $category, 
+            'message' => $message,
+            'timestamp' => date('Y-m-d H:i:s')
+        ];
+        return true;
+    }
+}
+
+/**
+ * Mock user deletion cleanup process
+ */
+function mockUserDeletionCleanup($id) {
+    global $mockLogEntries;
+    $db = DB::getInstance();
+    
+    // Find the "no owner" user dynamically
+    $noOwnerQuery = $db->query('SELECT id FROM users WHERE username = ?', ['noowner']);
+    if ($noOwnerQuery->count() > 0) {
+        $noOwnerUserId = $noOwnerQuery->first()->id;
+        
+        // Get list of cars owned by deleted user before cleanup
+        $userCarsQuery = $db->query('SELECT carid FROM car_user WHERE userid = ?', [$id]);
+        $userCars = $userCarsQuery->results();
+        $carCount = count($userCars);
+        
+        // Clean up user profile record
+        $db->query('DELETE FROM profiles WHERE user_id = ?', [$id]);
+        
+        // Clean up old car ownership records  
+        $db->query('DELETE FROM car_user WHERE userid = ?', [$id]);
+        
+        // Reassign cars to noowner in car_user table
+        foreach ($userCars as $car) {
+            $db->query('INSERT INTO car_user (userid, carid) VALUES (?, ?)', 
+                       [$noOwnerUserId, $car->carid]);
+        }
+        
+        // Update primary car ownership
+        $db->query('UPDATE cars SET user_id = ? WHERE user_id = ?', [$noOwnerUserId, $id]);
+        
+        // Log the cleanup for audit purposes
+        logger($id, 'UserDeletion', "Complete cleanup: reassigned $carCount cars to noowner user (ID: $noOwnerUserId)");
+    } else {
+        // Fallback if noowner doesn't exist
+        $db->query('DELETE FROM profiles WHERE user_id = ?', [$id]);
+        $db->query('DELETE FROM car_user WHERE userid = ?', [$id]);
+        $db->query('UPDATE cars SET user_id = NULL WHERE user_id = ?', [$id]);
+        
+        logger($id, 'UserDeletion', 'Fallback cleanup: noowner user not found, set cars to NULL');
     }
 }

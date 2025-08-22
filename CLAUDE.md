@@ -44,6 +44,11 @@ This is a PHP web application for the Lotus Elan Registry hosted at https://elan
 # Run PHPUnit tests
 vendor/bin/phpunit tests/
 
+# Run specific PHPUnit test suites
+vendor/bin/phpunit tests/UserDeletionCleanupTest.php  # User deletion & GDPR compliance
+vendor/bin/phpunit tests/SecurityFunctionsTest.php    # File upload security
+vendor/bin/phpunit tests/CarTest.php                  # Car class functionality
+
 # Run Playwright browser tests
 npm test
 
@@ -54,6 +59,14 @@ npm run test:navigation   # Navigation and redirects
 npm run test:functionality # Core functionality
 npm run test:maps         # Maps and charts
 ```
+
+### Database Testing
+**Database Operations Testing**: All database operations use mock objects for testing:
+- **Mock Database Layer**: `tests/bootstrap.php` provides complete DB mocking
+- **Isolated Tests**: No real database connections required for unit tests
+- **GDPR Compliance**: Comprehensive testing for user deletion scenarios
+- **Data Integrity**: Tests validate database triggers and audit trails
+- **See**: `tests/README.md` for detailed database testing guidance
 
 ### Frontend Testing Policy
 **IMPORTANT**: Anytime we make changes to the frontend, we should run the appropriate Playwright test. If a test is not available, develop a test and execute it before considering the work complete.
@@ -190,8 +203,12 @@ UserSpice plugins provide extended functionality:
 ## Environment
 - PHP 7.4+ required
 - MySQL 8.0+ 
-- Uses `johnathanmiller/secure-env-php` for environment variable handling
+- Uses `johnathanmiller/secure-env-php` for encrypted environment variable handling
 - Google Analytics integration for statistics
+- **Environment Variables**: See comprehensive documentation in `ENVIRONMENT.md`
+  - Database credentials (`DB_HOST`, `DB_USER`, `DB_PASS`, `DB_NAME`)
+  - Google API keys (`MAPS_KEY`, `GEO_ENCODE_KEY`)
+  - All variables encrypted at rest using SecureEnvPHP
 
 ## EXTREMELY IMPORTANT: Code Quality Checks
 

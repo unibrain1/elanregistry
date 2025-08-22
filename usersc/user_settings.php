@@ -65,11 +65,6 @@ if ($countryQ->count() > 0) {
 }
 
 
-//Temporary Success Message
-$holdover = Input::get('success');
-if ($holdover == 'true') {
-    bold('Account Updated');
-}
 //Forms posted
 if (!empty($_POST)) {
     $token = $_POST['csrf'];
@@ -248,8 +243,8 @@ if (!empty($_POST)) {
             $website = Input::get('website');
             $fields = ['website' => $website];
 
-            // Remove all illegal characters from a url
-            $fields['website'] = filter_var($fields['website'], FILTER_SANITIZE_URL);
+            // Sanitize URL by removing illegal characters manually (replacing deprecated FILTER_SANITIZE_URL)
+            $fields['website'] = preg_replace('/[^a-zA-Z0-9\-._~:/?#[\]@!$&\'()*+,;=%]/', '', trim($fields['website']));
 
             // Validate url
             if (filter_var($fields['website'], FILTER_VALIDATE_URL)) {
