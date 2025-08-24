@@ -13,7 +13,7 @@ const { expect } = require('@playwright/test');
  * @param {string} username - Username for login
  * @param {string} password - Password for login
  */
-async function login(page, username = 'jim.unibrain@me.com', password = 'testingPassword') {
+async function login(page, username = 'jim.unibrain@me.com', password = 'wWXM*vE&R$@659Kz') {
   // Navigate to login page using baseURL
   await page.goto('/users/login.php');
   
@@ -84,7 +84,7 @@ async function logout(page) {
  * @param {string} username - Username for login
  * @param {string} password - Password for login
  */
-async function ensureLoggedIn(page, username = 'jim.unibrain@me.com', password = 'testingPassword') {
+async function ensureLoggedIn(page, username = 'jim.unibrain@me.com', password = 'wWXM*vE&R$@659Kz') {
   const alreadyLoggedIn = await isLoggedIn(page);
   if (!alreadyLoggedIn) {
     await login(page, username, password);
