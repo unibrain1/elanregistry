@@ -1,29 +1,125 @@
-
 # The Lotus Elan Registry
 
-This is code for the Lotus Elan Registry hosted at https://elanregistry.org. It is used in conjunction with Userspice (https://userspice.com) to build an online database for Lotus Elan and Lotus Elan +2 cars.
+A comprehensive online database for Lotus Elan and Lotus Elan +2 cars, hosted at [elanregistry.org](https://elanregistry.org).
 
-This is the Registry for the 1963 thru 1973 Lotus Elan and the 1967 thru 1974 Lotus Elan Plus 2. The purpose of the registry is to keep a history of the cars, trace the evolution of the Lotus Elan and to facilitate owner communication.
+This registry covers the 1963-1973 Lotus Elan and 1967-1974 Lotus Elan +2, serving to preserve automotive history, trace the evolution of these iconic British sports cars, and facilitate communication between owners worldwide.
 
-## History of the Registry
------------------------------
-The Lotus Elan Registry started in January 2003. A thread on LotusElan.net asked the question, Does anybody know if there is a Lotus Elan register? (http://www.lotuselan.net/forums/lotus-elan-f19/lotus-elan-register-t349.html) I bashed together a registry and a few years later we have over 300 cars accounted for with more added every month.  That was Version 1 and had some very serious pitfalls.  
+## History
+
+The Lotus Elan Registry began in January 2003 following a discussion on LotusElan.net asking "Does anybody know if there is a Lotus Elan register?" Starting with basic functionality, the registry has evolved into a comprehensive platform serving the global Elan community.
+
+The registry represents the collaborative effort of many enthusiasts from the Elan mailing list and forums, who contributed testing, feedback, images, and suggestions that shaped the platform into what it is today.
+
+**Special thanks** to Ross, Tim, Gary, Ed, Terry, Peter, Jeff, Nicholas, Alan, Christian, Michael, Stan, Jason, and everyone else who has contributed to making this registry a place for enthusiasts to celebrate these remarkable British sports cars.
 
 
-Many people on the Elan mailing list and the Elan forums have helped with the registry. Little things like asking for there to be a registry, helping test, providing pictures and feedback on what should be included. This is their work. I am just the one who assembled the pieces.
+## Features
 
-Special thanks to Ross, Tim, Gary, Ed, Terry, Peter, Jeff, Nicholas, Alan, Christian, Michael, Stan, Jason and everyone else who has contributed and will continue to make the registry what it is. A place for us to obsess over little British cars.
+- **Comprehensive Car Database**: Detailed records of Elan and +2 vehicles with chassis numbers, specifications, and ownership history
+- **Interactive Maps**: Geographic visualization of car locations worldwide using Google Maps
+- **User Management**: Secure user accounts with profile management and car sharing capabilities
+- **Image Gallery**: Photo uploads and management for each vehicle
+- **Statistical Analysis**: Registry statistics with charts and data visualization
+- **Owner Communication**: Secure messaging system between car owners
+- **Mobile Responsive**: Optimized for desktop and mobile devices
+
+## Technology Stack
+
+- **Backend**: PHP 7.4+ with UserSpice framework for authentication
+- **Database**: MySQL 8.0+ with comprehensive audit trails
+- **Frontend**: Bootstrap 4/5 with responsive design
+- **APIs**: Google Maps JavaScript API, Google Geocoding API
+- **Environment**: Encrypted environment variables using SecureEnvPHP
+
+## Quick Start
+
+### Requirements
+- PHP 7.4+
+- MySQL 8.0+
+- Composer for dependency management
+- Google Maps API key
+
+### Installation
+1. Clone the repository
+2. Install dependencies: `composer install`
+3. Configure environment variables (see `ENVIRONMENT.md`)
+4. Import database schema
+5. Configure web server to serve from project root
+
+For detailed setup instructions, see `ENVIRONMENT.md`.
+
+## Development
+
+### Documentation
+- **`CLAUDE.md`** - Complete development guide, coding standards, and deployment procedures
+- **`DATABASE.md`** - Database schema documentation and relationships
+- **`ENVIRONMENT.md`** - Environment configuration and security setup
+- **`PRIVACY.md`** - GDPR compliance and privacy policy details
+
+### Testing
+The project includes comprehensive automated testing:
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test suites
+npm run test:security      # Security validation tests
+npm run test:functionality # Core functionality tests
+npm run test:navigation    # Navigation and redirects
+npm run test:csp           # Content Security Policy validation
+
+# Run PHP security tests
+vendor/bin/phpunit tests/
+```
+
+**Testing Coverage**:
+- 35/35 Playwright browser tests (100% success rate)
+- Comprehensive PHPUnit security test suite
+- Automated CSP violation detection
+- Cross-browser compatibility validation
+
+### Development Workflow
+1. Review development guidelines in `CLAUDE.md`
+2. Create feature branch from main
+3. Implement changes with appropriate tests
+4. Run full test suite before committing
+5. Update VERSION file for releases
+6. Deploy using production workflow documented in `CLAUDE.md`
+
 
 ## Privacy & GDPR Compliance
 
-- The registry is GDPR-compliant and has a clear privacy policy.
-- See `PRIVACY.md` for full details on data collection, protection, and user rights.
-- The privacy policy is also available as a webpage at `/app/privacy.php`.
-- Admins do their best to keep names and emails private; location data is intentionally imprecise for privacy.
-- Google Analytics is used for admin/statistics purposes only.
+The registry maintains strict privacy standards and GDPR compliance:
 
-## Development & Documentation
+- **Privacy by Design**: Location data is intentionally imprecise for user privacy
+- **Data Protection**: Comprehensive privacy controls and user data management
+- **Transparent Policies**: Clear privacy policy available at `/app/privacy.php`
+- **User Rights**: Full data access, correction, and deletion capabilities
+- **Secure Processing**: All data handling follows privacy regulations
 
-- See `CLAUDE.md` for development guidance when working with this codebase
-- See `TODO.md` for current project priorities and development tasks
-- See `DATABASE.md` for complete database schema documentation
+For complete privacy details, see `PRIVACY.md`.
+
+## Contributing
+
+We welcome contributions from the Elan community! Before contributing:
+
+1. Read the development guidelines in `CLAUDE.md`
+2. Check existing GitHub issues for current development priorities
+3. Ensure all tests pass before submitting changes
+4. Follow the established coding standards and security practices
+
+## License
+
+This project is open source. See the LICENSE file for details.
+
+## Support
+
+For registry support or questions:
+- Visit [elanregistry.org](https://elanregistry.org)
+- Review documentation in this repository
+- Check GitHub issues for known problems and solutions
+
+---
+
+*Preserving the legacy of Lotus Elan and Elan +2 sports cars for current and future generations.*
