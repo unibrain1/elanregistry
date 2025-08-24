@@ -48,18 +48,21 @@ header("Content-Security-Policy: " .
         "https://cdn.bootswatch.com " .
         "https://cdn.datatables.net " .
         "https://use.fontawesome.com " .
-        "https://kit.fontawesome.com; " .
+        "https://kit.fontawesome.com " .
+        "https://ka-f.fontawesome.com; " .
     "img-src 'self' data: blob: " .
         // Image sources
         "https://maps.googleapis.com " .
         "https://maps.gstatic.com " .
         "https://www.google-analytics.com " .
+        "https://www.googletagmanager.com " .
         "https://ssl.gstatic.com; " .
     "font-src 'self' " .
         // Font sources
         "https://fonts.gstatic.com " .
         "https://use.fontawesome.com " .
-        "https://kit.fontawesome.com; " .
+        "https://kit.fontawesome.com " .
+        "https://ka-f.fontawesome.com; " .
     "connect-src 'self' " .
         // API and AJAX endpoints
         "https://maps.googleapis.com " .
@@ -69,7 +72,8 @@ header("Content-Security-Policy: " .
         "https://charts.googleapis.com " .
         // Google reCAPTCHA API
         "https://www.google.com " .
-        "https://kit.fontawesome.com; " .
+        "https://kit.fontawesome.com " .
+        "https://ka-f.fontawesome.com; " .
     "frame-src 'self' https://www.google.com; " .
     "object-src 'none'; " .
     "base-uri 'self'"
