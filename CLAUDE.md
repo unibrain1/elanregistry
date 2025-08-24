@@ -119,6 +119,78 @@ composer update
 - User consent tracking implemented
 - Data retention policies documented
 
+## Content Security Policy (CSP) Management
+
+The application implements a comprehensive Content Security Policy to prevent XSS attacks and unauthorized resource loading while supporting all required external services.
+
+### CSP Configuration Location
+**File:** `usersc/includes/security_headers.php`
+
+### Supported External Services
+- **Google Services**: Maps, Charts, Analytics, reCAPTCHA, Tag Manager
+- **Cloudflare**: Analytics with wildcard pattern support for versioned scripts
+- **CDN Resources**: JSDelivr, Cloudflare CDN, Bootstrap CDN, jQuery, DataTables
+- **Font Services**: Google Fonts, FontAwesome (including kit support)
+
+### CSP Directive Structure
+```
+script-src: JavaScript resources including Google APIs and Cloudflare Analytics
+style-src: CSS resources with Google Charts and font support  
+img-src: Image sources for maps and analytics pixels
+font-src: Web fonts from Google Fonts and FontAwesome
+connect-src: API endpoints for AJAX calls and analytics
+frame-src: Embedded content (reCAPTCHA, Google services)
+object-src: Disabled ('none') for security
+base-uri: Restricted to 'self' for security
+```
+
+### CSP Validation & Testing
+
+#### Automated Testing Tools
+1. **Playwright CSP Tests**: `tests/playwright/csp-validation.spec.js`
+   - Browser-based CSP violation detection
+   - Tests critical pages: statistics, car details, listing, login
+   - Validates external resource loading (Google Charts, Cloudflare Analytics)
+
+2. **Static Policy Validator**: `tests/validate-csp-policy.php`
+   - Command-line tool: `php tests/validate-csp-policy.php`
+   - Validates all required domains are present
+   - Checks security best practices
+   - Generates detailed validation reports
+
+#### Running CSP Tests
+```bash
+# Static policy validation
+php tests/validate-csp-policy.php
+
+# Browser-based violation testing
+npm test -- csp-validation.spec.js
+
+# Full security test suite (includes CSP tests)
+npm run test:security
+```
+
+### CSP Troubleshooting
+
+#### Common Issues
+1. **Google Charts CSS blocked**: Ensure `www.gstatic.com/charts/*` in style-src
+2. **Cloudflare Analytics blocked**: Verify `static.cloudflareinsights.com/*` in script-src  
+3. **FontAwesome issues**: Check kit.fontawesome.com domains in script-src/style-src
+4. **Maps not loading**: Validate maps.googleapis.com in all relevant directives
+
+#### Adding New External Resources
+1. Add domains to appropriate CSP directive in `security_headers.php`
+2. Update required domains list in `tests/validate-csp-policy.php`
+3. Run validation tests to ensure no regressions
+4. Test on actual pages with browser console monitoring
+
+### CSP Security Best Practices
+- Never use `unsafe-eval` in production (required for UserSpice framework)
+- Minimize `unsafe-inline` usage (currently required for inline styles)
+- Use wildcard patterns only for trusted domains (e.g., `*.cloudflareinsights.com`)
+- Regularly audit and update CSP policy as external services evolve
+- Monitor browser console for CSP violations during development
+
 ## Development Status (August 2025)
 
 ### ✅ COMPLETED: Major Security & Organization Overhaul
@@ -154,6 +226,13 @@ composer update
 - Responsive design validated on mobile and desktop
 - UI consistency confirmed through automated browser testing
 - Clean CSS organization with external stylesheets
+
+**🛡️ Content Security Policy (CSP) Management:**
+- Comprehensive CSP implementation in `usersc/includes/security_headers.php`
+- Optimized for Google Services (Maps, Charts, Analytics, reCAPTCHA)
+- Cloudflare Analytics integration with wildcard pattern support
+- FontAwesome and CDN resources properly configured
+- Automated CSP validation tools for preventing regressions
 
 ### 🚀 Current Capabilities & Production Readiness
 

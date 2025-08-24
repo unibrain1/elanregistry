@@ -14,6 +14,7 @@
     "test:navigation": "playwright test tests/playwright/navigation.test.js",
     "test:functionality": "playwright test tests/playwright/functionality.test.js",
     "test:maps": "playwright test tests/playwright/maps-charts.test.js",
+    "test:csp": "playwright test tests/playwright/csp-validation.spec.js",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "test:report": "playwright show-report"
