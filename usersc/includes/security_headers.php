@@ -36,7 +36,8 @@ header("Content-Security-Policy: " .
         "https://stackpath.bootstrapcdn.com " .
         "https://cdn.datatables.net " .
         "https://kit.fontawesome.com " .
-        "https://cdn.popper.js.org; " .
+        "https://cdn.popper.js.org " .
+        "https://static.cloudflareinsights.com; " .
     "style-src 'self' 'unsafe-inline' " .
         // CSS CDNs and services
         "https://fonts.googleapis.com " .
@@ -73,7 +74,9 @@ header("Content-Security-Policy: " .
         // Google reCAPTCHA API
         "https://www.google.com " .
         "https://kit.fontawesome.com " .
-        "https://ka-f.fontawesome.com; " .
+        "https://ka-f.fontawesome.com " .
+        // Cloudflare Analytics
+        "https://cloudflareinsights.com; " .
     "frame-src 'self' https://www.google.com; " .
     "object-src 'none'; " .
     "base-uri 'self'"
