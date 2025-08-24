@@ -37,7 +37,7 @@ header("Content-Security-Policy: " .
         "https://cdn.datatables.net " .
         "https://kit.fontawesome.com " .
         "https://cdn.popper.js.org " .
-        "https://static.cloudflareinsights.com; " .
+        "https://static.cloudflareinsights.com https://static.cloudflareinsights.com/*; " .
     "style-src 'self' 'unsafe-inline' " .
         // CSS CDNs and services
         "https://fonts.googleapis.com " .
@@ -50,7 +50,11 @@ header("Content-Security-Policy: " .
         "https://cdn.datatables.net " .
         "https://use.fontawesome.com " .
         "https://kit.fontawesome.com " .
-        "https://ka-f.fontawesome.com; " .
+        "https://ka-f.fontawesome.com " .
+        // Google Charts CSS
+        "https://www.gstatic.com " .
+        "https://www.gstatic.com/charts/ " .
+        "https://www.gstatic.com/charts/*; " .
     "img-src 'self' data: blob: " .
         // Image sources
         "https://maps.googleapis.com " .
@@ -76,7 +80,7 @@ header("Content-Security-Policy: " .
         "https://kit.fontawesome.com " .
         "https://ka-f.fontawesome.com " .
         // Cloudflare Analytics
-        "https://cloudflareinsights.com; " .
+        "https://cloudflareinsights.com https://static.cloudflareinsights.com https://static.cloudflareinsights.com/*; " .
     "frame-src 'self' https://www.google.com; " .
     "object-src 'none'; " .
     "base-uri 'self'"
