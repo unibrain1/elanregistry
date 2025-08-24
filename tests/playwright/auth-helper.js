@@ -1,9 +1,11 @@
 // tests/playwright/auth-helper.js
 
 /**
- * Authentication helper for Playwright tests
- * Provides login functionality for tests that require authentication
+ * Enhanced authentication helper for Playwright tests
+ * Consolidates all authentication patterns and page state detection
  */
+
+const { expect } = require('@playwright/test');
 
 /**
  * Login to the application with provided credentials
@@ -12,8 +14,8 @@
  * @param {string} password - Password for login
  */
 async function login(page, username = 'jim.unibrain@me.com', password = 'testingPassword') {
-  // Navigate to login page
-  await page.goto('http://localhost:9999/elan_registry/users/login.php');
+  // Navigate to login page using baseURL
+  await page.goto('/users/login.php');
   
   // Wait for login form to load
   await page.waitForSelector('input[name="username"], input[name="email"]', { timeout: 10000 });
@@ -89,9 +91,107 @@ async function ensureLoggedIn(page, username = 'jim.unibrain@me.com', password =
   }
 }
 
+/**
+ * Check if page requires authentication and handle appropriately
+ * Consolidates the repeated auth check pattern from all test files
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {Function} authenticatedTest - Function to run if authenticated
+ * @param {Function} unauthenticatedTest - Function to run if auth required (optional)
+ */
+async function handleAuthRequired(page, authenticatedTest, unauthenticatedTest = null) {
+  await page.waitForLoadState('networkidle');
+  
+  const pageContent = await page.textContent('body');
+  
+  if (pageContent.includes('Please Log In')) {
+    // Page requires authentication
+    if (unauthenticatedTest) {
+      await unauthenticatedTest();
+    } else {
+      // Default behavior - verify login requirement
+      await expect(page.locator('h2')).toContainText(/Please Log In/);
+    }
+  } else {
+    // Page is accessible - run authenticated test
+    await authenticatedTest();
+  }
+}
+
+/**
+ * Navigate to a path and wait for load, using baseURL
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {string} path - Path to navigate to (without baseURL)
+ */
+async function navigateAndWait(page, path) {
+  await page.goto(path);
+  await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Test backward compatibility redirect
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {string} oldPath - Old path that should redirect
+ * @param {string} expectedNewPath - Expected new path in URL
+ */
+async function testRedirect(page, oldPath, expectedNewPath) {
+  await page.goto(oldPath);
+  await expect(page.url()).toContain(expectedNewPath);
+}
+
+/**
+ * Wait for DataTables to initialize and be ready
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {number} timeout - Timeout in milliseconds
+ */
+async function waitForDataTables(page, timeout = 10000) {
+  await page.waitForSelector('.dataTables_wrapper', { timeout });
+  
+  // Ensure search box is visible and functional
+  const searchBox = page.locator('input[type="search"]');
+  await expect(searchBox).toBeVisible();
+  return searchBox;
+}
+
+/**
+ * Get the first visible card element on a page
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @returns {Locator} First visible card
+ */
+async function getFirstCard(page) {
+  const cards = page.locator('.card, .registry-card');
+  const cardCount = await cards.count();
+  
+  if (cardCount === 0) {
+    throw new Error('No cards found on page');
+  }
+  
+  return cards.first();
+}
+
+/**
+ * Check for consistent Bootstrap card structure
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ */
+async function validateCardStructure(page) {
+  const firstCard = await getFirstCard(page);
+  await expect(firstCard).toBeVisible();
+  
+  // Should have header and/or body
+  const hasHeader = await firstCard.locator('.card-header').count();
+  const hasBody = await firstCard.locator('.card-body').count();
+  
+  expect(hasHeader + hasBody).toBeGreaterThan(0);
+}
+
 module.exports = {
   login,
   isLoggedIn,
   logout,
-  ensureLoggedIn
+  ensureLoggedIn,
+  handleAuthRequired,
+  navigateAndWait,
+  testRedirect,
+  waitForDataTables,
+  getFirstCard,
+  validateCardStructure
 };

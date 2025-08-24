@@ -68,7 +68,7 @@ git log $LAST_TAG..HEAD --pretty=format:"%s" | grep -v -E "^(feat|fix)" | wc -l
 git diff $LAST_TAG..HEAD --name-only
 
 # Focus on important files
-git diff $LAST_TAG..HEAD --name-only | grep -E "(package\.json|README\.md|CHANGELOG\.md)"
+git diff $LAST_TAG..HEAD --name-only | grep -E "(package\.json|README\.md|VERSION)"
 
 # Check for dependency changes
 git diff $LAST_TAG..HEAD package.json
@@ -95,38 +95,20 @@ echo "Current version: $CURRENT_VERSION"
 
 ## 3. Update Documentation
 
-### Update CHANGELOG.md
+### Update VERSION File
 ```bash
-# Create backup
-cp CHANGELOG.md CHANGELOG.md.backup
+# Update VERSION file with new version number
+echo "vX.Y.Z" > VERSION
 
-# Edit CHANGELOG.md to add new version section
-# Include:
-# - Version number and date
-# - Added features
-# - Fixed bugs
-# - Changed functionality
-# - Deprecated features
-# - Removed features
-# - Security fixes
+# Verify new version
+cat VERSION
 ```
 
-**CHANGELOG.md format example:**
-```markdown
-## [X.Y.Z] - YYYY-MM-DD
-
-### Added
-- New feature descriptions
-
-### Changed
-- Modified functionality
-
-### Fixed
-- Bug fix descriptions
-
-### Security
-- Security improvements
-```
+**Version Management:**
+- This project uses a static VERSION file instead of CHANGELOG.md
+- The VERSION file contains just the version number (e.g., v2.2.4)
+- Deployment timestamp comes from file modification time
+- All release notes are tracked in git commit messages and GitHub releases
 
 ### Update README.md if needed
 ```bash
@@ -153,14 +135,20 @@ echo "New version: $NEW_VERSION"
 ### Commit Release Changes
 ```bash
 # Stage all release-related changes
-git add package.json CHANGELOG.md README.md
+git add VERSION README.md
 
-# Create release commit
-git commit -m "chore: release v$NEW_VERSION
+# Create release commit with comprehensive description
+git commit -m "RELEASE: v$NEW_VERSION - [Brief description of changes]
 
-- Update version to $NEW_VERSION
-- Update CHANGELOG.md with release notes
-- Update documentation as needed"
+[Detailed description of what this release includes:
+- New features
+- Bug fixes  
+- Security improvements
+- Breaking changes (if any)]
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
 
 ### Create and Push Tag
@@ -256,7 +244,7 @@ git push origin develop
 ### Cleanup
 ```bash
 # Remove backup files
-rm -f CHANGELOG.md.backup RELEASE_NOTES.md
+rm -f RELEASE_NOTES.md
 
 # Verify clean state
 git status
@@ -304,12 +292,13 @@ git revert HEAD
 
 - **Always test before releasing** - Run full test suite and manual testing
 - **Use semantic versioning** consistently
-- **Keep detailed changelogs** for user clarity
+- **Keep detailed commit messages** since they serve as our release notes
+- **Update VERSION file** for every release
 - **Coordinate releases** with team members
 - **Monitor post-release** for issues
-- **Use release branches** for complex releases
-- **Automate where possible** but verify each step
+- **Use descriptive git tags** with comprehensive release notes
 - **Tag consistently** using the same format (e.g., v1.2.3)
+- **Deploy to production** using both code and tags: `git push prod main && git push prod --tags`
 
 Remember to follow your project's specific release guidelines and coordinate with your team before publishing releases.
 

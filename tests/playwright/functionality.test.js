@@ -1,17 +1,13 @@
 // tests/playwright/functionality.test.js
 const { test, expect } = require('@playwright/test');
-const { login, ensureLoggedIn } = require('./auth-helper.js');
+const { ensureLoggedIn, navigateAndWait, waitForDataTables, handleAuthRequired } = require('./auth-helper.js');
 
 test.describe('Core Functionality After Refactoring', () => {
   test('DataTables loads and works on car listing', async ({ page }) => {
-    await page.goto('http://localhost:9999/elan_registry/app/cars/index.php');
+    await navigateAndWait(page, '/app/cars/index.php');
     
     // Wait for DataTables to initialize
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
-    
-    // Check that search box is present
-    const searchBox = page.locator('input[type="search"]');
-    await expect(searchBox).toBeVisible();
+    const searchBox = await waitForDataTables(page);
     
     // Test search functionality
     await searchBox.fill('1973');
@@ -23,106 +19,97 @@ test.describe('Core Functionality After Refactoring', () => {
   });
 
   test('car edit form workflow functions', async ({ page }) => {
-    // Test that edit page requires authentication
-    await page.goto('http://localhost:9999/elan_registry/app/cars/edit.php');
-    await page.waitForLoadState('networkidle');
+    // Navigate to car edit page
+    await navigateAndWait(page, '/app/cars/edit.php');
     
-    // Check if page requires authentication (expected behavior)
-    const pageContent = await page.textContent('body');
-    if (pageContent.includes('Please Log In')) {
-      // Edit page correctly requires authentication
-      await expect(page.locator('h2')).toContainText(/Please Log In/);
-    } else {
-      // If somehow accessible without auth, test the form
-      await expect(page.locator('#progressbar')).toBeVisible();
-      await expect(page.locator('fieldset').first()).toBeVisible();
-      
-      // Test form navigation
-      const nextButton = page.locator('.next').first();
-      await expect(nextButton).toBeVisible();
-      
-      // Fill in first step
-      await page.selectOption('#year', '1973');
-      await page.waitForTimeout(500); // Wait for model dropdown to populate
-      
-      await nextButton.click();
-      
-      // Should move to next step
-      await expect(page.locator('fieldset').nth(1)).toBeVisible();
-    }
+    // Handle authentication requirement or test the form
+    await handleAuthRequired(
+      page,
+      // Authenticated test - test the multi-step form workflow
+      async () => {
+        await expect(page.locator('#progressbar')).toBeVisible();
+        await expect(page.locator('fieldset').first()).toBeVisible();
+        
+        // Test form navigation
+        const nextButton = page.locator('.next').first();
+        await expect(nextButton).toBeVisible();
+        
+        // Fill in first step
+        await page.selectOption('#year', '1973');
+        await page.waitForTimeout(500); // Wait for model dropdown to populate
+        
+        await nextButton.click();
+        
+        // Should move to next step
+        await expect(page.locator('fieldset').nth(1)).toBeVisible();
+      }
+    );
   });
 
   test('chassis validation works', async ({ page }) => {
-    // Test that chassis validation page requires authentication
-    await page.goto('http://localhost:9999/elan_registry/app/cars/edit.php');
-    await page.waitForLoadState('networkidle');
+    // Navigate to car edit page for chassis validation testing
+    await navigateAndWait(page, '/app/cars/edit.php');
     
-    // Check if page requires authentication (expected behavior)
-    const pageContent = await page.textContent('body');
-    if (pageContent.includes('Please Log In')) {
-      // Chassis validation page correctly requires authentication
-      await expect(page.locator('h2')).toContainText(/Please Log In/);
-    } else {
-      // If somehow accessible without auth, test chassis validation
-      // Select a year first
-      await page.selectOption('#year', '1973');
-      await page.waitForTimeout(500);
-      
-      // Select a model
-      const modelOptions = await page.locator('#model option').count();
-      if (modelOptions > 1) {
-        await page.selectOption('#model', { index: 1 });
+    // Handle authentication requirement or test chassis validation
+    await handleAuthRequired(
+      page,
+      // Authenticated test - test Lotus Elan chassis validation
+      async () => {
+        // Select a year first
+        await page.selectOption('#year', '1973');
+        await page.waitForTimeout(500);
+        
+        // Select a model (Lotus Elan specific)
+        const modelOptions = await page.locator('#model option').count();
+        if (modelOptions > 1) {
+          await page.selectOption('#model', { index: 1 });
+        }
+        
+        // Test chassis validation with Elan-format chassis number
+        await page.fill('#chassis', '12345678X');
+        await page.locator('#chassis').blur();
+        
+        // Should show validation feedback
+        await expect(page.locator('#chassis_icon')).toBeVisible();
       }
-      
-      // Test chassis validation
-      await page.fill('#chassis', '12345678X');
-      await page.locator('#chassis').blur();
-      
-      // Should show validation feedback
-      await expect(page.locator('#chassis_icon')).toBeVisible();
-    }
+    );
   });
 
   test('contact form submission works', async ({ page }) => {
-    // Test that contact form requires authentication
-    await page.goto('http://localhost:9999/elan_registry/app/contact/index.php');
-    await page.waitForLoadState('networkidle');
+    // Navigate to contact form
+    await navigateAndWait(page, '/app/contact/index.php');
     
-    // Check if page requires authentication (expected behavior)
-    const pageContent = await page.textContent('body');
-    if (pageContent.includes('Please Log In')) {
-      // Contact form correctly requires authentication
-      await expect(page.locator('h2')).toContainText(/Please Log In/);
-    } else {
-      // If somehow accessible without auth, test the contact form
-      // Fill out the contact form
-      await page.fill('input[name="name"]', 'Test User');
-      await page.fill('input[name="email"]', 'test@example.com');
-      await page.fill('textarea[name="message"]', 'This is a test message for the contact form.');
-      
-      // Submit the form
-      await page.click('button[type="submit"], input[type="submit"]');
-      
-      // Should get some kind of response (success or error)
-      await page.waitForTimeout(2000);
-      
-      // Check for feedback (could be success message or validation error)
-      const hasAlert = await page.locator('.alert, .message, .notification').count();
-      expect(hasAlert).toBeGreaterThanOrEqual(0); // Just checking it doesn't crash
-    }
+    // Handle authentication requirement or test the contact form
+    await handleAuthRequired(
+      page,
+      // Authenticated test - test registry contact form
+      async () => {
+        // Fill out the contact form
+        await page.fill('input[name="name"]', 'Test User');
+        await page.fill('input[name="email"]', 'test@example.com');
+        await page.fill('textarea[name="message"]', 'This is a test message for the Elan Registry contact form.');
+        
+        // Submit the form
+        await page.click('button[type="submit"], input[type="submit"]');
+        
+        // Should get some kind of response (success or error)
+        await page.waitForTimeout(2000);
+        
+        // Check for feedback (could be success message or validation error)
+        const hasAlert = await page.locator('.alert, .message, .notification').count();
+        expect(hasAlert).toBeGreaterThanOrEqual(0); // Just checking it doesn't crash
+      }
+    );
   });
 
   test('factory listing page functions', async ({ page }) => {
-    await page.goto('http://localhost:9999/elan_registry/app/cars/factory.php');
+    await navigateAndWait(page, '/app/cars/factory.php');
     
-    // Check that the page loads and has data table
+    // Check that the Lotus Elan factory data page loads
     await expect(page.locator('h2')).toContainText(/Factory/);
     
-    // Wait for DataTables to load
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
-    
-    const searchBox = page.locator('input[type="search"]');
-    await expect(searchBox).toBeVisible();
+    // Wait for DataTables to load factory data
+    await waitForDataTables(page);
   });
 
   test('car management page (admin) loads', async ({ page }) => {
@@ -136,11 +123,11 @@ test.describe('Core Functionality After Refactoring', () => {
   });
 
   test('AJAX endpoints respond correctly', async ({ page }) => {
-    // Test that AJAX endpoints are accessible
+    // Test that registry-specific AJAX endpoints are accessible
     const endpoints = [
-      'http://localhost:9999/elan_registry/app/action/getDataTables.php',
-      'http://localhost:9999/elan_registry/app/cars/actions/check-chassis.php',
-      'http://localhost:9999/elan_registry/app/cars/mapmarkers.xml.php'
+      '/app/action/getDataTables.php',
+      '/app/cars/actions/check-chassis.php',
+      '/app/cars/mapmarkers.xml.php'
     ];
     
     for (const endpoint of endpoints) {
