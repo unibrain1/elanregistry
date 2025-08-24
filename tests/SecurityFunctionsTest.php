@@ -6,6 +6,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Direct tests of security functions without full framework bootstrap
+ * SECURITY: Removed eval() usage and implemented safe function definitions
  */
 class SecurityFunctionsTest extends TestCase
 {
@@ -31,79 +32,85 @@ class SecurityFunctionsTest extends TestCase
     
     private function loadSecurityFunctions(): void
     {
-        // Extract security functions from editCar.php
-        eval('
-        function generateSecureFilename($extension)
-        {
-            $randomBytes = random_bytes(16);
-            $secureFilename = "img_" . bin2hex($randomBytes) . "." . $extension;
-            return $secureFilename;
+        // Define security functions directly without eval() - SECURITY FIX
+        if (!function_exists('generateSecureFilename')) {
+            function generateSecureFilename($extension)
+            {
+                $randomBytes = random_bytes(16);
+                $secureFilename = "img_" . bin2hex($randomBytes) . "." . $extension;
+                return $secureFilename;
+            }
         }
         
-        function validateFileUpload($file, $maxSize = 5242880)
-        {
-            if ($file["error"] !== UPLOAD_ERR_OK) {
-                throw new Exception("File upload error: " . $file["error"]);
+        if (!function_exists('validateFileUpload')) {
+            function validateFileUpload($file, $maxSize = 5242880)
+            {
+                if ($file["error"] !== UPLOAD_ERR_OK) {
+                    throw new Exception("File upload error: " . $file["error"]);
+                }
+                
+                if ($file["size"] > $maxSize) {
+                    throw new Exception("File too large. Maximum size: " . ($maxSize / 1024 / 1024) . "MB");
+                }
+                
+                if (!file_exists($file["tmp_name"])) {
+                    throw new Exception("Invalid file upload");
+                }
+                
+                if ($file["size"] < 100) {
+                    throw new Exception("File too small - minimum 100 bytes required");
+                }
+                
+                return true;
             }
-            
-            if ($file["size"] > $maxSize) {
-                throw new Exception("File too large. Maximum size: " . ($maxSize / 1024 / 1024) . "MB");
-            }
-            
-            if (!file_exists($file["tmp_name"])) {
-                throw new Exception("Invalid file upload");
-            }
-            
-            if ($file["size"] < 100) {
-                throw new Exception("File too small - minimum 100 bytes required");
-            }
-            
-            return true;
         }
         
-        function getMimeType($file)
-        {
-            if (!file_exists($file)) {
-                throw new Exception("File does not exist");
+        if (!function_exists('getMimeType')) {
+            function getMimeType($file)
+            {
+                if (!file_exists($file)) {
+                    throw new Exception("File does not exist");
+                }
+                
+                $mtype = false;
+                
+                if (function_exists("finfo_open")) {
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $mtype = finfo_file($finfo, $file);
+                    finfo_close($finfo);
+                } elseif (function_exists("mime_content_type")) {
+                    $mtype = mime_content_type($file);
+                } else {
+                    throw new Exception("Unable to determine file MIME type");
+                }
+                
+                $allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+                if (!in_array($mtype, $allowedTypes, true)) {
+                    throw new Exception("Invalid file type detected: " . $mtype);
+                }
+                
+                return $mtype;
             }
-            
-            $mtype = false;
-            
-            if (function_exists("finfo_open")) {
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mtype = finfo_file($finfo, $file);
-                finfo_close($finfo);
-            } elseif (function_exists("mime_content_type")) {
-                $mtype = mime_content_type($file);
-            } else {
-                throw new Exception("Unable to determine file MIME type");
-            }
-            
-            $allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
-            if (!in_array($mtype, $allowedTypes, true)) {
-                throw new Exception("Invalid file type detected: " . $mtype);
-            }
-            
-            return $mtype;
         }
         
-        function getExtension($mimeType)
-        {
-            $allowedExtensions = array(
-                "image/jpeg" => "jpg",
-                "image/jpg" => "jpg", 
-                "image/png" => "png",
-                "image/gif" => "gif",
-                "image/webp" => "webp"
-            );
-            
-            if (!array_key_exists($mimeType, $allowedExtensions)) {
-                throw new Exception("Unsupported file type: " . $mimeType);
+        if (!function_exists('getExtension')) {
+            function getExtension($mimeType)
+            {
+                $allowedExtensions = array(
+                    "image/jpeg" => "jpg",
+                    "image/jpg" => "jpg", 
+                    "image/png" => "png",
+                    "image/gif" => "gif",
+                    "image/webp" => "webp"
+                );
+                
+                if (!array_key_exists($mimeType, $allowedExtensions)) {
+                    throw new Exception("Unsupported file type: " . $mimeType);
+                }
+                
+                return $allowedExtensions[$mimeType];
             }
-            
-            return $allowedExtensions[$mimeType];
         }
-        ');
     }
     
     public function testSecureFilenameGeneration(): void

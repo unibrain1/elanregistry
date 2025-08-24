@@ -1,50 +1,47 @@
 // tests/playwright/security.test.js
 const { test, expect } = require('@playwright/test');
+const { navigateAndWait, handleAuthRequired } = require('./auth-helper.js');
 
 test.describe('Security Features', () => {
   test('CSRF tokens present in forms', async ({ page }) => {
-    // Test CSRF protection on contact form (requires authentication)
-    await page.goto('http://localhost:9999/elan_registry/app/contact/index.php');
-    await page.waitForLoadState('networkidle');
+    // Test CSRF protection on contact form
+    await navigateAndWait(page, '/app/contact/index.php');
     
-    // Check if page requires authentication (expected behavior)
-    const pageContent = await page.textContent('body');
-    if (pageContent.includes('Please Log In')) {
-      // Contact form correctly requires authentication - this validates security
-      await expect(page.locator('h2')).toContainText(/Please Log In/);
-    } else {
-      // If somehow accessible without auth, check for CSRF tokens
-      const csrfToken = page.locator('input[name="csrf"], input[name="_token"]');
-      await expect(csrfToken).toBeVisible();
-      
-      const tokenValue = await csrfToken.getAttribute('value');
-      expect(tokenValue).toBeTruthy();
-      expect(tokenValue.length).toBeGreaterThan(10);
-    }
+    // Handle authentication requirement or verify CSRF tokens
+    await handleAuthRequired(
+      page,
+      // Authenticated test - verify CSRF tokens are present
+      async () => {
+        const csrfToken = page.locator('input[name="csrf"], input[name="_token"]');
+        await expect(csrfToken).toBeVisible();
+        
+        const tokenValue = await csrfToken.getAttribute('value');
+        expect(tokenValue).toBeTruthy();
+        expect(tokenValue.length).toBeGreaterThan(10);
+      }
+    );
   });
 
   test('car edit form has CSRF protection', async ({ page }) => {
-    // Test CSRF protection on car edit form (requires authentication)
-    await page.goto('http://localhost:9999/elan_registry/app/cars/edit.php');
-    await page.waitForLoadState('networkidle');
+    // Test CSRF protection on car edit form
+    await navigateAndWait(page, '/app/cars/edit.php');
     
-    // Check if page requires authentication (expected behavior)
-    const pageContent = await page.textContent('body');
-    if (pageContent.includes('Please Log In')) {
-      // Car edit form correctly requires authentication - this validates security
-      await expect(page.locator('h2')).toContainText(/Please Log In/);
-    } else {
-      // If somehow accessible without auth, check for CSRF tokens
-      const csrfToken = page.locator('input[name="csrf"], input[name="_token"]');
-      await expect(csrfToken).toBeVisible();
-      
-      const tokenValue = await csrfToken.getAttribute('value');
-      expect(tokenValue).toBeTruthy();
-    }
+    // Handle authentication requirement or verify CSRF tokens
+    await handleAuthRequired(
+      page,
+      // Authenticated test - verify CSRF tokens in car edit form
+      async () => {
+        const csrfToken = page.locator('input[name="csrf"], input[name="_token"]');
+        await expect(csrfToken).toBeVisible();
+        
+        const tokenValue = await csrfToken.getAttribute('value');
+        expect(tokenValue).toBeTruthy();
+      }
+    );
   });
 
   test('secure session cookies are set', async ({ page, context }) => {
-    await page.goto('http://localhost:9999/elan_registry/index.php');
+    await navigateAndWait(page, '/index.php');
     
     const cookies = await context.cookies();
     const sessionCookie = cookies.find(cookie => cookie.name.includes('PHPSESSID') || cookie.name.includes('session'));
