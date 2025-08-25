@@ -12,13 +12,21 @@ const { expect } = require('@playwright/test');
  * @param {import('@playwright/test').Page} page - Playwright page object
  * @param {string} username - Username for login
  * @param {string} password - Password for login
+ * @param {boolean} skipRecaptcha - Skip reCAPTCHA handling for testing (default: false)
  */
-async function login(page, username = 'jim.unibrain@me.com', password = 'wWXM*vE&R$@659Kz') {
+async function login(page, username = 'jim.unibrain@me.com', password = 'wWXM*vE&R$@659Kz', skipRecaptcha = false) {
   // Navigate to login page using baseURL
   await page.goto('/users/login.php');
   
   // Wait for login form to load
   await page.waitForSelector('input[name="username"], input[name="email"]', { timeout: 10000 });
+  
+  // Check if reCAPTCHA is present
+  const recaptchaElement = await page.locator('.g-recaptcha').count();
+  
+  if (recaptchaElement > 0 && !skipRecaptcha) {
+    throw new Error('reCAPTCHA is enabled on login form. Automated login not possible without solving CAPTCHA. Use manual testing for reCAPTCHA-protected forms.');
+  }
   
   // Fill in credentials
   const usernameField = page.locator('input[name="username"], input[name="email"]').first();
@@ -43,6 +51,12 @@ async function login(page, username = 'jim.unibrain@me.com', password = 'wWXM*vE
       // Assume login was successful if we're not on login page
       return;
     }
+    
+    // Check if we failed due to reCAPTCHA
+    if (recaptchaElement > 0) {
+      throw new Error('Login failed - likely due to reCAPTCHA verification requirement');
+    }
+    
     throw new Error('Login may have failed - no logout link or account area found');
   }
 }

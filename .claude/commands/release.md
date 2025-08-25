@@ -22,7 +22,7 @@ git status
 ### Identify Last Release
 ```bash
 # Find the last release tag
-git tag --sort=-version:refname | head -10
+git tag --sort=-version:refname | head -10Keys 
 git describe --tags --abbrev=0
 
 # Or check specific tag pattern
