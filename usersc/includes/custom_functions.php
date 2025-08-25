@@ -132,6 +132,7 @@ function findByOwner($ownerID)
     global $db;
 
     $carQ = $db->query("SELECT id FROM cars WHERE user_id = ?", array($ownerID))->results();
+    $cars = [];
 
     foreach ($carQ as $key => $car) {
         $cars[$key] = new Car($car->id);
