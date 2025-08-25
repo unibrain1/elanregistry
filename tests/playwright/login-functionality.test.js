@@ -11,8 +11,8 @@ const { login, logout, isLoggedIn, navigateAndWait } = require('./auth-helper.js
 
 // Test credentials (DO NOT COMMIT TO GIT)
 const VALID_CREDENTIALS = {
-  username: '***REMOVED***',
-  password: '***REMOVED***'
+  username: 'jim.unibrain@me.com',
+  password: 'wWXM*vE&R$@659Kz'
 };
 
 const INVALID_CREDENTIALS = {
