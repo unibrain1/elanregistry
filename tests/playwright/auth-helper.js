@@ -15,6 +15,11 @@ const { expect } = require('@playwright/test');
  * @param {boolean} skipRecaptcha - Skip reCAPTCHA handling for testing (default: false)
  */
 async function login(page, username = process.env.TEST_USERNAME, password = process.env.TEST_PASSWORD, skipRecaptcha = false) {
+  // Validate that credentials are available
+  if (!username || !password) {
+    throw new Error('Test credentials not found. Please set TEST_USERNAME and TEST_PASSWORD environment variables in .env.local file.');
+  }
+  
   // Navigate to login page using baseURL
   await page.goto('/users/login.php');
   

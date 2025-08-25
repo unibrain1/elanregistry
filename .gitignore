@@ -26,6 +26,8 @@ runme.php
 ########################################
 .env.enc
 .env.key
+.env.local
+.env
 
 ########################################
 # Scripts & Utilities
