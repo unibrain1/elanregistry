@@ -223,6 +223,35 @@ function displayFinalStatistics()
     if ($orphanedProfiles == 0 && $orphanedCarUser == 0 && $orphanedCars == 0) {
         outputMessage($line++, "✓ Database is now clean - no orphaned records found");
     }
+    
+    // Record script completion
+    try {
+        global $db;
+        $db->query("INSERT INTO fix_script_runs (script_name) VALUES (?)", [basename(__FILE__)]);
+        outputMessage($line++, "✓ Script completion recorded");
+    } catch (Exception $e) {
+        // Create table if it doesn't exist
+        try {
+            $db->query("CREATE TABLE IF NOT EXISTS fix_script_runs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                script_name VARCHAR(255) NOT NULL,
+                completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_script_name (script_name)
+            )");
+            $db->query("INSERT INTO fix_script_runs (script_name) VALUES (?)", [basename(__FILE__)]);
+            outputMessage($line++, "✓ Script completion recorded");
+        } catch (Exception $create_e) {
+            outputMessage($line++, "⚠ Could not record script completion");
+        }
+    }
+    
+    // Return to FIX menu button
+    outputMessage($line++, "");
+    echo '<div style="margin-top: 20px; text-align: center;">';
+    echo '<button onclick="window.opener.location.reload(); window.close();" class="btn btn-outline-primary">';
+    echo '<i class="fa fa-arrow-left" aria-hidden="true"></i> Return to FIX Menu';
+    echo '</button>';
+    echo '</div>';
 }
 
 /**
