@@ -64,6 +64,9 @@ npm install
 - Input validation and sanitization required for all user inputs
 - Password hashing uses bcrypt
 - Secure session handling implemented
+- **CRITICAL**: Never commit credentials, API keys, or sensitive data to git
+- Use environment variables for all sensitive configuration
+- Test credentials must be in `.env.local` (git-ignored) or environment variables
 
 ### File Organization
 - Car-related logic in `/app/cars/`
