@@ -14,7 +14,7 @@ const { expect } = require('@playwright/test');
  * @param {string} password - Password for login
  * @param {boolean} skipRecaptcha - Skip reCAPTCHA handling for testing (default: false)
  */
-async function login(page, username = 'jim.unibrain@me.com', password = 'wWXM*vE&R$@659Kz', skipRecaptcha = false) {
+async function login(page, username = process.env.TEST_USERNAME || 'test@example.com', password = process.env.TEST_PASSWORD || 'defaultTestPass', skipRecaptcha = false) {
   // Navigate to login page using baseURL
   await page.goto('/users/login.php');
   
@@ -98,7 +98,7 @@ async function logout(page) {
  * @param {string} username - Username for login
  * @param {string} password - Password for login
  */
-async function ensureLoggedIn(page, username = 'jim.unibrain@me.com', password = 'wWXM*vE&R$@659Kz') {
+async function ensureLoggedIn(page, username = process.env.TEST_USERNAME || 'test@example.com', password = process.env.TEST_PASSWORD || 'defaultTestPass') {
   const alreadyLoggedIn = await isLoggedIn(page);
   if (!alreadyLoggedIn) {
     await login(page, username, password);

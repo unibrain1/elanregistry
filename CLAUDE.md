@@ -35,7 +35,7 @@ This is a PHP web application for the Lotus Elan Registry hosted at https://elan
 # Run PHPUnit tests
 vendor/bin/phpunit tests/
 
-# Run Playwright browser tests
+# Run Playwright browser tests (requires test credentials)
 npm test
 
 # Run specific test suites
@@ -46,6 +46,12 @@ npm run test:functionality # Core functionality
 npm run test:maps         # Maps and charts
 npm run test:csp          # CSP validation tests
 ```
+
+#### Test Environment Setup
+For Playwright browser tests that require authentication:
+1. Copy `.env.local.sample` to `.env.local`
+2. Set `TEST_USERNAME` and `TEST_PASSWORD` with valid test account credentials
+3. Ensure `.env.local` is never committed to git (it's in `.gitignore`)
 
 ### Dependencies
 ```bash
