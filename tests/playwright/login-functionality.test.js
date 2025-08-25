@@ -9,10 +9,10 @@
 const { test, expect } = require('@playwright/test');
 const { login, logout, isLoggedIn, navigateAndWait } = require('./auth-helper.js');
 
-// Test credentials (DO NOT COMMIT TO GIT)
+// Test credentials from environment variables
 const VALID_CREDENTIALS = {
-  username: 'jim.unibrain@me.com',
-  password: 'wWXM*vE&R$@659Kz'
+  username: process.env.TEST_USERNAME || 'test@example.com',
+  password: process.env.TEST_PASSWORD || 'defaultTestPass'
 };
 
 const INVALID_CREDENTIALS = {
