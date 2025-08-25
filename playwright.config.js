@@ -1,9 +1,6 @@
 // playwright.config.js
 const { defineConfig, devices } = require('@playwright/test');
 
-// Load environment variables for testing
-require('dotenv').config({ path: '.env.local' });
-
 /**
  * @see https://playwright.dev/docs/test-configuration
  */

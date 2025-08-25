@@ -91,7 +91,6 @@ npm install
 - Logo files are self-contained within the template directory
 - Favicon automatically uses template-specific icon instead of generic UserSpice favicon
 - Template uses CDN-based asset loading for Bootstrap, jQuery, and FontAwesome
-
 ## Production Deployment
 
 ### Production Environment
