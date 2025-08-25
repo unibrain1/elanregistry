@@ -21,6 +21,12 @@ This is a PHP web application for the Lotus Elan Registry hosted at https://elan
 - Views: `usersview`, `users_carsview` for complex queries
 - Database triggers automatically maintain audit trails
 
+#### Development Database Access
+- **Configuration**: Use credentials from `.env.local` file (see DEV_DB_* variables)
+- **Connection**: MAMP MySQL server on port 8889
+- **MAMP MySQL Path**: `/Applications/MAMP/Library/bin/mysql`
+- **Direct Command**: `/Applications/MAMP/Library/bin/mysql -h localhost -P 8889 -u claude -p"claude" elanregi_spice`
+
 ### Key Application Files
 - `app/cars/index.php` - Searchable car listing with DataTables
 - `app/cars/details.php` - Individual car detail pages
@@ -81,6 +87,15 @@ npm install
 - Authentication handled by UserSpice in `/users/`
 - Custom UserSpice modifications in `/usersc/`
 - User uploads organized by car ID in `/userimages/`
+- **Database fixes**: All database fix scripts must be placed in `/FIX/` directory using the established PHP format with progress reporting and error handling
+
+#### FIX Directory Scripts
+The `/FIX/` directory contains administrative cleanup scripts with the following features:
+- **Run Status Tracking**: Scripts automatically record completion in the `fix_script_runs` table
+- **Status Indicators**: Index page shows ✅ for completed scripts, ➖ for unrun scripts
+- **Last Run Times**: Displays when each script was last executed
+- **Outline Buttons**: Red outline buttons for safe script execution access
+- **Progress Reporting**: All scripts use consistent progress messaging with timestamps
 
 ### Templates & Styling
 - Uses Bootstrap 4/5 for responsive layout
