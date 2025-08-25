@@ -79,8 +79,18 @@ npm install
 ### Templates & Styling
 - Uses Bootstrap 4/5 for responsive layout
 - Custom CSS in `usersc/templates/ElanRegistry/assets/css/`
+- Custom branding assets in `usersc/templates/ElanRegistry/assets/images/`
+  - Lotus-logo-3000x3000.png (main logo)
+  - logo-72x72.png (small logo)  
+  - favicon.ico (browser tab icon)
 - Template system via UserSpice with custom overrides
 - Card-based layout for consistent UI
+
+### Custom Branding
+- ElanRegistry template includes custom Lotus Elan Registry branding
+- Logo files are self-contained within the template directory
+- Favicon automatically uses template-specific icon instead of generic UserSpice favicon
+- Template uses CDN-based asset loading for Bootstrap, jQuery, and FontAwesome
 
 ## Production Deployment
 
