@@ -201,3 +201,8 @@ plans
 ########################################
 private/
 
+########################################
+# Local script configuration (machine-specific)
+########################################
+scripts/check-plugin-updates/*.conf
+
