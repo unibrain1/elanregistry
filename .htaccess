@@ -119,11 +119,15 @@ Redirect 301 /app/contact/owner.php /app/owner/contact/owner.php
 Redirect 301 /app/reports/statistics.php /app/owner/reports/statistics.php
 Redirect 301 /app/privacy.php /app/owner/privacy.php
 
+# /action/getDataTables.php removed in repository routing migration — 308 preserves POST method (#1415)
+RewriteRule ^action/getDataTables\.php$ /app/api/cars/factory-list.php [R=308,L]
+
 # Legacy paths — GSC 404 cleanup (#1369)
 # /app/car_details.php preserves ?car_id=N automatically via mod_alias
 Redirect 301 /app/car_details.php /app/owner/cars/details.php
 Redirect 301 /app/identification.php /docs/reference/identification-guide.php
 Redirect 301 /app/list_cars.php /app/owner/cars/index.php
+Redirect 301 /app/list_factory.php /app/owner/cars/factory.php
 Redirect 301 /list_cars.php /app/owner/cars/index.php
 Redirect 301 /guide.php /docs/
 # @slug: /app/cars/ prefix redirect fires first → /app/owner/cars/@the_elan_sprint_diary → this rule
