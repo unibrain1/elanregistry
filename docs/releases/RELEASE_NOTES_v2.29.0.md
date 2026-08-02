@@ -1,0 +1,52 @@
+# Elan Registry v2.29.0 Release Notes
+
+**Release Date:** [DATE]
+**Type:** Minor Release — Verification System Refresh
+
+## Required Actions After Deployment
+
+[To be filled in as issues are completed — check for DB migrations from #1155]
+
+## User-Facing Changes
+
+### New Features
+
+- **Schema.org Car structured data** ([#1371](https://github.com/elan-registry/registry/issues/1371)): Car detail pages now include JSON-LD markup, improving Google indexing of the 182 public registry pages.
+- **Dynamic sitemap.xml** ([#1373](https://github.com/elan-registry/registry/issues/1373)): Sitemap covering all public car registry pages, submitted to Google Search Console.
+
+### Improvements
+
+- **GSC 404 cleanup** ([#1409](https://github.com/elan-registry/registry/issues/1409)): Legacy path redirects and PDF filename case mismatch fix — eliminates remaining 404 noise from Google Search Console.
+- **Geocoding accuracy** ([#1400](https://github.com/elan-registry/registry/issues/1400)): Geocoding now resolves ambiguous city names correctly (e.g. Springfield OH no longer maps to Springfield MO).
+- **Registration UX** ([#1406](https://github.com/elan-registry/registry/issues/1406)): Owners trying to register with an existing email are now redirected to password recovery instead of seeing a generic error.
+
+## Admin-Facing Changes
+
+### New Features
+
+- **Verification system** ([#1155](https://github.com/elan-registry/registry/issues/1155), [#1156](https://github.com/elan-registry/registry/issues/1156)): Rebuilt car owner verification — owner-initiated-edit tracking, configurable batch email sending, link expiry, bounce management, and an admin dashboard tab.
+- **Deployment log** ([#1424](https://github.com/elan-registry/registry/issues/1424)): Each deployment now writes a log entry to the system log, making it easy to correlate errors to a specific release.
+
+### Bug Fixes
+
+- **DataTables "All" option** ([#1399](https://github.com/elan-registry/registry/issues/1399)): Selecting "All" rows in the cars/factory DataTables no longer returns a SQL 500 error.
+
+### Improvements
+
+- **Sendinblue plugin update** ([#1394](https://github.com/elan-registry/registry/issues/1394)): Brevo/Sendinblue email plugin updated from 1.6.0 to 1.6.1.
+- **maplibre-gl ESM migration** ([#1396](https://github.com/elan-registry/registry/issues/1396)): maplibre-gl migrated from vendored UMD bundle to ESM (v4 → v6).
+
+## Issues Resolved
+
+- [#1155](https://github.com/elan-registry/registry/issues/1155) — feat: verification system backend — DB migrations, CarVerificationManager extensions, owner_last_updated tracking
+- [#1156](https://github.com/elan-registry/registry/issues/1156) — feat: verification system UI — admin dashboard, batch email send, verify_car landing page
+- [#1371](https://github.com/elan-registry/registry/issues/1371) — feat: Schema.org Car JSON-LD structured data on details.php; noindex on factory.php and privacy.php; apple-touch-icon
+- [#1372](https://github.com/elan-registry/registry/issues/1372) — fix: verify paint-colors.php title and meta description; submit to GSC for indexing
+- [#1373](https://github.com/elan-registry/registry/issues/1373) — feat: create dynamic sitemap.xml for public car registry pages
+- [#1394](https://github.com/elan-registry/registry/issues/1394) — Chore: Update sendinblue plugin from 1.6.0 to 1.6.1
+- [#1396](https://github.com/elan-registry/registry/issues/1396) — chore: migrate maplibre-gl from UMD script tag to ESM (v4 → v6)
+- [#1399](https://github.com/elan-registry/registry/issues/1399) — bug: DataTables length=-1 ("All" option) and negative start cause SQL error in cars/factory list endpoints
+- [#1400](https://github.com/elan-registry/registry/issues/1400) — fix: geocoding returns wrong city when multiple US cities share a name (Springfield OH → MO)
+- [#1406](https://github.com/elan-registry/registry/issues/1406) — ux: redirect to password recovery when registration email already exists
+- [#1409](https://github.com/elan-registry/registry/issues/1409) — fix: GSC 404 cleanup — legacy path redirects and PDF filename case mismatch
+- [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
