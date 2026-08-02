@@ -24,7 +24,13 @@ Redirect 301 /docs/chassis-validation.php /docs/reference/chassis-validation.php
 
 # PDF asset co-location redirects (#715)
 Redirect 301 /docs/assets/Elan_26_36_Workshop_Manual.pdf /docs/reference/assets/Elan_26_36_Workshop_Manual.pdf
-Redirect 301 /docs/assets/Elan_S1_S2_Coupe_Masterpartslist.pdf /docs/reference/assets/Elan_S1_S2_Coupe_Masterpartslist.pdf
+# Target lowercased directly (#1409) to avoid chaining into the redirect below
+Redirect 301 /docs/assets/Elan_S1_S2_Coupe_Masterpartslist.pdf /docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf
+
+# Asset renamed to lowercase to fix a filename case-mismatch 404 (#1409)
+# Handles the mixed-case /docs/reference/assets/ URL directly (this is what Bingbot indexed);
+# not reachable via the /docs/assets/ redirect above, which now targets lowercase directly
+Redirect 301 /docs/reference/assets/Elan_S1_S2_Coupe_Masterpartslist.pdf /docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf
 Redirect 301 "/docs/assets/2016 Jan Elan Engine Types.pdf" "/docs/reference/assets/2016 Jan Elan Engine Types.pdf"
 Redirect 301 "/docs/assets/Engine number breakdown (Miles Wilkins).pdf" "/docs/reference/assets/Engine number breakdown (Miles Wilkins).pdf"
 Redirect 301 "/docs/assets/2014 Jul Elan Gearknobs.pdf" "/docs/reference/assets/2014 Jul Elan Gearknobs.pdf"

@@ -429,12 +429,12 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
   const redirects = [
     {
       from: '/docs/embed.php?doc=Elan_26_36_Workshop_Manual.pdf',
-      to: '/docs/pdf-viewer.php?subdir=reference/assets&doc=Elan_26_36_Workshop_Manual.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=Elan_26_36_Workshop_Manual.pdf',
       label: 'embed.php soft 404 → pdf-viewer.php with subdir',
     },
     {
       from: '/docs/pdf-viewer.php?doc=Elan_26_36_Workshop_Manual.pdf',
-      to: '/docs/pdf-viewer.php?subdir=reference/assets&doc=Elan_26_36_Workshop_Manual.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=Elan_26_36_Workshop_Manual.pdf',
       label: 'pdf-viewer.php single-param → two-param format',
     },
     {
@@ -507,5 +507,105 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
         : location;
       expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
     });
+  });
+});
+
+test.describe('GSC 404 cleanup redirects (#1409)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  const BASE = 'https://elanregistry.org';
+
+  const redirects = [
+    {
+      from: '/docs/guide-viewer.php?doc=ADD_CAR_GUIDE.md',
+      to: '/docs/guides/',
+      label: 'docs/guide-viewer.php ADD_CAR_GUIDE.md',
+    },
+    {
+      from: '/app/manage_cars.php',
+      to: '/app/owner/cars/index.php',
+      label: '/app/manage_cars.php legacy path',
+    },
+    {
+      from: '/app/edit_car.php',
+      to: '/app/owner/cars/edit.php',
+      label: '/app/edit_car.php legacy path',
+    },
+    {
+      from: '/app/statistics.php',
+      to: '/app/owner/reports/statistics.php',
+      label: '/app/statistics.php legacy path',
+    },
+    {
+      from: '/docs/guide-viewer.php?doc=PRIVACY.md',
+      to: '/app/owner/privacy.php',
+      label: 'docs/guide-viewer.php PRIVACY.md',
+    },
+    {
+      from: '/docs/stories/type26registry/',
+      to: '/docs/stories/type26register.com/',
+      label: 'docs/stories/type26registry/ typo-fix redirect',
+    },
+    {
+      from: '/docs/reference/assets/Elan_S1_S2_Coupe_Masterpartslist.pdf',
+      to: '/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'PDF asset case mismatch: capitalized legacy URL → renamed lowercase asset',
+    },
+    {
+      from: '/embed.php?doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'root embed.php soft 404 → pdf-viewer.php',
+    },
+  ];
+
+  redirects.forEach(({ from, to, label }) => {
+    test(`301: ${label}`, async ({ request }) => {
+      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      expect(response.status(), `Expected 301 for ${from}`).toBe(301);
+      const location = response.headers()['location'] ?? '';
+      // Normalize absolute Location headers to path + query for comparison
+      const locationPath = location.startsWith('http')
+        ? new URL(location).pathname + new URL(location).search
+        : location;
+      expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
+    });
+  });
+
+  test('renamed PDF asset (lowercase) returns 200', async ({ request }) => {
+    const response = await request.get(
+      `${BASE}/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf`
+    );
+    expect(response.status()).toBe(200);
+  });
+
+  test('embed.php?doc=... regression: lands on a working pdf-viewer.php page, not "Invalid document path."', async ({ page }) => {
+    const response = await page.goto(`${BASE}/embed.php?doc=elan_s1_s2_coupe_masterpartslist.pdf`);
+
+    expect(response.status()).toBeLessThan(400);
+    await page.waitForLoadState('domcontentloaded');
+
+    // Must land on the PDF viewer, not be bounced to the login page
+    expect(page.url()).toContain('/docs/pdf-viewer.php');
+    expect(page.url()).not.toContain('login.php');
+
+    // Regression guard: the pre-fix redirect used an invalid `subdir` value,
+    // which pdf-viewer.php rejected with this exact error text (#1409).
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).not.toContain('Invalid document path.');
+
+    // Positive assertion: the viewer actually rendered the iframe pointing at
+    // the document, not just an error-free page. The <h1> alone isn't a
+    // reliable signal here — pdf-viewer.php computes it via pathinfo() before
+    // the subdir/file-existence checks run, so it renders the same filename
+    // whether or not those checks pass. The iframe only renders in the
+    // success branch, so its src is the actual discriminator.
+    await expect(page.locator('iframe')).toHaveAttribute(
+      'src',
+      /elan_s1_s2_coupe_masterpartslist\.pdf$/
+    );
   });
 });
