@@ -29,7 +29,7 @@
 
 ### Bug Fixes
 
-- **DataTables "All" option** ([#1399](https://github.com/elan-registry/registry/issues/1399)): Selecting "All" rows in the cars/factory DataTables no longer returns a SQL 500 error.
+- **DataTables pagination validation** ([#1399](https://github.com/elan-registry/registry/issues/1399)): Invalid pagination parameters (including the former "All" option, `length=-1`) now return a 422 error instead of a SQL 500. The "All" rows option has been removed from the cars and factory table menus; page size is capped at 100 server-side.
 
 ### Improvements
 
