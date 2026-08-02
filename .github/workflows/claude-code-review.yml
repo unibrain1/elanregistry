@@ -7,7 +7,7 @@ name: Claude Code Review
 #                         see: silent failures, arch fit, test gaps, CLAUDE.md
 #                         violations. Assumes the author ran /review-pr locally.
 #
-#   milestone/* -> main : deep Opus review on PR open / ready_for_review /
+#   milestone/* -> main : deep Fable review on PR open / ready_for_review /
 #                         deep-review label. Cross-issue integration, release-
 #                         notes accuracy, architecture drift, deploy readiness.
 #                         Does NOT re-review line-by-line (done on issue PRs).
