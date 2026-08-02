@@ -325,10 +325,10 @@
             // Sort by score (highest first)
             scored.sort((a, b) => b.score - a.score);
 
-            // Remove duplicates (same city + country)
+            // Remove duplicates (same city + state + country)
             const seen = new Set();
             const unique = scored.filter(item => {
-                const key = `${item.location.city}|${item.location.country}`.toLowerCase();
+                const key = `${item.location.city}|${item.location.state}|${item.location.country}`.toLowerCase();
                 if (seen.has(key)) {
                     return false;
                 }

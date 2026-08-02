@@ -23,7 +23,7 @@
 
 - **GSC 404 cleanup** ([#1409](https://github.com/elan-registry/registry/issues/1409)): Legacy path redirects and PDF filename case mismatch fix — eliminates remaining 404 noise from Google Search Console.
 - **Paint colors SEO** ([#1372](https://github.com/elan-registry/registry/issues/1372)): `paint-colors.php` now has a descriptive `<title>` and meta description, so it can outrank the generic PDF snippet Google previously showed for this high-traffic page.
-- **Geocoding accuracy** ([#1400](https://github.com/elan-registry/registry/issues/1400)): Geocoding now resolves ambiguous city names correctly (e.g. Springfield OH no longer maps to Springfield MO).
+- **Location picker disambiguation** ([#1400](https://github.com/elan-registry/registry/issues/1400)): Searching an ambiguous city name (e.g. "Springfield") no longer silently collapses same-named cities in different states/regions into a single dropdown entry — owners now see all distinct matches (Springfield OH, Springfield MO, etc.) and can pick the correct one.
 - **Registration UX** ([#1406](https://github.com/elan-registry/registry/issues/1406)): Owners trying to register with an existing email are now redirected to password recovery instead of seeing a generic error.
 
 ## Admin-Facing Changes
