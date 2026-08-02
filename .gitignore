@@ -197,7 +197,17 @@ TODO
 plans
 
 ########################################
+# Monitoring & Log Analysis
+########################################
+monitoring/
+
+########################################
 # Private / Credentials (never commit)
 ########################################
 private/
+
+########################################
+# Local script configuration (machine-specific)
+########################################
+scripts/check-plugin-updates/*.conf
 
