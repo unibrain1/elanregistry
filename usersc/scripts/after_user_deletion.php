@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\LogCategories;
 
 /**
@@ -51,7 +52,12 @@ if ($noOwnerQuery->count() > 0) {
     $noOwnerUserId = (int) $noOwnerQuery->first()->id;
 
     // Capture car list before cleanup so we can log per-car after commit
-    $userCars = $repo->findByOwner($id);
+    try {
+        $userCars = $repo->findByOwner($id);
+    } catch (CarDatabaseException $e) {
+        logger($id, LogCategories::LOG_CATEGORY_USER_DELETION, 'Cleanup aborted: findByOwner failed — ' . $e->getMessage());
+        return;
+    }
     $carCount = count($userCars);
 
     // Resolve the acting admin ID before the transaction. currentUserId() throws

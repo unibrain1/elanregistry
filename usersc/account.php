@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use ElanRegistry\Car\Car;
 use ElanRegistry\CarView;
+use ElanRegistry\Exceptions\CarDatabaseException;
+use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 use ElanRegistry\OwnerView;
 
@@ -23,7 +25,12 @@ if (!empty($_POST['uncloak']) && Token::check(\Input::get('token'))) {
 $ownerId    = (int)$user->data()->id;
 $owner      = new Owner($ownerId);
 $ownerData  = $owner->data();
-$cars       = Car::findByOwner($ownerId);
+try {
+    $cars = Car::findByOwner($ownerId);
+} catch (CarDatabaseException $e) {
+    logger($ownerId, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'account.php: findByOwner failed: ' . $e->getMessage());
+    $cars = [];
+}
 $carCount   = count($cars);
 if ($ownerData !== null) {
     try {

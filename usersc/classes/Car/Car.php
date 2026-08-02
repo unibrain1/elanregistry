@@ -603,6 +603,7 @@ class Car
      * @param int $ownerID User ID of the car owner
      * @return array Array of Car objects owned by the user
      * @throws CarValidationException If owner ID is invalid
+     * @throws CarDatabaseException If the database query fails
      */
     public static function findByOwner(int $ownerID): array
     {
