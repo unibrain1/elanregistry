@@ -341,7 +341,7 @@ includeHook($hooks, 'bottom');
 <!-- Location Picker Script -->
 <script src="<?=$us_url_root?>app/assets/js/location-picker.min.js?v=<?= ASSET_VERSION ?>"></script>
 
-<script type="text/javascript">
+<script type="text/javascript" nonce="<?= htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
     $(document).ready(function(){
         // Initialize Location Picker for registration
         if (document.getElementById('location-picker-registration')) {
