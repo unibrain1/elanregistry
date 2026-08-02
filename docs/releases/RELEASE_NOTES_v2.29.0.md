@@ -7,6 +7,10 @@
 
 [To be filled in as issues are completed — check for DB migrations from #1155]
 
+- **#1372 (paint-colors.php SEO):**
+  - Run `npm run test:e2e` against the deployed test environment to validate the new Playwright title/description assertions against live Apache/PHP config
+  - Manual: GSC → URL Inspection → Request Indexing for `https://elanregistry.org/docs/reference/paint-colors.php`
+
 ## User-Facing Changes
 
 ### New Features
