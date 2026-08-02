@@ -1,6 +1,6 @@
 ---
 description: Start work on a GitHub issue within a milestone workflow
-model: claude-opus-4-7
+model: claude-opus-4-8
 ---
 
 # GitHub Issue Workflow Command
