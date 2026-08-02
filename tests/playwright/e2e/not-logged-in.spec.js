@@ -162,6 +162,53 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
   });
 });
 
+// TODO(#1432): when the table-driven pages[] array above gains expectedTitle/
+// expectedDescription fields for the broader page-title rollout, fold
+// paint-colors.php's assertions into that table and remove this block instead
+// of duplicating coverage.
+test.describe('paint-colors.php SEO title/meta description (#1372)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  test('has a page-specific <title> and meta description, not the generic site default', async ({ page }) => {
+    await page.goto('/docs/reference/paint-colors.php');
+
+    await expect(page).toHaveTitle(/Lotus Elan Paint Codes/);
+
+    const description = await page
+      .locator('meta[name="description"]')
+      .getAttribute('content');
+    expect(description).toContain('Lotus Elan and Elan Plus 2 paint codes L01–L26');
+
+    // $pageDescription feeds og:description and twitter:description too
+    // (they share $site_description in head_tags.php), so the social-share
+    // preview copy changes along with the meta description.
+    const ogDescription = await page
+      .locator('meta[property="og:description"]')
+      .getAttribute('content');
+    expect(ogDescription).toContain('Lotus Elan and Elan Plus 2 paint codes L01–L26');
+
+    const twitterDescription = await page
+      .locator('meta[name="twitter:description"]')
+      .getAttribute('content');
+    expect(twitterDescription).toContain('Lotus Elan and Elan Plus 2 paint codes L01–L26');
+  });
+
+  test('other docs/reference pages still render the generic site title/description (regression guard)', async ({ page }) => {
+    await page.goto('/docs/reference/identification-guide.php');
+
+    await expect(page).toHaveTitle(/^ Lotus Elan Registry$/);
+
+    const description = await page
+      .locator('meta[name="description"]')
+      .getAttribute('content');
+    expect(description).toContain('Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974)');
+  });
+});
+
 test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {
   const pages = [
     { path: '/', name: 'Home' },

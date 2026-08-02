@@ -9,7 +9,9 @@ require_once $abs_us_root . $us_url_root . 'app/version.php';
 // loaded in Phase 1.11.12 (usersc/includes/loader.php)
 // Uses validated Server::getScheme() and Server::get('HTTP_HOST') with proper sanitization
 $site_title = $settings->site_name ?? 'Lotus Elan Registry';
-$site_description = 'Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974). Document your classic British sports car, connect with owners, and preserve automotive history.';
+$site_description = !empty($pageDescription)
+    ? $pageDescription
+    : 'Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974). Document your classic British sports car, connect with owners, and preserve automotive history.';
 $og_image = $us_url_root . 'usersc/images/og-lotus-elan.jpg';
 ?>
 
