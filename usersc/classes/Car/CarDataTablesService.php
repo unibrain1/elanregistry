@@ -48,7 +48,7 @@ class CarDataTablesService
      * @param string $table Table type ('cars' or 'factory')
      * @param DB $db Database instance
      * @return array<string, mixed> DataTables response array
-     * @throws CarValidationException If table type is invalid, or start < 0, or length < 1
+     * @throws CarValidationException If table type is invalid, or start < 0, or length not in [1, 100]
      * @throws CarDatabaseException If a database query fails
      */
     public function getDataTablesData(array $request, string $table, DB $db): array
@@ -66,8 +66,8 @@ class CarDataTablesService
         if ($start < 0) {
             throw new CarValidationException('Invalid start offset: must be >= 0');
         }
-        if ($length < 1) {
-            throw new CarValidationException('Invalid length: must be a positive integer');
+        if ($length < 1 || $length > 100) {
+            throw new CarValidationException('Invalid length: must be between 1 and 100');
         }
 
         $searchValue = isset($request['search']['value']) ? trim($request['search']['value']) : '';

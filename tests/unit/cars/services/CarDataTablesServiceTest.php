@@ -121,6 +121,8 @@ final class CarDataTablesServiceTest extends TestCase
             'length negative one'  => [0,   -1],
             'length negative two'  => [0,   -2],
             'length negative 99'   => [0,  -99],
+            'length over cap'      => [0,  101],
+            'length way over cap'  => [0, 9999],
             'negative start'       => [-1,  25],
             'large negative start' => [-100, 25],
         ];
@@ -145,8 +147,9 @@ final class CarDataTablesServiceTest extends TestCase
     public static function validPaginationProvider(): array
     {
         return [
-            'first page (start=0, length=25)'    => [0,   25],
-            'large offset (start=50, length=100)' => [50, 100],
+            'minimum length (start=0, length=1)'  => [0,    1],
+            'first page (start=0, length=25)'      => [0,   25],
+            'maximum length (start=50, length=100)' => [50, 100],
         ];
     }
 

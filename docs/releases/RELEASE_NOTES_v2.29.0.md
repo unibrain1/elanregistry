@@ -29,7 +29,7 @@
 
 ### Bug Fixes
 
-- **DataTables pagination validation** ([#1399](https://github.com/elan-registry/registry/issues/1399)): Invalid pagination parameters (including the "All" option, `length=-1`) now return a 400 error instead of a SQL 500. The "All" rows option has been removed from the cars and factory table menus — unbounded queries over 1,500+ records are not supported.
+- **DataTables pagination validation** ([#1399](https://github.com/elan-registry/registry/issues/1399)): Invalid pagination parameters (including the former "All" option, `length=-1`) now return a 422 error instead of a SQL 500. The "All" rows option has been removed from the cars and factory table menus; page size is capped at 100 server-side.
 
 ### Improvements
 
