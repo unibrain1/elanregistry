@@ -7,6 +7,10 @@
 
 [To be filled in as issues are completed — check for DB migrations from #1155]
 
+- **#1372 (paint-colors.php SEO):**
+  - Run `npm run test:e2e` against the deployed test environment to validate the new Playwright title/description assertions against live Apache/PHP config
+  - Manual: GSC → URL Inspection → Request Indexing for `https://elanregistry.org/docs/reference/paint-colors.php`
+
 ## User-Facing Changes
 
 ### New Features
@@ -17,6 +21,7 @@
 ### Improvements
 
 - **GSC 404 cleanup** ([#1409](https://github.com/elan-registry/registry/issues/1409)): Legacy path redirects and PDF filename case mismatch fix — eliminates remaining 404 noise from Google Search Console.
+- **Paint colors SEO** ([#1372](https://github.com/elan-registry/registry/issues/1372)): `paint-colors.php` now has a descriptive `<title>` and meta description, so it can outrank the generic PDF snippet Google previously showed for this high-traffic page.
 - **Geocoding accuracy** ([#1400](https://github.com/elan-registry/registry/issues/1400)): Geocoding now resolves ambiguous city names correctly (e.g. Springfield OH no longer maps to Springfield MO).
 - **Registration UX** ([#1406](https://github.com/elan-registry/registry/issues/1406)): Owners trying to register with an existing email are now redirected to password recovery instead of seeing a generic error.
 

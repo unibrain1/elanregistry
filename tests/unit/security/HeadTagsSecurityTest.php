@@ -156,6 +156,26 @@ class HeadTagsSecurityTest extends TestCase
     }
 
     /**
+     * Test that $site_description falls back to $pageDescription when set,
+     * and treats both unset and empty-string as "not set" (#1372).
+     */
+    public function testSiteDescriptionUsesPageDescriptionOverride(): void
+    {
+        $this->assertStringContainsString(
+            '!empty($pageDescription)',
+            $this->fileContent,
+            'head_tags.php should use !empty() (not ??) so an empty-string $pageDescription '
+                . 'also falls back to the generic default, not just unset/null'
+        );
+
+        $this->assertStringContainsString(
+            '$site_description = !empty($pageDescription)',
+            $this->fileContent,
+            'head_tags.php should assign $site_description from the $pageDescription override check'
+        );
+    }
+
+    /**
      * Test that conditional closing tag exists
      */
     public function testHasConditionalClosing(): void
