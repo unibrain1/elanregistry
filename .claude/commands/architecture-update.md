@@ -12,14 +12,14 @@ TaskCreate (pull wiki repo, codebase audit, doc split decision, parallel agent
 launches, synthesis, diagram embedding, markdownlint, commit, summary).
 
 Update the ElanRegistry architecture documentation in the local wiki repo at
-`/Users/jimboone/Documents/Developer/Web/elan-registry-wiki/`. Reads the
+`/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`. Reads the
 current wiki pages from disk, audits them against the codebase, updates all
 content, evaluates whether to split into multiple documents, adds Mermaid
 diagrams throughout, ensures all files pass lint, and commits + pushes to the
 wiki remote. All file reads and writes target the wiki repo path directly.
 
-**Wiki repo path:** `/Users/jimboone/Documents/Developer/Web/elan-registry-wiki/`
-**Main repo path:** `/Users/jimboone/Documents/Developer/Web/elan-registry/` (read-only for codebase audit)
+**Wiki repo path:** `/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`
+**Main repo path:** `/Users/jimboone/Documents/Developer/Web/ElanRegistry/Registry/` (read-only for codebase audit)
 
 ## Available Agents
 
@@ -38,17 +38,17 @@ when they don't depend on each other.
 ### Step 0: Pull the wiki repo to ensure it is up to date
 
 ```bash
-git -C /Users/jimboone/Documents/Developer/Web/elan-registry-wiki pull
+git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki pull
 ```
 
 List the existing wiki pages to understand what is already there:
 
 ```bash
-ls /Users/jimboone/Documents/Developer/Web/elan-registry-wiki/*.md
+ls /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/*.md
 ```
 
 All file reads and writes in subsequent steps use absolute paths under
-`/Users/jimboone/Documents/Developer/Web/elan-registry-wiki/`.
+`/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`.
 
 ### Step 1: Read the current wiki documents
 
@@ -208,7 +208,7 @@ document:
 
 - This step is performed by the orchestrating agent only.
 - Write files to their absolute paths under
-  `/Users/jimboone/Documents/Developer/Web/elan-registry-wiki/`.
+  `/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`.
 - Place each diagram directly below the section heading it relates to.
 - Do not modify any existing prose — only insert diagram blocks.
 - If a section already has a diagram, add new ones alongside rather than
@@ -228,7 +228,7 @@ document:
   repo:
 
   ```bash
-  markdownlint /Users/jimboone/Documents/Developer/Web/elan-registry-wiki/*.md
+  markdownlint /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/*.md
   ```
 
 - Fix any lint errors before proceeding — do not skip or suppress warnings.
@@ -242,7 +242,7 @@ document:
 - Stage all modified and newly created `.md` files:
 
   ```bash
-  git -C /Users/jimboone/Documents/Developer/Web/elan-registry-wiki add *.md
+  git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki add *.md
   ```
 
 - Write a commit message in the format:
@@ -250,13 +250,13 @@ document:
 - Commit:
 
   ```bash
-  git -C /Users/jimboone/Documents/Developer/Web/elan-registry-wiki commit -m "docs: update architecture documents with diagrams $(date +%Y-%m-%d)"
+  git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki commit -m "docs: update architecture documents with diagrams $(date +%Y-%m-%d)"
   ```
 
 - Push to the wiki remote:
 
   ```bash
-  git -C /Users/jimboone/Documents/Developer/Web/elan-registry-wiki push
+  git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki push
   ```
 
 ### Step 12: Report what was done
