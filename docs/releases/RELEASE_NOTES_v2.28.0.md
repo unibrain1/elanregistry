@@ -15,13 +15,11 @@ None.
 - **Additional redirect fixes** (#1412, #1415): `/app/list_factory.php` now redirects to the factory page; doc viewer query-string URLs for the Identification Guide, Car Transfer FAQ, and Car Transfer User Guide were silently returning 404 (LiteSpeed rewrite cache) — confirmed working after redeployment.
 - **Crawl control** (#1369): Login-required pages (`/app/owner/cars/edit.php`, `/app/owner/contact/`) added to `robots.txt` so Google stops crawling and wasting crawl budget on pages that redirect to the login form. Test subdomain (`test.elanregistry.org`) now blocked from all crawlers via its own `robots.txt`.
 
-## Post-Release Hotfixes
-
-- **Location picker missing on registration page**: Two CSP violations blocked the join page after v2.27.0's nonce enforcement. The `LocationPicker` init script in `join.php` was missing its nonce, and the CSP hash for the `autoassignun` username-field hook was computed on CRLF bytes — browsers normalize to LF before hashing, so it never matched. Both fixed without touching upstream files.
-
 ## Admin-Facing Changes
 
 ### Bug Fixes
+
+- **Location picker missing on registration page**: Two CSP violations blocked the join page after v2.27.0's nonce enforcement. The `LocationPicker` init script in `join.php` was missing its nonce, and the CSP hash for the `autoassignun` username-field hook was computed on CRLF bytes — browsers normalize to LF before hashing, so it never matched. Both fixed without touching upstream files.
 
 - **Factory table broken for owners** (#1415): `/action/getDataTables.php` was removed in the repository routing migration without a redirect. Owners with cached old JS were silently getting a blank factory table (61,000+ failed requests logged). A 308 permanent redirect (preserving POST method) to `/app/api/cars/factory-list.php` fixes it for all users including those with stale browser caches.
 - **Malformed model string now rejected cleanly** (#1286): A pipe-delimited model string with missing or empty segments (e.g. `||`) now returns a structured validation error instead of silently proceeding with empty series/variant/type values.
