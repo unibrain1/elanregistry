@@ -114,6 +114,42 @@ In the registry admin panel:
 
 Logs include timestamps, recipient addresses, and any API error messages returned by Brevo.
 
+## Updating the Plugin
+
+`scripts/check-plugin-updates/` runs weekly and opens a GitHub issue labeled
+`plugin-update` when a newer version is published upstream. It only detects
+drift — it does not apply the update. Plugin files under `usersc/plugins/sendinblue/`
+are gitignored, so there is no git diff to review; the update is a manual
+file-replacement performed once per environment (local dev, test, prod).
+
+1. **Back up the current plugin directory** before updating:
+
+   ```bash
+   cp -r usersc/plugins/sendinblue usersc/plugins/sendinblue_backup_$(date +%Y%m%d)
+   ```
+
+   (`.gitignore` already excludes `sendinblue_backup_*/` directories.)
+
+2. **Apply the update via Spice Shaker:** Admin → Spice Shaker → Installed
+   Plugins → Update. Repeat on each environment being updated — updating one
+   environment does not affect the others.
+
+3. **Check for dependency changes:** diff `usersc/plugins/sendinblue/composer.json`
+   and `composer.lock` against the backup. If they changed, run
+   `composer install` inside `usersc/plugins/sendinblue/` to regenerate
+   `vendor/`. Watch for a bumped `getbrevo/brevo-php` constraint that could
+   conflict with PHP 8.2 or the root project's dependencies.
+
+4. **Re-verify the `email()` override behavior** documented above still
+   holds — in particular, that `reply_name` and `attachments` remain
+   unsupported via the `email()` override (only available calling
+   `sendinblue()` directly). Diff the new `override.php`/`functions.php`
+   against the backup if anything seems off.
+
+5. **Smoke test before promoting to the next environment:** Admin → Plugins
+   → Brevo Sendinblue → Test Email, and a full password-reset flow (the
+   most common `email()` override call path in the app).
+
 ## Troubleshooting
 
 ### Emails Not Sending

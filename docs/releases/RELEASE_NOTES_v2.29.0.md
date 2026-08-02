@@ -10,6 +10,7 @@
 - **#1372 (paint-colors.php SEO):**
   - Run `npm run test:e2e` against the deployed test environment to validate the new Playwright title/description assertions against live Apache/PHP config
   - Manual: GSC → URL Inspection → Request Indexing for `https://elanregistry.org/docs/reference/paint-colors.php`
+- **#1394 (Sendinblue plugin update):** Applied on local dev only so far. Still needs the same manual update (Admin → Spice Shaker → Installed Plugins → Update) on test and production, followed by the Test Email + password-reset smoke tests on each — see `docs/development/EMAIL_SYSTEM.md#updating-the-plugin`.
 
 ## User-Facing Changes
 
@@ -38,7 +39,7 @@
 
 ### Improvements
 
-- **Sendinblue plugin update** ([#1394](https://github.com/elan-registry/registry/issues/1394)): Brevo/Sendinblue email plugin updated from 1.6.0 to 1.6.1.
+- **Sendinblue plugin update** ([#1394](https://github.com/elan-registry/registry/issues/1394)): Brevo/Sendinblue email plugin updated from 1.6.0 to 1.6.2 (a newer release than the 1.6.1 originally targeted was published upstream by the time the update was applied).
 - **maplibre-gl ESM migration** ([#1396](https://github.com/elan-registry/registry/issues/1396)): maplibre-gl migrated from vendored UMD bundle to ESM (v4 → v6).
 
 ## Issues Resolved
@@ -48,7 +49,7 @@
 - [#1371](https://github.com/elan-registry/registry/issues/1371) — feat: Schema.org Car JSON-LD structured data on details.php; noindex on factory.php and privacy.php; apple-touch-icon
 - [#1372](https://github.com/elan-registry/registry/issues/1372) — fix: verify paint-colors.php title and meta description; submit to GSC for indexing
 - [#1373](https://github.com/elan-registry/registry/issues/1373) — feat: create dynamic sitemap.xml for public car registry pages
-- [#1394](https://github.com/elan-registry/registry/issues/1394) — Chore: Update sendinblue plugin from 1.6.0 to 1.6.1
+- [#1394](https://github.com/elan-registry/registry/issues/1394) — Chore: Update sendinblue plugin from 1.6.0 to 1.6.2
 - [#1396](https://github.com/elan-registry/registry/issues/1396) — chore: migrate maplibre-gl from UMD script tag to ESM (v4 → v6)
 - [#1399](https://github.com/elan-registry/registry/issues/1399) — bug: DataTables length=-1 ("All" option) and negative start cause SQL error in cars/factory list endpoints
 - [#1400](https://github.com/elan-registry/registry/issues/1400) — fix: geocoding returns wrong city when multiple US cities share a name (Springfield OH → MO)
