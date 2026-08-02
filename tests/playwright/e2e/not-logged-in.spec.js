@@ -656,3 +656,46 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
     );
   });
 });
+
+test.describe('Location picker city disambiguation (#1400)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  // Live Nominatim/Photon results are required for this test, so it only runs
+  // against deployed environments (npm run test:e2e / test:e2e:test) — this
+  // file only executes via playwright.config.prod.js / playwright.config.test.js,
+  // never locally against MAMP (see playwright.config.js's testIgnore: '**/e2e/**').
+  //
+  // This is an integration smoke check, not the primary regression guard for
+  // the dedupe-key fix itself — see tests/playwright/location-picker-dedupe.spec.js
+  // for a deterministic, mock-data test of filterAndRankResults() directly.
+  // A plain "more than one result" count would pass even without the fix,
+  // since Photon/Nominatim already returns Springfields from *different
+  // countries* as distinct entries under the old city|country key too — the
+  // bug was specifically about same-country, different-state collisions. So
+  // this asserts on distinct *same-country* (United States) result text
+  // instead of a raw count.
+  test('searching an ambiguous city name shows multiple distinct same-country results (regression guard)', async ({ page }) => {
+    await page.goto('/users/join.php');
+
+    const input = page.locator('#location-picker-registration-input');
+    const resultsContainer = page.locator('#location-picker-registration-results');
+
+    await input.fill('Springfield');
+
+    // The picker debounces input by 300ms before firing the search request;
+    // wait for the results list to actually populate rather than a fixed
+    // sleep, since the live geocoding API latency varies.
+    await expect(async () => {
+      // Query <small> elements directly rather than iterating .list-group-item
+      // and locating a child inside each — the "No locations found" fallback
+      // item has no <small> child, so this avoids a throw on that render.
+      const texts = await resultsContainer.locator('.list-group-item small').allTextContents();
+      const distinctUsResults = new Set(texts.map(t => t.trim()).filter(t => t.includes('United States')));
+      expect(distinctUsResults.size).toBeGreaterThan(1);
+    }).toPass({ timeout: 15000 });
+  });
+});
