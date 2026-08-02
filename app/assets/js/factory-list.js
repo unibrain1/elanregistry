@@ -8,8 +8,8 @@
     pageLength: 25,
     scrollX: true,
     "lengthMenu": [
-      [25, 50, 100, -1],
-      [25, 50, 100, "All"]
+      [25, 50, 100],
+      [25, 50, 100]
     ],
     "order": [
       [0, "asc"]
