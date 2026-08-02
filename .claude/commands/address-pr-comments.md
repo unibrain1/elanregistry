@@ -1,6 +1,6 @@
 ---
 description: Fetch PR review comments and CI findings, triage blocking vs advisory, fix blocking items, and re-verify
-model: claude-sonnet-4-6
+model: claude-opus-4-8
 ---
 
 # Address PR Comments

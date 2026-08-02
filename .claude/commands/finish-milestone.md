@@ -1,6 +1,6 @@
 ---
 description: Create a PR to merge a completed milestone branch into main, finalize docs and release notes
-model: claude-sonnet-4-6
+model: claude-sonnet-5
 ---
 
 # Finish Milestone

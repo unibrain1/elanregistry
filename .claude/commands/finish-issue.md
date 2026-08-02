@@ -1,6 +1,6 @@
 ---
 description: Monitor CI, squash-merge an issue PR into the milestone branch, and close the issue
-model: claude-sonnet-4-6
+model: claude-sonnet-5
 ---
 
 # Finish Issue
