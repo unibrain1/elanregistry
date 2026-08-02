@@ -7,7 +7,7 @@ name: Claude Code Review
 #                         see: silent failures, arch fit, test gaps, CLAUDE.md
 #                         violations. Assumes the author ran /review-pr locally.
 #
-#   milestone/* -> main : deep Opus review on PR open / ready_for_review /
+#   milestone/* -> main : deep Fable review on PR open / ready_for_review /
 #                         deep-review label. Cross-issue integration, release-
 #                         notes accuracy, architecture drift, deploy readiness.
 #                         Does NOT re-review line-by-line (done on issue PRs).
@@ -246,7 +246,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Do NOT set track_progress — see pr-to-milestone-review note above.
-          # Opus is worth it here: this runs once per milestone, not per push.
+          # Fable is worth it here: this runs once per milestone, not per push.
           claude_args: >-
             --allowedTools
             "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(cat merged-prs.txt),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git diff --name-only:*),Bash(php -l *),Bash(composer check:php),Bash(vendor/bin/phpstan analyse:*),Bash(npm run lint),Read,Grep,Glob"
