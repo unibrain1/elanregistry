@@ -64,6 +64,7 @@ try {
         ApiResponse::error('Invalid model format', 400)
             ->withLogging($logUserId, LogCategories::LOG_CATEGORY_VALIDATION_ERROR, 'chassis-availability: invalid model string from user ' . $logUserId . ': ' . $model)
             ->send();
+        return;
     }
 
     $db = DB::getInstance();

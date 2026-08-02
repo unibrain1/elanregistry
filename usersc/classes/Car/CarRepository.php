@@ -233,10 +233,17 @@ class CarRepository
      *
      * @param int $ownerId Owner user ID
      * @return array<object> Array of objects with 'id' property
+     * @throws CarDatabaseException If the query fails
      */
     public function findByOwner(int $ownerId): array
     {
-        return $this->db->query("SELECT id FROM cars WHERE user_id = ?", [$ownerId])->results();
+        $result = $this->db->query("SELECT id FROM cars WHERE user_id = ?", [$ownerId]);
+        if ($this->db->error()) {
+            throw new CarDatabaseException(
+                "CarRepository::findByOwner failed for user={$ownerId}: " . $this->db->errorString()
+            );
+        }
+        return $result->results();
     }
 
     /**

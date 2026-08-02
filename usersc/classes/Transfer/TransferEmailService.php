@@ -624,8 +624,8 @@ class TransferEmailService
     {
         $ts = $dateString !== '' ? strtotime($dateString) : false;
         if ($ts === false) {
-            logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer email: unparseable date for '$field' ('$dateString') — substituting current time");
-            return date('M j, Y g:i A');
+            logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer email: unparseable date for '$field' ('$dateString') — using placeholder");
+            return '(date unavailable)';
         }
         return date('M j, Y g:i A', $ts);
     }
