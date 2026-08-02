@@ -6,6 +6,7 @@ use ElanRegistry\Car\CarDataTablesService;
 use ElanRegistry\Exceptions\CarValidationException;
 use PHPUnit\Framework\TestCase;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -104,6 +105,65 @@ final class CarDataTablesServiceTest extends TestCase
 
         $request = ['draw' => 1, 'start' => 0, 'length' => 10];
         $this->service->getDataTablesData($request, 'invalid_table', DB::getInstance());
+    }
+
+    // ============================================================
+    // getDataTablesData — invalid pagination
+    // ============================================================
+
+    /**
+     * @return array<string, array{int, int}>
+     */
+    public static function invalidPaginationProvider(): array
+    {
+        return [
+            'length zero'          => [0,    0],
+            'length negative one'  => [0,   -1],
+            'length negative two'  => [0,   -2],
+            'length negative 99'   => [0,  -99],
+            'negative start'       => [-1,  25],
+            'large negative start' => [-100, 25],
+        ];
+    }
+
+    #[DataProvider('invalidPaginationProvider')]
+    public function testGetDataTablesDataThrowsOnInvalidPagination(int $start, int $length): void
+    {
+        $this->expectException(CarValidationException::class);
+
+        $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
+        $this->service->getDataTablesData($request, 'cars', DB::getInstance());
+    }
+
+    // ============================================================
+    // getDataTablesData — valid pagination passes validation
+    // ============================================================
+
+    /**
+     * @return array<string, array{int, int}>
+     */
+    public static function validPaginationProvider(): array
+    {
+        return [
+            'first page (start=0, length=25)'    => [0,   25],
+            'large offset (start=50, length=100)' => [50, 100],
+        ];
+    }
+
+    #[DataProvider('validPaginationProvider')]
+    public function testGetDataTablesDataAcceptsValidPagination(int $start, int $length): void
+    {
+        $caught = null;
+        try {
+            $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
+            $this->service->getDataTablesData($request, 'cars', DB::getInstance());
+        } catch (CarValidationException $e) {
+            $caught = $e;
+        } catch (\Throwable) {
+            // DB not available in unit context — validation passed
+        }
+
+        $this->assertNull($caught, 'Valid pagination parameters should not throw CarValidationException');
     }
 
 }

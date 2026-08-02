@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/IntegrationTestCase.php';
 
 use ElanRegistry\Car\CarRepository;
+use ElanRegistry\Exceptions\CarValidationException;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -326,40 +327,27 @@ final class CarDataTablesTest extends IntegrationTestCase
     }
 
     /**
-     * Test that a negative length parameter is handled safely without crashing
+     * Test that length=-1 (former DataTables "All" option) is rejected as invalid
      */
     #[Group('fast')]
     public function testNegativeLengthParameter(): void
     {
+        $this->expectException(CarValidationException::class);
+
         $car = new Car();
-
-        $request = $this->buildDataTablesRequest(['length' => -1]);
-
-        $result = $car->getDataTablesData($request, 'cars');
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('data', $result);
-        $this->assertIsArray($result['data']);
+        $car->getDataTablesData($this->buildDataTablesRequest(['length' => -1]), 'cars');
     }
 
     /**
-     * Test that a zero length parameter returns an empty data array with valid metadata structure
+     * Test that length=0 is rejected as invalid
      */
     #[Group('fast')]
     public function testZeroLengthParameter(): void
     {
+        $this->expectException(CarValidationException::class);
+
         $car = new Car();
-
-        $request = $this->buildDataTablesRequest(['draw' => 3, 'length' => 0]);
-
-        $result = $car->getDataTablesData($request, 'cars');
-
-        $this->assertIsArray($result);
-        $this->assertEquals(3, $result['draw']);
-        $this->assertArrayHasKey('recordsTotal', $result);
-        $this->assertArrayHasKey('recordsFiltered', $result);
-        $this->assertGreaterThanOrEqual(0, $result['recordsTotal']);
-        $this->assertEmpty($result['data']);
+        $car->getDataTablesData($this->buildDataTablesRequest(['length' => 0]), 'cars');
     }
 
     /**

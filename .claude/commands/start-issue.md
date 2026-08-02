@@ -5,6 +5,21 @@ model: claude-opus-4-7
 
 # GitHub Issue Workflow Command
 
+## Hard Constraints (non-negotiable)
+
+> **1. PLAN APPROVAL IS REQUIRED before writing any code.**
+> Present the plan at Step 9 and wait for the user to explicitly approve it.
+> Do not begin implementation until you receive a clear "yes / proceed / looks
+> good" or equivalent. If the user changes the subject or gives partial
+> feedback, ask again: "Should I proceed with the plan as written?"
+>
+> **2. NEVER commit, push, or create PRs.**
+> After implementation is complete, stop. The user commits explicitly via
+> `/commit` or `/commit-push-pr`. Do not run `git add`, `git commit`, or
+> `git push` under any circumstances during this workflow.
+
+---
+
 ## Step 0: Defer TaskList Until Tier Is Known
 
 Do NOT create tasks yet. Fetch the issue (Step 2) and assess complexity tier
@@ -357,9 +372,14 @@ After exiting plan mode, present the plan and ask:
 discussion and agent input. Please review and let me know if you'd like any
 changes before I proceed with implementation."
 
-### Step 10: Implementation (after approval)
+**STOP. Do not proceed to Step 10 until the user explicitly approves the
+plan.** A response that changes the subject, asks a follow-up question, or
+provides partial feedback is NOT approval. If in doubt, ask: "Should I
+proceed with the plan as written?"
 
-Once the user approves the plan, execute using agents strategically:
+### Step 10: Implementation (after explicit plan approval only)
+
+Once the user has explicitly approved the plan, execute using agents strategically:
 
 1. Update the issue with the plan details.
 
@@ -473,9 +493,13 @@ the version from the milestone branch name (e.g., `milestone/v2.17.0` ->
 
 ## Critical Rules
 
-- **NEVER commit code** - `/start-issue` does not commit, push, or create PRs.
-  After implementation is complete, stop and tell the user to continue with
-  `/simplify`, `/review-pr` (recommended), `/commit`, then `/commit-push-pr`.
+- **PLAN APPROVAL IS A HARD GATE** — do not write a single line of code before
+  the user explicitly approves the plan at Step 9. Partial feedback, silence,
+  or a change of subject is NOT approval. Ask again if unclear.
+- **NEVER commit code** — do not run `git add`, `git commit`, or `git push`
+  at any point during this workflow. After implementation is complete, stop and
+  present next steps. The user commits explicitly via `/commit` or
+  `/commit-push-pr`.
 - **Issue PRs MUST target the milestone branch** - never target `main` directly.
   The issue PR targets `milestone/vX.Y.Z`. Only the final milestone PR
   (created by `/finish-milestone`) targets `main`.
