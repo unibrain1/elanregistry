@@ -189,6 +189,10 @@ escape hatch:
 
 - Tag an affected test method with `#[Group('known-broken')]` **plus** an inline comment
   citing the tracking issue, e.g. `// #1470 — fails on Linux CI, root cause under investigation`.
+  **This comment format is load-bearing, not just documentation** — `/finish-milestone`'s
+  Step 3.5 greps for the tag and parses the issue number out of that free-text `// #NNN — ...`
+  comment to check whether it's still open. A tag added without a `#NNN` reference in that
+  exact form will silently defeat that check.
 - `composer test:quick`/`composer test:regression` (the default local/dev commands, and each
   `:ci` variant's superset) still run and report these failures — nobody loses visibility locally.
 - Only the `:ci` variants (the CI-blocking commands) skip them, and only until the tracking

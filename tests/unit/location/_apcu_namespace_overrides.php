@@ -25,6 +25,15 @@ namespace ElanRegistry;
  * zero effect on any of this suite's other 19+ tests (or any other test
  * file) regardless of whether the real environment's apcu extension is
  * loaded, loaded-but-disabled, or absent entirely.
+ *
+ * IMPORTANT: PHP has no per-file function scoping — once this file is
+ * require_once'd, these three ElanRegistry\* symbols are declared for the
+ * rest of the PHPUnit process, not just this test file. Only one override
+ * source per function/namespace pair can exist across the whole suite; a
+ * second file attempting to redeclare any of these would fatal with
+ * "cannot redeclare". If a future test needs different simulated behavior
+ * for the same functions, extend this file's flag-driven logic rather than
+ * adding a second override file.
  */
 if (!\function_exists(__NAMESPACE__ . '\\function_exists')) {
     function function_exists(string $name): bool
