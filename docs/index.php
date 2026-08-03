@@ -10,6 +10,9 @@ declare(strict_types=1);
  * @package ElanRegistry
  */
 
+$pageTitle = 'Documentation Hub';
+$pageDescription = 'Guides, technical references, and car histories for Lotus Elan and Elan Plus 2 owners, organized by topic.';
+
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 

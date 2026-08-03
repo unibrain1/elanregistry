@@ -10,6 +10,9 @@ declare(strict_types=1);
  * @package ElanRegistry
  */
 
+$pageTitle = 'Lotus Elan Workshop Manuals & Parts References';
+$pageDescription = 'Workshop manuals, parts lists, and engine reference documents for maintaining and restoring the Lotus Elan and Elan Plus 2.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 

@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-use ElanRegistry\LogCategories;
-use ElanRegistry\StatisticsDataService;
-
 /**
  * statistics.php
  * Comprehensive analytics dashboard for the Elan Registry
@@ -17,8 +14,15 @@ use ElanRegistry\StatisticsDataService;
  * @author Elan Registry Analytics Team
  * @copyright 2025
  */
+
+$pageTitle = 'Registry Analytics & Statistics';
+$pageDescription = 'Explore production trends, geographic distribution, paint colour popularity, and data-completeness statistics across the Lotus Elan Registry.';
+
 require_once '../../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
+
+use ElanRegistry\LogCategories;
+use ElanRegistry\StatisticsDataService;
 
 if (!securePage($php_self)) {
     die();

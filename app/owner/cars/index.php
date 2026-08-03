@@ -7,6 +7,10 @@ declare(strict_types=1);
  *
  * @package ElanRegistry
  */
+
+$pageTitle = 'Browse All Registered Cars';
+$pageDescription = 'Search and browse every Lotus Elan and Elan Plus 2 currently registered, with chassis, model, and ownership history details.';
+
 require_once '../../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 

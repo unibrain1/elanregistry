@@ -9,6 +9,7 @@ require_once $abs_us_root . $us_url_root . 'app/version.php';
 // loaded in Phase 1.11.12 (usersc/includes/loader.php)
 // Uses validated Server::getScheme() and Server::get('HTTP_HOST') with proper sanitization
 $site_title = $settings->site_name ?? 'Lotus Elan Registry';
+$og_title = !empty($pageTitle) ? $pageTitle : $site_title;
 $site_description = !empty($pageDescription)
     ? $pageDescription
     : 'Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974). Document your classic British sports car, connect with owners, and preserve automotive history.';
@@ -30,7 +31,7 @@ $og_image = $us_url_root . 'usersc/images/og-lotus-elan.jpg';
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="<?= htmlspecialchars($current_url, ENT_QUOTES, 'UTF-8') ?>">
-<meta property="og:title" content="<?= htmlspecialchars($site_title, ENT_QUOTES, 'UTF-8') ?>">
+<meta property="og:title" content="<?= htmlspecialchars($og_title, ENT_QUOTES, 'UTF-8') ?>">
 <meta property="og:description" content="<?= htmlspecialchars($site_description, ENT_QUOTES, 'UTF-8') ?>">
 <meta property="og:image" content="<?= htmlspecialchars($og_image, ENT_QUOTES, 'UTF-8') ?>">
 <meta property="og:image:width" content="1200">
@@ -41,7 +42,7 @@ $og_image = $us_url_root . 'usersc/images/og-lotus-elan.jpg';
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:url" content="<?= htmlspecialchars($current_url, ENT_QUOTES, 'UTF-8') ?>">
-<meta name="twitter:title" content="<?= htmlspecialchars($site_title, ENT_QUOTES, 'UTF-8') ?>">
+<meta name="twitter:title" content="<?= htmlspecialchars($og_title, ENT_QUOTES, 'UTF-8') ?>">
 <meta name="twitter:description" content="<?= htmlspecialchars($site_description, ENT_QUOTES, 'UTF-8') ?>">
 <meta name="twitter:image" content="<?= htmlspecialchars($og_image, ENT_QUOTES, 'UTF-8') ?>">
 <meta name="twitter:image:alt" content="Lotus Elan Registry - Classic British Sports Car Documentation">
