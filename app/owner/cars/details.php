@@ -1,10 +1,6 @@
 <?php
 declare(strict_types=1);
 
-use ElanRegistry\Car\Car;
-use ElanRegistry\CarView;
-use ElanRegistry\LogCategories;
-
 /**
  * details.php
  * Displays detailed information about a specific car in the registry.
@@ -16,8 +12,15 @@ use ElanRegistry\LogCategories;
  * @copyright 2025
  */
 
+$pageTitle = 'Car Details';
+$pageDescription = 'Detailed registry record for a Lotus Elan or Elan Plus 2, including chassis number, ownership history, and factory build data.';
+
 require_once '../../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
+
+use ElanRegistry\Car\Car;
+use ElanRegistry\CarView;
+use ElanRegistry\LogCategories;
 
 if (!securePage($php_self)) {
     die();
