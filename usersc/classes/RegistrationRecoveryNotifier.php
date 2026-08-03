@@ -24,6 +24,21 @@ namespace ElanRegistry;
  * flow that invokes it. Every failure path is logged and swallowed; the method
  * returns a boolean and never throws.
  *
+ * Accepted trade-off: this overwrites the target account's shared
+ * users.vericode/vericode_expiry columns — the same columns used by that
+ * account's own pending email-verification link (from signup) and by
+ * users/forgot_password.php's password-reset flow. A failed registration
+ * attempt targeting an existing email (bounded to 3/hour by the
+ * registration_recovery_email rate limit — see usersc/join.php) will
+ * silently invalidate whichever link is currently outstanding for that
+ * account, even if it was never requested by the account holder. This is
+ * not a lockout — a fresh, working link is issued every time — and mirrors
+ * a risk already inherent to forgot_password.php itself (repeated
+ * self-service reset requests already overwrite the same columns). Deemed
+ * an acceptable trade-off given the alternative (a separate token/column
+ * just for this notification) adds real complexity to close a low-severity,
+ * self-healing edge case.
+ *
  * @package    ElanRegistry
  * @subpackage Classes
  * @since      v2.29.0
@@ -51,7 +66,7 @@ class RegistrationRecoveryNotifier
      *
      * @param \User  $fuser    UserSpice user resolved from the email address.
      * @param string $email    The email address the registration was attempted with (raw, un-encoded).
-     * @param object $settings UserSpice settings object; must expose reset_vericode_expiry (minutes).
+     * @param object $settings UserSpice settings object; must expose reset_vericode_expiry (minutes) and site_name.
      * @return bool True only if an account existed and the recovery email was sent successfully; false otherwise.
      */
     public function notifyIfAccountExists(\User $fuser, string $email, object $settings): bool
@@ -103,7 +118,8 @@ class RegistrationRecoveryNotifier
                 return false;
             }
 
-            $subject = 'Someone tried to register with your email — Lotus Elan Registry';
+            $siteName = html_entity_decode($settings->site_name, ENT_QUOTES);
+            $subject = "Someone tried to register with your email — {$siteName}";
             $emailResult = email($email, $subject, $body);
 
             if ($emailResult !== true) {

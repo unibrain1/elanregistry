@@ -77,7 +77,7 @@ final class RegistrationRecoveryNotifierTest extends TestCase
 
     private function settings(int $expiryMinutes = 60): object
     {
-        return (object) ['reset_vericode_expiry' => $expiryMinutes];
+        return (object) ['reset_vericode_expiry' => $expiryMinutes, 'site_name' => 'Test Registry'];
     }
 
     public function testNotifyIfAccountExistsSendsEmailAndWritesHashedVericode(): void
