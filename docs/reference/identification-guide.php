@@ -13,8 +13,8 @@ declare(strict_types=1);
  * @author Jim Boone
  */
 
-$pageTitle = 'How to Identify a Lotus Elan or Elan Plus 2 — Chassis & Body Style Guide';
-$pageDescription = 'Identify your Lotus Elan or Elan Plus 2 variant by chassis number, body style, and distinguishing features, including Roadster, Drophead, and Coupé differences.';
+$pageTitle = 'How to Identify a Lotus Elan or Elan Plus 2';
+$pageDescription = 'Identify your Lotus Elan or Elan Plus 2 variant by chassis number, body style, and distinguishing features like Roadster, Drophead, and Coupé.';
 
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';

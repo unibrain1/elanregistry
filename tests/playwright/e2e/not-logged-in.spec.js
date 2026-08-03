@@ -49,8 +49,8 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'Identification Guide',
       selector: 'h1',
       expectedText: 'Lotus Elan Identification Guide',
-      expectedTitle: 'How to Identify a Lotus Elan or Elan Plus 2 — Chassis & Body Style Guide',
-      expectedDescription: 'Identify your Lotus Elan or Elan Plus 2 variant by chassis number, body style, and distinguishing features, including Roadster, Drophead, and Coupé differences.',
+      expectedTitle: 'How to Identify a Lotus Elan or Elan Plus 2',
+      expectedDescription: 'Identify your Lotus Elan or Elan Plus 2 variant by chassis number, body style, and distinguishing features like Roadster, Drophead, and Coupé.',
     },
     {
       path: '/app/owner/cars/factory.php',
@@ -81,7 +81,7 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'Chassis Validation',
       selector: 'h1',
       expectedText: 'Chassis Validation Rules',
-      expectedTitle: 'Lotus Elan Chassis Number Formats — Registry Validation Reference',
+      expectedTitle: 'Lotus Elan Chassis Number Formats',
       expectedDescription: 'Reference guide to the chassis numbering formats the Lotus Elan Registry recognizes and validates during car registration.',
     },
     {

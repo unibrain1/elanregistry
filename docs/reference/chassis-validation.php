@@ -13,7 +13,7 @@ declare(strict_types=1);
  * @copyright 2025
  */
 
-$pageTitle = 'Lotus Elan Chassis Number Formats — Registry Validation Reference';
+$pageTitle = 'Lotus Elan Chassis Number Formats';
 $pageDescription = 'Reference guide to the chassis numbering formats the Lotus Elan Registry recognizes and validates during car registration.';
 
 require_once '../../users/init.php';
