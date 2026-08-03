@@ -41,8 +41,17 @@ use PHPUnit\Framework\Attributes\Group;
  * All three code paths live in private methods, so they are exercised via
  * ReflectionMethod where needed to avoid requiring live HTTP endpoints.
  *
- * The file-cache path is active whenever APCu is unavailable.  PHPUnit does not
- * load the APCu extension in this project, so the file path is always taken.
+ * The file-cache path is active whenever APCu doesn't successfully store/fetch
+ * a value — not just when the extension isn't loaded. Originally, this file's
+ * docblock assumed "PHPUnit never loads APCu" was a safe, permanent assumption
+ * (true on macOS dev machines), but GitHub Actions' Linux CI runner does load
+ * it via shivammathur/setup-php's default extension bundle, with
+ * apc.enable_cli=Off (PHP's CLI-SAPI default) making every apcu_store()/
+ * apcu_fetch() call silently fail. LocationService::getCache()/setCache() now
+ * fall through to the file cache in that case too (previously they didn't —
+ * see the fix accompanying issue #1470), so this suite's file-path coverage
+ * is now environment-independent rather than relying on APCu simply not being
+ * present.
  *
  * @see usersc/classes/LocationService.php
  */
@@ -228,7 +237,6 @@ final class LocationServiceCacheTest extends TestCase
      * returns null (no FileError branch reached).
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_getCache_returnsNull_andDeletesExpiredFile_whenUnlinkSucceeds(): void
     {
         $key = 'rate_limit_unlink_ok';
@@ -307,7 +315,6 @@ final class LocationServiceCacheTest extends TestCase
      * and writes the cache file normally.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_setCache_writesCacheFile_whenDirectoryAlreadyExists(): void
     {
         $key     = 'mkdir_ok_existing';
@@ -342,7 +349,6 @@ final class LocationServiceCacheTest extends TestCase
      * and assert on it directly.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_setCache_createsNoCacheFile_whenFileWriteFails(): void
     {
         if (posix_getuid() === 0) {
@@ -429,7 +435,6 @@ final class LocationServiceCacheTest extends TestCase
      * Verifies the happy path produces a valid, readable cache entry.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_setCache_writesCacheFile_whenDirectoryIsWritable(): void
     {
         $key     = 'write_ok_key';
@@ -467,7 +472,6 @@ final class LocationServiceCacheTest extends TestCase
      * getCache() returns the cached value for a fresh (non-expired) entry.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_getCache_returnsCachedValue_forFreshEntry(): void
     {
         $key      = 'fresh_entry_test';
@@ -504,7 +508,6 @@ final class LocationServiceCacheTest extends TestCase
      * A value stored via setCache() can be retrieved correctly by getCache().
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_setCacheThenGetCache_roundTrip_returnsStoredValue(): void
     {
         $key     = 'roundtrip_key';
@@ -531,7 +534,6 @@ final class LocationServiceCacheTest extends TestCase
      * correct time.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_setCache_respectsCustomTtl(): void
     {
         $key     = 'custom_ttl_key';
@@ -553,7 +555,6 @@ final class LocationServiceCacheTest extends TestCase
      * setCache() with a null TTL uses the default CACHE_TTL (300 seconds).
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_setCache_usesDefaultTtl_whenTtlIsNull(): void
     {
         $key     = 'default_ttl_key';
@@ -589,7 +590,6 @@ final class LocationServiceCacheTest extends TestCase
      * PHPUnit does not flag it as an unexpected warning.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_getCache_returnsNull_whenCacheFileIsUnreadable(): void
     {
         if (posix_getuid() === 0) {
@@ -674,7 +674,6 @@ final class LocationServiceCacheTest extends TestCase
      * directory is writable.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_getCache_returnsNull_andDeletesFile_whenUnlinkSucceeds_missingExpiresKey(): void
     {
         $key       = 'missing_expires_unlink_ok';
@@ -739,7 +738,6 @@ final class LocationServiceCacheTest extends TestCase
      * A cache file with invalid JSON is deleted when the directory is writable.
      */
     #[Group('fast')]
-    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_getCache_returnsNull_andDeletesFile_whenUnlinkSucceeds_corruptJson(): void
     {
         $key       = 'corrupt_json_unlink_ok';
