@@ -178,9 +178,16 @@ npm run playwright:test:ui       # UI consistency
 
 `.github/workflows/tests.yml` runs `composer test:quick:ci` and `composer test:regression:ci`
 (not plain `test:quick`/`test:regression`) for the CI-blocking check on every PR. Each `:ci`
-variant is identical to its base command except it adds `--exclude-group known-broken` — both
-suites support the exclusion identically, so a tagged test is skipped in CI regardless of
+variant is identical to its base command except it adds one or more `--exclude-group` flags —
+both suites support the exclusion identically, so a tagged test is skipped in CI regardless of
 which suite it lives in.
+
+**PHPUnit CLI gotcha:** `--exclude-group` does **not** accept a comma-separated list of groups
+in a single flag (e.g. `--exclude-group foo,bar` silently excludes nothing, since PHPUnit treats
+the whole comma-joined string as one literal group name that matches no test). To exclude
+multiple groups, repeat the flag: `--exclude-group foo --exclude-group bar`. Verified empirically
+while adding the `requires-upstream-install` group (#1471) — the comma form ran the excluded
+test anyway with no error or warning, so this is easy to get wrong silently.
 
 **Why this exists:** landing a new CI gate (`#1437`) should never be blocked indefinitely by
 an unrelated, already-tracked, pre-existing bug — but a bypass that's silent or permanent is
@@ -206,6 +213,26 @@ specifically for "this genuinely needs investigation, is tracked, and shouldn't 
 unrelated PR" scenarios, discovered in practice when `tests.yml` first ran on a clean Linux
 CI checkout and surfaced pre-existing macOS-vs-Linux behavior differences invisible to local
 development.
+
+## The `requires-upstream-install` Group — a Different Concept From `known-broken`
+
+A second `--exclude-group` tag exists in `test:quick:ci`: `requires-upstream-install`. Unlike
+`known-broken`, this is **not** a temporary bypass for a tracked, resolvable bug — it's a
+permanent, environment-conditional classification for a test that structurally cannot assert
+anything without a real local UserSpice install (e.g. `SecurityHeadersTest::testUpstreamScriptHashesMatchActualFiles()`,
+which verifies CSP hashes against gitignored, environment-local upstream files that never
+exist in a fresh checkout — see CLAUDE.md's Template Customization Rules for why those files
+aren't tracked).
+
+- Not tied to any GitHub issue, not expected to ever be "resolved" or removed.
+- Such a test must `markTestSkipped(...)` with a clear reason when its required local files are
+  absent, rather than silently completing with zero assertions (PHPUnit reports a zero-assertion
+  test as "risky," not "skipped" — risky tests don't fail the build by default and are easy to
+  miss in CI output; an explicit skip is visible and self-explanatory).
+- `composer test:quick`/`composer test:regression` (no `:ci` suffix) still run these tests, so a
+  developer with a full local UserSpice install gets real verification when running the full suite.
+- `/finish-milestone`'s known-broken check does **not** apply to this group — there's nothing to
+  resolve or report on, it's a standing, intentional environment split.
 
 ## Writing New Tests
 
