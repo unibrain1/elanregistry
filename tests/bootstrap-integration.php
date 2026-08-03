@@ -37,19 +37,44 @@ if (!file_exists($initPath)) {
     exit(1);
 }
 
-// Load test environment (.env.local overrides .env for local development).
+// Integration tests must run against a DEDICATED test schema, never the dev
+// database. We require .env.test.local (pointing at that schema) and refuse to
+// fall back to .env.local/.env, because a fallback risks running destructive
+// integration tests against the live development database.
+$envTestLocal = $projectRoot . '/.env.test.local';
+if (!file_exists($envTestLocal)) {
+    fwrite(STDERR, "ERROR: Integration test environment file not found at: {$envTestLocal}\n");
+    fwrite(STDERR, "Integration tests require .env.test.local pointing at a dedicated test schema (e.g. elanregi_spice_test).\n");
+    fwrite(STDERR, "This bootstrap intentionally does NOT fall back to .env.local or .env, because that risks\n");
+    fwrite(STDERR, "running destructive integration tests against the development database.\n");
+    fwrite(STDERR, "To set up: cp .env.test.local.sample .env.test.local, then fill in DB_PASS.\n");
+    fwrite(STDERR, "See docs/development/ENVIRONMENT.md for details.\n");
+    exit(1);
+}
+
 // The Dotenv class is available because vendor/autoload.php was loaded above.
 // createMutable() allows init.php's createImmutable() to read our test values from $_ENV.
-$envLocal = $projectRoot . '/.env.local';
-$envName  = file_exists($envLocal) ? '.env.local' : '.env';
-
 try {
-    \Dotenv\Dotenv::createMutable($projectRoot, $envName)->load();
-    fwrite(STDERR, "NOTE: Loaded test environment from {$envName}\n");
+    \Dotenv\Dotenv::createMutable($projectRoot, '.env.test.local')->load();
+    fwrite(STDERR, "NOTE: Loaded test environment from .env.test.local\n");
 } catch (\Dotenv\Exception\ExceptionInterface $e) {
-    fwrite(STDERR, "WARNING: Could not load {$envName}: {$e->getMessage()}\n");
-    fwrite(STDERR, "WARNING: All integration tests requiring a database will be skipped.\n");
-    fwrite(STDERR, "WARNING: To enable them, copy .env.local.sample to .env.local and fill in credentials.\n");
+    // A load failure here is fatal: we have no reliable way to know which
+    // database we would connect to, so proceeding at all would be unsafe.
+    fwrite(STDERR, "ERROR: Could not load .env.test.local: {$e->getMessage()}\n");
+    fwrite(STDERR, "Integration tests cannot run without a valid test environment. Aborting.\n");
+    exit(1);
+}
+
+// Defense-in-depth: refuse to proceed if the test environment points at the dev database.
+// Case-folded and trimmed because MAMP's MySQL runs with lower_case_table_names=2 on
+// macOS's case-insensitive filesystem, so ELANREGI_SPICE and elanregi_spice are the same
+// physical database — a naive === comparison would miss a typo'd-case DB_NAME.
+$configuredDbName = strtolower(trim($_ENV['DB_NAME'] ?? ''));
+if ($configuredDbName === 'elanregi_spice') {
+    fwrite(STDERR, "ERROR: .env.test.local is pointed at the development database (elanregi_spice).\n");
+    fwrite(STDERR, "Integration tests must use a dedicated test schema (e.g. elanregi_spice_test).\n");
+    fwrite(STDERR, "Update DB_NAME in .env.test.local before running integration tests. Aborting.\n");
+    exit(1);
 }
 
 // Suppress UserSpice initialization errors (especially database connection errors)
@@ -105,6 +130,32 @@ try {
         $result = $testDb->query("SELECT 1");
         fwrite(STDERR, "NOTE: Database connection verified for integration tests\n");
 
+        // Defense-in-depth: check the database ACTUALLY connected to, not just the
+        // $_ENV value read earlier. If .env.test.local omits DB_NAME (or any other
+        // DB_* key), users/init.php's own createImmutable()->safeLoad() of the root
+        // .env backfills the missing key(s) from the dev config — the earlier $_ENV
+        // guard can't see that, because it runs before init.php loads at all. This
+        // check reflects the connection as it truly resolved, closing that gap.
+        //
+        // This has its own try/catch (rather than sharing the outer one, which
+        // treats failure as a non-fatal "NOTE") because a failure HERE means we
+        // couldn't confirm which database we're connected to — that must abort,
+        // not be logged as a passive reconnection hiccup and continue anyway.
+        try {
+            $connectedDb = strtolower(trim((string)($testDb->query('SELECT DATABASE() AS name')->first()?->name ?? '')));
+        } catch (\Throwable $e) {
+            fwrite(STDERR, "ERROR: Could not verify the connected database's identity: {$e->getMessage()}\n");
+            fwrite(STDERR, "Refusing to proceed without confirming this is not the development database.\n");
+            exit(1);
+        }
+        if ($connectedDb === 'elanregi_spice') {
+            fwrite(STDERR, "ERROR: Integration tests connected to the development database (elanregi_spice).\n");
+            fwrite(STDERR, "This likely means .env.test.local is missing one or more DB_* keys, which were\n");
+            fwrite(STDERR, "backfilled from the root .env file. Ensure .env.test.local sets DB_HOST, DB_USER,\n");
+            fwrite(STDERR, "DB_NAME, and DB_PASS explicitly. Aborting.\n");
+            exit(1);
+        }
+
         // Re-initialize the global $db after configuration fixes
         // This ensures $db in tests uses the corrected configuration
         $GLOBALS['db'] = $testDb;
@@ -151,7 +202,7 @@ try {
 
                         // Verify loaded
                         $newCount = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
-                        $loadedCount = $newCount ? $newCount->cnt : 0;
+                        $loadedCount = (int)($newCount?->cnt ?? 0);
 
                         fwrite(STDERR, "NOTE: Loaded {$loadedCount} car_models records for integration tests\n");
                     } else {
@@ -164,7 +215,7 @@ try {
                 fwrite(STDERR, "NOTE: Reference data file not found: {$refDataPath}\n");
             }
         } else {
-            $recordCount = $count ? $count->cnt : 0;
+            $recordCount = (int)($count?->cnt ?? 0);
             fwrite(STDERR, "NOTE: car_models table already populated with {$recordCount} records\n");
         }
     }

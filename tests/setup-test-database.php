@@ -31,7 +31,7 @@ try {
 // Check car_models table existence
 try {
     $count = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
-    $currentCount = (int)$count->cnt;
+    $currentCount = (int)($count?->cnt ?? 0);
     echo "📊 Current car_models records: {$currentCount}\n";
 
     if ($currentCount > 0) {
@@ -81,7 +81,7 @@ try {
 
     // Verify the data was loaded
     $count = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
-    $loadedCount = (int)$count->cnt;
+    $loadedCount = (int)($count?->cnt ?? 0);
 
     if ($loadedCount === 0) {
         fwrite(STDERR, "❌ ERROR: No records were inserted into car_models\n");
