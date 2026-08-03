@@ -229,6 +229,17 @@ class CarRepository
     }
 
     /**
+     * Get all cars for sitemap generation
+     *
+     * @return list<object{id: int, mtime: string}>
+     */
+    public function getAllForSitemap(): array
+    {
+        $this->db->query('SELECT id, mtime FROM cars ORDER BY id');
+        return $this->db->error() ? [] : $this->db->results();
+    }
+
+    /**
      * Find car IDs owned by a specific user
      *
      * @param int $ownerId Owner user ID

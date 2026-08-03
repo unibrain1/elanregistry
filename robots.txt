@@ -63,3 +63,5 @@ Disallow: /
 
 User-agent: Timpibot
 Disallow: /
+
+Sitemap: https://elanregistry.org/sitemap.xml
