@@ -61,9 +61,16 @@ test.describe('Registration account enumeration (#1406)', () => {
     let csrf = await getCsrfFromJoinForm(page);
     const signupResponse = await attemptRegistration(page, csrf, { email: existingEmail });
 
-    // Successful registration redirects (302/303) to users/complete.php.
+    // Successful registration redirects to users/complete.php; a FAILED
+    // registration also redirects (back to currentPage()), so a bare 3xx
+    // status check would pass vacuously even if step 1 never actually
+    // created an account — assert the redirect target itself.
     expect(signupResponse.status(), 'Initial signup must succeed (redirect)').toBeGreaterThanOrEqual(300);
     expect(signupResponse.status(), 'Initial signup must succeed (redirect)').toBeLessThan(400);
+    expect(
+      signupResponse.headers()['location'],
+      'Initial signup must redirect to users/complete.php — a failure redirect back to the join page would mean step 1 never created the account, making the rest of this test vacuous'
+    ).toContain('users/complete.php');
 
     // 2. Attempt registration again with the SAME (now-existing) email, but
     //    an intentionally invalid field — exercises the failure branch with

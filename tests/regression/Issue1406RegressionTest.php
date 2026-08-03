@@ -65,16 +65,32 @@ final class Issue1406RegressionTest extends RegressionTestCase
         // Note: the handleAuthFailure('registration_attempt', ...) prefix
         // alone is NOT a unique marker — the try/catch block around user
         // creation (a separate, earlier failure path for DB errors during
-        // signup) calls it with the same prefix. That earlier occurrence is
-        // used only as a fallback; strrpos() finds the LAST occurrence in
-        // the file, which is always the validation-failure branch's call
-        // (it appears later in the file), without depending on fragile,
-        // whitespace-sensitive array-content matching.
-        $branchStart = strrpos($source, "handleAuthFailure('registration_attempt', null, \$email, [], [");
-        $branchEnd = strpos($source, "usError('{$genericMessage}');");
+        // signup) calls it with the same prefix. Taking the LAST regex match
+        // in the file always lands on the validation-failure branch's call
+        // (it appears later in the file); if that later occurrence is ever
+        // removed, end() naturally falls back to this earlier one — an
+        // emergent property of always taking the last match, not designed
+        // fallback branching. The pattern tolerates whitespace variation
+        // around commas/brackets (\s*) so a cosmetic reformat of join.php
+        // doesn't fail this test for a non-substantive change.
+        preg_match_all(
+            '/handleAuthFailure\(\s*\'registration_attempt\'\s*,\s*null\s*,\s*\$email\s*,\s*\[\s*\]\s*,\s*\[/',
+            $source,
+            $startMatches,
+            PREG_OFFSET_CAPTURE
+        );
+        $this->assertNotEmpty($startMatches[0], 'Could not locate the registration-failure branch start marker in usersc/join.php');
+        $branchStart = end($startMatches[0])[1];
 
-        $this->assertNotFalse($branchStart, 'Could not locate the registration-failure branch start marker in usersc/join.php');
-        $this->assertNotFalse($branchEnd, 'Could not locate the generic usError() call in usersc/join.php');
+        preg_match(
+            '/usError\(\s*\'' . preg_quote($genericMessage, '/') . '\'\s*\)\s*;/',
+            $source,
+            $endMatch,
+            PREG_OFFSET_CAPTURE
+        );
+        $this->assertNotEmpty($endMatch, 'Could not locate the generic usError() call in usersc/join.php');
+        $branchEnd = $endMatch[0][1];
+
         $this->assertLessThan($branchEnd, $branchStart, 'Failure-branch markers are out of expected order');
 
         $branch = substr($source, $branchStart, $branchEnd - $branchStart);
@@ -114,6 +130,72 @@ final class Issue1406RegressionTest extends RegressionTestCase
             'The call site must not branch on which specific field failed validation — that would '
                 . 'reintroduce the #1442 gap (a username-only collision must still resolve correctly '
                 . 'via exists(), not be inferred from validation error content).'
+        );
+    }
+
+    /**
+     * The account lookup ahead of notifyIfAccountExists() must resolve $fuser
+     * against the email column specifically, via User's 'forceEmail' login
+     * handler — not the default field-detection logic, which falls back to a
+     * username-column lookup for any string that isn't a valid email address.
+     * This branch can be reached with a malformed $email (validation failed
+     * on valid_email), so without 'forceEmail' a non-email string could match
+     * an unrelated user by username and overwrite that user's vericode.
+     */
+    public function testAccountLookupForcesEmailColumn(): void
+    {
+        $source = file_get_contents(self::JOIN_PHP_PATH);
+        $this->assertIsString($source, 'usersc/join.php must be readable');
+
+        $this->assertMatchesRegularExpression(
+            '/new\s+\\\\?User\(\s*\$email\s*,\s*\'forceEmail\'\s*\)/',
+            $source,
+            'The failure branch must resolve $fuser via new User($email, \'forceEmail\') — omitting '
+                . '\'forceEmail\' would let a malformed $email fall through to a username-column lookup '
+                . 'and could overwrite an unrelated user\'s vericode.'
+        );
+    }
+
+    /**
+     * The recovery-notification side effects (checkRateLimit/new User/recordRateLimit —
+     * everything RegistrationRecoveryNotifier's own try/catch does NOT cover, since that
+     * only guards its internals) must be wrapped in a try/catch(\Throwable) that resolves
+     * before the generic failure message is shown. Without this, a DB error in any of
+     * those calls (e.g. RateLimit's constructor failing to create its table) would fatal
+     * uncaught instead of falling through to the generic response — itself a
+     * distinguishing, enumeration-adjacent failure mode.
+     */
+    public function testRecoveryNotificationSideEffectsAreExceptionSafe(): void
+    {
+        $source = file_get_contents(self::JOIN_PHP_PATH);
+        $this->assertIsString($source, 'usersc/join.php must be readable');
+
+        $probePos = strpos($source, "checkRateLimit('registration_recovery_email'");
+        $this->assertNotFalse($probePos, 'Could not locate the registration_recovery_email checkRateLimit() call');
+
+        $tryPos = strrpos(substr($source, 0, $probePos), 'try {');
+        $this->assertNotFalse(
+            $tryPos,
+            'The recovery-notification side effects must be preceded by a try { — an uncaught DB error '
+                . 'here would fatal instead of falling through to the generic failure response.'
+        );
+
+        $catchPos = strpos($source, 'catch (\Throwable', $probePos);
+        $this->assertNotFalse(
+            $catchPos,
+            'The recovery-notification side effects must be followed by a catch (\Throwable ...) block, '
+                . 'broad enough to catch any DB-layer exception (RateLimit\'s constructor, User\'s '
+                . 'constructor/find(), DB::query()), not just a narrower Exception type.'
+        );
+
+        $genericMessage = 'We could not complete your registration. Please check your information and try again.';
+        $genericMessagePos = strpos($source, "usError('{$genericMessage}');");
+        $this->assertNotFalse($genericMessagePos, 'Could not locate the generic usError() call');
+
+        $this->assertTrue(
+            $tryPos < $probePos && $probePos < $catchPos && $catchPos < $genericMessagePos,
+            'The try/catch must fully enclose the recovery-notification side effects and resolve before '
+                . 'the generic failure message is shown.'
         );
     }
 }

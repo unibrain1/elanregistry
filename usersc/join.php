@@ -309,39 +309,54 @@ if (Input::existsPost()) {
         logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
             'join.php: Registration failed — ' . count($validation->_errors ?? []) . ' validation error(s)');
 
-        // Send a recovery-style email to an existing account instead of a signup error (#1406 — prevents email enumeration)
-        if (!empty($email) && checkRateLimit('registration_recovery_email', null, $email)) {
-            // 'forceEmail' pins the lookup to the email column regardless of format —
-            // this branch can be reached with a malformed $email (e.g. validation failed
-            // on valid_email), and without this a non-email string would otherwise fall
-            // through to a username-column lookup and could overwrite an unrelated
-            // username-matched user's vericode.
-            $fuser = new \User($email, 'forceEmail');
-            $notifier = new \ElanRegistry\RegistrationRecoveryNotifier(\DB::getInstance());
-            $notifier->notifyIfAccountExists($fuser, $email, $settings);
+        // Silently notify the existing account holder if this email is already taken (#1406) —
+        // the generic failure message below is shown regardless of whether this fires; the
+        // notification is an ADDITIONAL side effect, never an alternative to that message.
+        // The whole block is wrapped in try/catch: checkRateLimit()/recordRateLimit()/new \User()
+        // all touch the DB directly and are not guarded by RegistrationRecoveryNotifier's own
+        // try/catch (that only covers its internals) — an uncaught DB error here would fatal
+        // instead of falling through to the generic failure message below, which would itself
+        // be a distinguishing (enumeration-adjacent) failure mode.
+        $fuser = null;
+        try {
+            if (!empty($email) && checkRateLimit('registration_recovery_email', null, $email)) {
+                // 'forceEmail' pins the lookup to the email column regardless of format —
+                // this branch can be reached with a malformed $email (e.g. validation failed
+                // on valid_email), and without this a non-email string would otherwise fall
+                // through to a username-column lookup and could overwrite an unrelated
+                // username-matched user's vericode.
+                $fuser = new \User($email, 'forceEmail');
+                $notifier = new \ElanRegistry\RegistrationRecoveryNotifier(\DB::getInstance());
+                $notifier->notifyIfAccountExists($fuser, $email, $settings);
 
-            // Record the attempt so the per-email rate limit actually accumulates —
-            // checkRateLimit() only counts prior recorded attempts; without this call
-            // the limit above never engages and an attacker could email-bomb a victim
-            // via repeated registration attempts with their address.
-            //
-            // Deliberately record success=false (not the notification's own success/
-            // failure) on every pass: RateLimit::check() only counts success=false
-            // rows toward the tight email_max cap — success=true rows only count
-            // toward the much higher total_max. The abuse this limit exists to stop
-            // (repeatedly targeting one real, existing email) is exactly the
-            // success=true case, so recording it as success=false is what makes
-            // email_max actually engage for that scenario.
-            recordRateLimit('registration_recovery_email', false, null, $email);
+                // Record the attempt so the per-email rate limit actually accumulates —
+                // checkRateLimit() only counts prior recorded attempts; without this call
+                // the limit above never engages and an attacker could email-bomb a victim
+                // via repeated registration attempts with their address.
+                //
+                // Deliberately record success=false (not the notification's own success/
+                // failure) on every pass: RateLimit::check() only counts success=false rows
+                // toward the tight email_max cap, while total_max counts EVERY attempt
+                // (success and failure alike). The abuse this limit exists to stop
+                // (repeatedly targeting one real, existing email) is exactly the
+                // success=true case, so recording it as success=false is what makes
+                // email_max actually engage for that scenario.
+                recordRateLimit('registration_recovery_email', false, null, $email);
 
-            if (!$fuser->exists()) {
-                // Match forgot_password.php's timing-equalization pattern: without a
-                // compensating delay, a real notification (DB write + email send) takes
-                // measurably longer than this no-op branch, which would let an attacker
-                // distinguish registered from unregistered emails via response latency
-                // even though the response content is identical either way.
-                sleep(2);
+                if (!$fuser->exists()) {
+                    // Match forgot_password.php's timing-equalization pattern: without a
+                    // compensating delay, a real notification (DB write + email send) takes
+                    // measurably longer than this no-op branch, which would let an attacker
+                    // distinguish registered from unregistered emails via response latency
+                    // even though the response content is identical either way.
+                    sleep(2);
+                }
             }
+        } catch (\Throwable $e) {
+            $knownUserId = ($fuser !== null && $fuser->exists()) ? (int) $fuser->data()->id : 0;
+            $safeToLog = preg_replace('/[\r\n\t]/', ' ', $e->getMessage()) ?? '[message unavailable]';
+            logger($knownUserId, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+                'join.php: recovery-notification side effect failed — ' . get_class($e) . ': ' . $safeToLog);
         }
 
         // Show a generic message regardless of the specific reason (prevents email enumeration)

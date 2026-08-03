@@ -658,7 +658,8 @@ if (!class_exists('DB')) {
         }
 
         /**
-         * Update a record
+         * Update a record. Return value can be overridden via
+         * $GLOBALS['mockDbUpdateResult'] to simulate write failures.
          *
          * @param string $table Table name
          * @param int $id Record ID
@@ -667,7 +668,7 @@ if (!class_exists('DB')) {
          */
         public function update(string $table, int $id, array $data): bool {
             $GLOBALS['mockDbUpdateCalls'][] = [$table, $id, $data];
-            return true;
+            return $GLOBALS['mockDbUpdateResult'] ?? true;
         }
 
         /**

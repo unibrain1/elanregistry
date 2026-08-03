@@ -46,7 +46,8 @@ class RegistrationRecoveryNotifier
      *
      * When the account exists, a fresh reset vericode is generated, hashed, and
      * stored (mirroring users/forgot_password.php), and a recovery email is sent
-     * pointing at the existing password-reset verification flow.
+     * pointing at the existing password-reset verification flow. If the vericode
+     * write fails, the method returns false and no email is attempted.
      *
      * @param \User  $fuser    UserSpice user resolved from the email address.
      * @param string $email    The email address the registration was attempted with (raw, un-encoded).
@@ -55,6 +56,7 @@ class RegistrationRecoveryNotifier
      */
     public function notifyIfAccountExists(\User $fuser, string $email, object $settings): bool
     {
+        $userId = 0;
         try {
             if (!$fuser->exists()) {
                 return false;
@@ -69,10 +71,17 @@ class RegistrationRecoveryNotifier
                 strtotime("+{$settings->reset_vericode_expiry} minutes", strtotime(date("Y-m-d H:i:s")))
             );
 
-            $this->db->update('users', $userId, [
+            if (!$this->db->update('users', $userId, [
                 'vericode' => $hashedVericode,
                 'vericode_expiry' => $vericodeExpiry,
-            ]);
+            ])) {
+                logger(
+                    $userId,
+                    LogCategories::LOG_CATEGORY_EMAIL_ERROR,
+                    'RegistrationRecoveryNotifier: DB update failed — vericode not persisted, recovery email not sent'
+                );
+                return false;
+            }
 
             $options = [
                 'fname' => $fuser->data()->fname,
@@ -98,7 +107,7 @@ class RegistrationRecoveryNotifier
             $emailResult = email($email, $subject, $body);
 
             if ($emailResult !== true) {
-                $safeToLog = preg_replace('/[\r\n\t]/', '', $email);
+                $safeToLog = preg_replace('/[\r\n\t]/', '', $email) ?? '[email unavailable]';
                 logger(
                     $userId,
                     LogCategories::LOG_CATEGORY_EMAIL_ERROR,
@@ -117,7 +126,7 @@ class RegistrationRecoveryNotifier
         } catch (\Throwable $e) {
             $safeToLog = preg_replace('/[\r\n\t]/', ' ', $e->getMessage()) ?? '[message unavailable]';
             logger(
-                0,
+                $userId,
                 LogCategories::LOG_CATEGORY_EMAIL_ERROR,
                 'RegistrationRecoveryNotifier: unexpected failure — ' . get_class($e) . ': ' . $safeToLog
             );

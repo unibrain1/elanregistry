@@ -56,9 +56,10 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     {
         parent::setUp();
 
-        global $mockSentEmails, $mockDbUpdateCalls, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
+        global $mockSentEmails, $mockDbUpdateCalls, $mockDbUpdateResult, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
         $mockSentEmails = [];
         $mockDbUpdateCalls = [];
+        $mockDbUpdateResult = null;
         $mockEmailSendResult = null;
         $mockEmailBodyResult = null;
         $mockLogEntries = [];
@@ -68,8 +69,8 @@ final class RegistrationRecoveryNotifierTest extends TestCase
 
     protected function tearDown(): void
     {
-        global $mockSentEmails, $mockDbUpdateCalls, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
-        unset($mockSentEmails, $mockDbUpdateCalls, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries);
+        global $mockSentEmails, $mockDbUpdateCalls, $mockDbUpdateResult, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
+        unset($mockSentEmails, $mockDbUpdateCalls, $mockDbUpdateResult, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries);
 
         parent::tearDown();
     }
@@ -140,6 +141,23 @@ final class RegistrationRecoveryNotifierTest extends TestCase
         $rawVericode = str_repeat('x', 15);
         $this->assertNotSame($rawVericode, $storedVericode, 'Vericode must not be stored in plaintext');
         $this->assertSame(hashVericode($rawVericode), $storedVericode, 'Stored vericode must be the hashed value');
+    }
+
+    public function testDbUpdateFailureReturnsFalseWithoutSendingEmail(): void
+    {
+        $fuser = new User(true, (object) ['id' => 42, 'fname' => 'Jane']);
+        $GLOBALS['mockDbUpdateResult'] = false;
+
+        $notifier = new RegistrationRecoveryNotifier($this->db);
+        $result = $notifier->notifyIfAccountExists($fuser, 'jane@example.com', $this->settings());
+
+        $this->assertFalse($result, 'A failed vericode write must not be treated as success');
+
+        global $mockSentEmails;
+        $this->assertEmpty(
+            $mockSentEmails,
+            'No email should be sent when the vericode write failed — the link it would contain was never persisted'
+        );
     }
 
     public function testEmailSendFailureReturnsFalseWithoutThrowing(): void
