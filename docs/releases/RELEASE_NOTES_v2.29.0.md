@@ -15,6 +15,7 @@
   - Manual: GSC → URL Inspection → Request Indexing for each of the 11 pages now carrying a distinct title/description (see Issues Resolved for the list)
 - **#1394 (Sendinblue plugin update):** Applied on local dev only so far. Still needs the same manual update (Admin → Spice Shaker → Installed Plugins → Update) on test and production, followed by the Test Email + password-reset smoke tests on each — see `docs/development/EMAIL_SYSTEM.md#updating-the-plugin`.
 - **#1479 (backups wiped on every deploy):** After deploying, verify on the test server that a file placed in `backups/automated/` survives a subsequent deploy, and confirm `https://elanregistry.org/backups/` (and a direct file URL under it) return 403 on prod. Watch the next scheduled monitoring run for zero new `cleanupOldBackups` `realpath()` failures.
+- **#1373 (dynamic sitemap.xml):** After deploying, confirm `curl https://elanregistry.org/sitemap.xml` returns valid XML with `Content-Type: application/xml` and includes `details.php?car_id=` entries. Manual: GSC → Sitemaps → Add a new sitemap: `https://elanregistry.org/sitemap.xml`. Record submission confirmation.
 
 ## User-Facing Changes
 
