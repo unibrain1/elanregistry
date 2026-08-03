@@ -14,20 +14,44 @@ Based on UserSpice 5 registration system
 // screen until dismissed, instead of a 6-second auto-fading toast that's easy
 // to miss (#1406 — the enumeration-safe generic message is subtle enough on
 // its own without also being hard to notice).
+//
+// All three message types are handled (not just valErr) so a genMsg/valSuc
+// flash queued by some future hook/plugin/redirect isn't silently dropped —
+// system_messages_footer.php's later parseSessionMessages() call would find
+// the session slot already drained and never show it as a toast otherwise.
+//
+// Escaped with htmlspecialchars() here per CLAUDE.md ("Apply htmlspecialchars()
+// at the render layer only" — this is that render layer). No call site on
+// this page currently interpolates user-controlled data into a flash message,
+// but this is the sanctioned reusable "Danger Modal" pattern (see
+// UI_STANDARDS.md), so it must be safe by default for a future consumer that
+// does.
 $joinInlineMessages = function_exists('parseSessionMessages') ? parseSessionMessages() : [];
-$joinFailureMessage = $joinInlineMessages['valErr'] ?? '';
+$joinAlertTypes = ['valErr' => 'danger', 'valSuc' => 'success', 'genMsg' => 'secondary'];
+$joinHasMessages = false;
+foreach ($joinAlertTypes as $joinMsgKey => $joinMsgClass) {
+    if (!empty($joinInlineMessages[$joinMsgKey])) {
+        $joinHasMessages = true;
+        break;
+    }
+}
+$joinModalIsDanger = !empty($joinInlineMessages['valErr']);
 ?>
 
-<?php if ($joinFailureMessage !== ''): ?>
+<?php if ($joinHasMessages): ?>
 <div class="modal fade" id="joinFailureModal" tabindex="-1" aria-labelledby="joinFailureModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title" id="joinFailureModalLabel"><i class="fas fa-exclamation-circle me-2"></i>Registration Issue</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-header <?= $joinModalIsDanger ? 'bg-danger text-white' : 'card-header-er-primary' ?>">
+        <h5 class="modal-title <?= $joinModalIsDanger ? '' : 'card-header-er-primary-text' ?>" id="joinFailureModalLabel">
+          <i class="fas fa-<?= $joinModalIsDanger ? 'exclamation-circle' : 'info-circle' ?> me-2"></i><?= $joinModalIsDanger ? 'Registration Issue' : 'Registration' ?>
+        </h5>
+        <button type="button" class="btn-close <?= $joinModalIsDanger ? 'btn-close-white' : '' ?>" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <div class="alert alert-danger mb-0"><?= $joinFailureMessage ?></div>
+        <?php foreach ($joinAlertTypes as $joinMsgKey => $joinMsgClass): if (!empty($joinInlineMessages[$joinMsgKey])): ?>
+        <div class="alert alert-<?= $joinMsgClass ?> mb-0"><?= htmlspecialchars($joinInlineMessages[$joinMsgKey], ENT_QUOTES, 'UTF-8') ?></div>
+        <?php endif; endforeach; ?>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

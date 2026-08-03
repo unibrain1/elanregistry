@@ -356,6 +356,12 @@ if (Input::existsPost()) {
                     // measurably longer than this no-op branch, which would let an attacker
                     // distinguish registered from unregistered emails via response latency
                     // even though the response content is identical either way.
+                    //
+                    // A blocking 2s sleep is only DoS-safe here because it's bounded by
+                    // registration_attempt's own rate limit (ip_max=5/hour, total_max=20/hour
+                    // — see rate_limits.php) checked earlier in this file, not by anything in
+                    // this block — an attacker can't cheaply amplify worker-blocking beyond
+                    // that ceiling.
                     sleep(2);
                 }
             }

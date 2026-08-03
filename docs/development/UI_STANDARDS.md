@@ -247,6 +247,14 @@ Show it via `bootstrap.Modal.getOrCreateInstance(el).show()` (or a declarative
 `data-bs-toggle="modal"` trigger). Dismiss buttons use `btn-secondary`/`btn-primary` —
 `btn-danger` is reserved for the destructive action itself, not for dismissing the dialog.
 
+**Always `htmlspecialchars($message, ENT_QUOTES, 'UTF-8')` the message body before echoing it**,
+per CLAUDE.md's "Apply `htmlspecialchars()` at the render layer only" — this modal *is* that
+render layer. This applies even if the message source looks safe today (e.g. a static string
+or a value that's already passed through an upstream allowlist sanitizer like `sanitizeHTML()`)
+— the pattern is meant to be reused, and the next consumer's message source may include
+user-controlled data. If `<br>`/`<strong>`-style formatting genuinely needs to survive, replicate
+a safe-tag allowlist server-side rather than skipping escaping.
+
 Used by the car-deletion confirmation (`app/admin/index.php` / `admin-core.js`) and the
 registration-failure notice (`usersc/views/_join.php`, issue #1406) — both surface a message
 that page visitors are otherwise likely to miss in a 6-second auto-dismissing toast.
