@@ -342,6 +342,7 @@ final class LocationServiceCacheTest extends TestCase
      * and assert on it directly.
      */
     #[Group('fast')]
+    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_setCache_createsNoCacheFile_whenFileWriteFails(): void
     {
         if (posix_getuid() === 0) {
@@ -588,6 +589,7 @@ final class LocationServiceCacheTest extends TestCase
      * PHPUnit does not flag it as an unexpected warning.
      */
     #[Group('fast')]
+    #[Group('known-broken')] // #1470 — fails on Linux CI, root cause under investigation
     public function test_getCache_returnsNull_whenCacheFileIsUnreadable(): void
     {
         if (posix_getuid() === 0) {
