@@ -30,7 +30,7 @@ ElanRegistry.code-workspace
 ########################################
 .env
 .env.local
-.env.testing
+.env.test.local
 .user.ini
 USER.INI
 usersc/vericode_secret.php

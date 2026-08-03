@@ -57,5 +57,6 @@
 - [#1406](https://github.com/elan-registry/registry/issues/1406) — security: fix account enumeration during registration (generic response + silent recovery email)
 - [#1409](https://github.com/elan-registry/registry/issues/1409) — fix: GSC 404 cleanup — legacy path redirects and PDF filename case mismatch
 - [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
+- [#1436](https://github.com/elan-registry/registry/issues/1436) — test: isolate integration tests onto a dedicated test schema
 - [#1437](https://github.com/elan-registry/registry/issues/1437) — ci: run PHPUnit unit + regression suites on every PR
 - [#1470](https://github.com/elan-registry/registry/issues/1470) — bug: LocationService cache silently disabled when APCu is present but non-functional
