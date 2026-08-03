@@ -10,6 +10,10 @@ declare(strict_types=1);
  *
  * @package ElanRegistry
  */
+
+$pageTitle = 'Lotus Elan Car Stories — Registry Ownership Histories';
+$pageDescription = 'Read individual ownership histories and stories for Lotus Elan and Elan Plus 2 cars in the registry.';
+
 require_once '../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 

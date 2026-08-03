@@ -1,5 +1,13 @@
 const { test, expect } = require('@playwright/test');
 
+// Escapes regex metacharacters so an expectedTitle string can be used inside
+// a RegExp for a partial (contains) match against the real <title> tag,
+// which appends " {site_name}" after the page-specific title (see
+// users/template/header1_must_include.php).
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 test.describe('Elan Registry - All Pages (Not Logged In)', () => {
   // Skip these tests if running in logged-in project
   test.beforeEach(async ({ }, testInfo) => {
@@ -19,6 +27,8 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'List Cars',
       selector: 'h2',
       expectedText: 'Registry Cars',
+      expectedTitle: 'Browse All Registered Cars',
+      expectedDescription: 'Search and browse every Lotus Elan and Elan Plus 2 currently registered, with chassis, model, and ownership history details.',
     },
     {
       path: '/users/join.php',
@@ -31,60 +41,80 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'Statistics',
       selector: 'h1',
       expectedText: 'Registry Analytics & Statistics',
+      expectedTitle: 'Registry Analytics & Statistics',
+      expectedDescription: 'Explore production trends, geographic distribution, paint colour popularity, and data-completeness statistics across the Lotus Elan Registry.',
     },
     {
       path: '/docs/reference/identification-guide.php',
       name: 'Identification Guide',
       selector: 'h1',
       expectedText: 'Lotus Elan Identification Guide',
+      expectedTitle: 'How to Identify a Lotus Elan or Elan Plus 2 — Chassis & Body Style Guide',
+      expectedDescription: 'Identify your Lotus Elan or Elan Plus 2 variant by chassis number, body style, and distinguishing features, including Roadster, Drophead, and Coupé differences.',
     },
     {
       path: '/app/owner/cars/factory.php',
       name: 'Factory Data',
       selector: 'h2',
       expectedText: 'Elan Factory Information',
+      expectedTitle: 'Lotus Elan Factory Build Records — Registry Factory Data',
+      expectedDescription: 'Browse original factory build records for registered Lotus Elan and Elan Plus 2 cars, cross-referenced against registry ownership data.',
     },
     {
       path: '/docs/',
       name: 'Docs Index',
       selector: 'h1',
       expectedText: 'Documentation',
+      expectedTitle: 'Documentation Hub',
+      expectedDescription: 'Guides, technical references, and car histories for Lotus Elan and Elan Plus 2 owners, organized by topic.',
     },
     {
       path: '/docs/reference/index.php',
       name: 'Reference Index',
       selector: 'h1',
       expectedText: 'Technical Reference',
+      expectedTitle: 'Technical Reference Library',
+      expectedDescription: 'Workshop manuals, parts lists, technical articles, and identification guides for the Lotus Elan and Elan Plus 2.',
     },
     {
       path: '/docs/reference/chassis-validation.php',
       name: 'Chassis Validation',
       selector: 'h1',
       expectedText: 'Chassis Validation Rules',
+      expectedTitle: 'Lotus Elan Chassis Number Formats — Registry Validation Reference',
+      expectedDescription: 'Reference guide to the chassis numbering formats the Lotus Elan Registry recognizes and validates during car registration.',
     },
     {
       path: '/docs/reference/paint-colors.php',
       name: 'Paint Colors',
       selector: 'h1',
       expectedText: 'Lotus Elan',
+      expectedTitle: 'Lotus Elan Paint Codes — Official Colour Chart L01–L26',
+      expectedDescription: 'Complete reference for Lotus Elan and Elan Plus 2 paint codes L01–L26 with colour chips, date ranges, model applicability, and early pre-code colours.',
     },
     {
       path: '/docs/reference/technical-articles.php',
       name: 'Technical Articles',
       selector: 'h1',
       expectedText: 'Technical Articles',
+      expectedTitle: 'Lotus Elan Technical Articles — Club Lotus Reference Archive',
+      expectedDescription: 'Historical Club Lotus technical articles covering maintenance, engineering, and restoration topics for the Lotus Elan and Elan Plus 2.',
     },
     {
       path: '/docs/reference/workshop.php',
       name: 'Workshop & Parts',
       selector: 'h1',
       expectedText: 'Workshop',
+      expectedTitle: 'Lotus Elan Workshop Manuals & Parts References',
+      expectedDescription: 'Workshop manuals, parts lists, and engine reference documents for maintaining and restoring the Lotus Elan and Elan Plus 2.',
     },
     {
       path: '/docs/car-stories.php',
       name: 'Car Stories',
       selector: 'h1',
       expectedText: 'Car Stories',
+      expectedTitle: 'Lotus Elan Car Stories — Registry Ownership Histories',
+      expectedDescription: 'Read individual ownership histories and stories for Lotus Elan and Elan Plus 2 cars in the registry.',
     },
     {
       path: '/docs/stories/brian_walton/index.php',
@@ -109,6 +139,8 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'Owner Guides',
       selector: 'h1',
       expectedText: 'Owner Guides',
+      expectedTitle: 'Owner Guides',
+      expectedDescription: 'Practical guides for Lotus Elan and Elan Plus 2 owners, covering registration, transfers, and car management.',
     },
     {
       path: '/docs/guides/car-transfer-faq.php',
@@ -137,7 +169,12 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
     },
   ];
 
-  pages.forEach(({ path, name, selector, expectedText, isLoginPage }) => {
+  test('page-specific descriptions are unique across all pages (#1432)', () => {
+    const descriptions = pages.map(p => p.expectedDescription).filter(Boolean);
+    expect(new Set(descriptions).size).toBe(descriptions.length);
+  });
+
+  pages.forEach(({ path, name, selector, expectedText, isLoginPage, expectedTitle, expectedDescription }) => {
     test(`should be able to reach ${name} page`, async ({ page }) => {
       const response = await page.goto(path);
 
@@ -157,56 +194,59 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
         await expect(page.locator(selector)).toContainText(expectedText);
       }
 
+      // Layer 4: Verify page-specific title and meta description (#1432)
+      if (expectedTitle) {
+        // The <title> tag appends " {site_name}" after $pageTitle (see
+        // users/template/header1_must_include.php), so this is a partial
+        // (contains) match rather than an exact one.
+        await expect(page).toHaveTitle(new RegExp(escapeRegExp(expectedTitle)));
+
+        // og:title/twitter:title mirror $pageTitle exactly, with no
+        // site-name suffix (see usersc/includes/head_tags.php), so these
+        // are exact matches.
+        const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
+        expect(ogTitle).toBe(expectedTitle);
+        const twitterTitle = await page.locator('meta[name="twitter:title"]').getAttribute('content');
+        expect(twitterTitle).toBe(expectedTitle);
+      }
+      if (expectedDescription) {
+        const description = await page.locator('meta[name="description"]').getAttribute('content');
+        expect(description).toContain(expectedDescription);
+
+        // og:description/twitter:description share $site_description with the
+        // meta description tag (see usersc/includes/head_tags.php), so they
+        // pick up $pageDescription the same way.
+        const ogDescription = await page.locator('meta[property="og:description"]').getAttribute('content');
+        expect(ogDescription).toContain(expectedDescription);
+        const twitterDescription = await page.locator('meta[name="twitter:description"]').getAttribute('content');
+        expect(twitterDescription).toContain(expectedDescription);
+      }
+
       console.log(`✓ Successfully reached: ${name} (${path})`);
     });
   });
 });
 
-// TODO(#1432): when the table-driven pages[] array above gains expectedTitle/
-// expectedDescription fields for the broader page-title rollout, fold
-// paint-colors.php's assertions into that table and remove this block instead
-// of duplicating coverage.
-test.describe('paint-colors.php SEO title/meta description (#1372)', () => {
-  test.beforeEach(async ({ }, testInfo) => {
-    if (testInfo.project.name !== 'not-logged-in') {
-      testInfo.skip();
-    }
-  });
+// paint-colors.php's page-specific <title>/meta description assertions
+// (#1372) are now covered by the table-driven pages[] array above via
+// expectedTitle/expectedDescription (#1432). The regression guard below
+// (confirming the generic site-wide title/description still renders on
+// pages outside #1432's scope) is retained, retargeted at
+// car-transfer-faq.php since identification-guide.php now has a
+// page-specific title of its own.
+test('docs/guides/car-transfer-faq.php still renders the generic site title/description (regression guard) (#1432)', async ({ page }, testInfo) => {
+  if (testInfo.project.name !== 'not-logged-in') {
+    testInfo.skip();
+  }
 
-  test('has a page-specific <title> and meta description, not the generic site default', async ({ page }) => {
-    await page.goto('/docs/reference/paint-colors.php');
+  await page.goto('/docs/guides/car-transfer-faq.php');
 
-    await expect(page).toHaveTitle(/Lotus Elan Paint Codes/);
+  await expect(page).toHaveTitle(/^ Lotus Elan Registry$/);
 
-    const description = await page
-      .locator('meta[name="description"]')
-      .getAttribute('content');
-    expect(description).toContain('Lotus Elan and Elan Plus 2 paint codes L01–L26');
-
-    // $pageDescription feeds og:description and twitter:description too
-    // (they share $site_description in head_tags.php), so the social-share
-    // preview copy changes along with the meta description.
-    const ogDescription = await page
-      .locator('meta[property="og:description"]')
-      .getAttribute('content');
-    expect(ogDescription).toContain('Lotus Elan and Elan Plus 2 paint codes L01–L26');
-
-    const twitterDescription = await page
-      .locator('meta[name="twitter:description"]')
-      .getAttribute('content');
-    expect(twitterDescription).toContain('Lotus Elan and Elan Plus 2 paint codes L01–L26');
-  });
-
-  test('other docs/reference pages still render the generic site title/description (regression guard)', async ({ page }) => {
-    await page.goto('/docs/reference/identification-guide.php');
-
-    await expect(page).toHaveTitle(/^ Lotus Elan Registry$/);
-
-    const description = await page
-      .locator('meta[name="description"]')
-      .getAttribute('content');
-    expect(description).toContain('Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974)');
-  });
+  const description = await page
+    .locator('meta[name="description"]')
+    .getAttribute('content');
+  expect(description).toContain('Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974)');
 });
 
 test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {

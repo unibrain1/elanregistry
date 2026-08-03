@@ -10,6 +10,9 @@
 - **#1372 (paint-colors.php SEO):**
   - Run `npm run test:e2e` against the deployed test environment to validate the new Playwright title/description assertions against live Apache/PHP config
   - Manual: GSC → URL Inspection → Request Indexing for `https://elanregistry.org/docs/reference/paint-colors.php`
+- **#1432 (page title/description convention rollout):**
+  - Run `npm run test:e2e` against the deployed test environment to validate the extended Playwright title/description assertions (11 newly-titled pages) against live Apache/PHP config
+  - Manual: GSC → URL Inspection → Request Indexing for each of the 11 pages now carrying a distinct title/description (see Issues Resolved for the list)
 - **#1394 (Sendinblue plugin update):** Applied on local dev only so far. Still needs the same manual update (Admin → Spice Shaker → Installed Plugins → Update) on test and production, followed by the Test Email + password-reset smoke tests on each — see `docs/development/EMAIL_SYSTEM.md#updating-the-plugin`.
 - **#1479 (backups wiped on every deploy):** After deploying, verify on the test server that a file placed in `backups/automated/` survives a subsequent deploy, and confirm `https://elanregistry.org/backups/` (and a direct file URL under it) return 403 on prod. Watch the next scheduled monitoring run for zero new `cleanupOldBackups` `realpath()` failures.
 
@@ -24,6 +27,7 @@
 
 - **GSC 404 cleanup** ([#1409](https://github.com/elan-registry/registry/issues/1409)): Legacy path redirects and PDF filename case mismatch fix — eliminates remaining 404 noise from Google Search Console.
 - **Paint colors SEO** ([#1372](https://github.com/elan-registry/registry/issues/1372)): `paint-colors.php` now has a descriptive `<title>` and meta description, so it can outrank the generic PDF snippet Google previously showed for this high-traffic page.
+- **Page title/description convention rollout** ([#1432](https://github.com/elan-registry/registry/issues/1432)): 11 more top-value pages (car listing, factory data, statistics, docs hub, reference library, and more) now have distinct, descriptive `<title>` and meta description values instead of the generic site-wide default — improving how each page appears in search results and when shared on social media. `og:title`/`twitter:title` (previously always the generic site name regardless of page) now also reflect each page's specific title.
 - **Location picker disambiguation** ([#1400](https://github.com/elan-registry/registry/issues/1400)): Searching an ambiguous city name (e.g. "Springfield") no longer silently collapses same-named cities in different states/regions into a single dropdown entry — owners now see all distinct matches (Springfield OH, Springfield MO, etc.) and can pick the correct one.
 - **Registration account-enumeration fix** ([#1406](https://github.com/elan-registry/registry/issues/1406)): Registering with an already-registered email no longer reveals that the account exists. The response is identical to any other registration failure — same message text and same response timing — and the existing account holder is silently sent a private recovery email instead. The failure message is now shown in a modal (rather than an auto-dismissing toast) and reworded to point users toward checking their inbox. **Trade-off:** because response *timing* must also be identical regardless of failure reason, every failed registration attempt (not just ones involving an existing email — e.g. a mistyped password confirmation) now takes a fixed ~2 extra seconds before showing the failure message.
 
@@ -58,6 +62,7 @@
 - [#1406](https://github.com/elan-registry/registry/issues/1406) — security: fix account enumeration during registration (generic response + silent recovery email)
 - [#1409](https://github.com/elan-registry/registry/issues/1409) — fix: GSC 404 cleanup — legacy path redirects and PDF filename case mismatch
 - [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
+- [#1432](https://github.com/elan-registry/registry/issues/1432) — feat: page-specific title/description convention rollout to 11 top-value pages; fix og:title/twitter:title; close #1431 (superseded)
 - [#1436](https://github.com/elan-registry/registry/issues/1436) — test: isolate integration tests onto a dedicated test schema
 - [#1437](https://github.com/elan-registry/registry/issues/1437) — ci: run PHPUnit unit + regression suites on every PR
 - [#1470](https://github.com/elan-registry/registry/issues/1470) — bug: LocationService cache silently disabled when APCu is present but non-functional

@@ -8,6 +8,9 @@ declare(strict_types=1);
  * @package ElanRegistry
  */
 
+$pageTitle = 'Owner Guides';
+$pageDescription = 'Practical guides for Lotus Elan and Elan Plus 2 owners, covering registration, transfers, and car management.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 
