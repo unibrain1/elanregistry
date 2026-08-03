@@ -6,7 +6,44 @@ Enhanced Lotus Elan Registry Registration Page
 Customized for the Lotus Elan Registry with improved UX and registry-specific features
 Based on UserSpice 5 registration system
 */
+
+// Drain session flash messages here, before users/includes/html_footer.php's
+// system_messages_footer.php gets a chance to (parseSessionMessages() reads
+// and clears the session slot on first call — whichever call site runs first
+// "wins"). This routes registration failures into a modal that stays on
+// screen until dismissed, instead of a 6-second auto-fading toast that's easy
+// to miss (#1406 — the enumeration-safe generic message is subtle enough on
+// its own without also being hard to notice).
+$joinInlineMessages = function_exists('parseSessionMessages') ? parseSessionMessages() : [];
+$joinFailureMessage = $joinInlineMessages['valErr'] ?? '';
 ?>
+
+<?php if ($joinFailureMessage !== ''): ?>
+<div class="modal fade" id="joinFailureModal" tabindex="-1" aria-labelledby="joinFailureModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="joinFailureModalLabel"><i class="fas fa-exclamation-circle me-2"></i>Registration Issue</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger mb-0"><?= $joinFailureMessage ?></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script nonce="<?= htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+document.addEventListener('DOMContentLoaded', function() {
+    var joinFailureModalEl = document.getElementById('joinFailureModal');
+    if (joinFailureModalEl) {
+        bootstrap.Modal.getOrCreateInstance(joinFailureModalEl).show();
+    }
+});
+</script>
+<?php endif; ?>
 
 <div class="container">
   <div class="row justify-content-center">

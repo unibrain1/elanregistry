@@ -108,12 +108,12 @@ test.describe('Registration account enumeration (#1406)', () => {
 
     // Extract just the flash-message text rather than comparing full pages
     // byte-for-byte (session-specific tokens/timestamps elsewhere in the
-    // page would make a full-body comparison flaky). Flash messages render
-    // as a client-side toast via an inline userSpiceMessage(<json>, 'danger')
-    // call (see users/includes/system_messages_footer.php) — not a
-    // server-rendered alert div — so the message text must be pulled from
-    // that JS call's JSON-encoded first argument.
-    const flashMessageRegex = /userSpiceMessage\((".*?"),\s*'danger'\)/;
+    // page would make a full-body comparison flaky). join.php's registration
+    // failure renders as a server-side modal (usersc/views/_join.php,
+    // #1406) rather than the default client-side toast, so the message is
+    // present directly in the raw HTML body — no JS execution needed to
+    // read it.
+    const flashMessageRegex = /<div class="alert alert-danger mb-0">([\s\S]*?)<\/div>/;
     const existingEmailMessage = existingEmailBody.match(flashMessageRegex)?.[1];
     const newEmailMessage = newEmailBody.match(flashMessageRegex)?.[1];
 

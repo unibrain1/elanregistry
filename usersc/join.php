@@ -367,7 +367,7 @@ if (Input::existsPost()) {
         }
 
         // Show a generic message regardless of the specific reason (prevents email enumeration)
-        usError('We could not complete your registration. Please check your information and try again.');
+        usError('Check your inbox — if an account exists, we have sent you a sign-in link. Otherwise, please check your information and try again.');
 
         Redirect::to(currentPage());
     } //Validation

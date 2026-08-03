@@ -48,7 +48,7 @@ final class Issue1406RegressionTest extends RegressionTestCase
         $source = file_get_contents(self::JOIN_PHP_PATH);
         $this->assertIsString($source, 'usersc/join.php must be readable');
 
-        $genericMessage = 'We could not complete your registration. Please check your information and try again.';
+        $genericMessage = 'Check your inbox — if an account exists, we have sent you a sign-in link. Otherwise, please check your information and try again.';
 
         $this->assertSame(
             1,
@@ -188,7 +188,7 @@ final class Issue1406RegressionTest extends RegressionTestCase
                 . 'constructor/find(), DB::query()), not just a narrower Exception type.'
         );
 
-        $genericMessage = 'We could not complete your registration. Please check your information and try again.';
+        $genericMessage = 'Check your inbox — if an account exists, we have sent you a sign-in link. Otherwise, please check your information and try again.';
         $genericMessagePos = strpos($source, "usError('{$genericMessage}');");
         $this->assertNotFalse($genericMessagePos, 'Could not locate the generic usError() call');
 

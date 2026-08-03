@@ -217,6 +217,41 @@ All modal headers that use `card-header-er-primary` (BRG) or `card-header-er-dar
 </div>
 ```
 
+### Danger Modal (blocking failure/confirmation messages)
+
+For a message that must be acknowledged rather than a dismissible toast (destructive
+confirmations, security-sensitive failure notices), use a `bg-danger`/`text-white` header —
+the semantic exception for destructive/severe content — paired with `btn-close-white` and
+an `alert-danger` message body:
+
+```html
+<div class="modal fade" id="exampleDangerModal" tabindex="-1" aria-labelledby="exampleDangerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="exampleDangerModalLabel">Title</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger mb-0">Message text.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+```
+
+Show it via `bootstrap.Modal.getOrCreateInstance(el).show()` (or a declarative
+`data-bs-toggle="modal"` trigger). Dismiss buttons use `btn-secondary`/`btn-primary` —
+`btn-danger` is reserved for the destructive action itself, not for dismissing the dialog.
+
+Used by the car-deletion confirmation (`app/admin/index.php` / `admin-core.js`) and the
+registration-failure notice (`usersc/views/_join.php`, issue #1406) — both surface a message
+that page visitors are otherwise likely to miss in a 6-second auto-dismissing toast.
+Demoed in `design-system.php` under "Modals".
+
 ### Form Section Headings
 
 ```html
