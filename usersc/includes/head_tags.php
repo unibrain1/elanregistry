@@ -13,6 +13,7 @@ $og_title = !empty($pageTitle) ? $pageTitle : $site_title;
 $site_description = !empty($pageDescription)
     ? $pageDescription
     : 'Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974). Document your classic British sports car, connect with owners, and preserve automotive history.';
+$pageRobots = !empty($pageRobots) ? $pageRobots : 'index, follow';
 $og_image = $us_url_root . 'usersc/images/og-lotus-elan.jpg';
 ?>
 
@@ -24,7 +25,7 @@ $og_image = $us_url_root . 'usersc/images/og-lotus-elan.jpg';
 <meta name="keywords" content="Lotus Elan, Elan Plus 2, classic cars, British sports cars, automotive registry, car documentation, vintage automobiles">
 <meta name="author" content="Jim Boone">
 <meta name="version" content="<?= ApplicationVersion::get(); ?>">
-<meta name="robots" content="index, follow">
+<meta name="robots" content="<?= htmlspecialchars($pageRobots, ENT_QUOTES, 'UTF-8') ?>">
 <?php if (!empty($host)): ?>
 <link rel="canonical" href="<?= htmlspecialchars($current_url, ENT_QUOTES, 'UTF-8') ?>">
 
