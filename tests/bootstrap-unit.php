@@ -668,6 +668,9 @@ if (!class_exists('DB')) {
          */
         public function update(string $table, int $id, array $data): bool {
             global $mockDbUpdateCalls, $mockDbUpdateResult;
+            if (!isset($mockDbUpdateCalls)) {
+                $mockDbUpdateCalls = [];
+            }
             $mockDbUpdateCalls[] = [$table, $id, $data];
             return $mockDbUpdateResult ?? true;
         }
