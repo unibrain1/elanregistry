@@ -87,20 +87,38 @@ class PageMetadataCompletenessTest extends TestCase
 
     /**
      * Critical timing check — see class docblock for the full rationale.
+     * $pageTitle strictly requires this ordering (loader.php's isset() check
+     * runs once, at init time). $pageDescription is only read later, when
+     * head_tags.php renders — but the convention documented in
+     * elanregistry_overrides.md.php section 6 requires both variables to be
+     * assigned together, before init.php, for consistency across pages
+     * (matching how every page in this convention already writes them
+     * adjacently), so this test enforces the same ordering for both.
      */
     #[DataProvider('pagesProvider')]
     public function testPageTitleAssignmentPrecedesInitRequire(string $relativePath): void
+    {
+        $this->assertVariableAssignmentPrecedesInitRequire($relativePath, 'pageTitle');
+    }
+
+    #[DataProvider('pagesProvider')]
+    public function testPageDescriptionAssignmentPrecedesInitRequire(string $relativePath): void
+    {
+        $this->assertVariableAssignmentPrecedesInitRequire($relativePath, 'pageDescription');
+    }
+
+    private function assertVariableAssignmentPrecedesInitRequire(string $relativePath, string $variableName): void
     {
         $filePath = $this->rootDir . '/' . $relativePath;
         $this->assertFileExists($filePath, "$relativePath must exist (Issue #1432)");
 
         $content = (string)file_get_contents($filePath);
 
-        $titleMatches = [];
-        preg_match('/\$pageTitle\s*=/', $content, $titleMatches, PREG_OFFSET_CAPTURE);
+        $variableMatches = [];
+        preg_match('/\$' . $variableName . '\s*=/', $content, $variableMatches, PREG_OFFSET_CAPTURE);
         $this->assertNotEmpty(
-            $titleMatches,
-            "$relativePath must contain a \$pageTitle assignment to check its position (Issue #1432)"
+            $variableMatches,
+            "$relativePath must contain a \$$variableName assignment to check its position (Issue #1432)"
         );
 
         // Anchor to the require_once statement itself, not a bare 'init.php' substring —
@@ -110,15 +128,14 @@ class PageMetadataCompletenessTest extends TestCase
         preg_match('/require_once[^\n]*init\.php/', $content, $initMatches, PREG_OFFSET_CAPTURE);
         $this->assertNotEmpty(
             $initMatches,
-            "$relativePath must require init.php so the \$pageTitle timing can be verified (Issue #1432)"
+            "$relativePath must require init.php so the \$$variableName timing can be verified (Issue #1432)"
         );
 
         $this->assertLessThan(
             $initMatches[0][1],
-            $titleMatches[0][1],
-            "$relativePath must assign \$pageTitle BEFORE requiring init.php — the loader only checks " .
-            "isset(\$pageTitle) once, at init time, so a later assignment is silently too late " .
-            '(Issue #1372/#1432, bug class from #1430)'
+            $variableMatches[0][1],
+            "$relativePath must assign \$$variableName BEFORE requiring init.php, per the convention in " .
+            'elanregistry_overrides.md.php section 6 (Issue #1372/#1432)'
         );
     }
 
