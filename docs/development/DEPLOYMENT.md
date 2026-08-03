@@ -66,13 +66,17 @@ quality, security, and project management compliance.
 
 ### Quick Reference: PR Check Status
 
-| Check Name               | Purpose            | Blocks | Runs When          |
-| ------------------------ | ------------------ | ------ | ------------------ |
-| **CodeQL Analysis**      | Security scanning  | ✅ Yes | All PRs to main    |
-| **GitGuardian Security** | Secret detection   | ✅ Yes | All commits/PRs    |
-| **Claude Code Review**   | Coding standards   | ✅ Yes | PHP/JS/CSS changes |
-| **Issue Management**     | Auto-label issues  | ❌ No  | Issue events       |
-| **PR Management**        | Link PRs to issues | ❌ No  | PR events          |
+| Check Name                    | Purpose               | Blocks | Runs When          |
+| ----------------------------- | --------------------- | ------ | ------------------ |
+| **CodeQL Analysis**           | Security scanning     | ✅ Yes | All PRs to main    |
+| **GitGuardian Security**      | Secret detection      | ✅ Yes | All commits/PRs    |
+| **Claude Code Review**        | Coding standards      | ✅ Yes | PHP/JS/CSS changes |
+| **Issue Management**          | Auto-label issues     | ❌ No  | Issue events       |
+| **PR Management**             | Link PRs to issues    | ❌ No  | PR events          |
+| **PHPUnit Unit + Regression** | Behavioral test suite | ❌ No* | All PRs            |
+
+\* Not yet a GitHub-required status check — failures are caught by `/finish-issue`'s CI-status gate
+before merge, not by GitHub blocking the merge button itself (see issue #1437).
 
 ### Security & Code Quality Checks
 
