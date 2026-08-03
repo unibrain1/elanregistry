@@ -319,7 +319,14 @@ if (Input::existsPost()) {
         // be a distinguishing (enumeration-adjacent) failure mode.
         $fuser = null;
         try {
-            if (!empty($email) && checkRateLimit('registration_recovery_email', null, $email)) {
+            // Rate-limit key is case-normalized: the users.email column uses a
+            // case-insensitive collation (utf8mb4_unicode_ci), so new \User(...,
+            // 'forceEmail') below resolves 'Victim@x.com' and 'victim@x.com' to
+            // the same account. Without normalizing here too, an attacker could
+            // vary the submitted email's case on each attempt to dodge the
+            // email_max cap while still targeting that one real account.
+            $rateLimitEmailKey = !empty($email) ? mb_strtolower($email) : $email;
+            if (!empty($email) && checkRateLimit('registration_recovery_email', null, $rateLimitEmailKey)) {
                 // 'forceEmail' pins the lookup to the email column regardless of format —
                 // this branch can be reached with a malformed $email (e.g. validation failed
                 // on valid_email), and without this a non-email string would otherwise fall
@@ -341,7 +348,7 @@ if (Input::existsPost()) {
                 // (repeatedly targeting one real, existing email) is exactly the
                 // success=true case, so recording it as success=false is what makes
                 // email_max actually engage for that scenario.
-                recordRateLimit('registration_recovery_email', false, null, $email);
+                recordRateLimit('registration_recovery_email', false, null, $rateLimitEmailKey);
 
                 if (!$fuser->exists()) {
                     // Match forgot_password.php's timing-equalization pattern: without a

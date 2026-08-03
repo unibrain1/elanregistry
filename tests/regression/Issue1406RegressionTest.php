@@ -198,4 +198,41 @@ final class Issue1406RegressionTest extends RegressionTestCase
                 . 'the generic failure message is shown.'
         );
     }
+
+    /**
+     * The registration_recovery_email rate-limit key must be case-normalized
+     * before being passed to checkRateLimit()/recordRateLimit(). The users.email
+     * column uses a case-insensitive collation (utf8mb4_unicode_ci), so
+     * new \User($email, 'forceEmail') resolves 'Victim@x.com' and
+     * 'victim@x.com' to the same account — without normalizing the rate-limit
+     * key the same way, an attacker could vary the submitted email's case on
+     * each attempt to dodge the email_max cap while still targeting that one
+     * real account (the exact mail-bombing abuse this rate limit exists to stop).
+     */
+    public function testRateLimitKeyIsCaseNormalized(): void
+    {
+        $source = file_get_contents(self::JOIN_PHP_PATH);
+        $this->assertIsString($source, 'usersc/join.php must be readable');
+
+        $this->assertMatchesRegularExpression(
+            '/mb_strtolower\(\s*\$email\s*\)/',
+            $source,
+            'The rate-limit key must be derived from mb_strtolower($email) so case variations '
+                . 'of the same email collapse to the same rate-limit bucket.'
+        );
+
+        $this->assertStringNotContainsString(
+            "checkRateLimit('registration_recovery_email', null, \$email)",
+            $source,
+            'checkRateLimit() must not be called with the raw, case-sensitive $email — that would '
+                . 'let an attacker bypass email_max by varying case on each attempt.'
+        );
+
+        $this->assertStringNotContainsString(
+            "recordRateLimit('registration_recovery_email', false, null, \$email)",
+            $source,
+            'recordRateLimit() must not be called with the raw, case-sensitive $email — that would '
+                . 'let an attacker bypass email_max by varying case on each attempt.'
+        );
+    }
 }

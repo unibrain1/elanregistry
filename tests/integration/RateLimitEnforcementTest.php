@@ -67,4 +67,35 @@ final class RateLimitEnforcementTest extends IntegrationTestCase
             'A different email must not be affected by another email exhausting its own limit'
         );
     }
+
+    /**
+     * usersc/join.php normalizes the rate-limit key to lowercase before calling
+     * checkRateLimit()/recordRateLimit() (see the call site comment for why:
+     * users.email uses a case-insensitive collation, so the account lookup
+     * already treats 'Victim@x.com' and 'victim@x.com' as the same account).
+     * This test proves that IF a caller normalizes case consistently — as
+     * join.php does — attempts recorded under different casings of the same
+     * email collapse into the same rate-limit bucket instead of each getting
+     * their own fresh allowance.
+     */
+    public function testCaseVariationsOfSameEmailShareOneRateLimitBucketWhenNormalized(): void
+    {
+        $this->requireDatabase();
+
+        $baseEmail = 'rate-limit-case-' . uniqid('', true) . '@example.com';
+        $casings = [$baseEmail, strtoupper($baseEmail), ucfirst($baseEmail)];
+
+        // Record EMAIL_MAX attempts split across different casings of the same
+        // email, normalized exactly as join.php does before recording.
+        for ($i = 0; $i < self::EMAIL_MAX; $i++) {
+            recordRateLimit('registration_recovery_email', false, null, mb_strtolower($casings[$i % count($casings)]));
+        }
+
+        $this->assertFalse(
+            checkRateLimit('registration_recovery_email', null, mb_strtolower($baseEmail)),
+            'Attempts recorded under varied casing of the same email, once normalized, must exhaust '
+                . 'the single shared bucket for that email — proving case variation cannot be used to '
+                . 'dodge email_max.'
+        );
+    }
 }
