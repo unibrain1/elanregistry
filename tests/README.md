@@ -176,9 +176,11 @@ npm run playwright:test:ui       # UI consistency
 
 ## CI vs. Local Test Runs, and the `known-broken` Group
 
-`.github/workflows/tests.yml` runs `composer test:quick:ci` (not plain `test:quick`) for
-the CI-blocking check on every PR. `test:quick:ci` is identical to `test:quick` except it
-adds `--exclude-group known-broken`.
+`.github/workflows/tests.yml` runs `composer test:quick:ci` and `composer test:regression:ci`
+(not plain `test:quick`/`test:regression`) for the CI-blocking check on every PR. Each `:ci`
+variant is identical to its base command except it adds `--exclude-group known-broken` — both
+suites support the exclusion identically, so a tagged test is skipped in CI regardless of
+which suite it lives in.
 
 **Why this exists:** landing a new CI gate (`#1437`) should never be blocked indefinitely by
 an unrelated, already-tracked, pre-existing bug — but a bypass that's silent or permanent is
@@ -187,9 +189,9 @@ escape hatch:
 
 - Tag an affected test method with `#[Group('known-broken')]` **plus** an inline comment
   citing the tracking issue, e.g. `// #1470 — fails on Linux CI, root cause under investigation`.
-- `composer test:quick` (the default local/dev command, and `test:quick:ci`'s superset)
-  still runs and reports these failures — nobody loses visibility locally.
-- Only `test:quick:ci` (the CI-blocking command) skips them, and only until the tracking
+- `composer test:quick`/`composer test:regression` (the default local/dev commands, and each
+  `:ci` variant's superset) still run and report these failures — nobody loses visibility locally.
+- Only the `:ci` variants (the CI-blocking commands) skip them, and only until the tracking
   issue is resolved and the tag is removed.
 - `/finish-milestone` checks for any remaining `known-broken`-tagged tests and asks for
   explicit confirmation before finishing a milestone with known-excluded tests still present

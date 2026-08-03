@@ -522,7 +522,13 @@ class LocationService
             }
         }
 
-        // Fallback to file cache
+        // Fallback to file cache. Intentional: on a healthy, functional APCu
+        // host this still costs one extra file_exists() stat call per genuine
+        // cache miss (setCache() never dual-writes to both APCu and the file
+        // when APCu succeeds, so this check will always miss in that case) —
+        // there's no cheap way to distinguish "APCu miss" from "APCu broken"
+        // from here. Do not "optimize" this back to an early return; that's
+        // exactly the bug #1470 fixed.
         global $abs_us_root, $us_url_root;
         $cacheDir = $abs_us_root . $us_url_root . 'usersc/cache/';
         $cacheFile = $cacheDir . md5($key) . '.cache';
