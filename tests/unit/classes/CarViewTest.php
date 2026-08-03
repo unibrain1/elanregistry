@@ -231,6 +231,28 @@ final class CarViewTest extends TestCase
         $this->assertArrayNotHasKey('vehicleConfiguration', $schema);
     }
 
+    /**
+     * Regression test: series values starting with "+2" (+2, +2S, +2S/130, +2S/130/5 —
+     * confirmed against the live cars table) denote the Lotus Elan Plus 2, a distinct
+     * model line. An earlier implementation hardcoded "Elan" for name/model regardless
+     * of series, mislabeling ~470 Plus 2 cars in the published structured data.
+     */
+    public function testBuildCarSchemaPlus2SeriesUsesElanPlus2Model(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['series' => '+2', 'variant' => 'FHC']), '');
+
+        $this->assertSame('Elan Plus 2', $schema['model']);
+        $this->assertSame('1969 Lotus Elan Plus 2 (FHC)', $schema['name']);
+    }
+
+    public function testBuildCarSchemaPlus2SubSeriesStripsPlus2PrefixFromNameSeriesPortion(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['series' => '+2S/130', 'variant' => 'Roadster']), '');
+
+        $this->assertSame('Elan Plus 2', $schema['model']);
+        $this->assertSame('1969 Lotus Elan Plus 2 S/130 (Roadster)', $schema['name']);
+    }
+
     public function testBuildCarSchemaMapsFhcToCoupe(): void
     {
         $schema = CarView::buildCarSchema($this->makeCarData(['variant' => 'FHC']), '');

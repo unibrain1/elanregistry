@@ -173,6 +173,14 @@ class CarView
      * the current CarValidator/InputSanitizer::normalize() input pipeline, which
      * already trims on write) has untrimmed whitespace in these columns.
      *
+     * `series` values starting with "+2" (`+2`, `+2S`, `+2S/130`, `+2S/130/5`, per
+     * the live `cars` table) denote the Lotus Elan **Plus 2**, a distinct model
+     * line — `StatisticsDataService::getSeriesCounts()` already uses the same
+     * `series LIKE '+2%'` detection. Both `name` and `model` reflect "Elan Plus 2"
+     * for these cars rather than plain "Elan"; the "+2" prefix is stripped from the
+     * series portion of `name` since "Plus 2" already conveys it (e.g. series
+     * "+2S/130" becomes "... Elan Plus 2 S/130 ...", not "... Plus 2 +2S/130 ...").
+     *
      * @param object $carData Car data object (year, series, variant, chassis, color, ...)
      * @param string $currentUrl Canonical URL of the current page
      * @return array<string, string> Schema.org Car properties, ready for json_encode()
@@ -181,6 +189,11 @@ class CarView
     {
         $normalizedVariant = trim($carData->variant ?? '');
         $normalizedColor = trim($carData->color ?? '');
+        $normalizedSeries = trim($carData->series ?? '');
+
+        $isPlus2 = str_starts_with($normalizedSeries, '+2');
+        $model = $isPlus2 ? 'Elan Plus 2' : 'Elan';
+        $seriesForName = $isPlus2 ? trim(substr($normalizedSeries, 2)) : $normalizedSeries;
 
         $bodyType = self::BODY_TYPE_MAP[$normalizedVariant] ?? null;
         $vehicleConfiguration = (
@@ -192,8 +205,8 @@ class CarView
                 // year is a SMALLINT column, not free text — no trim() needed
                 // (unlike chassis/color/series below, which are).
                 (string)($carData->year ?? ''),
-                'Lotus Elan',
-                trim($carData->series ?? ''),
+                'Lotus ' . $model,
+                $seriesForName,
                 $normalizedVariant !== '' ? '(' . $normalizedVariant . ')' : '',
             ],
             static fn (string $part): bool => $part !== ''
@@ -205,7 +218,7 @@ class CarView
             'name' => implode(' ', $nameParts),
             'vehicleIdentificationNumber' => trim($carData->chassis ?? ''),
             'vehicleModelDate' => (string)($carData->year ?? ''),
-            'model' => 'Elan',
+            'model' => $model,
             'url' => $currentUrl,
         ];
         if ($normalizedColor !== '') {
