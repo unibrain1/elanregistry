@@ -318,6 +318,17 @@ if (Input::existsPost()) {
         // instead of falling through to the generic failure message below, which would itself
         // be a distinguishing (enumeration-adjacent) failure mode.
         $fuser = null;
+        // Timing-equalization floor: captured before any branch-specific work
+        // and enforced unconditionally in the finally block below, so EVERY
+        // outcome (email exists, doesn't exist, rate-limited, malformed email,
+        // or a caught DB error) takes the same minimum wall-clock time. A
+        // one-sided sleep() applied only to the "doesn't exist" no-op branch
+        // would leave the "exists" branch (DB write + email_body() render +
+        // synchronous email() send — plausibly sub-second for a transactional
+        // email API) measurably FASTER, reopening via response latency the
+        // exact enumeration oracle this fix closes for response content.
+        $recoveryTimingFloorSeconds = 2.0;
+        $recoveryStartTime = microtime(true);
         try {
             // Rate-limit key is case-normalized: the users.email column uses a
             // case-insensitive collation (utf8mb4_unicode_ci), so new \User(...,
@@ -349,27 +360,23 @@ if (Input::existsPost()) {
                 // success=true case, so recording it as success=false is what makes
                 // email_max actually engage for that scenario.
                 recordRateLimit('registration_recovery_email', false, null, $rateLimitEmailKey);
-
-                if (!$fuser->exists()) {
-                    // Match forgot_password.php's timing-equalization pattern: without a
-                    // compensating delay, a real notification (DB write + email send) takes
-                    // measurably longer than this no-op branch, which would let an attacker
-                    // distinguish registered from unregistered emails via response latency
-                    // even though the response content is identical either way.
-                    //
-                    // A blocking 2s sleep is only DoS-safe here because it's bounded by
-                    // registration_attempt's own rate limit (ip_max=5/hour, total_max=20/hour
-                    // — see rate_limits.php) checked earlier in this file, not by anything in
-                    // this block — an attacker can't cheaply amplify worker-blocking beyond
-                    // that ceiling.
-                    sleep(2);
-                }
             }
         } catch (\Throwable $e) {
             $knownUserId = ($fuser !== null && $fuser->exists()) ? (int) $fuser->data()->id : 0;
             $safeToLog = preg_replace('/[\r\n\t]/', ' ', $e->getMessage()) ?? '[message unavailable]';
             logger($knownUserId, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
                 'join.php: recovery-notification side effect failed — ' . get_class($e) . ': ' . $safeToLog);
+        } finally {
+            // A blocking sleep here is only DoS-safe because it's bounded by
+            // registration_attempt's own rate limit (ip_max=5/hour, total_max=20/hour
+            // — see rate_limits.php) checked earlier in this file, not by anything in
+            // this block — an attacker can't cheaply amplify worker-blocking beyond
+            // that ceiling.
+            $recoveryElapsedSeconds = microtime(true) - $recoveryStartTime;
+            $recoveryRemainingSeconds = $recoveryTimingFloorSeconds - $recoveryElapsedSeconds;
+            if ($recoveryRemainingSeconds > 0) {
+                usleep((int) round($recoveryRemainingSeconds * 1_000_000));
+            }
         }
 
         // Show a generic message regardless of the specific reason (prevents email enumeration)

@@ -235,4 +235,40 @@ final class Issue1406RegressionTest extends RegressionTestCase
                 . 'let an attacker bypass email_max by varying case on each attempt.'
         );
     }
+
+    /**
+     * Timing-equalization must apply to EVERY outcome (account exists,
+     * doesn't exist, rate-limited, malformed email, or a caught DB error) —
+     * not just the "doesn't exist" branch. A one-sided sleep() there would
+     * leave the "exists" branch (real DB write + email_body() render +
+     * synchronous email() send — plausibly sub-second for a transactional
+     * email API) measurably faster, reopening via response latency the exact
+     * enumeration oracle #1406 closes for response content.
+     */
+    public function testTimingEqualizationAppliesToAllOutcomesNotJustNonExistentEmail(): void
+    {
+        $source = file_get_contents(self::JOIN_PHP_PATH);
+        $this->assertIsString($source, 'usersc/join.php must be readable');
+
+        $this->assertStringNotContainsString(
+            'fuser->exists()) {',
+            $source,
+            'Timing-equalization must not be gated behind whether the account exists — that is '
+                . 'exactly the one-sided pattern that reintroduces the timing side-channel.'
+        );
+
+        $this->assertStringContainsString(
+            'finally {',
+            $source,
+            'The recovery-notification try block must have a finally clause enforcing a timing '
+                . 'floor unconditionally, regardless of which branch executed or whether it threw.'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/microtime\(\s*true\s*\)/',
+            $source,
+            'Timing equalization must be based on measured elapsed time (microtime(true)), not a '
+                . 'fixed one-sided sleep().'
+        );
+    }
 }
