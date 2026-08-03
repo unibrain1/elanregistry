@@ -174,6 +174,39 @@ npm run playwright:test:security # Security suite
 npm run playwright:test:ui       # UI consistency
 ```
 
+## CI vs. Local Test Runs, and the `known-broken` Group
+
+`.github/workflows/tests.yml` runs `composer test:quick:ci` and `composer test:regression:ci`
+(not plain `test:quick`/`test:regression`) for the CI-blocking check on every PR. Each `:ci`
+variant is identical to its base command except it adds `--exclude-group known-broken` — both
+suites support the exclusion identically, so a tagged test is skipped in CI regardless of
+which suite it lives in.
+
+**Why this exists:** landing a new CI gate (`#1437`) should never be blocked indefinitely by
+an unrelated, already-tracked, pre-existing bug — but a bypass that's silent or permanent is
+worse than no gate at all. The `known-broken` group is the explicit, visible, temporary
+escape hatch:
+
+- Tag an affected test method with `#[Group('known-broken')]` **plus** an inline comment
+  citing the tracking issue, e.g. `// #1470 — fails on Linux CI, root cause under investigation`.
+  **This comment format is load-bearing, not just documentation** — `/finish-milestone`'s
+  Step 3.5 greps for the tag and parses the issue number out of that free-text `// #NNN — ...`
+  comment to check whether it's still open. A tag added without a `#NNN` reference in that
+  exact form will silently defeat that check.
+- `composer test:quick`/`composer test:regression` (the default local/dev commands, and each
+  `:ci` variant's superset) still run and report these failures — nobody loses visibility locally.
+- Only the `:ci` variants (the CI-blocking commands) skip them, and only until the tracking
+  issue is resolved and the tag is removed.
+- `/finish-milestone` checks for any remaining `known-broken`-tagged tests and asks for
+  explicit confirmation before finishing a milestone with known-excluded tests still present
+  — this prevents the escape hatch from silently becoming permanent.
+
+Do not use this group for a test you simply don't feel like fixing right now — it exists
+specifically for "this genuinely needs investigation, is tracked, and shouldn't block an
+unrelated PR" scenarios, discovered in practice when `tests.yml` first ran on a clean Linux
+CI checkout and surfaced pre-existing macOS-vs-Linux behavior differences invisible to local
+development.
+
 ## Writing New Tests
 
 ### Unit Test Example

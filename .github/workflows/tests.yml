@@ -1,0 +1,59 @@
+name: Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-regression:
+    name: PHPUnit Unit + Regression
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Run unit tests
+        # Excludes the 'known-broken' group: tests with a confirmed, tracked,
+        # pre-existing failure (see the #[Group('known-broken')] tag + issue
+        # comment on each affected test). `composer test:quick` (no exclusion)
+        # remains the local/default command so developers still see these
+        # failures — only the CI-blocking run skips them, and only until
+        # their tracking issue is resolved. See tests/README.md's "CI vs.
+        # Local Test Runs, and the known-broken Group" section for the
+        # full convention.
+        run: composer test:quick:ci
+
+      - name: Run regression tests
+        # Same 'known-broken' exclusion as the unit run above, for consistency
+        # — a Regression test tagged known-broken must be excluded here too or
+        # the escape hatch silently wouldn't apply to it.
+        run: composer test:regression:ci

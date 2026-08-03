@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/_apcu_namespace_overrides.php';
+
 use ElanRegistry\LocationService;
 use ElanRegistry\LogCategories;
 use PHPUnit\Framework\TestCase;
@@ -41,8 +43,17 @@ use PHPUnit\Framework\Attributes\Group;
  * All three code paths live in private methods, so they are exercised via
  * ReflectionMethod where needed to avoid requiring live HTTP endpoints.
  *
- * The file-cache path is active whenever APCu is unavailable.  PHPUnit does not
- * load the APCu extension in this project, so the file path is always taken.
+ * The file-cache path is active whenever APCu doesn't successfully store/fetch
+ * a value — not just when the extension isn't loaded. Originally, this file's
+ * docblock assumed "PHPUnit never loads APCu" was a safe, permanent assumption
+ * (true on macOS dev machines), but GitHub Actions' Linux CI runner does load
+ * it via shivammathur/setup-php's default extension bundle, with
+ * apc.enable_cli=Off (PHP's CLI-SAPI default) making every apcu_store()/
+ * apcu_fetch() call silently fail. LocationService::getCache()/setCache() now
+ * fall through to the file cache in that case too (previously they didn't —
+ * see the fix accompanying issue #1470), so this suite's file-path coverage
+ * is now environment-independent rather than relying on APCu simply not being
+ * present.
  *
  * @see usersc/classes/LocationService.php
  */
@@ -784,6 +795,63 @@ final class LocationServiceCacheTest extends TestCase
         // Cleanup the symlink (tearDown's glob won't catch it via is_file)
         if (is_link($cacheFile)) {
             unlink($cacheFile);
+        }
+    }
+
+    // =========================================================================
+    // Tests: APCu present-but-non-functional fallback (#1470)
+    //
+    // Strategy: $GLOBALS['mockApcuSimulateFailure'] (consumed by the
+    // namespace-scoped overrides in _apcu_namespace_overrides.php) forces
+    // function_exists('apcu_fetch'/'apcu_store') to report true while the
+    // calls themselves always fail — deterministically reproducing "extension
+    // loaded but non-functional" (e.g. apc.enable_cli=Off) regardless of the
+    // real environment's actual APCu state. Before the #1470 fix, this
+    // scenario made getCache()/setCache() silently skip the file-cache
+    // fallback entirely; this test would have failed against the pre-fix code
+    // on ANY machine, not just CI runners with that specific ini default.
+    // =========================================================================
+
+    protected function tearDownApcuSimulation(): void
+    {
+        unset($GLOBALS['mockApcuSimulateFailure']);
+    }
+
+    /**
+     * With APCu simulated as present-but-non-functional, setCache() then
+     * getCache() must still round-trip correctly via the file-cache fallback
+     * — deterministic regression coverage for the #1470 fix, independent of
+     * whatever the real environment's apc.enable_cli setting happens to be.
+     */
+    #[Group('fast')]
+    public function test_setCacheThenGetCache_roundTrip_whenApcuPresentButNonFunctional(): void
+    {
+        $GLOBALS['mockApcuSimulateFailure'] = true;
+
+        try {
+            $key     = 'apcu_fallback_roundtrip_key';
+            $payload = ['city' => 'Berlin', 'state' => '', 'country' => 'Germany'];
+
+            $service   = new LocationService();
+            $setMethod = $this->privateMethod($service, 'setCache');
+            $getMethod = $this->privateMethod($service, 'getCache');
+
+            $setMethod->invoke($service, $key, $payload);
+
+            $this->assertFileExists(
+                $this->cacheFilePath($key),
+                'setCache() must fall through to writing a file when APCu is present but every store fails.'
+            );
+
+            $result = $getMethod->invoke($service, $key);
+
+            $this->assertSame(
+                $payload,
+                $result,
+                'getCache() must fall through to reading the file cache when APCu is present but every fetch fails.'
+            );
+        } finally {
+            $this->tearDownApcuSimulation();
         }
     }
 

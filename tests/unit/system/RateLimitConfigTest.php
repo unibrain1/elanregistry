@@ -13,16 +13,16 @@ use PHPUnit\Framework\Attributes\Group;
  * recovery notification, so an entry must exist in the *actually active*
  * rate-limit config or that call silently no-ops at runtime.
  *
- * IMPORTANT: users/includes/rate_limits.php (upstream framework defaults) is
- * NOT the live config. Its final lines conditionally `include` the
- * project-owned usersc/includes/rate_limits.php, which reassigns
- * `$rateLimits = [...]` wholesale (not a merge) — so whatever is defined
- * there completely replaces the framework defaults. This test loads the
- * base file with $abs_us_root/$us_url_root pointed at the real project root
- * so that include actually fires, exercising the same resolution order the
- * app uses at runtime, and asserts against the resulting *merged* (in
- * practice, fully-overridden) array — i.e. usersc/includes/rate_limits.php's
- * values, since that's what a real request actually sees.
+ * IMPORTANT: at runtime, users/includes/rate_limits.php (upstream framework
+ * defaults — gitignored, environment-local, NOT present in a fresh checkout)
+ * conditionally `include`s the project-owned usersc/includes/rate_limits.php,
+ * which reassigns `$rateLimits = [...]` wholesale (not a merge) — so whatever
+ * is defined there completely replaces the framework defaults regardless of
+ * what the framework file itself contains. This test requires
+ * usersc/includes/rate_limits.php directly (the tracked file, always present
+ * in CI) rather than going through the untracked framework wrapper, since
+ * that wrapper's only relevant effect — the wholesale $rateLimits
+ * reassignment — is what this test actually needs to exercise.
  */
 #[Group('fast')]
 final class RateLimitConfigTest extends TestCase
@@ -31,12 +31,9 @@ final class RateLimitConfigTest extends TestCase
     {
         $projectRoot = dirname(__DIR__, 3);
 
-        $abs_us_root = $projectRoot . '/';
-        $us_url_root = '';
-
         /** @var array<string, array<string, int>> $rateLimits */
         $rateLimits = [];
-        require $projectRoot . '/users/includes/rate_limits.php';
+        require $projectRoot . '/usersc/includes/rate_limits.php';
 
         $this->assertIsArray($rateLimits);
         $this->assertArrayHasKey(

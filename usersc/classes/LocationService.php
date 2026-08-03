@@ -505,17 +505,30 @@ class LocationService
      */
     private function getCache(string $key): mixed
     {
-        // Try APCu first
+        // Try APCu first, but fall through to the file cache on a miss rather
+        // than returning null immediately: function_exists('apcu_fetch') only
+        // proves the extension is loaded, not that it's actually functional.
+        // apc.enable_cli=Off (PHP's default for the CLI SAPI — the SAPI this
+        // code runs under during tests, and potentially in some CLI/cron
+        // execution contexts in production) makes every apcu_fetch() report
+        // failure even though the extension is present, which previously
+        // caused this method to silently skip its documented file-based
+        // fallback entirely.
         if (function_exists('apcu_fetch')) {
             $success = false;
             $value = apcu_fetch($key, $success);
             if ($success) {
                 return $value;
             }
-            return null;
         }
 
-        // Fallback to file cache
+        // Fallback to file cache. Intentional: on a healthy, functional APCu
+        // host this still costs one extra file_exists() stat call per genuine
+        // cache miss (setCache() never dual-writes to both APCu and the file
+        // when APCu succeeds, so this check will always miss in that case) —
+        // there's no cheap way to distinguish "APCu miss" from "APCu broken"
+        // from here. Do not "optimize" this back to an early return; that's
+        // exactly the bug #1470 fixed.
         global $abs_us_root, $us_url_root;
         $cacheDir = $abs_us_root . $us_url_root . 'usersc/cache/';
         $cacheFile = $cacheDir . md5($key) . '.cache';
@@ -568,9 +581,11 @@ class LocationService
     {
         $ttl = $ttl ?? self::CACHE_TTL;
 
-        // Try APCu first
-        if (function_exists('apcu_store')) {
-            apcu_store($key, $value, $ttl);
+        // Try APCu first, but fall through to the file cache if the store
+        // didn't actually succeed — see the matching comment in getCache()
+        // for why function_exists() alone isn't sufficient (apc.enable_cli=Off
+        // makes apcu_store() a silent no-op that returns false).
+        if (function_exists('apcu_store') && apcu_store($key, $value, $ttl)) {
             return;
         }
 

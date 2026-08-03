@@ -119,6 +119,9 @@ keep waiting.
 - CodeQL Analysis — security scanning
 - GitGuardian Security — secret detection
 - Claude Code Review — coding standards
+- PHPUnit Unit + Regression — behavioral test suite (`tests.yml`, added in #1437; not yet a
+  GitHub-required check, so `gh pr checks` is what actually surfaces its status here — this
+  step's polling already does that regardless of this list)
 
 ### Step 4: Handle check results
 
