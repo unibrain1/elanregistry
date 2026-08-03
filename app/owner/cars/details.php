@@ -1,10 +1,6 @@
 <?php
 declare(strict_types=1);
 
-use ElanRegistry\Car\Car;
-use ElanRegistry\CarView;
-use ElanRegistry\LogCategories;
-
 /**
  * details.php
  * Displays detailed information about a specific car in the registry.
@@ -16,8 +12,15 @@ use ElanRegistry\LogCategories;
  * @copyright 2025
  */
 
+$pageTitle = 'Car Details';
+$pageDescription = 'Detailed registry record for a Lotus Elan or Elan Plus 2, including chassis number, ownership history, and factory build data.';
+
 require_once '../../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
+
+use ElanRegistry\Car\Car;
+use ElanRegistry\CarView;
+use ElanRegistry\LogCategories;
 
 if (!securePage($php_self)) {
     die();
@@ -83,7 +86,23 @@ if (!empty($_GET)) {
     Redirect::to($us_url_root . 'app/owner/cars/index.php');
     exit;
 }
+
+$carSchema = CarView::buildCarSchema($carData, $current_url ?? '');
+$carSchemaJson = json_encode(
+    $carSchema,
+    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES
+);
+if ($carSchemaJson === false) {
+    // Legacy chassis/color/series data predates the current input-sanitization
+    // pipeline (see CarView::buildCarSchema() docblock) and could in principle
+    // contain malformed UTF-8, which json_encode() rejects. Log and skip the
+    // block rather than emitting an empty, invalid <script type="application/ld+json">.
+    logger($user->data()->id ?? 0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, "JSON-LD encoding failed for car ID $carID: " . json_last_error_msg());
+}
 ?>
+<?php if ($carSchemaJson !== false): ?>
+<script type="application/ld+json"><?= $carSchemaJson ?></script>
+<?php endif; ?>
 <div class="page-wrapper">
     <div class="container-fluid">
         <div class="page-container">

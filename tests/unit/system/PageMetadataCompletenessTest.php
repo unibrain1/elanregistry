@@ -22,9 +22,9 @@ use PHPUnit\Framework\Attributes\Group;
  * This test is a pure static-text scan: it reads each file's raw source
  * via file_get_contents() and never requires/executes it, so it needs no
  * database and no bootstrapped UserSpice environment. It covers the 11
- * pages added under #1432 plus the original #1372 page and the 3 admin
- * pages fixed in #1430, so a future regression on any of these 15 files
- * is caught immediately.
+ * pages added under #1432 plus the original #1372 page, the 3 admin
+ * pages fixed in #1430, and the car details page fixed in #1371, so a
+ * future regression on any of these 16 files is caught immediately.
  */
 #[Group('system')]
 #[Group('page-metadata')]
@@ -42,6 +42,7 @@ class PageMetadataCompletenessTest extends TestCase
         'docs/guides/index.php',
         'app/owner/cars/index.php',
         'app/owner/cars/factory.php',
+        'app/owner/cars/details.php',
         'app/owner/reports/statistics.php',
         'app/admin/index.php',
         'app/admin/maintenance.php',
