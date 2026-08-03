@@ -169,6 +169,11 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
     },
   ];
 
+  test('page-specific titles are unique across all pages (#1432)', () => {
+    const titles = pages.map(p => p.expectedTitle).filter(Boolean);
+    expect(new Set(titles).size).toBe(titles.length);
+  });
+
   test('page-specific descriptions are unique across all pages (#1432)', () => {
     const descriptions = pages.map(p => p.expectedDescription).filter(Boolean);
     expect(new Set(descriptions).size).toBe(descriptions.length);
@@ -210,16 +215,18 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
         expect(twitterTitle).toBe(expectedTitle);
       }
       if (expectedDescription) {
+        // $site_description is $pageDescription verbatim, with no suffix (unlike
+        // $pageTitle's <title> tag above), so these are exact matches.
         const description = await page.locator('meta[name="description"]').getAttribute('content');
-        expect(description).toContain(expectedDescription);
+        expect(description).toBe(expectedDescription);
 
         // og:description/twitter:description share $site_description with the
         // meta description tag (see usersc/includes/head_tags.php), so they
         // pick up $pageDescription the same way.
         const ogDescription = await page.locator('meta[property="og:description"]').getAttribute('content');
-        expect(ogDescription).toContain(expectedDescription);
+        expect(ogDescription).toBe(expectedDescription);
         const twitterDescription = await page.locator('meta[name="twitter:description"]').getAttribute('content');
-        expect(twitterDescription).toContain(expectedDescription);
+        expect(twitterDescription).toBe(expectedDescription);
       }
 
       console.log(`✓ Successfully reached: ${name} (${path})`);
@@ -247,6 +254,15 @@ test('docs/guides/car-transfer-faq.php still renders the generic site title/desc
     .locator('meta[name="description"]')
     .getAttribute('content');
   expect(description).toContain('Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974)');
+
+  // og:title/twitter:title must still fall back to $site_title (the generic
+  // site name) on pages that don't set $pageTitle — this is the actual new
+  // conditional in usersc/includes/head_tags.php ($og_title) introduced by
+  // #1432, and this is its only regression coverage.
+  const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
+  expect(ogTitle).toBe('Lotus Elan Registry');
+  const twitterTitle = await page.locator('meta[name="twitter:title"]').getAttribute('content');
+  expect(twitterTitle).toBe('Lotus Elan Registry');
 });
 
 test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {

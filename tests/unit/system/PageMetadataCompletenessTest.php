@@ -29,11 +29,6 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('page-metadata')]
 class PageMetadataCompletenessTest extends TestCase
 {
-    /**
-     * Pages that must set $pageTitle and $pageDescription before requiring
-     * init.php, per the convention documented in elanregistry_overrides.md.php
-     * section 6 (Issue #1432, plus the original #1372 page).
-     */
     private const PAGES_REQUIRING_METADATA = [
         'docs/reference/paint-colors.php',
         'docs/reference/index.php',
@@ -61,9 +56,10 @@ class PageMetadataCompletenessTest extends TestCase
     public function testPageHasPageTitleAssignment(string $relativePath): void
     {
         $filePath = $this->rootDir . '/' . $relativePath;
-        if (!file_exists($filePath)) {
-            $this->markTestSkipped("File not found: $relativePath");
-        }
+        // A hard failure here (not markTestSkipped) is deliberate: if one of these
+        // pages is ever moved or renamed without updating this list, the
+        // completeness gate must go red, not silently green.
+        $this->assertFileExists($filePath, "$relativePath must exist (Issue #1432)");
 
         $content = (string)file_get_contents($filePath);
 
@@ -78,9 +74,7 @@ class PageMetadataCompletenessTest extends TestCase
     public function testPageHasPageDescriptionAssignment(string $relativePath): void
     {
         $filePath = $this->rootDir . '/' . $relativePath;
-        if (!file_exists($filePath)) {
-            $this->markTestSkipped("File not found: $relativePath");
-        }
+        $this->assertFileExists($filePath, "$relativePath must exist (Issue #1432)");
 
         $content = (string)file_get_contents($filePath);
 
@@ -92,19 +86,13 @@ class PageMetadataCompletenessTest extends TestCase
     }
 
     /**
-     * Critical timing check from #1372/#1432: $pageTitle must be assigned
-     * BEFORE the require_once of init.php, not after. This is the exact bug
-     * class that left three admin pages broken per #1430 — the loader only
-     * checks isset($pageTitle) once, at init time, so a later assignment is
-     * silently ignored.
+     * Critical timing check — see class docblock for the full rationale.
      */
     #[DataProvider('pagesProvider')]
     public function testPageTitleAssignmentPrecedesInitRequire(string $relativePath): void
     {
         $filePath = $this->rootDir . '/' . $relativePath;
-        if (!file_exists($filePath)) {
-            $this->markTestSkipped("File not found: $relativePath");
-        }
+        $this->assertFileExists($filePath, "$relativePath must exist (Issue #1432)");
 
         $content = (string)file_get_contents($filePath);
 
@@ -134,9 +122,6 @@ class PageMetadataCompletenessTest extends TestCase
         );
     }
 
-    /**
-     * Data provider for pages requiring $pageTitle/$pageDescription metadata.
-     */
     public static function pagesProvider(): array
     {
         $data = [];
