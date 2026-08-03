@@ -497,6 +497,49 @@ if (!function_exists('logger')) {
     }
 }
 
+// Mock email function — tracks sent emails in $mockSentEmails for test assertions.
+// Return value can be overridden via $GLOBALS['mockEmailSendResult'] to simulate
+// send failures (defaults to true).
+if (!function_exists('email')) {
+    function email($to, $subject, $body, $opts = [], $attachment = null): bool {
+        global $mockSentEmails, $mockEmailSendResult;
+        if (!isset($mockSentEmails)) {
+            $mockSentEmails = [];
+        }
+        $mockSentEmails[] = [$to, $subject, $body];
+
+        return $mockEmailSendResult ?? true;
+    }
+}
+
+// Mock email_body function — returns a canned rendered body by default.
+// Override via $GLOBALS['mockEmailBodyResult'] (e.g. '') to exercise the
+// empty-body failure branch of callers.
+if (!function_exists('email_body')) {
+    function email_body($template, $options = [], $security_override = false): string {
+        global $mockEmailBodyResult;
+        return $mockEmailBodyResult ?? '<html>mock email body</html>';
+    }
+}
+
+// Mock randomstring/hashVericode — the real implementations live in
+// users/helpers/us_helpers.php (randomString(), case-insensitively callable as
+// randomstring()) which is not loaded in the unit-test environment, and
+// hashVericode() depends on getVericodeSecret()'s file-based secret key. Both
+// are pure enough to stand in for here: a fixed-length test string and a
+// deterministic (non-identity) transform so tests can assert hashing occurred.
+if (!function_exists('randomstring')) {
+    function randomstring(int $len): string {
+        return str_repeat('x', $len);
+    }
+}
+
+if (!function_exists('hashVericode')) {
+    function hashVericode(string $vericode): string {
+        return 'hashed_' . $vericode;
+    }
+}
+
 // Mock DB class
 if (!class_exists('DB')) {
     /**
@@ -615,7 +658,8 @@ if (!class_exists('DB')) {
         }
 
         /**
-         * Update a record
+         * Update a record. Return value can be overridden via
+         * $GLOBALS['mockDbUpdateResult'] to simulate write failures.
          *
          * @param string $table Table name
          * @param int $id Record ID
@@ -623,7 +667,12 @@ if (!class_exists('DB')) {
          * @return bool
          */
         public function update(string $table, int $id, array $data): bool {
-            return true;
+            global $mockDbUpdateCalls, $mockDbUpdateResult;
+            if (!isset($mockDbUpdateCalls)) {
+                $mockDbUpdateCalls = [];
+            }
+            $mockDbUpdateCalls[] = [$table, $id, $data];
+            return $mockDbUpdateResult ?? true;
         }
 
         /**

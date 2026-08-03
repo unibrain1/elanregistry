@@ -6,7 +6,64 @@ Enhanced Lotus Elan Registry Registration Page
 Customized for the Lotus Elan Registry with improved UX and registry-specific features
 Based on UserSpice 5 registration system
 */
+
+// Drain session flash messages here, before users/includes/html_footer.php's
+// system_messages_footer.php gets a chance to (parseSessionMessages() reads
+// and clears the session slot on first call — whichever call site runs first
+// "wins"). This routes registration failures into a modal that stays on
+// screen until dismissed, instead of a 6-second auto-fading toast that's easy
+// to miss (#1406 — the enumeration-safe generic message is subtle enough on
+// its own without also being hard to notice).
+//
+// Scoped to valErr only — the only message type #1406's join.php failure
+// path ever sets. Any valSuc/genMsg content (not currently used on this
+// page, but parseSessionMessages() drains all three slots regardless) is
+// re-queued via usSuccess()/usMessage() so it still reaches the standard
+// toast later in this same request instead of being silently dropped.
+//
+// Escaped with htmlspecialchars() here per CLAUDE.md ("Apply htmlspecialchars()
+// at the render layer only" — this is that render layer). No call site on
+// this page currently interpolates user-controlled data into a flash message,
+// but this is the sanctioned reusable "Danger Modal" pattern (see
+// UI_STANDARDS.md), so it must be safe by default for a future consumer that
+// does.
+$joinInlineMessages = function_exists('parseSessionMessages') ? parseSessionMessages() : [];
+$joinFailureMessage = $joinInlineMessages['valErr'] ?? '';
+
+if (!empty($joinInlineMessages['valSuc']) && function_exists('usSuccess')) {
+    usSuccess($joinInlineMessages['valSuc']);
+}
+if (!empty($joinInlineMessages['genMsg']) && function_exists('usMessage')) {
+    usMessage($joinInlineMessages['genMsg']);
+}
 ?>
+
+<?php if ($joinFailureMessage !== ''): ?>
+<div class="modal fade" id="joinFailureModal" tabindex="-1" aria-labelledby="joinFailureModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="joinFailureModalLabel"><i class="fas fa-exclamation-circle me-2"></i>Registration Issue</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger mb-0"><?= htmlspecialchars($joinFailureMessage, ENT_QUOTES, 'UTF-8') ?></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script nonce="<?= htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+document.addEventListener('DOMContentLoaded', function() {
+    var joinFailureModalEl = document.getElementById('joinFailureModal');
+    if (joinFailureModalEl) {
+        bootstrap.Modal.getOrCreateInstance(joinFailureModalEl).show();
+    }
+});
+</script>
+<?php endif; ?>
 
 <div class="container">
   <div class="row justify-content-center">

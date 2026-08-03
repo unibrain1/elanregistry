@@ -533,6 +533,39 @@ function example(): string {
         </div>
     </div>
 
+    <!-- 14. Modals -->
+    <div class="er-section-heading">Modals</div>
+    <p class="text-muted mb-3">
+        Danger-styled modal pattern for blocking, must-acknowledge messages (destructive
+        confirmations, security-sensitive failure notices) that should not be missed in a
+        6-second auto-dismissing toast. Header uses the <code>bg-danger</code> /
+        <code>text-white</code> semantic exception paired with <code>btn-close-white</code>
+        per the Modal Headers rule; message body uses <code>alert-danger</code>. Shown via
+        <code>bootstrap.Modal.getOrCreateInstance(el).show()</code> or a declarative
+        <code>data-bs-toggle="modal"</code> trigger. First used for the car-deletion
+        confirmation (<code>app/admin/index.php</code>) and the registration-failure notice
+        (<code>usersc/views/_join.php</code>, issue #1406).
+    </p>
+    <button type="button" class="btn btn-outline-danger mb-4" data-bs-toggle="modal" data-bs-target="#erDemoDangerModal">
+        <i class="fas fa-exclamation-circle me-1"></i> Preview danger modal
+    </button>
+    <div class="modal fade" id="erDemoDangerModal" tabindex="-1" aria-labelledby="erDemoDangerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="erDemoDangerModalLabel"><i class="fas fa-exclamation-circle me-2"></i>Example title</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger mb-0">Example message body &mdash; same styling as the registration-failure notice.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <link rel="stylesheet" href="<?= $us_url_root ?>docs/assets/document-content.css">

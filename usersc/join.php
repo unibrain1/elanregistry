@@ -309,8 +309,78 @@ if (Input::existsPost()) {
         logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
             'join.php: Registration failed — ' . count($validation->_errors ?? []) . ' validation error(s)');
 
+        // Silently notify the existing account holder if this email is already taken (#1406) —
+        // the generic failure message below is shown regardless of whether this fires; the
+        // notification is an ADDITIONAL side effect, never an alternative to that message.
+        // The whole block is wrapped in try/catch: checkRateLimit()/recordRateLimit()/new \User()
+        // all touch the DB directly and are not guarded by RegistrationRecoveryNotifier's own
+        // try/catch (that only covers its internals) — an uncaught DB error here would fatal
+        // instead of falling through to the generic failure message below, which would itself
+        // be a distinguishing (enumeration-adjacent) failure mode.
+        $fuser = null;
+        // Timing-equalization floor: captured before any branch-specific work
+        // and enforced unconditionally in the finally block below, so EVERY
+        // outcome (email exists, doesn't exist, rate-limited, malformed email,
+        // or a caught DB error) takes the same minimum wall-clock time. A
+        // one-sided sleep() applied only to the "doesn't exist" no-op branch
+        // would leave the "exists" branch (DB write + email_body() render +
+        // synchronous email() send — plausibly sub-second for a transactional
+        // email API) measurably FASTER, reopening via response latency the
+        // exact enumeration oracle this fix closes for response content.
+        $recoveryTimingFloorSeconds = 2.0;
+        $recoveryStartTime = microtime(true);
+        try {
+            // Rate-limit key is case-normalized: the users.email column uses a
+            // case-insensitive collation (utf8mb4_unicode_ci), so new \User(...,
+            // 'forceEmail') below resolves 'Victim@x.com' and 'victim@x.com' to
+            // the same account. Without normalizing here too, an attacker could
+            // vary the submitted email's case on each attempt to dodge the
+            // email_max cap while still targeting that one real account.
+            $rateLimitEmailKey = !empty($email) ? mb_strtolower($email) : $email;
+            if (!empty($email) && checkRateLimit('registration_recovery_email', null, $rateLimitEmailKey)) {
+                // 'forceEmail' pins the lookup to the email column regardless of format —
+                // this branch can be reached with a malformed $email (e.g. validation failed
+                // on valid_email), and without this a non-email string would otherwise fall
+                // through to a username-column lookup and could overwrite an unrelated
+                // username-matched user's vericode.
+                $fuser = new \User($email, 'forceEmail');
+                $notifier = new \ElanRegistry\RegistrationRecoveryNotifier(\DB::getInstance());
+                $notifier->notifyIfAccountExists($fuser, $email, $settings);
+
+                // Record the attempt so the per-email rate limit actually accumulates —
+                // checkRateLimit() only counts prior recorded attempts; without this call
+                // the limit above never engages and an attacker could email-bomb a victim
+                // via repeated registration attempts with their address.
+                //
+                // Deliberately record success=false (not the notification's own success/
+                // failure) on every pass: RateLimit::check() only counts success=false rows
+                // toward the tight email_max cap, while total_max counts EVERY attempt
+                // (success and failure alike). The abuse this limit exists to stop
+                // (repeatedly targeting one real, existing email) is exactly the
+                // success=true case, so recording it as success=false is what makes
+                // email_max actually engage for that scenario.
+                recordRateLimit('registration_recovery_email', false, null, $rateLimitEmailKey);
+            }
+        } catch (\Throwable $e) {
+            $knownUserId = ($fuser !== null && $fuser->exists()) ? (int) $fuser->data()->id : 0;
+            $safeToLog = preg_replace('/[\r\n\t]/', ' ', $e->getMessage()) ?? '[message unavailable]';
+            logger($knownUserId, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+                'join.php: recovery-notification side effect failed — ' . get_class($e) . ': ' . $safeToLog);
+        } finally {
+            // A blocking sleep here is only DoS-safe because it's bounded by
+            // registration_attempt's own rate limit (ip_max=5/hour, total_max=20/hour
+            // — see rate_limits.php) checked earlier in this file, not by anything in
+            // this block — an attacker can't cheaply amplify worker-blocking beyond
+            // that ceiling.
+            $recoveryElapsedSeconds = microtime(true) - $recoveryStartTime;
+            $recoveryRemainingSeconds = $recoveryTimingFloorSeconds - $recoveryElapsedSeconds;
+            if ($recoveryRemainingSeconds > 0) {
+                usleep((int) round($recoveryRemainingSeconds * 1_000_000));
+            }
+        }
+
         // Show a generic message regardless of the specific reason (prevents email enumeration)
-        usError('We could not complete your registration. Please check your information and try again.');
+        usError('Check your inbox — if an account exists, we have sent you a sign-in link. Otherwise, please check your information and try again.');
 
         Redirect::to(currentPage());
     } //Validation
