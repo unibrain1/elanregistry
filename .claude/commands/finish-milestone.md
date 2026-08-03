@@ -22,6 +22,7 @@ TaskCreate. Suggested task subjects:
 1. Verify the milestone branch exists
 2. Check for open issues still in the milestone
 3. Switch to milestone branch and ensure up to date
+3.5. Check for known-broken test exclusions still present
 4. Gather all merged PRs targeting the milestone branch
 5. Get the full diff against main
 6. Finalize release notes
@@ -58,6 +59,48 @@ gh api "repos/elan-registry/registry/issues?milestone=<MILESTONE_NUM>&state=open
 git checkout milestone/$ARGUMENTS
 git pull origin milestone/$ARGUMENTS
 ```
+
+### Step 3.5: Check for known-broken test exclusions still present
+
+`.github/workflows/tests.yml`'s CI-blocking check runs `composer test:quick:ci`, which
+excludes any test tagged `#[Group('known-broken')]` (see `tests/README.md`'s "CI vs. Local
+Test Runs" section). This tag exists so a pre-existing, unrelated, already-tracked bug never
+blocks landing an otherwise-unrelated PR — but it's meant to be temporary. A milestone should
+not finish with tests still silently excluded from its own "all CI gates pass" bar.
+
+Search for any remaining tags:
+
+```bash
+grep -rn "Group('known-broken')" tests/ || echo "None found"
+```
+
+**If none found**, proceed to Step 4.
+
+**If any are found:**
+
+1. For each match, extract the cited issue number from the inline comment (e.g.
+   `// #1470 — fails on Linux CI, root cause under investigation`).
+2. Check whether each cited issue is still open:
+
+   ```bash
+   gh issue view <NUMBER> --repo elan-registry/registry --json state,title
+   ```
+
+3. Present the full list to the user — test name, file, cited issue, and that issue's current
+   state (open/closed) — and **ask for explicit confirmation** before proceeding:
+
+   > "N test(s) are still excluded from CI via `#[Group('known-broken')]`, tracked by
+   > [issue list]. Finishing this milestone means it ships without full test coverage on
+   > these paths. Do you want to (a) resolve them first, (b) proceed anyway with this
+   > explicitly accepted, or (c) stop here?"
+
+4. **Do not proceed past this step without an explicit answer.** If the user chooses to
+   proceed anyway, record that decision in the milestone PR body (Step 10) under a
+   "Known Test Exclusions" note, so it's auditable later — matching Step 9.8's pattern for
+   explicitly-accepted risk.
+5. If a cited issue is already closed but the tag is still present in code, that's likely a
+   forgotten cleanup step, not an accepted risk — flag this distinctly and recommend removing
+   the tag now (quick fix) rather than treating it as a risk-acceptance decision.
 
 ### Step 4: Gather all merged PRs targeting the milestone branch
 
@@ -314,6 +357,7 @@ It will not re-run on every push — that keeps CI cost down.
 
 - The PR number and URL
 - List of merged issue PRs included
+- Known-broken test exclusions status (none found, or resolved, or explicitly accepted with issue references)
 - Release notes status (finalized or needs attention)
 - Wiki updates status (updated, committed, or skipped)
 - PRD update status (updated or skipped)

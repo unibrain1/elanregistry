@@ -39,7 +39,14 @@ jobs:
         run: composer install --no-progress --prefer-dist --optimize-autoloader
 
       - name: Run unit tests
-        run: composer test:quick
+        # Excludes the 'known-broken' group: tests with a confirmed, tracked,
+        # pre-existing failure (see the #[Group('known-broken')] tag + issue
+        # comment on each affected test). `composer test:quick` (no exclusion)
+        # remains the local/default command so developers still see these
+        # failures — only the CI-blocking run skips them, and only until
+        # their tracking issue is resolved. See docs/development/CODING_STANDARDS.md
+        # for the full convention.
+        run: composer test:quick:ci
 
       - name: Run regression tests
         run: composer test:regression
