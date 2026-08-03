@@ -232,11 +232,15 @@ class CarRepository
      * Get all cars for sitemap generation
      *
      * @return list<object{id: int, mtime: string}>
+     * @throws CarDatabaseException If query fails
      */
     public function getAllForSitemap(): array
     {
         $this->db->query('SELECT id, mtime FROM cars ORDER BY id');
-        return $this->db->error() ? [] : $this->db->results();
+        if ($this->db->error()) {
+            throw new CarDatabaseException('Failed to query cars for sitemap generation: ' . $this->db->errorString());
+        }
+        return $this->db->results();
     }
 
     /**
