@@ -77,7 +77,10 @@ class RegistrationRecoveryNotifier
                 return false;
             }
 
-            $userId = $fuser->data()->id;
+            // \User::data()->id may come back from PDO as a numeric string rather than
+            // an int (see docs/development/STRICT_TYPE_HANDLING.md) — DB::update()'s
+            // $id parameter is strictly typed int, and this file declares strict_types=1.
+            $userId = (int) $fuser->data()->id;
 
             $vericode = randomstring(15);
             $hashedVericode = hashVericode($vericode);

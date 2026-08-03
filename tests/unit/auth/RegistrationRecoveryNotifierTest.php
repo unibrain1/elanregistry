@@ -104,6 +104,33 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     }
 
     /**
+     * PDO/mysqli can return database INTEGER columns as numeric strings (see
+     * docs/development/STRICT_TYPE_HANDLING.md) — \User::data()->id is not
+     * guaranteed to already be a native int. This file (and DB::update()'s
+     * mock signature in tests/bootstrap-unit.php) declares strict_types=1,
+     * so passing an uncast numeric string to $this->db->update()'s int $id
+     * parameter throws a TypeError. That TypeError would be silently caught
+     * by this method's own catch(\Throwable), logged, and swallowed — the
+     * caller (join.php) sees no difference, but no recovery email is ever
+     * sent in production. This test uses a string 'id' specifically so a
+     * regression here fails loudly instead of passing silently.
+     */
+    public function testNotifyIfAccountExistsCastsStringIdToInt(): void
+    {
+        $fuser = new User(true, (object) ['id' => '42', 'fname' => 'Jane']);
+
+        $notifier = new RegistrationRecoveryNotifier($this->db);
+        $result = $notifier->notifyIfAccountExists($fuser, 'jane@example.com', $this->settings());
+
+        $this->assertTrue($result, 'A string account ID must not cause a silent TypeError failure');
+
+        global $mockDbUpdateCalls;
+        $this->assertCount(1, $mockDbUpdateCalls);
+        [, $id] = $mockDbUpdateCalls[0];
+        $this->assertSame(42, $id, 'The ID passed to DB::update() must be cast to a native int');
+    }
+
+    /**
      * Directly encodes the #1442 edge case: a username-only collision (no real
      * email collision) must not trigger a recovery notification. The fix is
      * correct here by construction — it decides based on $fuser->exists()
