@@ -740,6 +740,83 @@ test.describe('Sitemap endpoint (#1373)', () => {
   });
 });
 
+test.describe('SEO metadata: JSON-LD, noindex, apple-touch-icon (#1371)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  test('GET /app/owner/cars/details.php?car_id=1 renders a Schema.org Car JSON-LD block', async ({ page }) => {
+    const response = await page.goto('/app/owner/cars/details.php?car_id=1');
+
+    // Layer 1: HTTP response must be successful
+    expect(response.status()).toBeLessThan(400);
+
+    // Layer 2: Must not have been redirected to the login page — securePage()
+    // permits guest access to this specific car page (car_id=1 is the same ID
+    // the link-crawl test above keeps navigable for the same reason).
+    expect(page.url()).not.toContain('login.php');
+
+    // Layer 3: Body must contain a JSON-LD script block declaring the
+    // Schema.org Car type. json_encode() (with JSON_UNESCAPED_SLASHES) emits
+    // compact, unspaced JSON, so "@type":"Car" appears literally adjacent —
+    // see app/owner/cars/details.php.
+    const body = await response.text();
+    expect(body).toContain('application/ld+json');
+    expect(body).toContain('"@type":"Car"');
+
+    // Layer 4: The VIN field ties the structured data to the actual car
+    // record's chassis number.
+    expect(body).toContain('vehicleIdentificationNumber');
+
+    // Layer 5: details.php doesn't set $pageRobots, so it must still render
+    // the site-wide default (index, follow) — confirms head_tags.php's
+    // fallback still works, not just the two noindex overrides below.
+    expect(body).toContain('<meta name="robots" content="index, follow">');
+  });
+
+  const noindexPages = [
+    { path: '/app/owner/cars/factory.php', name: 'Factory Data' },
+    { path: '/app/owner/privacy.php', name: 'Privacy' },
+  ];
+
+  noindexPages.forEach(({ path, name }) => {
+    test(`GET ${path} (${name}) sets noindex, follow`, async ({ page }) => {
+      const response = await page.goto(path);
+
+      // Layer 1: HTTP response must be successful
+      expect(response.status()).toBeLessThan(400);
+
+      // Layer 2: Must not have been redirected to the login page
+      expect(page.url()).not.toContain('login.php');
+
+      // Layer 3: Must render the noindex robots meta tag instead of the
+      // site-wide default of "index, follow" (see usersc/includes/head_tags.php).
+      const body = await response.text();
+      expect(body).toContain('<meta name="robots" content="noindex, follow">');
+    });
+  });
+
+  const appleTouchIcons = [
+    '/apple-touch-icon.png',
+    '/apple-touch-icon-precomposed.png',
+  ];
+
+  appleTouchIcons.forEach((path) => {
+    test(`GET ${path} serves a PNG`, async ({ request }) => {
+      const response = await request.get(path);
+
+      // Layer 1: HTTP response must be successful
+      expect(response.status()).toBeLessThan(400);
+
+      // Layer 2: Must actually be served as a PNG image, not an HTML error page
+      const contentType = response.headers()['content-type'] ?? '';
+      expect(contentType.toLowerCase()).toContain('image/png');
+    });
+  });
+});
+
 test.describe('Location picker city disambiguation (#1400)', () => {
   test.beforeEach(async ({ }, testInfo) => {
     if (testInfo.project.name !== 'not-logged-in') {

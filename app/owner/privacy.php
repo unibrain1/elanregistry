@@ -12,6 +12,8 @@ declare(strict_types=1);
  * @author Elan Registry Admin
  * @copyright 2025
  */
+
+// A policy page, not a search destination in its own right (#1371).
 $pageRobots = 'noindex, follow';
 
 require_once '../../users/init.php';

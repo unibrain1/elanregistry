@@ -86,51 +86,23 @@ if (!empty($_GET)) {
     Redirect::to($us_url_root . 'app/owner/cars/index.php');
     exit;
 }
-?>
-<?php
-// `variant` holds more than Roadster/FHC/DHC: FHC-preairflow (a Series 1-3 dash
-// sub-configuration), Federal (US-market emissions/safety spec, not a body shape),
-// Race (factory race cars, not a body shape) — confirmed against the live cars
-// table. Federal/Race are NOT physical body shapes, so they're excluded from
-// bodyType and preserved via vehicleConfiguration instead.
-$normalizedVariant = trim($carData->variant ?? '');
-$bodyTypeMap = [
-    'FHC' => 'Coupe',
-    'FHC-preairflow' => 'Coupe',
-    'DHC' => 'Convertible',
-    'Roadster' => 'Roadster',
-];
-$bodyType = $bodyTypeMap[$normalizedVariant] ?? null;
-$vehicleConfiguration = (!in_array($normalizedVariant, ['FHC', 'DHC', 'Roadster'], true) && $normalizedVariant !== '')
-    ? $normalizedVariant
-    : null;
 
-$carSchema = [
-    '@context' => 'https://schema.org',
-    '@type' => 'Car',
-    'name' => trim(
-        ($carData->year ?? '') . ' Lotus Elan ' . trim($carData->series ?? '')
-        . ($normalizedVariant !== '' ? ' (' . $normalizedVariant . ')' : '')
-    ),
-    'vehicleIdentificationNumber' => trim($carData->chassis ?? ''),
-    'vehicleModelDate' => (string)($carData->year ?? ''),
-    'model' => 'Elan',
-    'url' => $current_url ?? '',
-];
-if (!empty(trim($carData->color ?? ''))) {
-    $carSchema['color'] = trim($carData->color);
-}
-if ($bodyType !== null) {
-    $carSchema['bodyType'] = $bodyType;
-}
-if ($vehicleConfiguration !== null) {
-    $carSchema['vehicleConfiguration'] = $vehicleConfiguration;
-}
-?>
-<script type="application/ld+json"><?= json_encode(
+$carSchema = CarView::buildCarSchema($carData, $current_url ?? '');
+$carSchemaJson = json_encode(
     $carSchema,
     JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES
-) ?></script>
+);
+if ($carSchemaJson === false) {
+    // Legacy chassis/color/series data predates the current input-sanitization
+    // pipeline (see CarView::buildCarSchema() docblock) and could in principle
+    // contain malformed UTF-8, which json_encode() rejects. Log and skip the
+    // block rather than emitting an empty, invalid <script type="application/ld+json">.
+    logger($user->data()->id ?? 0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, "JSON-LD encoding failed for car ID $carID: " . json_last_error_msg());
+}
+?>
+<?php if ($carSchemaJson !== false): ?>
+<script type="application/ld+json"><?= $carSchemaJson ?></script>
+<?php endif; ?>
 <div class="page-wrapper">
     <div class="container-fluid">
         <div class="page-container">

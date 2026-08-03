@@ -15,6 +15,8 @@ declare(strict_types=1);
 
 $pageTitle = 'Lotus Elan Factory Build Records — Registry Factory Data';
 $pageDescription = 'Browse original factory build records for registered Lotus Elan and Elan Plus 2 cars, cross-referenced against registry ownership data.';
+// Public but not a search destination — a supplementary data list, not a page
+// with its own distinct identity worth indexing (#1371).
 $pageRobots = 'noindex, follow';
 
 require_once '../../../users/init.php';

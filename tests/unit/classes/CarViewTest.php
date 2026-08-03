@@ -199,4 +199,145 @@ final class CarViewTest extends TestCase
         $this->assertStringNotContainsString('"test"', $html);
         $this->assertStringContainsString('&quot;test&quot;', $html);
     }
+
+    // ============================================================
+    // buildCarSchema() TESTS (Issue #1371)
+    // ============================================================
+
+    private function makeCarData(array $overrides = []): object
+    {
+        return (object)array_merge([
+            'year' => 1969,
+            'series' => 'S4',
+            'variant' => 'Roadster',
+            'chassis' => '1234B',
+            'color' => 'Racing Green',
+        ], $overrides);
+    }
+
+    public function testBuildCarSchemaBasicFields(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(), 'https://elanregistry.org/app/owner/cars/details.php?car_id=1');
+
+        $this->assertSame('https://schema.org', $schema['@context']);
+        $this->assertSame('Car', $schema['@type']);
+        $this->assertSame('1969 Lotus Elan S4 (Roadster)', $schema['name']);
+        $this->assertSame('1234B', $schema['vehicleIdentificationNumber']);
+        $this->assertSame('1969', $schema['vehicleModelDate']);
+        $this->assertSame('Elan', $schema['model']);
+        $this->assertSame('https://elanregistry.org/app/owner/cars/details.php?car_id=1', $schema['url']);
+        $this->assertSame('Racing Green', $schema['color']);
+        $this->assertSame('Roadster', $schema['bodyType']);
+        $this->assertArrayNotHasKey('vehicleConfiguration', $schema);
+    }
+
+    public function testBuildCarSchemaMapsFhcToCoupe(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => 'FHC']), '');
+
+        $this->assertSame('Coupe', $schema['bodyType']);
+        $this->assertArrayNotHasKey('vehicleConfiguration', $schema);
+    }
+
+    public function testBuildCarSchemaTrimsVariantBeforeBodyTypeMapLookup(): void
+    {
+        // Proves trim() happens BEFORE the BODY_TYPE_MAP lookup, not after — a padded
+        // but non-empty variant (unlike the all-whitespace case tested elsewhere) would
+        // silently fail to match "FHC" in the map if the ordering were ever reversed.
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => ' FHC ']), '');
+
+        $this->assertSame('Coupe', $schema['bodyType']);
+        $this->assertArrayNotHasKey('vehicleConfiguration', $schema);
+    }
+
+    public function testBuildCarSchemaMapsDhcToConvertible(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => 'DHC']), '');
+
+        $this->assertSame('Convertible', $schema['bodyType']);
+        $this->assertArrayNotHasKey('vehicleConfiguration', $schema);
+    }
+
+    public function testBuildCarSchemaFhcPreairflowSetsBothBodyTypeAndVehicleConfiguration(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => 'FHC-preairflow']), '');
+
+        $this->assertSame('Coupe', $schema['bodyType']);
+        $this->assertSame('FHC-preairflow', $schema['vehicleConfiguration']);
+    }
+
+    public function testBuildCarSchemaFederalIsExcludedFromBodyTypeButPreservedAsVehicleConfiguration(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => 'Federal']), '');
+
+        $this->assertArrayNotHasKey('bodyType', $schema);
+        $this->assertSame('Federal', $schema['vehicleConfiguration']);
+    }
+
+    public function testBuildCarSchemaRaceIsExcludedFromBodyTypeButPreservedAsVehicleConfiguration(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => 'Race']), '');
+
+        $this->assertArrayNotHasKey('bodyType', $schema);
+        $this->assertSame('Race', $schema['vehicleConfiguration']);
+    }
+
+    public function testBuildCarSchemaEmptySeriesWithVariantProducesNoDoubleSpace(): void
+    {
+        // Regression test: an earlier implementation concatenated year/series/variant
+        // with a fixed space between each, so an empty series produced "Lotus Elan  (FHC)"
+        // (two spaces). Reachable today only via unvalidated legacy data (the car_models
+        // reference table always pairs a non-empty series with variant for validated input).
+        $schema = CarView::buildCarSchema($this->makeCarData(['series' => '', 'variant' => 'FHC']), '');
+
+        $this->assertSame('1969 Lotus Elan (FHC)', $schema['name']);
+        $this->assertStringNotContainsString('  ', $schema['name']);
+    }
+
+    public function testBuildCarSchemaTrimsWhitespaceInColorChassisSeries(): void
+    {
+        // Real-data check (Issue #1371) found legacy untrimmed whitespace in these
+        // columns, predating the current CarValidator/InputSanitizer::normalize()
+        // input pipeline, which already trims on write.
+        $schema = CarView::buildCarSchema($this->makeCarData([
+            'series' => ' S4 ',
+            'chassis' => ' 1234B ',
+            'color' => ' Racing Green ',
+        ]), '');
+
+        $this->assertSame('1969 Lotus Elan S4 (Roadster)', $schema['name']);
+        $this->assertSame('1234B', $schema['vehicleIdentificationNumber']);
+        $this->assertSame('Racing Green', $schema['color']);
+    }
+
+    public function testBuildCarSchemaOmitsColorWhenEmpty(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['color' => '']), '');
+
+        $this->assertArrayNotHasKey('color', $schema);
+    }
+
+    public function testBuildCarSchemaOmitsColorWhenWhitespaceOnly(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['color' => '   ']), '');
+
+        $this->assertArrayNotHasKey('color', $schema);
+    }
+
+    public function testBuildCarSchemaOmitsBodyTypeAndVehicleConfigurationWhenVariantEmpty(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => '']), '');
+
+        $this->assertArrayNotHasKey('bodyType', $schema);
+        $this->assertArrayNotHasKey('vehicleConfiguration', $schema);
+        $this->assertStringNotContainsString('(', $schema['name']);
+    }
+
+    public function testBuildCarSchemaWhitespaceOnlyVariantTreatedAsEmpty(): void
+    {
+        $schema = CarView::buildCarSchema($this->makeCarData(['variant' => '   ']), '');
+
+        $this->assertArrayNotHasKey('bodyType', $schema);
+        $this->assertArrayNotHasKey('vehicleConfiguration', $schema);
+    }
 }

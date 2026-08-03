@@ -73,7 +73,7 @@ In ElanRegistry, `$_SERVER` is never accessed directly in page code.
 sanitized versions of the most-used server values as plain globals.
 
 | Instead of `$_SERVER[...]` | Use this global |
-|---|---|
+| --- | --- |
 | `$_SERVER['PHP_SELF']` | `$php_self` |
 | `$_SERVER['HTTPS']` | `$is_https` / `$scheme` |
 | `$_SERVER['HTTP_HOST']` | `$host` |
@@ -240,3 +240,16 @@ high-impact improvement that improves SEO, search previews, and social-media sha
 
 See `docs/reference/paint-colors.php` for the canonical correct example — this pattern was rolled out to
 11 pages as part of issue #1432.
+
+**A third variable, `$pageRobots`, follows the same before-`init.php` convention** (introduced in #1371) for
+pages that should carry a non-default `<meta name="robots">` value — e.g. `$pageRobots = 'noindex, follow';`
+on pages that are public but not search destinations (`app/owner/cars/factory.php`, `app/owner/privacy.php`).
+Unlike `$pageTitle`, `$pageRobots` isn't subject to loader.php's one-time `isset()` check — `head_tags.php`
+just reads its live value with a plain `!empty($pageRobots) ? $pageRobots : 'index, follow'` fallback (same
+style as the existing `$pageDescription` fallback). The mechanism differs from `$pageTitle`, but the
+before-`init.php` requirement still applies in practice: `head_tags.php` doesn't render as part of `init.php`
+itself — it's reached via the page's *second* require, `require_once '.../elanregistry_prep.php'`
+(→ `users/includes/template/prep.php` → the active template's `header.php` → `head_tags.php`). Every page in
+this convention issues that require immediately after `init.php`, so setting `$pageRobots` any time before it
+— same as `$pageTitle`/`$pageDescription` — is what actually matters; "before `init.php`" is the simple,
+safe-by-construction rule to follow given that adjacency.

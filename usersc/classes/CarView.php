@@ -25,6 +25,18 @@ class CarView
     // Carousel configuration constants
     private const CAROUSEL_MIN_ID = 1000;
     private const CAROUSEL_MAX_ID = 9999;
+
+    // Schema.org Car JSON-LD constants (#1371) — see buildCarSchema() docblock
+    // for why FHC-preairflow appears in BODY_TYPE_MAP but not in
+    // VARIANTS_WITHOUT_VEHICLE_CONFIGURATION.
+    private const BODY_TYPE_MAP = [
+        'FHC' => 'Coupe',
+        'FHC-preairflow' => 'Coupe',
+        'DHC' => 'Convertible',
+        'Roadster' => 'Roadster',
+    ];
+    private const VARIANTS_WITHOUT_VEHICLE_CONFIGURATION = ['FHC', 'DHC', 'Roadster'];
+
     /**
      * Load and display a car picture with responsive image sizing
      *
@@ -139,5 +151,73 @@ class CarView
         $html .= '<!--End displayCarousel -->';
 
         return $html;
+    }
+
+    /**
+     * Build a Schema.org Car JSON-LD payload for a car detail page (#1371).
+     *
+     * `bodyType` is only set for genuine physical body shapes (Roadster/FHC/DHC,
+     * including the FHC-preairflow sub-configuration) — the `variant` column also
+     * holds non-body-shape values like "Federal" (US-market emissions/safety spec)
+     * and "Race" (factory race cars), confirmed against the live `cars` table.
+     * Those are preserved via `vehicleConfiguration` instead of `bodyType`, so
+     * `bodyType` stays semantically correct rather than publishing a wrong value.
+     *
+     * FHC-preairflow additionally keeps `vehicleConfiguration` even though it also
+     * gets a `bodyType` (unlike FHC/DHC/Roadster, which get `bodyType` only) — it's
+     * a distinct Series 1-3 dash sub-configuration worth preserving as free text
+     * alongside the shared Coupe body shape, which is why it's absent from
+     * VARIANTS_WITHOUT_VEHICLE_CONFIGURATION despite being present in BODY_TYPE_MAP.
+     *
+     * `chassis`/`color`/`series` are trimmed defensively — legacy data (predating
+     * the current CarValidator/InputSanitizer::normalize() input pipeline, which
+     * already trims on write) has untrimmed whitespace in these columns.
+     *
+     * @param object $carData Car data object (year, series, variant, chassis, color, ...)
+     * @param string $currentUrl Canonical URL of the current page
+     * @return array<string, string> Schema.org Car properties, ready for json_encode()
+     */
+    public static function buildCarSchema(object $carData, string $currentUrl): array
+    {
+        $normalizedVariant = trim($carData->variant ?? '');
+        $normalizedColor = trim($carData->color ?? '');
+
+        $bodyType = self::BODY_TYPE_MAP[$normalizedVariant] ?? null;
+        $vehicleConfiguration = (
+            $normalizedVariant !== '' && !in_array($normalizedVariant, self::VARIANTS_WITHOUT_VEHICLE_CONFIGURATION, true)
+        ) ? $normalizedVariant : null;
+
+        $nameParts = array_filter(
+            [
+                // year is a SMALLINT column, not free text — no trim() needed
+                // (unlike chassis/color/series below, which are).
+                (string)($carData->year ?? ''),
+                'Lotus Elan',
+                trim($carData->series ?? ''),
+                $normalizedVariant !== '' ? '(' . $normalizedVariant . ')' : '',
+            ],
+            static fn (string $part): bool => $part !== ''
+        );
+
+        $carSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Car',
+            'name' => implode(' ', $nameParts),
+            'vehicleIdentificationNumber' => trim($carData->chassis ?? ''),
+            'vehicleModelDate' => (string)($carData->year ?? ''),
+            'model' => 'Elan',
+            'url' => $currentUrl,
+        ];
+        if ($normalizedColor !== '') {
+            $carSchema['color'] = $normalizedColor;
+        }
+        if ($bodyType !== null) {
+            $carSchema['bodyType'] = $bodyType;
+        }
+        if ($vehicleConfiguration !== null) {
+            $carSchema['vehicleConfiguration'] = $vehicleConfiguration;
+        }
+
+        return $carSchema;
     }
 }
