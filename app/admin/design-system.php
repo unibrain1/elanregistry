@@ -13,14 +13,15 @@ declare(strict_types=1);
  * usersc/templates/customizer.css.
  */
 
+$pageTitle = 'Color Preview — Elan Registry Token System';
+$pageDescription = 'Preview of the Elan Registry design system color tokens and UI components.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 
 if (!securePage($php_self)) {
     die();
 }
-
-$pageTitle = 'Color Preview — Elan Registry Token System';
 ?>
 
 <style nonce="<?= htmlspecialchars($userspice_nonce ?? '') ?>">

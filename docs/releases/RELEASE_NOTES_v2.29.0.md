@@ -40,6 +40,7 @@
 
 ### Bug Fixes
 
+- **Admin page browser tab titles** ([#1430](https://github.com/elan-registry/registry/issues/1430)): `app/admin/index.php`, `maintenance.php`, and `design-system.php` now show their page-specific browser tab title (e.g. "Registry Maintenance - Health") instead of the generic site title — the `$pageTitle` variable was being set after the point the header template reads it, so the assignment silently had no effect. Cosmetic only; these pages are admin-only and not search-indexed.
 - **DataTables pagination validation** ([#1399](https://github.com/elan-registry/registry/issues/1399)): Invalid pagination parameters (including the former "All" option, `length=-1`) now return a 422 error instead of a SQL 500. The "All" rows option has been removed from the cars and factory table menus; page size is capped at 100 server-side.
 - **Location service cache silently disabled when APCu is present but non-functional** ([#1470](https://github.com/elan-registry/registry/issues/1470)): `LocationService`'s geocoding cache and its own per-user geocoding rate limiter both silently stopped working whenever the `apcu` PHP extension was loaded but not actually functional for the running context (e.g. `apc.enable_cli=Off`, common in CLI/cron execution) — the code checked only whether the extension existed, not whether it actually succeeded, so it never fell through to its documented file-based fallback. Both now correctly fall back to file-based caching whenever an APCu operation doesn't succeed. Found while adding automated CI test execution ([#1437](https://github.com/elan-registry/registry/issues/1437)).
 
@@ -62,6 +63,7 @@
 - [#1406](https://github.com/elan-registry/registry/issues/1406) — security: fix account enumeration during registration (generic response + silent recovery email)
 - [#1409](https://github.com/elan-registry/registry/issues/1409) — fix: GSC 404 cleanup — legacy path redirects and PDF filename case mismatch
 - [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
+- [#1430](https://github.com/elan-registry/registry/issues/1430) — bug: $pageTitle set after header render has no effect on 3 admin pages
 - [#1432](https://github.com/elan-registry/registry/issues/1432) — feat: page-specific title/description convention rollout to 11 top-value pages; fix og:title/twitter:title; close #1431 (superseded)
 - [#1436](https://github.com/elan-registry/registry/issues/1436) — test: isolate integration tests onto a dedicated test schema
 - [#1437](https://github.com/elan-registry/registry/issues/1437) — ci: run PHPUnit unit + regression suites on every PR
