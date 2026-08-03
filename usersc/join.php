@@ -309,6 +309,41 @@ if (Input::existsPost()) {
         logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
             'join.php: Registration failed — ' . count($validation->_errors ?? []) . ' validation error(s)');
 
+        // Send a recovery-style email to an existing account instead of a signup error (#1406 — prevents email enumeration)
+        if (!empty($email) && checkRateLimit('registration_recovery_email', null, $email)) {
+            // 'forceEmail' pins the lookup to the email column regardless of format —
+            // this branch can be reached with a malformed $email (e.g. validation failed
+            // on valid_email), and without this a non-email string would otherwise fall
+            // through to a username-column lookup and could overwrite an unrelated
+            // username-matched user's vericode.
+            $fuser = new \User($email, 'forceEmail');
+            $notifier = new \ElanRegistry\RegistrationRecoveryNotifier(\DB::getInstance());
+            $notifier->notifyIfAccountExists($fuser, $email, $settings);
+
+            // Record the attempt so the per-email rate limit actually accumulates —
+            // checkRateLimit() only counts prior recorded attempts; without this call
+            // the limit above never engages and an attacker could email-bomb a victim
+            // via repeated registration attempts with their address.
+            //
+            // Deliberately record success=false (not the notification's own success/
+            // failure) on every pass: RateLimit::check() only counts success=false
+            // rows toward the tight email_max cap — success=true rows only count
+            // toward the much higher total_max. The abuse this limit exists to stop
+            // (repeatedly targeting one real, existing email) is exactly the
+            // success=true case, so recording it as success=false is what makes
+            // email_max actually engage for that scenario.
+            recordRateLimit('registration_recovery_email', false, null, $email);
+
+            if (!$fuser->exists()) {
+                // Match forgot_password.php's timing-equalization pattern: without a
+                // compensating delay, a real notification (DB write + email send) takes
+                // measurably longer than this no-op branch, which would let an attacker
+                // distinguish registered from unregistered emails via response latency
+                // even though the response content is identical either way.
+                sleep(2);
+            }
+        }
+
         // Show a generic message regardless of the specific reason (prevents email enumeration)
         usError('We could not complete your registration. Please check your information and try again.');
 

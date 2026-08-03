@@ -24,7 +24,7 @@
 - **GSC 404 cleanup** ([#1409](https://github.com/elan-registry/registry/issues/1409)): Legacy path redirects and PDF filename case mismatch fix — eliminates remaining 404 noise from Google Search Console.
 - **Paint colors SEO** ([#1372](https://github.com/elan-registry/registry/issues/1372)): `paint-colors.php` now has a descriptive `<title>` and meta description, so it can outrank the generic PDF snippet Google previously showed for this high-traffic page.
 - **Location picker disambiguation** ([#1400](https://github.com/elan-registry/registry/issues/1400)): Searching an ambiguous city name (e.g. "Springfield") no longer silently collapses same-named cities in different states/regions into a single dropdown entry — owners now see all distinct matches (Springfield OH, Springfield MO, etc.) and can pick the correct one.
-- **Registration UX** ([#1406](https://github.com/elan-registry/registry/issues/1406)): Owners trying to register with an existing email are now redirected to password recovery instead of seeing a generic error.
+- **Registration account-enumeration fix** ([#1406](https://github.com/elan-registry/registry/issues/1406)): Registering with an already-registered email no longer reveals that the account exists. The response is identical to any other registration failure; the existing account holder is silently sent a private recovery email instead.
 
 ## Admin-Facing Changes
 
@@ -53,6 +53,6 @@
 - [#1396](https://github.com/elan-registry/registry/issues/1396) — chore: migrate maplibre-gl from UMD script tag to ESM (v4 → v6)
 - [#1399](https://github.com/elan-registry/registry/issues/1399) — bug: DataTables length=-1 ("All" option) and negative start cause SQL error in cars/factory list endpoints
 - [#1400](https://github.com/elan-registry/registry/issues/1400) — fix: geocoding returns wrong city when multiple US cities share a name (Springfield OH → MO)
-- [#1406](https://github.com/elan-registry/registry/issues/1406) — ux: redirect to password recovery when registration email already exists
+- [#1406](https://github.com/elan-registry/registry/issues/1406) — security: fix account enumeration during registration (generic response + silent recovery email)
 - [#1409](https://github.com/elan-registry/registry/issues/1409) — fix: GSC 404 cleanup — legacy path redirects and PDF filename case mismatch
 - [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
