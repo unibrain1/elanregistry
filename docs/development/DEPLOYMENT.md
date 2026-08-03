@@ -143,7 +143,7 @@ before merge, not by GitHub blocking the merge button itself (see issue #1437).
 #### 6. **PHPUnit Unit + Regression**
 
 - **What it does**: Runs the PHPUnit `Unit` and `Regression` testsuites (`composer test:quick:ci`
-  and `composer test:regression`) — mocked, no database or network required
+  and `composer test:regression:ci`) — mocked, no database or network required
 - **When it runs**: On every PR (open/synchronize) and on push to `main`
   (`.github/workflows/tests.yml`)
 - **Scope**: `tests/unit/` and `tests/regression/`, excluding any test tagged

@@ -314,6 +314,17 @@ Closes #NNN — Issue title (PR #NN)
 
 See `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md` for complete release notes.
 
+<!-- Include this section ONLY if Step 3.5 found known-broken-tagged tests and the user
+     chose to proceed with them explicitly accepted (option (b) in that step). Omit entirely
+     if Step 3.5 found nothing, or everything was resolved/removed before this PR. -->
+
+## Known Test Exclusions
+
+The following tests are excluded from the CI-blocking run via `#[Group('known-broken')]` and
+were explicitly accepted as a known gap for this release (see Step 3.5):
+
+- `<test name>` (`<file path>`) — tracked by #`<issue number>` (`<open/closed>`)
+
 ## Test Plan
 
 - [ ] All issue PRs were reviewed and merged into milestone branch
