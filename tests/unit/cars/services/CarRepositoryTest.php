@@ -432,4 +432,26 @@ final class CarRepositoryTest extends TestCase
         $this->expectException(CarDatabaseException::class);
         $repo->findByIdForUpdate(1);
     }
+
+    // =========================================================================
+    // getAllForSitemap tests (issue #1373)
+    // =========================================================================
+
+    /**
+     * getAllForSitemap() throws CarDatabaseException when the query fails, rather than
+     * silently returning an empty array — a real DB outage must produce a visible 500 via
+     * sitemap.php's catch block, not a healthy-looking sitemap missing every car.
+     */
+    public function testGetAllForSitemapThrowsCarDatabaseExceptionOnQueryError(): void
+    {
+        $db = $this->makeDbMock();
+        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->method('error')->willReturn(true);
+        $db->method('errorString')->willReturn('Connection lost');
+
+        $repo = new CarRepository($db);
+
+        $this->expectException(CarDatabaseException::class);
+        $repo->getAllForSitemap();
+    }
 }

@@ -713,6 +713,33 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
   });
 });
 
+test.describe('Sitemap endpoint (#1373)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  test('GET /sitemap.xml returns a valid sitemap with at least one car entry', async ({ page }) => {
+    const response = await page.goto('/sitemap.xml');
+
+    // Layer 1: HTTP response must be successful
+    expect(response.status()).toBeLessThan(400);
+
+    // Layer 2: Must be served as XML, not HTML (e.g. a login redirect or error page)
+    const contentType = response.headers()['content-type'] ?? '';
+    expect(contentType.toLowerCase()).toContain('application/xml');
+
+    // Layer 3: Must be a real sitemap document, not an error page
+    const body = await response.text();
+    expect(body).toContain('<urlset');
+
+    // Layer 4: Must include at least one car entry — this registry always
+    // has cars in its test/prod data, so this should never be empty.
+    expect(body).toContain('details.php?car_id=');
+  });
+});
+
 test.describe('Location picker city disambiguation (#1400)', () => {
   test.beforeEach(async ({ }, testInfo) => {
     if (testInfo.project.name !== 'not-logged-in') {
