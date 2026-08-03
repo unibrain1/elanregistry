@@ -305,6 +305,13 @@ Test and production servers have a single shared post-receive hook
 3. Run `composer install --no-dev --optimize-autoloader`
 4. Run `php vendor/bin/phinx migrate` (halts deployment on failure)
 5. Self-update the installed hook from the newly deployed working tree
+6. Remove dev-only paths listed in `.deployignore` (e.g. `tests/`, `scripts/`,
+   `utilities/`, `wiki/`) via `rm -rf`, then remove `.deployignore` itself
+
+**Important:** Never list a persistent, server-writable directory in
+`.deployignore` (e.g. `backups/`) — step 6's `rm -rf` would delete it wholesale
+on every subsequent push. See #1479, where this happened to the server's
+backup directory.
 
 **Development:**
 

@@ -11,6 +11,7 @@
   - Run `npm run test:e2e` against the deployed test environment to validate the new Playwright title/description assertions against live Apache/PHP config
   - Manual: GSC → URL Inspection → Request Indexing for `https://elanregistry.org/docs/reference/paint-colors.php`
 - **#1394 (Sendinblue plugin update):** Applied on local dev only so far. Still needs the same manual update (Admin → Spice Shaker → Installed Plugins → Update) on test and production, followed by the Test Email + password-reset smoke tests on each — see `docs/development/EMAIL_SYSTEM.md#updating-the-plugin`.
+- **#1479 (backups wiped on every deploy):** After deploying, verify on the test server that a file placed in `backups/automated/` survives a subsequent deploy, and confirm `https://elanregistry.org/backups/` (and a direct file URL under it) return 403 on prod. Watch the next scheduled monitoring run for zero new `cleanupOldBackups` `realpath()` failures.
 
 ## User-Facing Changes
 
@@ -60,3 +61,4 @@
 - [#1436](https://github.com/elan-registry/registry/issues/1436) — test: isolate integration tests onto a dedicated test schema
 - [#1437](https://github.com/elan-registry/registry/issues/1437) — ci: run PHPUnit unit + regression suites on every PR
 - [#1470](https://github.com/elan-registry/registry/issues/1470) — bug: LocationService cache silently disabled when APCu is present but non-functional
+- [#1479](https://github.com/elan-registry/registry/issues/1479) — fix: deploy hook deletes server backups on every push — remove backups/ from .deployignore
