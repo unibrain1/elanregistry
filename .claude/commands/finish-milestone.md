@@ -25,6 +25,7 @@ TaskCreate. Suggested task subjects:
 3.5. Check for known-broken test exclusions still present
 4. Gather all merged PRs targeting the milestone branch
 5. Get the full diff against main
+5.5. Verify milestone scope vs. release notes
 6. Finalize release notes
 7. Update wiki documentation (or skip)
 8. Update CLAUDE.md if needed
@@ -115,6 +116,98 @@ git log main..milestone/$ARGUMENTS --oneline
 git diff --stat main..milestone/$ARGUMENTS
 ```
 
+### Step 5.5: Verify milestone scope vs. release notes
+
+Issues get moved in and out of a milestone over its lifetime — rescoped to a
+different milestone, split off, superseded, or consolidated after their PR
+already merged and their release-notes entry was already written. The
+release notes reflect scope *at the time each issue was worked*, which can
+silently drift from the milestone's *current* actual membership by the time
+the milestone finishes. Catch this before finalizing, not after — a release
+note that credits work to the wrong milestone (or omits real work) is wrong
+in a way none of the later review steps are positioned to catch, since they
+all take the release notes' existing content as ground truth.
+
+1. Get the milestone's current membership, **all states** (a closed issue
+   can still be reassigned to a different milestone afterward):
+
+   ```bash
+   MILESTONE_NUM=<from Step 1/2>
+   gh api "repos/elan-registry/registry/issues?milestone=${MILESTONE_NUM}&state=all&per_page=100" \
+     --jq '.[] | "\(.number)\t\(.title)\t\(.state)"'
+   ```
+
+2. Extract the issue numbers currently listed in the release notes' "Issues
+   Resolved" section:
+
+   ```bash
+   grep -oP '(?<=issues/)\d+' docs/releases/RELEASE_NOTES_v$ARGUMENTS.md | sort -un
+   ```
+
+3. Diff the two number sets and investigate every mismatch:
+
+   - **In release notes, NOT in current milestone membership** — this issue
+     was moved elsewhere after its entry was written. Confirm where it lives
+     now:
+
+     ```bash
+     gh issue view <N> --repo elan-registry/registry --json milestone,state
+     ```
+
+     If it genuinely moved to a different milestone, remove its "Issues
+     Resolved" entry and any associated changelog bullet (New
+     Features/Improvements/Bug Fixes) — that work no longer ships in this
+     release. Also re-check whether the release's headline "Type" line and
+     summary still make sense without it (a moved-out issue can invalidate
+     the release's stated theme, not just one bullet).
+
+   - **In current milestone membership (closed), NOT in release notes** — a
+     real gap. Check why it has no entry:
+
+     ```bash
+     gh issue view <N> --repo elan-registry/registry --json state,stateReason,comments \
+       --jq '{state, stateReason, comments: [.comments[].body]}'
+     ```
+
+     - Comment says **"Consolidated into #X"**: expected, no separate entry
+       needed — confirm #X's existing entry actually covers this issue's
+       scope, then move on.
+     - Comment says **"Superseded by #X"**: check #X's *current* milestone.
+       If #X is in this same milestone, its entry already covers this issue
+       — no action needed. **If #X is in a different milestone (or its work
+       was never actually merged into this milestone branch — verify with
+       `git log milestone/$ARGUMENTS --oneline --grep="<X or a keyword>"`),
+       this issue is claiming credit for work that doesn't actually ship
+       here either.** This is the same drift as the first bullet, one hop
+       removed. Do not guess how to resolve it — present it to the user with
+       the full chain (this issue → superseded by #X → #X's actual
+       milestone) and ask: move this issue to match #X's milestone, list it
+       here with a "no code shipped" note, or something else.
+     - No such comment: genuine gap. Draft an accurate "Issues Resolved"
+       entry (and a changelog bullet, if it represents real shipped
+       behavior rather than a purely operational/verification action — e.g.
+       "confirmed working after a config redeploy" belongs in Issues
+       Resolved but may not need its own user-facing changelog bullet) from
+       the issue's title, body, and closing comment.
+
+4. **Present every discrepancy found to the user before editing anything.**
+   Unambiguous cases (confirmed moved to another milestone; confirmed
+   consolidated with an entry already present) can be applied directly and
+   just noted in the summary. Ambiguous cases (the superseded-elsewhere
+   pattern above) require the user's explicit decision — do not proceed on
+   your own judgment.
+
+5. Apply the agreed changes to `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`.
+   If a GitHub milestone reassignment was part of the resolution (e.g.
+   moving an issue to match where its superseding issue actually lives):
+
+   ```bash
+   gh issue edit <N> --repo elan-registry/registry --milestone "<target milestone title>"
+   ```
+
+If no discrepancies are found, note that in the summary and continue — this
+step doesn't need to slow down a milestone where nothing moved.
+
 ### Step 6: Finalize release notes at `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`
 
 - Read the file and verify all issues are marked as resolved (no "WIP:"
@@ -123,8 +216,11 @@ git diff --stat main..milestone/$ARGUMENTS
   - Fill in any remaining template placeholders
   - Ensure deployment instructions, verification steps are complete
   - Ensure "Required Actions After Deployment" is accurate
-  - Verify all closed issues are listed in "Issues Resolved"
-- Commit the finalized release notes if changes were made
+  - Scope accuracy (issue membership vs. milestone) was already verified in
+    Step 5.5 — this pass is about content completeness/wording, not re-doing
+    that cross-check
+- Commit the finalized release notes if changes were made (or amend the
+  Step 5.5 commit if it hasn't been pushed yet, to keep history clean)
 
 ### Step 7: Update wiki documentation
 
@@ -369,6 +465,7 @@ It will not re-run on every push — that keeps CI cost down.
 - The PR number and URL
 - List of merged issue PRs included
 - Known-broken test exclusions status (none found, or resolved, or explicitly accepted with issue references)
+- Milestone-scope corrections from Step 5.5 (none found, or list issues added/removed/reassigned and why)
 - Release notes status (finalized or needs attention)
 - Wiki updates status (updated, committed, or skipped)
 - PRD update status (updated or skipped)
