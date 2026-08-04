@@ -88,6 +88,10 @@ do
         echo "WARNING: Hook source not found at '$HOOK_SOURCE' — hook not self-updated."
     fi
 
+    # Log this deployment event BEFORE cleanup — .deployignore removes scripts/
+    php "$WORK_TREE/scripts/log-deployment.php" "$(cat "$WORK_TREE/VERSION")" "$ENV_NAME" "$branch" "$newrev" \
+        || echo "WARNING: Deployment logging failed (non-fatal) — see script output above."
+
     # Remove dev-only files listed in .deployignore
     if [ -f "$WORK_TREE/.deployignore" ]; then
         echo "Cleaning up dev-only files..."
