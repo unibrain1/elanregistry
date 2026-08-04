@@ -134,6 +134,9 @@ jobs:
 
             **You are the backstop.** Focus on what static tools cannot see.
 
+            Work through this directly yourself — only `Bash`, `Read`, `Grep`,
+            and `Glob` tools are available here, no agent-delegation mechanism.
+
             ## Scope
 
             Review only the diff on this PR:
@@ -328,6 +331,16 @@ jobs:
             is already done.
 
             Instead, focus on cross-issue and release-level concerns.
+
+            **Work through the tasks below directly and sequentially, yourself.**
+            Only `Bash`, `Read`, `Grep`, and `Glob` tools are available in this
+            environment — there is no agent-delegation or sub-investigation
+            mechanism here, and nothing else will report back to you. If you
+            find yourself about to say something like "the other investigations
+            are running" or "I'll compile this once the agents report back" —
+            stop: that means you've started planning a workflow this environment
+            can't run. Investigate and answer each numbered task directly instead,
+            then move on to posting the comment.
 
             ## Read the merged issue list
 
