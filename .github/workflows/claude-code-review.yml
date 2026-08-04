@@ -22,6 +22,17 @@ name: Claude Code Review
 #   auto-post Claude's output. Prompts must include that instruction and
 #   Bash(gh pr comment:*) must be in the allowedTools list.
 #
+#   Fallback posting: if Claude's own `gh pr comment` call never happens
+#   (observed once in production — the run completed with no error but
+#   posted nothing, likely from exhausting turns against the restrictive
+#   allowedTools list before reaching the post step), a dedicated fallback
+#   step extracts Claude's final text from the SDK execution log
+#   (`steps.<id>.outputs.execution_file`) and posts it directly, outside
+#   Claude's own tool sandbox. The final "Fail if..." step now also hard-
+#   fails if no review comment exists at all, not just when one exists
+#   with a Blocking section — a silent "nothing was posted" no longer
+#   reads as a pass.
+#
 # IMPORTANT — track_progress and agent-mode detection (v1.0+):
 #   Setting track_progress: true forces "tag mode" — the action waits for an
 #   @claude trigger comment and never runs the prompt automatically. To run
@@ -97,6 +108,7 @@ jobs:
           ref: refs/pull/${{ steps.ctx.outputs.pr_number }}/head
 
       - name: Run Claude Issue-Level Review
+        id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -105,7 +117,7 @@ jobs:
           # Omitting it lets the action detect "agent mode" from the prompt input.
           claude_args: >-
             --allowedTools
-            "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git diff --name-only:*),Bash(php -l *),Bash(composer check:php),Bash(vendor/bin/phpstan analyse:*),Bash(npm run lint),Read,Grep,Glob"
+            "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git diff --name-only:*),Bash(cat:*),Bash(php -l *),Bash(composer check:php),Bash(vendor/bin/phpstan analyse:*),Bash(npm run lint),Read,Grep,Glob"
             --model claude-sonnet-5
           prompt: |
             REPO: ${{ github.repository }}
@@ -175,7 +187,53 @@ jobs:
             If there is nothing to say in a section, omit it entirely.
             Only post GitHub comments — do not output the review as a message.
 
-      - name: Fail if review posted Blocking findings
+      - name: Fallback — post review if Claude didn't post one
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          # Claude must self-post via `gh pr comment` — the action does not
+          # auto-post its output. If that tool call never happens (e.g. it
+          # exhausts turns wrestling with the restrictive allowedTools list
+          # before reaching the post step), the review silently produces
+          # nothing, and the next step used to read that as "no Blocking
+          # findings" — a pass, not a "the review never ran" signal. This
+          # step extracts Claude's final text from the SDK execution log
+          # (steps.claude-review.outputs.execution_file, documented at
+          # https://github.com/anthropics/claude-code-action) and posts it
+          # directly, outside Claude's own tool-permission sandbox, so a
+          # review always lands regardless of what went wrong mid-run.
+          EXISTING=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
+            --jq '[.[] | select(.body | test("#+\\s+Strengths"))] | length' 2>/dev/null || echo 0)
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "Review comment already posted by Claude — no fallback needed."
+            exit 0
+          fi
+
+          if [ -z "$EXECUTION_FILE" ] || [ ! -f "$EXECUTION_FILE" ]; then
+            echo "::warning::No execution file available — cannot post fallback review."
+            exit 0
+          fi
+
+          RESULT_TEXT=$(jq -r '[.[] | select(.type == "result")] | last | .result // ""' "$EXECUTION_FILE" 2>/dev/null || echo "")
+          if [ -z "$RESULT_TEXT" ]; then
+            echo "::warning::Claude's execution file had no final result text — cannot post fallback review."
+            exit 0
+          fi
+
+          {
+            echo "> **Note:** Claude completed this review but did not post it directly (likely a tool-permission issue mid-run). Posting its final output here as a fallback."
+            echo ""
+            echo "$RESULT_TEXT"
+          } > /tmp/fallback-review-body.md
+
+          gh pr comment "$PR_NUM" --body-file /tmp/fallback-review-body.md
+          echo "Posted fallback review comment."
+
+      - name: Fail if review posted Blocking findings, or no review was posted at all
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
@@ -186,11 +244,15 @@ jobs:
           REVIEW_BODY=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
             --jq '[.[] | select(.body | test("#+\\s+Strengths"))] | last | .body // ""' \
             2>/dev/null || echo "")
+          if [ -z "$REVIEW_BODY" ]; then
+            echo "::error::No review comment was found at all (not even after the fallback-post step) — the review did not run or failed silently. Investigate before merging."
+            exit 1
+          fi
           if echo "$REVIEW_BODY" | grep -qE '^#{1,6} Blocking'; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
-          echo "✓ No Blocking section in review."
+          echo "✓ Review posted, no Blocking section found."
 
 
   # Deep review for milestone -> main PRs. Runs on open / ready_for_review
@@ -242,6 +304,7 @@ jobs:
           cat merged-prs.txt
 
       - name: Run Claude Milestone-Level Review
+        id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -249,7 +312,7 @@ jobs:
           # Fable is worth it here: this runs once per milestone, not per push.
           claude_args: >-
             --allowedTools
-            "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(cat merged-prs.txt),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git diff --name-only:*),Bash(php -l *),Bash(composer check:php),Bash(vendor/bin/phpstan analyse:*),Bash(npm run lint),Read,Grep,Glob"
+            "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(cat:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git diff --name-only:*),Bash(php -l *),Bash(composer check:php),Bash(vendor/bin/phpstan analyse:*),Bash(npm run lint),Read,Grep,Glob"
             --model claude-fable-5
           prompt: |
             REPO: ${{ github.repository }}
@@ -334,7 +397,47 @@ jobs:
             findings already addressed on issue PRs.
             Only post GitHub comments — do not output the review as a message.
 
-      - name: Fail if review posted Blocking findings
+      - name: Fallback — post review if Claude didn't post one
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          # See the identical step in pr-to-milestone-review above for the
+          # full rationale. Same failure mode observed in production: the
+          # milestone-review run on PR #1529 completed (14 turns, no error,
+          # permission_denials_count: 9) but never called `gh pr comment`,
+          # and the old "Fail if..." step below read that silence as a pass.
+          EXISTING=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
+            --jq '[.[] | select(.body | test("#+\\s+Strengths"))] | length' 2>/dev/null || echo 0)
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "Review comment already posted by Claude — no fallback needed."
+            exit 0
+          fi
+
+          if [ -z "$EXECUTION_FILE" ] || [ ! -f "$EXECUTION_FILE" ]; then
+            echo "::warning::No execution file available — cannot post fallback review."
+            exit 0
+          fi
+
+          RESULT_TEXT=$(jq -r '[.[] | select(.type == "result")] | last | .result // ""' "$EXECUTION_FILE" 2>/dev/null || echo "")
+          if [ -z "$RESULT_TEXT" ]; then
+            echo "::warning::Claude's execution file had no final result text — cannot post fallback review."
+            exit 0
+          fi
+
+          {
+            echo "> **Note:** Claude completed this review but did not post it directly (likely a tool-permission issue mid-run). Posting its final output here as a fallback."
+            echo ""
+            echo "$RESULT_TEXT"
+          } > /tmp/fallback-review-body.md
+
+          gh pr comment "$PR_NUM" --body-file /tmp/fallback-review-body.md
+          echo "Posted fallback review comment."
+
+      - name: Fail if review posted Blocking findings, or no review was posted at all
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ github.event.pull_request.number }}
@@ -345,8 +448,12 @@ jobs:
           REVIEW_BODY=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
             --jq '[.[] | select(.body | test("#+\\s+Strengths"))] | last | .body // ""' \
             2>/dev/null || echo "")
+          if [ -z "$REVIEW_BODY" ]; then
+            echo "::error::No review comment was found at all (not even after the fallback-post step) — the review did not run or failed silently. Investigate before merging."
+            exit 1
+          fi
           if echo "$REVIEW_BODY" | grep -qE '^#{1,6} Blocking'; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
-          echo "✓ No Blocking section in review."
+          echo "✓ Review posted, no Blocking section found."
