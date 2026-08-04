@@ -173,6 +173,20 @@ declared version.
   the repository, modestly increasing clone size. Trade-off accepted in
   exchange for a coherent deployment artifact.
 
+- **New runtime CDN dependency for Bootstrap's source maps (#1414).** This
+  ADR exists in part to eliminate CDN runtime dependencies, but
+  `scripts/vendor-bootstrap-maps.php` reintroduces one specifically for
+  Bootstrap: it fetches from `cdn.jsdelivr.net` on every local `git pull`
+  (via `.githooks/post-merge`) and every test/prod deploy (via
+  `scripts/server-hooks/post-receive`) to keep the vendored `.map` files in
+  sync (see the Bootstrap note above). This is deliberately scoped to
+  Bootstrap only — it's the one library whose canonical copy lives in
+  `users/`, gitignored and updated outside git by UserSpice's own updater,
+  so the usual "commit the vendored file" approach doesn't apply. The fetch
+  is non-fatal (a failure just means a stale/missing `.map`, not a broken
+  pull or deploy) and short-circuits to zero network calls once the local
+  file's hash is already accounted for.
+
 - **No runtime configurability.** Switching CDN providers or rolling back a
   bad library version now requires a code deploy rather than an admin panel
   change. This is the deliberate inverse of the ADR-006 design and reflects
