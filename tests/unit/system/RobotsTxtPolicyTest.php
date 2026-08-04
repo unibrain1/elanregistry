@@ -108,6 +108,15 @@ class RobotsTxtPolicyTest extends TestCase
      * rules in the bot's matching group whose path prefixes the URL, the
      * longest one applies. A crawler with no dedicated group falls back to
      * `User-agent: *`. Absent any matching rule, the path is allowed.
+     *
+     * Simplification: on an exact tie in prefix length, this keeps whichever
+     * rule appears first in the file, rather than Google's documented
+     * "least-restrictive-wins" tie-break. No path/rule combination in the
+     * current robots.txt actually ties, so this doesn't affect the
+     * assertions above — but it means this helper is not a full RFC 9309
+     * tie-break implementation, and a future robots.txt edit that introduces
+     * an equal-length Allow/Disallow pair could pass here while behaving
+     * differently for a real crawler.
      */
     private function isAllowed(string $userAgent, string $path): bool
     {

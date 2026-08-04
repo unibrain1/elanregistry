@@ -1,5 +1,5 @@
-# Lotus Elan Registry — llms.txt
-# https://llmstxt.org
+# Lotus Elan Registry
+Spec: https://llmstxt.org
 
 > A community registry for Lotus Elan owners: car records, ownership
 > history, and reference documentation.

@@ -1,5 +1,5 @@
-# Lotus Elan Registry (Test Environment) — llms.txt
-# https://llmstxt.org
+# Lotus Elan Registry (Test Environment)
+Spec: https://llmstxt.org
 
 > Non-production test environment. Not for indexing or citation.
 
