@@ -68,7 +68,7 @@ if (function_exists('logger') && class_exists('LogCategories')) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>404 Page Not Found - Lotus Elan Registry</title>
-    <link href="../usersc/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../users/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
             --elan-red: #d9230f;
@@ -265,6 +265,6 @@ if (function_exists('logger') && class_exists('LogCategories')) {
         </div>
     </div>
 
-    <script src="../usersc/js/bootstrap.bundle.min.js"></script>
+    <script src="../users/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
