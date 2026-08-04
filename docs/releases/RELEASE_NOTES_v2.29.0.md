@@ -5,6 +5,8 @@
 
 ## Required Actions After Deployment
 
+- **Deploy hook self-update (push twice on first deploy):** This release changes `scripts/server-hooks/post-receive` itself (the `#1413` and `#1414` swaps below, plus `#1424`'s deployment logging). The hook self-updates via a plain file copy that only takes effect starting with the *next* push — so the first push of this milestone to each environment still runs the old (pre-v2.29.0) hook, and the `#1413`/`#1414`/`#1424` verifications below will fail as written. After the first push, push again (a no-op re-push is fine) before running those verifications.
+- **New deploy-time dependency: outbound HTTPS to `cdn.jsdelivr.net`:** `scripts/vendor-bootstrap-maps.php` (`#1414`) fetches official Bootstrap source maps from jsDelivr on every deploy. This fails non-fatally (a warning, not a halted deploy) if the shared host blocks the outbound request — confirm on the first test deploy that this isn't silently warning, which would reproduce the exact 404 this release fixes.
 - **#1473 (pdf-viewer.php subdir normalization):** After deploying, watch the next scheduled monitoring run for `Security: Invalid subdir attempted: reference/assets` entries to drop to zero — these are now silently 301-redirected and not logged at all. Separately, expect `PageNotFound` rows to rise: requests that omit `subdir` entirely (previously logged as `Security: Non-existent document requested`) and non-legacy invalid subdir values now log at `PageNotFound` instead. Confirm `curl -I 'https://elanregistry.org/docs/pdf-viewer.php?subdir=reference/assets&doc=<any>.pdf'` returns a `301` to the canonical `subdir=reference` form.
 - **#1372 (paint-colors.php SEO):**
   - Run `npm run test:e2e` against the deployed test environment to validate the new Playwright title/description assertions against live Apache/PHP config
@@ -25,7 +27,7 @@
 
 - **Schema.org Car structured data** ([#1371](https://github.com/elan-registry/registry/issues/1371)): Car detail pages now include JSON-LD markup, improving Google indexing of the 182 public registry pages.
 - **Dynamic sitemap.xml** ([#1373](https://github.com/elan-registry/registry/issues/1373)): Sitemap covering all public car registry pages, submitted to Google Search Console.
-- **llms.txt for AI crawler guidance** ([#1413](https://github.com/elan-registry/registry/issues/1413)): New `/llms.txt` (an emerging AI-crawler convention, similar to `robots.txt`) tells well-behaved LLM tools what public content they may index — eliminates recurring 404 noise from AI crawlers. `robots.txt`'s per-bot blocks (GPTBot, ClaudeBot, PerplexityBot, and 14 others) were also relaxed to allow those same paths, so the two files agree — previously `robots.txt` blocked every named AI crawler from the entire site, which would have made `llms.txt`'s allow-list unreachable for any crawler that respects both files.
+- **llms.txt for AI crawler guidance** ([#1413](https://github.com/elan-registry/registry/issues/1413)): New `/llms.txt` (an emerging AI-crawler convention, similar to `robots.txt`) tells well-behaved LLM tools what public content they may index — eliminates recurring 404 noise from AI crawlers. `robots.txt`'s per-bot blocks (GPTBot, ClaudeBot, PerplexityBot, and 14 others) were also relaxed to allow those same paths, so the two files agree — previously `robots.txt` blocked every named AI crawler from the entire site, which would have made `llms.txt`'s allow-list unreachable for any crawler that respects both files. **Note:** this is a deliberate policy change, not just noise cleanup — car listing pages (chassis numbers, owner first name/city/state) were previously explicitly denied to named AI crawlers and are now actively advertised to them (via `robots.txt`/`llms.txt`) and made machine-readable (via the JSON-LD from #1371 and the sitemap from #1373). This data was already publicly fetchable by any crawler that doesn't identify itself (the site's default `User-agent: *` rule never blocked it), so no new data is exposed — but AI tools that do identify themselves and previously respected the block can now index and cite it.
 
 ### Improvements
 
@@ -69,7 +71,6 @@
 - [#1413](https://github.com/elan-registry/registry/issues/1413) — Add llms.txt for AI crawler guidance
 - [#1414](https://github.com/elan-registry/registry/issues/1414) — fix: bootstrap.bundle.min.js.map 404 — deploy or suppress source map
 - [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
-- [#1475](https://github.com/elan-registry/registry/issues/1475) — investigate: template emits page-relative usersc asset URLs on docs/stories pages (404s)
 - [#1430](https://github.com/elan-registry/registry/issues/1430) — bug: $pageTitle set after header render has no effect on 3 admin pages
 - [#1432](https://github.com/elan-registry/registry/issues/1432) — feat: page-specific title/description convention rollout to 11 top-value pages; fix og:title/twitter:title; close #1431 (superseded)
 - [#1436](https://github.com/elan-registry/registry/issues/1436) — test: isolate integration tests onto a dedicated test schema
@@ -77,5 +78,6 @@
 - [#1470](https://github.com/elan-registry/registry/issues/1470) — bug: LocationService cache silently disabled when APCu is present but non-functional
 - [#1471](https://github.com/elan-registry/registry/issues/1471) — test: SecurityHeadersTest CSP-hash check silently performs zero assertions in CI
 - [#1473](https://github.com/elan-registry/registry/issues/1473) — fix: normalize legacy pdf-viewer subdir=reference/assets and return real 404 for invalid subdir/doc
+- [#1475](https://github.com/elan-registry/registry/issues/1475) — investigate: template emits page-relative usersc asset URLs on docs/stories pages (404s)
 - [#1479](https://github.com/elan-registry/registry/issues/1479) — fix: deploy hook deletes server backups on every push — remove backups/ from .deployignore
 - [#1484](https://github.com/elan-registry/registry/issues/1484) — test: dynamic completeness gate for page-title/description convention (prevent silent regression on new pages)

@@ -21,6 +21,9 @@ try {
     $xml = $service->buildXml($current_origin);
 
     header('Content-Type: application/xml; charset=UTF-8');
+    // No auth, no rate limit (see class docblock above) — cache-control lets
+    // Cloudflare edge-cache this instead of hitting the DB on every crawl.
+    header('Cache-Control: public, max-age=3600');
     echo $xml;
 } catch (\Throwable $e) {
     http_response_code(500);

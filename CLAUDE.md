@@ -56,8 +56,10 @@ all other Cloudflare features work normally.
     `contact/` (contact form, contact-owner), `reports/` (statistics), `privacy.php`
   - `/app/api/` - AJAX JSON endpoints, organized by resource: `cars/` (car CRUD and
     validation), `contact/` (contact forms, auth-required), `shared/` (public endpoints:
-    statistics, location search), `admin/` (admin-only settings updates). All endpoints
-    follow the `ApiResponse` JSON format.
+    statistics, location search, `sitemap.xml`), `admin/` (admin-only settings updates).
+    Most endpoints follow the `ApiResponse` JSON format — `shared/sitemap.php` is a
+    documented exception (XML output, no auth/CSRF/rate-limit, must stay freely
+    crawlable; see its file header).
   - `/app/views/` - Reusable view partials: `cars/` (car page components), `email/`
     (transactional email templates)
 - `/docs/` - User-facing documentation: `guides/` (how-to), `reference/` (technical), `stories/` (car histories)
