@@ -483,6 +483,12 @@ class LogCategories
     public const LOG_CATEGORY_SYSTEM_UPDATES = 'SystemUpdates';
 
     /**
+     * Deployment events
+     * Used when a release is deployed via the post-receive hook (see scripts/log-deployment.php)
+     */
+    public const LOG_CATEGORY_DEPLOYMENT = 'Deployment';
+
+    /**
      * Logging system operations
      * Used for managing logs and logging configuration
      */
