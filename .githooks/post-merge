@@ -1,3 +1,10 @@
 #!/bin/sh
 # Update VERSION file after git pull / git merge.
 git describe --tags --always > VERSION
+
+# Keep the vendored Bootstrap source maps in sync with whatever version is
+# currently on disk under users/ (Issue #1414) — users/ is gitignored and
+# updated independently via UserSpice's own admin updater, so this can't be
+# tracked in git; re-derive it on every pull instead. Non-fatal.
+php "$(git rev-parse --show-toplevel)/scripts/vendor-bootstrap-maps.php" \
+    || echo "WARNING: vendor-bootstrap-maps failed (non-fatal) — see output above."

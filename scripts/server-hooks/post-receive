@@ -92,6 +92,13 @@ do
     php "$WORK_TREE/scripts/log-deployment.php" "$(cat "$WORK_TREE/VERSION")" "$ENV_NAME" "$branch" "$newrev" \
         || echo "WARNING: Deployment logging failed (non-fatal) — see script output above."
 
+    # Keep vendored Bootstrap source maps in sync with whatever version is
+    # currently on disk under users/ (Issue #1414) — users/ is gitignored and
+    # updated independently via UserSpice's own admin updater, so this can't
+    # be tracked in git; re-derive it on every deploy instead.
+    php "$WORK_TREE/scripts/vendor-bootstrap-maps.php" \
+        || echo "WARNING: vendor-bootstrap-maps failed (non-fatal) — see script output above."
+
     # Remove dev-only files listed in .deployignore
     if [ -f "$WORK_TREE/.deployignore" ]; then
         echo "Cleaning up dev-only files..."
