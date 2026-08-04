@@ -72,3 +72,4 @@
 - [#1470](https://github.com/elan-registry/registry/issues/1470) — bug: LocationService cache silently disabled when APCu is present but non-functional
 - [#1471](https://github.com/elan-registry/registry/issues/1471) — test: SecurityHeadersTest CSP-hash check silently performs zero assertions in CI
 - [#1479](https://github.com/elan-registry/registry/issues/1479) — fix: deploy hook deletes server backups on every push — remove backups/ from .deployignore
+- [#1484](https://github.com/elan-registry/registry/issues/1484) — test: dynamic completeness gate for page-title/description convention (prevent silent regression on new pages)
