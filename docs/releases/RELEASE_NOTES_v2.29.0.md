@@ -1,11 +1,9 @@
 # Elan Registry v2.29.0 Release Notes
 
 **Release Date:** [DATE]
-**Type:** Minor Release — Verification System Refresh
+**Type:** Minor Release — SEO & Site Health Fixes
 
 ## Required Actions After Deployment
-
-[To be filled in as issues are completed — check for DB migrations from #1155]
 
 - **#1473 (pdf-viewer.php subdir normalization):** After deploying, watch the next scheduled monitoring run for `Security: Invalid subdir attempted: reference/assets` entries to drop to zero — these are now silently 301-redirected and not logged at all. Separately, expect `PageNotFound` rows to rise: requests that omit `subdir` entirely (previously logged as `Security: Non-existent document requested`) and non-legacy invalid subdir values now log at `PageNotFound` instead. Confirm `curl -I 'https://elanregistry.org/docs/pdf-viewer.php?subdir=reference/assets&doc=<any>.pdf'` returns a `301` to the canonical `subdir=reference` form.
 - **#1372 (paint-colors.php SEO):**
@@ -40,7 +38,6 @@
 
 ### New Features
 
-- **Verification system** ([#1155](https://github.com/elan-registry/registry/issues/1155), [#1156](https://github.com/elan-registry/registry/issues/1156)): Rebuilt car owner verification — owner-initiated-edit tracking, configurable batch email sending, link expiry, bounce management, and an admin dashboard tab.
 - **Deployment log** ([#1424](https://github.com/elan-registry/registry/issues/1424)): Each deployment now writes a log entry to the system log, making it easy to correlate errors to a specific release.
 
 ### Bug Fixes
@@ -54,21 +51,19 @@
 ### Improvements
 
 - **Sendinblue plugin update** ([#1394](https://github.com/elan-registry/registry/issues/1394)): Brevo/Sendinblue email plugin updated from 1.6.0 to 1.6.2 (a newer release than the 1.6.1 originally targeted was published upstream by the time the update was applied).
-- **maplibre-gl ESM migration** ([#1396](https://github.com/elan-registry/registry/issues/1396)): maplibre-gl migrated from vendored UMD bundle to ESM (v4 → v6).
+- **GSC 404/500 redirect verification** ([#1412](https://github.com/elan-registry/registry/issues/1412)): Five redirect/error patterns surfaced by log analysis (a missing `list_factory.php` redirect, three `.htaccess` rewrite rules that existed but weren't firing due to a LiteSpeed rewrite-cache issue, and a 500 on old-format PDF-viewer URLs) confirmed working in production after a `.htaccess` redeployment — no code change beyond what #1409 already shipped; this was a production verification/cache-refresh pass.
 
 ## Issues Resolved
 
-- [#1155](https://github.com/elan-registry/registry/issues/1155) — feat: verification system backend — DB migrations, CarVerificationManager extensions, owner_last_updated tracking
-- [#1156](https://github.com/elan-registry/registry/issues/1156) — feat: verification system UI — admin dashboard, batch email send, verify_car landing page
 - [#1371](https://github.com/elan-registry/registry/issues/1371) — feat: Schema.org Car JSON-LD structured data on details.php; noindex on factory.php and privacy.php; apple-touch-icon
 - [#1372](https://github.com/elan-registry/registry/issues/1372) — fix: verify paint-colors.php title and meta description; submit to GSC for indexing
 - [#1373](https://github.com/elan-registry/registry/issues/1373) — feat: create dynamic sitemap.xml for public car registry pages
 - [#1394](https://github.com/elan-registry/registry/issues/1394) — Chore: Update sendinblue plugin from 1.6.0 to 1.6.2
-- [#1396](https://github.com/elan-registry/registry/issues/1396) — chore: migrate maplibre-gl from UMD script tag to ESM (v4 → v6)
 - [#1399](https://github.com/elan-registry/registry/issues/1399) — bug: DataTables length=-1 ("All" option) and negative start cause SQL error in cars/factory list endpoints
 - [#1400](https://github.com/elan-registry/registry/issues/1400) — fix: geocoding returns wrong city when multiple US cities share a name (Springfield OH → MO)
 - [#1406](https://github.com/elan-registry/registry/issues/1406) — security: fix account enumeration during registration (generic response + silent recovery email)
 - [#1409](https://github.com/elan-registry/registry/issues/1409) — fix: GSC 404 cleanup — legacy path redirects and PDF filename case mismatch
+- [#1412](https://github.com/elan-registry/registry/issues/1412) — GSC 404/500 cleanup — missing and broken redirects (production verification of #1409's fix)
 - [#1413](https://github.com/elan-registry/registry/issues/1413) — Add llms.txt for AI crawler guidance
 - [#1414](https://github.com/elan-registry/registry/issues/1414) — fix: bootstrap.bundle.min.js.map 404 — deploy or suppress source map
 - [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
