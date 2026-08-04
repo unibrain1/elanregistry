@@ -99,7 +99,9 @@ all other Cloudflare features work normally.
 
 **Template Architecture:**
 
-- Active template: `/usersc/templates/customizer/` with `elanregistry` child theme (Bootstrap 5.3.3)
+- Active template: `/usersc/templates/customizer/` with `elanregistry` child theme (Bootstrap 5.3.8,
+  UserSpice's own `users/css`/`users/js` copy — no separate `usersc/` Bootstrap copy; source maps
+  auto-vendored on every `git pull`/deploy via `scripts/vendor-bootstrap-maps.php`, see ADR-015)
 - jQuery is a UserSpice 6 dependency (`users/js/jquery.php`) — cannot be removed
 - ADRs: `docs/development/adr/` — update ADR-015 when changing frontend dependencies, ADR-016 for nav changes, ADR-007 for CSP changes
 
