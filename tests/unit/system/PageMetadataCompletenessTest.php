@@ -25,12 +25,13 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * Dynamic discovery (#1484): rather than a hardcoded page list that has no
  * awareness of pages outside it, the set of pages requiring the convention
- * (`pagesRequiringMetadata()`) is derived by scanning `app/` and `docs/` for
- * every file that actually calls
- * `securePage()` (excluding action handlers, fix/maintenance scripts, and
- * API endpoints — see NON_PAGE_DIRECTORIES — none of which render a page
- * for a human), then subtracting the checked-in EXPECTED_INCOMPLETE_PAGES
- * exemption list. This means:
+ * (`pagesRequiringMetadata()`) is derived by scanning every project-owned
+ * location that can plausibly render a page — see PAGE_SCAN_DIRECTORIES and
+ * PAGE_SCAN_FILES, which mirror phpstan.neon's project-owned path list — for
+ * every file that actually calls `securePage()` (excluding action handlers,
+ * fix/maintenance scripts, and API endpoints — see NON_PAGE_DIRECTORIES —
+ * none of which render a page for a human), then subtracting the checked-in
+ * EXPECTED_INCOMPLETE_PAGES exemption list. This means:
  *
  *  - A brand-new page added WITHOUT the convention is automatically picked
  *    up by testDiscoveredIncompletePagesMatchExpectedSnapshot() as an
@@ -66,6 +67,36 @@ class PageMetadataCompletenessTest extends TestCase
     ];
 
     /**
+     * Directories (relative to project root) recursively scanned for page files.
+     * Deliberately narrower than "everything phpstan.neon scans" — usersc/ holds
+     * mostly non-page content (classes, includes, plugin internals, templates,
+     * views, widgets) that would need its own exclusion logic to scan safely, so
+     * individual project-owned page files that live directly in usersc/ or the
+     * project root are listed explicitly in PAGE_SCAN_FILES instead.
+     *
+     * @var list<string>
+     */
+    private const PAGE_SCAN_DIRECTORIES = ['app', 'docs', 'error'];
+
+    /**
+     * Individual project-owned files outside PAGE_SCAN_DIRECTORIES that may
+     * render a page — mirrors the page-plausible subset of phpstan.neon's
+     * project-owned path list. Found via #1493 PR review: the original #1484
+     * scan covered only app/ and docs/, silently missing index.php (site
+     * homepage) and two usersc/ pages, undercutting the whole point of this
+     * gate (closing exactly this class of blind spot).
+     *
+     * @var list<string>
+     */
+    private const PAGE_SCAN_FILES = [
+        'index.php',
+        'usersc/account.php',
+        'usersc/join.php',
+        'usersc/login.php',
+        'usersc/user_settings.php',
+    ];
+
+    /**
      * Checked-in snapshot of pages that call securePage() but do not yet
      * set $pageTitle. Verified against the live tree at the time #1484 was
      * implemented. Migrating one of these to the convention is tracked
@@ -88,6 +119,9 @@ class PageMetadataCompletenessTest extends TestCase
         'docs/stories/brian_walton/index.php',
         'docs/stories/SGO_2F/index.php',
         'docs/stories/type26register.php',
+        'index.php',
+        'usersc/account.php',
+        'usersc/user_settings.php',
     ];
 
     private string $rootDir = '';
@@ -125,11 +159,8 @@ class PageMetadataCompletenessTest extends TestCase
         $filePath = $this->rootDir . '/' . $relativePath;
         $this->assertFileExists($filePath, "$relativePath must exist (Issue #1432)");
 
-        $content = (string)file_get_contents($filePath);
-
-        $this->assertSame(
-            1,
-            preg_match('/\$pageDescription\s*=/', $content),
+        $this->assertTrue(
+            self::hasPageDescriptionAssignment($filePath),
             "$relativePath must set \$pageDescription (Issue #1432)"
         );
     }
@@ -262,15 +293,21 @@ class PageMetadataCompletenessTest extends TestCase
         return preg_match('/\$pageTitle\s*=/', $content) === 1;
     }
 
+    private static function hasPageDescriptionAssignment(string $filePath): bool
+    {
+        $content = (string)file_get_contents($filePath);
+        return preg_match('/\$pageDescription\s*=/', $content) === 1;
+    }
+
     /**
-     * Recursively scans app/ and docs/ for every .php file that actually calls
-     * securePage() (the precise `if (!securePage(` call pattern, not a bare
-     * substring match — defends against a file that merely *mentions*
-     * "securePage()" in a comment or docblock being misclassified as a page;
-     * app/admin/includes/fix-script-core.php does exactly this today, though
-     * it's also excluded via NON_PAGE_DIRECTORIES regardless, so the precise
-     * pattern is a second, independent safeguard rather than the only one),
-     * then excludes anything under NON_PAGE_DIRECTORIES.
+     * Scans PAGE_SCAN_DIRECTORIES (recursively) and PAGE_SCAN_FILES (individually)
+     * for every .php file that actually calls securePage() (the precise
+     * `if (!securePage(` call pattern, not a bare substring match — defends
+     * against a file that merely *mentions* "securePage()" in a comment or
+     * docblock being misclassified as a page; app/admin/includes/fix-script-core.php
+     * does exactly this today, though it's also excluded via NON_PAGE_DIRECTORIES
+     * regardless, so the precise pattern is a second, independent safeguard
+     * rather than the only one), excluding anything under NON_PAGE_DIRECTORIES.
      *
      * @return list<string> Sorted paths relative to $rootDir
      */
@@ -278,7 +315,7 @@ class PageMetadataCompletenessTest extends TestCase
     {
         $files = [];
 
-        foreach (['app', 'docs'] as $topLevelDir) {
+        foreach (self::PAGE_SCAN_DIRECTORIES as $topLevelDir) {
             $iterator = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($rootDir . '/' . $topLevelDir, FilesystemIterator::SKIP_DOTS)
             );
@@ -289,21 +326,32 @@ class PageMetadataCompletenessTest extends TestCase
                 }
 
                 $relativePath = substr($fileInfo->getPathname(), strlen($rootDir) + 1);
-
-                foreach (self::NON_PAGE_DIRECTORIES as $excludedPrefix) {
-                    if (str_starts_with($relativePath, $excludedPrefix)) {
-                        continue 2;
-                    }
-                }
-
-                $content = (string)file_get_contents($fileInfo->getPathname());
-                if (preg_match('/if\s*\(\s*!\s*securePage\(/', $content) === 1) {
-                    $files[] = $relativePath;
-                }
+                self::addIfPage($files, $rootDir, $relativePath);
             }
+        }
+
+        foreach (self::PAGE_SCAN_FILES as $relativePath) {
+            self::addIfPage($files, $rootDir, $relativePath);
         }
 
         sort($files);
         return $files;
+    }
+
+    /**
+     * @param list<string> $files Appended to by reference when $relativePath is a page.
+     */
+    private static function addIfPage(array &$files, string $rootDir, string $relativePath): void
+    {
+        foreach (self::NON_PAGE_DIRECTORIES as $excludedPrefix) {
+            if (str_starts_with($relativePath, $excludedPrefix)) {
+                return;
+            }
+        }
+
+        $content = (string)file_get_contents($rootDir . '/' . $relativePath);
+        if (preg_match('/if\s*\(\s*!\s*securePage\(/', $content) === 1) {
+            $files[] = $relativePath;
+        }
     }
 }
