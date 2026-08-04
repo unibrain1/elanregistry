@@ -52,6 +52,19 @@ do
     if [ "$ENV_NAME" = "Test" ]; then
         cp "$WORK_TREE/robots-test.txt" "$WORK_TREE/robots.txt"
         echo "Test environment: robots.txt replaced with robots-test.txt (crawler block)."
+
+        # llms.txt (#1413) is a second crawler-facing policy file that some AI
+        # tools consult directly (on-demand fetch/RAG) without also checking
+        # robots.txt — override it here too so test.elanregistry.org, which has
+        # no basic auth and relies solely on this swap, never advertises itself
+        # as open to indexing. Fails loudly (unlike the robots.txt swap above)
+        # since a silent failure here would leave the un-authenticated Test
+        # host serving the permissive production llms.txt.
+        cp "$WORK_TREE/llms-test.txt" "$WORK_TREE/llms.txt" || {
+            echo "ERROR: llms-test.txt swap failed — deployment halted."
+            exit 1
+        }
+        echo "Test environment: llms.txt replaced with llms-test.txt (crawler block)."
     fi
 
     cd "$WORK_TREE" || { echo "ERROR: cannot cd to WORK_TREE=$WORK_TREE — deployment halted."; exit 1; }

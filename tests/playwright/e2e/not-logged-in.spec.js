@@ -842,6 +842,29 @@ test.describe('Sitemap endpoint (#1373)', () => {
   });
 });
 
+test.describe('llms.txt AI crawler guidance (#1413)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  test('GET /llms.txt returns the AI crawler policy as plain text', async ({ page }) => {
+    const response = await page.goto('/llms.txt');
+
+    // Layer 1: HTTP response must be successful
+    expect(response.status()).toBeLessThan(400);
+
+    // Layer 2: Must be served as plain text, not HTML (e.g. a login redirect or error page)
+    const contentType = response.headers()['content-type'] ?? '';
+    expect(contentType.toLowerCase()).toContain('text/plain');
+
+    // Layer 3: Must be the real llms.txt content, not an error page
+    const body = await response.text();
+    expect(body).toContain('## Allow');
+  });
+});
+
 test.describe('SEO metadata: JSON-LD, noindex, apple-touch-icon (#1371)', () => {
   test.beforeEach(async ({ }, testInfo) => {
     if (testInfo.project.name !== 'not-logged-in') {

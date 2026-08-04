@@ -25,6 +25,7 @@
 
 - **Schema.org Car structured data** ([#1371](https://github.com/elan-registry/registry/issues/1371)): Car detail pages now include JSON-LD markup, improving Google indexing of the 182 public registry pages.
 - **Dynamic sitemap.xml** ([#1373](https://github.com/elan-registry/registry/issues/1373)): Sitemap covering all public car registry pages, submitted to Google Search Console.
+- **llms.txt for AI crawler guidance** ([#1413](https://github.com/elan-registry/registry/issues/1413)): New `/llms.txt` (an emerging AI-crawler convention, similar to `robots.txt`) tells well-behaved LLM tools what public content they may index — eliminates recurring 404 noise from AI crawlers. `robots.txt`'s per-bot blocks (GPTBot, ClaudeBot, PerplexityBot, and 14 others) were also relaxed to allow those same paths, so the two files agree — previously `robots.txt` blocked every named AI crawler from the entire site, which would have made `llms.txt`'s allow-list unreachable for any crawler that respects both files.
 
 ### Improvements
 
@@ -68,6 +69,7 @@
 - [#1400](https://github.com/elan-registry/registry/issues/1400) — fix: geocoding returns wrong city when multiple US cities share a name (Springfield OH → MO)
 - [#1406](https://github.com/elan-registry/registry/issues/1406) — security: fix account enumeration during registration (generic response + silent recovery email)
 - [#1409](https://github.com/elan-registry/registry/issues/1409) — fix: GSC 404 cleanup — legacy path redirects and PDF filename case mismatch
+- [#1413](https://github.com/elan-registry/registry/issues/1413) — Add llms.txt for AI crawler guidance
 - [#1414](https://github.com/elan-registry/registry/issues/1414) — fix: bootstrap.bundle.min.js.map 404 — deploy or suppress source map
 - [#1424](https://github.com/elan-registry/registry/issues/1424) — feat: log deployment events to system log on each successful push
 - [#1475](https://github.com/elan-registry/registry/issues/1475) — investigate: template emits page-relative usersc asset URLs on docs/stories pages (404s)
