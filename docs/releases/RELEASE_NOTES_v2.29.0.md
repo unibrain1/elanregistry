@@ -1,12 +1,13 @@
 # Elan Registry v2.29.0 Release Notes
 
 **Release Date:** [DATE]
-**Type:** Minor Release — Verification System Refresh
+**Type:** Minor Release — SEO & Site Health Fixes
 
 ## Required Actions After Deployment
 
-[To be filled in as issues are completed — check for DB migrations from #1155]
+[To be filled in as issues are completed]
 
+- **#1473 (pdf-viewer.php subdir normalization):** After deploying, watch the next scheduled monitoring run for `Security: Invalid subdir attempted: reference/assets` entries to drop to zero — these are now silently 301-redirected and not logged at all. Separately, expect `PageNotFound` rows to rise: requests that omit `subdir` entirely (previously logged as `Security: Non-existent document requested`) and non-legacy invalid subdir values now log at `PageNotFound` instead. Confirm `curl -I 'https://elanregistry.org/docs/pdf-viewer.php?subdir=reference/assets&doc=<any>.pdf'` returns a `301` to the canonical `subdir=reference` form.
 - **#1372 (paint-colors.php SEO):**
   - Run `npm run test:e2e` against the deployed test environment to validate the new Playwright title/description assertions against live Apache/PHP config
   - Manual: GSC → URL Inspection → Request Indexing for `https://elanregistry.org/docs/reference/paint-colors.php`
@@ -28,6 +29,7 @@
 ### Improvements
 
 - **GSC 404 cleanup** ([#1409](https://github.com/elan-registry/registry/issues/1409)): Legacy path redirects and PDF filename case mismatch fix — eliminates remaining 404 noise from Google Search Console.
+- **pdf-viewer.php subdir normalization** ([#1473](https://github.com/elan-registry/registry/issues/1473)): Legacy `docs/pdf-viewer.php?subdir=reference/assets` (and `stories/assets`) URLs — still indexed from before the current `subdir=reference`/`subdir=stories` convention — now 301-redirect to the canonical form instead of soft-erroring at 200. Invalid subdir values and missing documents now correctly return HTTP 404 (previously always 200), so Google Search Console can drop these dead URLs from its index. Also fixes a bug where a request that omitted the `subdir` parameter entirely could check for an existing PDF in the wrong directory and misreport it as "non-existent" in the security log — that request now correctly returns 404 for the invalid-URL shape it actually is, rather than silently misdiagnosing a real file as missing.
 - **Paint colors SEO** ([#1372](https://github.com/elan-registry/registry/issues/1372)): `paint-colors.php` now has a descriptive `<title>` and meta description, so it can outrank the generic PDF snippet Google previously showed for this high-traffic page.
 - **Page title/description convention rollout** ([#1432](https://github.com/elan-registry/registry/issues/1432)): 11 more top-value pages (car listing, factory data, statistics, docs hub, reference library, and more) now have distinct, descriptive `<title>` and meta description values instead of the generic site-wide default — improving how each page appears in search results and when shared on social media. `og:title`/`twitter:title` (previously always the generic site name regardless of page) now also reflect each page's specific title.
 - **Location picker disambiguation** ([#1400](https://github.com/elan-registry/registry/issues/1400)): Searching an ambiguous city name (e.g. "Springfield") no longer silently collapses same-named cities in different states/regions into a single dropdown entry — owners now see all distinct matches (Springfield OH, Springfield MO, etc.) and can pick the correct one.
@@ -37,7 +39,6 @@
 
 ### New Features
 
-- **Verification system** ([#1155](https://github.com/elan-registry/registry/issues/1155), [#1156](https://github.com/elan-registry/registry/issues/1156)): Rebuilt car owner verification — owner-initiated-edit tracking, configurable batch email sending, link expiry, bounce management, and an admin dashboard tab.
 - **Deployment log** ([#1424](https://github.com/elan-registry/registry/issues/1424)): Each deployment now writes a log entry to the system log, making it easy to correlate errors to a specific release.
 
 ### Bug Fixes
@@ -51,17 +52,13 @@
 ### Improvements
 
 - **Sendinblue plugin update** ([#1394](https://github.com/elan-registry/registry/issues/1394)): Brevo/Sendinblue email plugin updated from 1.6.0 to 1.6.2 (a newer release than the 1.6.1 originally targeted was published upstream by the time the update was applied).
-- **maplibre-gl ESM migration** ([#1396](https://github.com/elan-registry/registry/issues/1396)): maplibre-gl migrated from vendored UMD bundle to ESM (v4 → v6).
 
 ## Issues Resolved
 
-- [#1155](https://github.com/elan-registry/registry/issues/1155) — feat: verification system backend — DB migrations, CarVerificationManager extensions, owner_last_updated tracking
-- [#1156](https://github.com/elan-registry/registry/issues/1156) — feat: verification system UI — admin dashboard, batch email send, verify_car landing page
 - [#1371](https://github.com/elan-registry/registry/issues/1371) — feat: Schema.org Car JSON-LD structured data on details.php; noindex on factory.php and privacy.php; apple-touch-icon
 - [#1372](https://github.com/elan-registry/registry/issues/1372) — fix: verify paint-colors.php title and meta description; submit to GSC for indexing
 - [#1373](https://github.com/elan-registry/registry/issues/1373) — feat: create dynamic sitemap.xml for public car registry pages
 - [#1394](https://github.com/elan-registry/registry/issues/1394) — Chore: Update sendinblue plugin from 1.6.0 to 1.6.2
-- [#1396](https://github.com/elan-registry/registry/issues/1396) — chore: migrate maplibre-gl from UMD script tag to ESM (v4 → v6)
 - [#1399](https://github.com/elan-registry/registry/issues/1399) — bug: DataTables length=-1 ("All" option) and negative start cause SQL error in cars/factory list endpoints
 - [#1400](https://github.com/elan-registry/registry/issues/1400) — fix: geocoding returns wrong city when multiple US cities share a name (Springfield OH → MO)
 - [#1406](https://github.com/elan-registry/registry/issues/1406) — security: fix account enumeration during registration (generic response + silent recovery email)
@@ -75,5 +72,6 @@
 - [#1437](https://github.com/elan-registry/registry/issues/1437) — ci: run PHPUnit unit + regression suites on every PR
 - [#1470](https://github.com/elan-registry/registry/issues/1470) — bug: LocationService cache silently disabled when APCu is present but non-functional
 - [#1471](https://github.com/elan-registry/registry/issues/1471) — test: SecurityHeadersTest CSP-hash check silently performs zero assertions in CI
+- [#1473](https://github.com/elan-registry/registry/issues/1473) — fix: normalize legacy pdf-viewer subdir=reference/assets and return real 404 for invalid subdir/doc
 - [#1479](https://github.com/elan-registry/registry/issues/1479) — fix: deploy hook deletes server backups on every push — remove backups/ from .deployignore
 - [#1484](https://github.com/elan-registry/registry/issues/1484) — test: dynamic completeness gate for page-title/description convention (prevent silent regression on new pages)
