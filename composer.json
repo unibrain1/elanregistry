@@ -33,8 +33,10 @@
     "scripts": {
         "_comment": "Unit tests (mocks, no database) vs Integration tests (real database)",
         "test:quick": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit",
+        "test:quick:ci": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit --exclude-group known-broken --exclude-group requires-upstream-install",
         "test:unit": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit",
         "test:regression": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Regression",
+        "test:regression:ci": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Regression --exclude-group known-broken",
         "test:unit:all": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml",
         "test:integration": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml --testsuite=Integration",
         "test:database": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/database",

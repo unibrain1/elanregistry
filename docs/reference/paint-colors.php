@@ -14,6 +14,9 @@ declare(strict_types=1);
  * @author Jim Boone
  */
 
+$pageTitle = 'Lotus Elan Paint Codes — Official Colour Chart L01–L26';
+$pageDescription = 'Complete reference for Lotus Elan and Elan Plus 2 paint codes L01–L26 with colour chips, date ranges, model applicability, and early pre-code colours.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 

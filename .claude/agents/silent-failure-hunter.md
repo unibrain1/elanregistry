@@ -1,7 +1,7 @@
 ---
 name: silent-failure-hunter
 description: "Use this agent to find silent failures, inadequate error handling, and inappropriate fallback behavior in recent changes. Invoke after code that involves try/catch blocks, error callbacks, fallback defaults, or anything that could suppress errors.\n\n<example>\nContext: The user just added a try/catch around an external API call with a fallback.\nassistant: \"Let me use the silent-failure-hunter agent to check the error handling.\"\n<commentary>\nCatch blocks and fallbacks are the classic source of silent failures — review them proactively.\n</commentary>\n</example>\n\n<example>\nContext: Reviewing a PR that changed error paths in an action file.\nuser: \"Review PR #1234.\"\nassistant: \"I'll run the silent-failure-hunter agent on the error-handling changes in this PR.\"\n<commentary>\nPRs that touch error paths need a dedicated pass for silent failures.\n</commentary>\n</example>"
-model: sonnet
+model: opus
 color: yellow
 ---
 

@@ -261,6 +261,55 @@ class LocationServiceTest extends IntegrationTestCase
     }
 
     /**
+     * Regression test for #1400: the geocoding service must still return
+     * multiple, genuinely distinct same-named cities in different states
+     * (e.g. Springfield, OH vs. Springfield, MO) so the frontend has the raw
+     * material it needs to disambiguate them. This test is independent of
+     * the frontend dedupe-key fix in location-picker.js — it only confirms
+     * the service layer doesn't collapse or drop the distinct candidates
+     * before they ever reach the browser.
+     *
+     * Depends on live third-party Photon/Nominatim data: only skips on a
+     * thrown LocationServiceException, not on "fewer than 2 states found" —
+     * if upstream ranking ever changes enough that "Springfield" no longer
+     * surfaces 2+ distinct US states in the first 8 results, this test will
+     * fail rather than skip, and may need a higher limit or a different
+     * query term.
+     */
+    public function testForwardGeocodingDisambiguatesSameNameCities(): void
+    {
+
+        try {
+            $results = $this->service->searchLocation('Springfield', self::TEST_USER_ID, 8);
+        } catch (LocationServiceException $e) {
+            $this->markTestSkipped('Location service unavailable: ' . $e->getMessage());
+        }
+
+        $this->assertIsArray($results, "Search should return array");
+        $this->assertNotEmpty($results, "Should find Springfield results");
+
+        $states = [];
+        foreach ($results as $result) {
+            if (strcasecmp((string)($result['city'] ?? ''), 'Springfield') === 0) {
+                $state = trim((string)($result['state'] ?? ''));
+                if ($state !== '') {
+                    $states[strtolower($state)] = $state;
+                }
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(
+            2,
+            count($states),
+            'Expected at least two distinct states among Springfield results, got: '
+                . implode(', ', $states)
+        );
+
+        echo "\n✓ Forward geocoding disambiguation: found Springfields in "
+            . implode(', ', $states) . "\n";
+    }
+
+    /**
      * Test that search returns expected result structure
      */
     public function testSearchResultStructure(): void

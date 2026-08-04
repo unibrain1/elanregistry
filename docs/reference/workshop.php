@@ -10,6 +10,9 @@ declare(strict_types=1);
  * @package ElanRegistry
  */
 
+$pageTitle = 'Lotus Elan Workshop Manuals & Parts References';
+$pageDescription = 'Workshop manuals, parts lists, and engine reference documents for maintaining and restoring the Lotus Elan and Elan Plus 2.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 
@@ -44,16 +47,16 @@ $cards = [
         'title'           => 'Parts List',
         'icon'            => 'fa-file-pdf',
         'headerClass'     => 'card-header-er-primary',
-        'cardImage'       => $us_url_root . 'docs/reference/assets/Elan_S1_S2_Coupe_Masterpartslist.png',
+        'cardImage'       => $us_url_root . 'docs/reference/assets/elan_s1_s2_coupe_masterpartslist.png',
         'cardImageAlt'    => 'Elan Parts List',
         'description'     => '1966 Parts list for Series 1, Series 2 and Coupe',
-        'url'             => $us_url_root . 'docs/pdf-viewer.php?subdir=reference&doc=' . rawurlencode('Elan_S1_S2_Coupe_Masterpartslist.pdf'),
+        'url'             => $us_url_root . 'docs/pdf-viewer.php?subdir=reference&doc=' . rawurlencode('elan_s1_s2_coupe_masterpartslist.pdf'),
         'buttonText'      => 'Read Online',
         'buttonIcon'      => 'fa-eye',
         'buttonClass'     => 'btn-outline-primary btn-sm',
         'buttonTarget'    => '_blank',
         'secondaryButton' => [
-            'url'      => $us_url_root . 'docs/reference/assets/' . rawurlencode('Elan_S1_S2_Coupe_Masterpartslist.pdf'),
+            'url'      => $us_url_root . 'docs/reference/assets/' . rawurlencode('elan_s1_s2_coupe_masterpartslist.pdf'),
             'text'     => 'Download PDF',
             'icon'     => 'fa-download',
             'class'    => 'btn-secondary btn-sm',

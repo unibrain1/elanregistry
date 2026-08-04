@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: "Use this agent to review code against Elan Registry project guidelines in CLAUDE.md and docs/development/CODING_STANDARDS.md. Launch after writing or modifying code, before committing, or before opening a PR. The agent needs to know which files to focus on — default is git diff HEAD (all local changes, staged and unstaged); specify a different scope if needed.\n\n<example>\nContext: The assistant has finished a feature that touches app/action/*.php.\nassistant: \"Now I'll use the code-reviewer agent to check these changes against CLAUDE.md standards.\"\n<commentary>\nProactively review new code against project guidelines before moving on.\n</commentary>\n</example>\n\n<example>\nContext: Before opening a PR.\nuser: \"Ready to open the PR.\"\nassistant: \"Let me run the code-reviewer agent first to ensure the changes meet our standards.\"\n<commentary>\nRun a code review before PR creation to avoid iteration on review comments.\n</commentary>\n</example>"
-model: sonnet
+model: opus
 color: green
 ---
 

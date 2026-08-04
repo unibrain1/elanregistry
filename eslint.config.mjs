@@ -349,6 +349,7 @@ export default [
                 ElanRegistryAPI: "readonly",
                 us_url_root: "readonly",
                 csrf: "readonly",
+                LocationPicker: "readonly",
             },
         },
         rules: {

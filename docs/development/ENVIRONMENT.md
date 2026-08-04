@@ -48,7 +48,8 @@ The Elan Registry uses **vlucas/phpdotenv** v5 for environment variable loading 
 - `DB_HOST` - Database server hostname/IP (e.g., `localhost`)
 - `DB_USER` - Database username (e.g., `elan_registry_user`)
 - `DB_PASS` - Database password
-- `DB_NAME` - Database name (e.g., `elanregi_spice`)
+- `DB_NAME` - Database name (e.g., `elanregi_spice`). For development, use the dev database.
+  For integration tests, use a separate dedicated test schema (see "Test Database Isolation" below)
 
 ### Cloudflare Turnstile CAPTCHA
 
@@ -145,16 +146,58 @@ internally, setting the `X-Forwarded-Proto: https` header so `$is_https` is
    chmod 600 .env
    ```
 
-4. **Create `.env.local` for Integration Tests** (optional):
+4. **Set Up Integration Test Database**:
+
+   Integration tests run against a dedicated test schema to avoid damaging the dev database.
 
    ```bash
-   # Copy the test template
-   cp .env.local.sample .env.local
+   # Copy the test database template
+   cp .env.test.local.sample .env.test.local
 
-   # Edit with your test database credentials
-   # Uses DB_* names directly (not ELAN_DEV_DB_* prefix)
-   chmod 600 .env.local
+   # Edit with your test database password (other fields are pre-filled)
+   nano .env.test.local
+
+   # Set secure permissions
+   chmod 600 .env.test.local
+
+   # Create the test schema (clones dev database structure)
+   ./scripts/create-test-schema.sh
+
+   # Load reference data (car_models)
+   php tests/setup-test-database.php
+
+   # Run integration tests
+   composer test:integration
    ```
+
+### Test Database Isolation
+
+Integration tests are **destructive** — they insert, update, delete, and merge real database
+records to verify application logic end-to-end. To prevent accidental damage to the development
+database, the test suite requires a dedicated test schema:
+
+- **Separate Schema**: Tests run against `elanregi_spice_test` (or equivalent), never the dev database `elanregi_spice`.
+- **Mandatory Configuration**: `tests/bootstrap-integration.php` **fails immediately with an error message** if `.env.test.local` is missing or fails to load.
+- **Safety Guards**: Two layers of defense-in-depth in `tests/bootstrap-integration.php` — the loaded
+  `DB_NAME` value is checked before connecting, and the *actual* connected database is checked again
+  afterward (catching the case where `.env.test.local` omits a `DB_*` key and it gets silently
+  backfilled from the root `.env`). Either guard tripping aborts with `exit(1)`. Both guards check
+  against the literal name `elanregi_spice` — if the dev database is ever renamed, update these
+  checks accordingly.
+- Separately, `scripts/create-test-schema.sh` refuses to run at all if its source and target schema
+  names resolve to the same name (case-folded) — the guard protecting the one truly destructive
+  operation in this workflow, the `DROP DATABASE` on the test schema.
+
+**Files involved:**
+
+- `.env.test.local` — Test database credentials (gitignored, created once per developer)
+- `.env.test.local.sample` — Template with safe defaults (tracked in repo)
+- `scripts/create-test-schema.sh` — Structure-sync script; safe to rerun any time the dev schema
+  changes (e.g. after a migration) to resync the test schema's structure — it drops and recreates
+  only the test schema each run
+- `tests/setup-test-database.php` — Loads `car_models` reference data into whichever schema is configured
+
+After the initial setup, tests can be re-run safely and repeatedly against the test schema without risking the development database.
 
 ### Production Deployment
 
@@ -214,8 +257,11 @@ The `.env.local` file contains local development database credentials:
 - **Location**: Root directory (not committed to git)
 - **Permissions**: `chmod 600`
 - **Format**: Plain text key-value pairs using `DB_*` variable names
-- **Distribution**: Created locally or from `.env.local.sample` template
-- **Usage**: For local integration testing with MAMP or remote databases
+- **Distribution**: Created locally, following the format in `.env.example`
+- **Usage**: Local development against the dev database (`elanregi_spice`). Also used
+  as the source when cloning structure into the test schema — see
+  "Test Database Isolation" above; integration tests themselves use `.env.test.local`,
+  not `.env.local`.
 
 **Important**: Never commit `.env`, `.env.local`, or other environment files to version control. All are listed in `.gitignore`.
 

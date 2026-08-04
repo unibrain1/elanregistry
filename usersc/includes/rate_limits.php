@@ -94,6 +94,20 @@ $rateLimits = [
         'total_window' => 3600
     ],
 
+    // Silent recovery notification sent when a registration attempt targets
+    // an already-registered email (#1406) — separate action from
+    // password_reset_request so audit logs distinguish a self-initiated
+    // password reset from a notification triggered by someone else's
+    // registration attempt. Same limits as password_reset_request.
+    'registration_recovery_email' => [
+        'ip_max' => 5,
+        'ip_window' => 3600,
+        'email_max' => 3,
+        'email_window' => 3600,
+        'total_max' => 25,
+        'total_window' => 3600
+    ],
+
     'password_reset_submit' => [
         'ip_max' => 8,
         'ip_window' => 1800,

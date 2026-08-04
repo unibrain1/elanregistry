@@ -26,7 +26,7 @@ shipped prompts starting at:
 `usersc/plugins/ai_prompts/prompts/00_start_here.md.php`
 Then load ElanRegistry-specific augmentation from `custom_prompts/`:
 
-- `elanregistry_overrides` — five places ElanRegistry diverges from standard UserSpice
+- `elanregistry_overrides` — six places ElanRegistry diverges from standard UserSpice (incl. the `$pageTitle`/`$pageDescription` page-metadata convention)
 - `elanregistry_classes` — Car, Owner, ApiResponse, LogCategories, and others
 - `elanregistry_directories` — `app/` subtree, `$path` in `z_us_root.php`, parsers location
 - `elanregistry_database` — DB Explainer workflow and ElanRegistry-specific tables
@@ -56,8 +56,10 @@ all other Cloudflare features work normally.
     `contact/` (contact form, contact-owner), `reports/` (statistics), `privacy.php`
   - `/app/api/` - AJAX JSON endpoints, organized by resource: `cars/` (car CRUD and
     validation), `contact/` (contact forms, auth-required), `shared/` (public endpoints:
-    statistics, location search), `admin/` (admin-only settings updates). All endpoints
-    follow the `ApiResponse` JSON format.
+    statistics, location search, `sitemap.xml`), `admin/` (admin-only settings updates).
+    Most endpoints follow the `ApiResponse` JSON format — `shared/sitemap.php` is a
+    documented exception (XML output, no auth/CSRF/rate-limit, must stay freely
+    crawlable; see its file header).
   - `/app/views/` - Reusable view partials: `cars/` (car page components), `email/`
     (transactional email templates)
 - `/docs/` - User-facing documentation: `guides/` (how-to), `reference/` (technical), `stories/` (car histories)
@@ -99,7 +101,9 @@ all other Cloudflare features work normally.
 
 **Template Architecture:**
 
-- Active template: `/usersc/templates/customizer/` with `elanregistry` child theme (Bootstrap 5.3.3)
+- Active template: `/usersc/templates/customizer/` with `elanregistry` child theme (Bootstrap 5.3.8,
+  UserSpice's own `users/css`/`users/js` copy — no separate `usersc/` Bootstrap copy; source maps
+  auto-vendored on every `git pull`/deploy via `scripts/vendor-bootstrap-maps.php`, see ADR-015)
 - jQuery is a UserSpice 6 dependency (`users/js/jquery.php`) — cannot be removed
 - ADRs: `docs/development/adr/` — update ADR-015 when changing frontend dependencies, ADR-016 for nav changes, ADR-007 for CSP changes
 

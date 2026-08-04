@@ -1,0 +1,8 @@
+# Lotus Elan Registry (Test Environment)
+Spec: https://llmstxt.org
+
+> Non-production test environment. Not for indexing or citation.
+
+## Disallow
+
+- / — entire site (test environment)

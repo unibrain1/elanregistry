@@ -1,5 +1,13 @@
 const { test, expect } = require('@playwright/test');
 
+// Escapes regex metacharacters so an expectedTitle string can be used inside
+// a RegExp for a partial (contains) match against the real <title> tag,
+// which appends " {site_name}" after the page-specific title (see
+// users/template/header1_must_include.php).
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 test.describe('Elan Registry - All Pages (Not Logged In)', () => {
   // Skip these tests if running in logged-in project
   test.beforeEach(async ({ }, testInfo) => {
@@ -19,6 +27,8 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'List Cars',
       selector: 'h2',
       expectedText: 'Registry Cars',
+      expectedTitle: 'Browse All Registered Cars',
+      expectedDescription: 'Search and browse every Lotus Elan and Elan Plus 2 currently registered, with chassis, model, and ownership history details.',
     },
     {
       path: '/users/join.php',
@@ -31,60 +41,80 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'Statistics',
       selector: 'h1',
       expectedText: 'Registry Analytics & Statistics',
+      expectedTitle: 'Registry Analytics & Statistics',
+      expectedDescription: 'Explore production trends, geographic distribution, paint colour popularity, and data-completeness statistics across the Lotus Elan Registry.',
     },
     {
       path: '/docs/reference/identification-guide.php',
       name: 'Identification Guide',
       selector: 'h1',
       expectedText: 'Lotus Elan Identification Guide',
+      expectedTitle: 'How to Identify a Lotus Elan or Elan Plus 2',
+      expectedDescription: 'Identify your Lotus Elan or Elan Plus 2 variant by chassis number, body style, and distinguishing features like Roadster, Drophead, and Coupé.',
     },
     {
       path: '/app/owner/cars/factory.php',
       name: 'Factory Data',
       selector: 'h2',
       expectedText: 'Elan Factory Information',
+      expectedTitle: 'Lotus Elan Factory Build Records — Registry Factory Data',
+      expectedDescription: 'Browse original factory build records for registered Lotus Elan and Elan Plus 2 cars, cross-referenced against registry ownership data.',
     },
     {
       path: '/docs/',
       name: 'Docs Index',
       selector: 'h1',
       expectedText: 'Documentation',
+      expectedTitle: 'Documentation Hub',
+      expectedDescription: 'Guides, technical references, and car histories for Lotus Elan and Elan Plus 2 owners, organized by topic.',
     },
     {
       path: '/docs/reference/index.php',
       name: 'Reference Index',
       selector: 'h1',
       expectedText: 'Technical Reference',
+      expectedTitle: 'Technical Reference Library',
+      expectedDescription: 'Workshop manuals, parts lists, technical articles, and identification guides for the Lotus Elan and Elan Plus 2.',
     },
     {
       path: '/docs/reference/chassis-validation.php',
       name: 'Chassis Validation',
       selector: 'h1',
       expectedText: 'Chassis Validation Rules',
+      expectedTitle: 'Lotus Elan Chassis Number Formats',
+      expectedDescription: 'Reference guide to the chassis numbering formats the Lotus Elan Registry recognizes and validates during car registration.',
     },
     {
       path: '/docs/reference/paint-colors.php',
       name: 'Paint Colors',
       selector: 'h1',
       expectedText: 'Lotus Elan',
+      expectedTitle: 'Lotus Elan Paint Codes — Official Colour Chart L01–L26',
+      expectedDescription: 'Complete reference for Lotus Elan and Elan Plus 2 paint codes L01–L26 with colour chips, date ranges, model applicability, and early pre-code colours.',
     },
     {
       path: '/docs/reference/technical-articles.php',
       name: 'Technical Articles',
       selector: 'h1',
       expectedText: 'Technical Articles',
+      expectedTitle: 'Lotus Elan Technical Articles — Club Lotus Reference Archive',
+      expectedDescription: 'Historical Club Lotus technical articles covering maintenance, engineering, and restoration topics for the Lotus Elan and Elan Plus 2.',
     },
     {
       path: '/docs/reference/workshop.php',
       name: 'Workshop & Parts',
       selector: 'h1',
       expectedText: 'Workshop',
+      expectedTitle: 'Lotus Elan Workshop Manuals & Parts References',
+      expectedDescription: 'Workshop manuals, parts lists, and engine reference documents for maintaining and restoring the Lotus Elan and Elan Plus 2.',
     },
     {
       path: '/docs/car-stories.php',
       name: 'Car Stories',
       selector: 'h1',
       expectedText: 'Car Stories',
+      expectedTitle: 'Lotus Elan Car Stories — Registry Ownership Histories',
+      expectedDescription: 'Read individual ownership histories and stories for Lotus Elan and Elan Plus 2 cars in the registry.',
     },
     {
       path: '/docs/stories/brian_walton/index.php',
@@ -109,6 +139,8 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
       name: 'Owner Guides',
       selector: 'h1',
       expectedText: 'Owner Guides',
+      expectedTitle: 'Owner Guides',
+      expectedDescription: 'Practical guides for Lotus Elan and Elan Plus 2 owners, covering registration, transfers, and car management.',
     },
     {
       path: '/docs/guides/car-transfer-faq.php',
@@ -137,7 +169,17 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
     },
   ];
 
-  pages.forEach(({ path, name, selector, expectedText, isLoginPage }) => {
+  test('page-specific titles are unique across all pages (#1432)', () => {
+    const titles = pages.map(p => p.expectedTitle).filter(Boolean);
+    expect(new Set(titles).size).toBe(titles.length);
+  });
+
+  test('page-specific descriptions are unique across all pages (#1432)', () => {
+    const descriptions = pages.map(p => p.expectedDescription).filter(Boolean);
+    expect(new Set(descriptions).size).toBe(descriptions.length);
+  });
+
+  pages.forEach(({ path, name, selector, expectedText, isLoginPage, expectedTitle, expectedDescription }) => {
     test(`should be able to reach ${name} page`, async ({ page }) => {
       const response = await page.goto(path);
 
@@ -157,9 +199,70 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
         await expect(page.locator(selector)).toContainText(expectedText);
       }
 
+      // Layer 4: Verify page-specific title and meta description (#1432)
+      if (expectedTitle) {
+        // The <title> tag appends " {site_name}" after $pageTitle (see
+        // users/template/header1_must_include.php), so this is a partial
+        // (contains) match rather than an exact one.
+        await expect(page).toHaveTitle(new RegExp(escapeRegExp(expectedTitle)));
+
+        // og:title/twitter:title mirror $pageTitle exactly, with no
+        // site-name suffix (see usersc/includes/head_tags.php), so these
+        // are exact matches.
+        const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
+        expect(ogTitle).toBe(expectedTitle);
+        const twitterTitle = await page.locator('meta[name="twitter:title"]').getAttribute('content');
+        expect(twitterTitle).toBe(expectedTitle);
+      }
+      if (expectedDescription) {
+        // $site_description is $pageDescription verbatim, with no suffix (unlike
+        // $pageTitle's <title> tag above), so these are exact matches.
+        const description = await page.locator('meta[name="description"]').getAttribute('content');
+        expect(description).toBe(expectedDescription);
+
+        // og:description/twitter:description share $site_description with the
+        // meta description tag (see usersc/includes/head_tags.php), so they
+        // pick up $pageDescription the same way.
+        const ogDescription = await page.locator('meta[property="og:description"]').getAttribute('content');
+        expect(ogDescription).toBe(expectedDescription);
+        const twitterDescription = await page.locator('meta[name="twitter:description"]').getAttribute('content');
+        expect(twitterDescription).toBe(expectedDescription);
+      }
+
       console.log(`✓ Successfully reached: ${name} (${path})`);
     });
   });
+});
+
+// paint-colors.php's page-specific <title>/meta description assertions
+// (#1372) are now covered by the table-driven pages[] array above via
+// expectedTitle/expectedDescription (#1432). The regression guard below
+// (confirming the generic site-wide title/description still renders on
+// pages outside #1432's scope) is retained, retargeted at
+// car-transfer-faq.php since identification-guide.php now has a
+// page-specific title of its own.
+test('docs/guides/car-transfer-faq.php still renders the generic site title/description (regression guard) (#1432)', async ({ page }, testInfo) => {
+  if (testInfo.project.name !== 'not-logged-in') {
+    testInfo.skip();
+  }
+
+  await page.goto('/docs/guides/car-transfer-faq.php');
+
+  await expect(page).toHaveTitle(/^ Lotus Elan Registry$/);
+
+  const description = await page
+    .locator('meta[name="description"]')
+    .getAttribute('content');
+  expect(description).toContain('Registry for the Lotus Elan (1963-1973) and Elan Plus 2 (1967-1974)');
+
+  // og:title/twitter:title must still fall back to $site_title (the generic
+  // site name) on pages that don't set $pageTitle — this is the actual new
+  // conditional in usersc/includes/head_tags.php ($og_title) introduced by
+  // #1432, and this is its only regression coverage.
+  const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
+  expect(ogTitle).toBe('Lotus Elan Registry');
+  const twitterTitle = await page.locator('meta[name="twitter:title"]').getAttribute('content');
+  expect(twitterTitle).toBe('Lotus Elan Registry');
 });
 
 test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {
@@ -429,12 +532,12 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
   const redirects = [
     {
       from: '/docs/embed.php?doc=Elan_26_36_Workshop_Manual.pdf',
-      to: '/docs/pdf-viewer.php?subdir=reference/assets&doc=Elan_26_36_Workshop_Manual.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=Elan_26_36_Workshop_Manual.pdf',
       label: 'embed.php soft 404 → pdf-viewer.php with subdir',
     },
     {
       from: '/docs/pdf-viewer.php?doc=Elan_26_36_Workshop_Manual.pdf',
-      to: '/docs/pdf-viewer.php?subdir=reference/assets&doc=Elan_26_36_Workshop_Manual.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=Elan_26_36_Workshop_Manual.pdf',
       label: 'pdf-viewer.php single-param → two-param format',
     },
     {
@@ -507,5 +610,377 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
         : location;
       expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
     });
+  });
+});
+
+test.describe('GSC 404 cleanup redirects (#1409)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  const BASE = 'https://elanregistry.org';
+
+  const redirects = [
+    {
+      from: '/docs/guide-viewer.php?doc=ADD_CAR_GUIDE.md',
+      to: '/docs/guides/',
+      label: 'docs/guide-viewer.php ADD_CAR_GUIDE.md',
+    },
+    {
+      from: '/app/manage_cars.php',
+      to: '/app/owner/cars/index.php',
+      label: '/app/manage_cars.php legacy path',
+    },
+    {
+      from: '/app/edit_car.php',
+      to: '/app/owner/cars/edit.php',
+      label: '/app/edit_car.php legacy path',
+    },
+    {
+      from: '/app/statistics.php',
+      to: '/app/owner/reports/statistics.php',
+      label: '/app/statistics.php legacy path',
+    },
+    {
+      from: '/docs/guide-viewer.php?doc=PRIVACY.md',
+      to: '/app/owner/privacy.php',
+      label: 'docs/guide-viewer.php PRIVACY.md',
+    },
+    {
+      from: '/docs/stories/type26registry/',
+      to: '/docs/stories/type26register.com/',
+      label: 'docs/stories/type26registry/ typo-fix redirect',
+    },
+    {
+      from: '/docs/reference/assets/Elan_S1_S2_Coupe_Masterpartslist.pdf',
+      to: '/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'PDF asset case mismatch: capitalized legacy URL → renamed lowercase asset',
+    },
+    {
+      from: '/embed.php?doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'root embed.php soft 404 → pdf-viewer.php',
+    },
+  ];
+
+  redirects.forEach(({ from, to, label }) => {
+    test(`301: ${label}`, async ({ request }) => {
+      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      expect(response.status(), `Expected 301 for ${from}`).toBe(301);
+      const location = response.headers()['location'] ?? '';
+      // Normalize absolute Location headers to path + query for comparison
+      const locationPath = location.startsWith('http')
+        ? new URL(location).pathname + new URL(location).search
+        : location;
+      expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
+    });
+  });
+
+  test('renamed PDF asset (lowercase) returns 200', async ({ request }) => {
+    const response = await request.get(
+      `${BASE}/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf`
+    );
+    expect(response.status()).toBe(200);
+  });
+
+  test('embed.php?doc=... regression: lands on a working pdf-viewer.php page, not "Invalid document path."', async ({ page }) => {
+    const response = await page.goto(`${BASE}/embed.php?doc=elan_s1_s2_coupe_masterpartslist.pdf`);
+
+    expect(response.status()).toBeLessThan(400);
+    await page.waitForLoadState('domcontentloaded');
+
+    // Must land on the PDF viewer, not be bounced to the login page
+    expect(page.url()).toContain('/docs/pdf-viewer.php');
+    expect(page.url()).not.toContain('login.php');
+
+    // Regression guard: the pre-fix redirect used an invalid `subdir` value,
+    // which pdf-viewer.php rejected with this exact error text (#1409).
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).not.toContain('Invalid document path.');
+
+    // Positive assertion: the viewer actually rendered the iframe pointing at
+    // the document, not just an error-free page. The <h1> alone isn't a
+    // reliable signal here — pdf-viewer.php computes it via pathinfo() before
+    // the subdir/file-existence checks run, so it renders the same filename
+    // whether or not those checks pass. The iframe only renders in the
+    // success branch, so its src is the actual discriminator.
+    await expect(page.locator('iframe')).toHaveAttribute(
+      'src',
+      /elan_s1_s2_coupe_masterpartslist\.pdf$/
+    );
+  });
+});
+
+test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  const BASE = 'https://elanregistry.org';
+
+  const redirects = [
+    {
+      from: '/docs/pdf-viewer.php?subdir=reference/assets&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'pdf-viewer.php legacy subdir=reference/assets → subdir=reference',
+    },
+    {
+      from: `/docs/pdf-viewer.php?subdir=stories/assets&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
+      to: `/docs/pdf-viewer.php?subdir=stories&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
+      label: 'pdf-viewer.php legacy subdir=stories/assets → subdir=stories',
+    },
+  ];
+
+  redirects.forEach(({ from, to, label }) => {
+    test(`301: ${label}`, async ({ request }) => {
+      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      expect(response.status(), `Expected 301 for ${from}`).toBe(301);
+      const location = response.headers()['location'] ?? '';
+      // Normalize absolute Location headers to path + query for comparison
+      const locationPath = location.startsWith('http')
+        ? new URL(location).pathname + new URL(location).search
+        : location;
+      expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
+    });
+  });
+
+  test('200: pdf-viewer.php valid subdir and existing document renders the iframe', async ({ page }) => {
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('iframe')).toHaveAttribute(
+      'src',
+      /elan_s1_s2_coupe_masterpartslist\.pdf$/
+    );
+  });
+
+  test('404: pdf-viewer.php genuinely invalid subdir value', async ({ page }) => {
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir=etc&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+
+  test('404: pdf-viewer.php valid subdir but non-existent document', async ({ page }) => {
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=does-not-exist-12345.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+
+  test('404: pdf-viewer.php omitted subdir with existing document — regression for wrong-directory file_exists() fallback', async ({ page }) => {
+    // Replicates the real malformed-URL shape from the issue's log analysis: an
+    // unescaped &amp; HTML entity produces ?amp&doc=X.pdf, which PHP parses as
+    // $_GET = ['amp' => '', 'doc' => 'X.pdf'] — subdir is never set. Deliberately
+    // NOT ?doc=X.pdf alone: that bare single-param shape is already caught and
+    // 301'd by the existing .htaccess rule (#1369), which would mask this
+    // regression by never reaching PHP with subdir omitted.
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?amp&doc=${encodeURIComponent('Lotus Elan Plus 2 serial numbers.pdf')}`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+
+  test('200: pdf-viewer.php array-valued doc param does not crash (regression for TypeError on strpos())', async ({ page }) => {
+    // Before this fix, ?doc[]=x made $_GET['doc'] an array; strpos() on an array
+    // throws an uncaught TypeError under declare(strict_types=1) — a fatal 500,
+    // not a soft failure. An array-valued doc is now coerced to '' and falls
+    // through to the unchanged "No document specified" branch.
+    const response = await page.goto(`${BASE}/docs/pdf-viewer.php?doc[]=x`, {
+      waitUntil: 'networkidle',
+    });
+    expect(response?.status()).toBe(200);
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).toContain('No document specified.');
+  });
+
+  test('404: pdf-viewer.php array-valued subdir param does not crash, treated as omitted', async ({ page }) => {
+    // Without the is_string() guard, the str_ends_with()/strpos() calls this PR
+    // adds for subdir validation would throw a TypeError on an array value — a
+    // real doc value is required to reach that branch at all.
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir[]=x&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+});
+
+test.describe('Sitemap endpoint (#1373)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  test('GET /sitemap.xml returns a valid sitemap with at least one car entry', async ({ page }) => {
+    const response = await page.goto('/sitemap.xml');
+
+    // Layer 1: HTTP response must be successful
+    expect(response.status()).toBeLessThan(400);
+
+    // Layer 2: Must be served as XML, not HTML (e.g. a login redirect or error page)
+    const contentType = response.headers()['content-type'] ?? '';
+    expect(contentType.toLowerCase()).toContain('application/xml');
+
+    // Layer 3: Must be a real sitemap document, not an error page
+    const body = await response.text();
+    expect(body).toContain('<urlset');
+
+    // Layer 4: Must include at least one car entry — this registry always
+    // has cars in its test/prod data, so this should never be empty.
+    expect(body).toContain('details.php?car_id=');
+  });
+});
+
+test.describe('llms.txt AI crawler guidance (#1413)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  test('GET /llms.txt returns the AI crawler policy as plain text', async ({ page }) => {
+    const response = await page.goto('/llms.txt');
+
+    // Layer 1: HTTP response must be successful
+    expect(response.status()).toBeLessThan(400);
+
+    // Layer 2: Must be served as plain text, not HTML (e.g. a login redirect or error page)
+    const contentType = response.headers()['content-type'] ?? '';
+    expect(contentType.toLowerCase()).toContain('text/plain');
+
+    // Layer 3: Must be the real llms.txt content, not an error page
+    const body = await response.text();
+    expect(body).toContain('## Allow');
+  });
+});
+
+test.describe('SEO metadata: JSON-LD, noindex, apple-touch-icon (#1371)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  test('GET /app/owner/cars/details.php?car_id=1 renders a Schema.org Car JSON-LD block', async ({ page }) => {
+    const response = await page.goto('/app/owner/cars/details.php?car_id=1');
+
+    // Layer 1: HTTP response must be successful
+    expect(response.status()).toBeLessThan(400);
+
+    // Layer 2: Must not have been redirected to the login page — securePage()
+    // permits guest access to this specific car page (car_id=1 is the same ID
+    // the link-crawl test above keeps navigable for the same reason).
+    expect(page.url()).not.toContain('login.php');
+
+    // Layer 3: Body must contain a JSON-LD script block declaring the
+    // Schema.org Car type. json_encode() (with JSON_UNESCAPED_SLASHES) emits
+    // compact, unspaced JSON, so "@type":"Car" appears literally adjacent —
+    // see app/owner/cars/details.php.
+    const body = await response.text();
+    expect(body).toContain('application/ld+json');
+    expect(body).toContain('"@type":"Car"');
+
+    // Layer 4: The VIN field ties the structured data to the actual car
+    // record's chassis number.
+    expect(body).toContain('vehicleIdentificationNumber');
+
+    // Layer 5: details.php doesn't set $pageRobots, so it must still render
+    // the site-wide default (index, follow) — confirms head_tags.php's
+    // fallback still works, not just the two noindex overrides below.
+    expect(body).toContain('<meta name="robots" content="index, follow">');
+  });
+
+  const noindexPages = [
+    { path: '/app/owner/cars/factory.php', name: 'Factory Data' },
+    { path: '/app/owner/privacy.php', name: 'Privacy' },
+  ];
+
+  noindexPages.forEach(({ path, name }) => {
+    test(`GET ${path} (${name}) sets noindex, follow`, async ({ page }) => {
+      const response = await page.goto(path);
+
+      // Layer 1: HTTP response must be successful
+      expect(response.status()).toBeLessThan(400);
+
+      // Layer 2: Must not have been redirected to the login page
+      expect(page.url()).not.toContain('login.php');
+
+      // Layer 3: Must render the noindex robots meta tag instead of the
+      // site-wide default of "index, follow" (see usersc/includes/head_tags.php).
+      const body = await response.text();
+      expect(body).toContain('<meta name="robots" content="noindex, follow">');
+    });
+  });
+
+  const appleTouchIcons = [
+    '/apple-touch-icon.png',
+    '/apple-touch-icon-precomposed.png',
+  ];
+
+  appleTouchIcons.forEach((path) => {
+    test(`GET ${path} serves a PNG`, async ({ request }) => {
+      const response = await request.get(path);
+
+      // Layer 1: HTTP response must be successful
+      expect(response.status()).toBeLessThan(400);
+
+      // Layer 2: Must actually be served as a PNG image, not an HTML error page
+      const contentType = response.headers()['content-type'] ?? '';
+      expect(contentType.toLowerCase()).toContain('image/png');
+    });
+  });
+});
+
+test.describe('Location picker city disambiguation (#1400)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  // Live Nominatim/Photon results are required for this test, so it only runs
+  // against deployed environments (npm run test:e2e / test:e2e:test) — this
+  // file only executes via playwright.config.prod.js / playwright.config.test.js,
+  // never locally against MAMP (see playwright.config.js's testIgnore: '**/e2e/**').
+  //
+  // This is an integration smoke check, not the primary regression guard for
+  // the dedupe-key fix itself — see tests/playwright/location-picker-dedupe.spec.js
+  // for a deterministic, mock-data test of filterAndRankResults() directly.
+  // A plain "more than one result" count would pass even without the fix,
+  // since Photon/Nominatim already returns Springfields from *different
+  // countries* as distinct entries under the old city|country key too — the
+  // bug was specifically about same-country, different-state collisions. So
+  // this asserts on distinct *same-country* (United States) result text
+  // instead of a raw count.
+  test('searching an ambiguous city name shows multiple distinct same-country results (regression guard)', async ({ page }) => {
+    await page.goto('/users/join.php');
+
+    const input = page.locator('#location-picker-registration-input');
+    const resultsContainer = page.locator('#location-picker-registration-results');
+
+    await input.fill('Springfield');
+
+    // The picker debounces input by 300ms before firing the search request;
+    // wait for the results list to actually populate rather than a fixed
+    // sleep, since the live geocoding API latency varies.
+    await expect(async () => {
+      // Query <small> elements directly rather than iterating .list-group-item
+      // and locating a child inside each — the "No locations found" fallback
+      // item has no <small> child, so this avoids a throw on that render.
+      const texts = await resultsContainer.locator('.list-group-item small').allTextContents();
+      const distinctUsResults = new Set(texts.map(t => t.trim()).filter(t => t.includes('United States')));
+      expect(distinctUsResults.size).toBeGreaterThan(1);
+    }).toPass({ timeout: 15000 });
   });
 });

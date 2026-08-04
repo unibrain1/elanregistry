@@ -1,6 +1,6 @@
 ---
 description: Begin work on a milestone by creating a milestone branch and drafting release notes
-model: claude-sonnet-4-6
+model: claude-opus-4-8
 ---
 
 # Start Milestone

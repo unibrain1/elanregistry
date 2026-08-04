@@ -84,14 +84,25 @@ RewriteCond %{HTTP_HOST} ^test\.elanregistry\.org [NC,OR]
 RewriteCond %{SERVER_NAME} ^test\.elanregistry\.org [NC]
 RewriteRule ^robots\.txt$ /robots-test.txt [L]
 
+# Public sitemap.xml for search engine discovery (#1373)
+# Internal rewrite (no redirect) - crawler-visible URL stays /sitemap.xml
+RewriteRule ^sitemap\.xml$ /app/api/shared/sitemap.php [L]
+
 # Soft 404 fix: embed.php (removed) and pdf-viewer.php single-param ?doc= format (#1369)
 # All referenced PDFs confirmed in docs/reference/assets/
 # NE preserves URL encoding in filenames with spaces/parens; QSD drops the original query string
 RewriteCond %{QUERY_STRING} ^doc=([^&]+\.pdf)$ [NC]
-RewriteRule ^docs/(embed|pdf-viewer)\.php$ /docs/pdf-viewer.php?subdir=reference/assets&doc=%1 [R=301,L,NE,QSD]
+RewriteRule ^docs/(embed|pdf-viewer)\.php$ /docs/pdf-viewer.php?subdir=reference&doc=%1 [R=301,L,NE,QSD]
+
+# embed.php was also reachable at the site root, not just under docs/ — same soft 404 fix as above (#1409)
+RewriteCond %{QUERY_STRING} ^doc=([^&]+\.pdf)$ [NC]
+RewriteRule ^embed\.php$ /docs/pdf-viewer.php?subdir=reference&doc=%1 [R=301,L,NE,QSD]
 
 # /stories/* moved to /docs/stories/ — redirect was missing until #1369
 RewriteRule ^stories/(.+)$ /docs/stories/$1 [R=301,L]
+
+# Indexed slug was a typo'd domain name; actual story directory is type26register.com (#1409)
+Redirect 301 /docs/stories/type26registry/ /docs/stories/type26register.com/
 
 # docs/view.php and docs/guide-viewer.php removed in #911
 RewriteCond %{QUERY_STRING} doc=IDENTIFICATION_GUIDE\.md [NC]
@@ -102,6 +113,13 @@ RewriteRule ^docs/(view|guide-viewer)\.php$ /docs/guides/car-transfer-faq.php [R
 
 RewriteCond %{QUERY_STRING} doc=CAR_TRANSFER_USER_GUIDE\.md [NC]
 RewriteRule ^docs/guide-viewer\.php$ /docs/guides/ [R=301,L,QSD]
+
+# Additional guide-viewer.php doc= params found via GSC (#1409)
+RewriteCond %{QUERY_STRING} doc=ADD_CAR_GUIDE\.md [NC]
+RewriteRule ^docs/guide-viewer\.php$ /docs/guides/ [R=301,L,QSD]
+
+RewriteCond %{QUERY_STRING} doc=PRIVACY\.md [NC]
+RewriteRule ^docs/guide-viewer\.php$ /app/owner/privacy.php [R=301,L,QSD]
 
 # Redirects for migrated pages (#559)
 Redirect 301 /app/cars/identify.php /docs/reference/identification-guide.php
@@ -134,3 +152,8 @@ Redirect 301 /guide.php /docs/
 Redirect 301 /app/owner/cars/@the_elan_sprint_diary /docs/car-stories.php
 # Duplicate PDF path: /docs/assets/ renamed to /docs/reference/assets/ in #715
 Redirect 301 /docs/assets/ /docs/reference/assets/
+
+# Additional legacy paths found via GSC (#1409)
+Redirect 301 /app/manage_cars.php /app/owner/cars/index.php
+Redirect 301 /app/edit_car.php /app/owner/cars/edit.php
+Redirect 301 /app/statistics.php /app/owner/reports/statistics.php

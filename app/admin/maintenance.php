@@ -24,6 +24,17 @@ use ElanRegistry\LogCategories;
  * @copyright 2025
  */
 
+$validTabs = [
+    'health'      => 'Health',
+    'maintenance' => 'Maintenance',
+    'settings'    => 'Configuration',
+];
+
+$activeTab = isset($_GET['tab']) && is_string($_GET['tab']) && array_key_exists($_GET['tab'], $validTabs)
+    ? $_GET['tab'] : 'health';
+$pageTitle = 'Registry Maintenance - ' . $validTabs[$activeTab];
+$pageDescription = 'Admin tools for registry maintenance, health checks, and system configuration.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 
@@ -47,15 +58,6 @@ try {
     Redirect::to($us_url_root . 'users/login.php');
     die();
 }
-
-$validTabs = [
-    'health'      => 'Health',
-    'maintenance' => 'Maintenance',
-    'settings'    => 'Configuration',
-];
-
-$activeTab = isset($_GET['tab']) && array_key_exists($_GET['tab'], $validTabs) ? $_GET['tab'] : 'health';
-$pageTitle = 'Registry Maintenance - ' . $validTabs[$activeTab];
 
 // Generate CSRF token for AJAX requests
 $csrfToken = Token::generate();

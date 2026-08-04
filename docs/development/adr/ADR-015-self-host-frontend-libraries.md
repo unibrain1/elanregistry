@@ -52,8 +52,6 @@ jQuery UI) continue to be loaded from their existing self-hosted locations in
 
 | Library | Version | Vendored Path |
 | --- | --- | --- |
-| Bootstrap CSS | 5.3.3 | `usersc/css/bootstrap.min.css` (error pages only — see note) |
-| Bootstrap JS | 5.3.3 | `usersc/js/bootstrap.bundle.min.js` (error pages only — see note) |
 | DataTables JS (BS5 bundle) | dt-2.3.8, Buttons 3.2.6, ColVis 3.2.6, FixedHeader 4.0.6, Responsive 3.0.8 | `usersc/js/datatables.min.js` |
 | DataTables CSS (BS5 bundle) | dt-2.3.8, Buttons 3.2.6, ColVis 3.2.6, FixedHeader 4.0.6, Responsive 3.0.8 | `usersc/css/datatables.min.css` |
 | Dropzone JS | 5.7.6 | `usersc/js/dropzone.min.js` |
@@ -73,11 +71,21 @@ jQuery UI) continue to be loaded from their existing self-hosted locations in
 > JS/CSS assets above; the upstream package version is pinned in
 > `package.json`.
 >
-> **Bootstrap note:** The Customizer template's `header.php` loads Bootstrap
-> 5.3.3 from `cdnjs.cloudflare.com` (upstream default, with SRI hashes). The
-> vendored Bootstrap files are retained solely for the standalone error pages
-> (`error/403.php`, `error/404.php`, `error/500.php`) which run outside the
-> template system and cannot use CDN assets.
+> **Bootstrap note (updated #1414):** Bootstrap CSS/JS is not vendored under
+> `usersc/` — it loads exclusively from UserSpice's own self-hosted copy at
+> `users/css/bootstrap.min.css` / `users/js/bootstrap.bundle.min.js`
+> (currently 5.3.8), used consistently by the Customizer template
+> (`header.php`) and the three standalone error pages
+> (`error/403.php`, `error/404.php`, `error/500.php`). A project-vendored
+> `usersc/` copy (5.3.3) previously existed and was used inconsistently by
+> different pages; it has been removed in favor of a single version
+> everywhere. `users/css/bootstrap.min.css.map` and
+> `users/js/bootstrap.bundle.min.js.map` were added alongside the minified
+> files (matching upstream byte-for-byte) to eliminate the
+> `bootstrap.min.css.map`/`bootstrap.bundle.min.js.map` 404s. Bootstrap is
+> intentionally **not** pinned in `package.json` / covered by Dependabot —
+> the project relies on upstream UserSpice to track and test Bootstrap
+> version updates, consistent with jQuery and Font Awesome below.
 
 ### Libraries Eliminated
 
@@ -91,6 +99,8 @@ their existing self-hosted locations in `users/`:
 
 - jQuery
 - Font Awesome (served from `users/fonts/css/`)
+- Bootstrap CSS/JS (served from `users/css/` and `users/js/`; see Bootstrap
+  note above — added #1414)
 
 ### Loading Pattern
 
@@ -128,9 +138,13 @@ declared version.
   removing `https://cdn.datatables.net` and `https://kit.fontawesome.com` from
   the CSP `script-src` allowlist (ADR-007). `https://code.jquery.com` remains
   because UserSpice loads jQuery from that CDN via `users/js/jquery.php` and
-  cannot be removed without patching the framework. Bootstrap is loaded from
-  `cdnjs.cloudflare.com` via the upstream Customizer template (SRI-hashed);
-  `cdnjs.cloudflare.com` is in the CSP allowlist.
+  cannot be removed without patching the framework. Bootstrap is self-hosted
+  from `users/` (see Bootstrap note above), not loaded from a CDN.
+  `https://cdnjs.cloudflare.com` remains in the CSP allowlist
+  (`usersc/includes/security_headers.php`) even though no code in the
+  application currently references it — it appears to be an orphaned entry
+  predating this ADR's Bootstrap-note update (#1414); removing it is a
+  separate decision, not made as part of this change.
 
 - **Code/data alignment.** The deployed code and the deployed assets move
   together. No more drift between an updated `header.php` and stale `settings`
@@ -158,6 +172,20 @@ declared version.
 - **Larger Git repository.** Vendored minified library files are committed to
   the repository, modestly increasing clone size. Trade-off accepted in
   exchange for a coherent deployment artifact.
+
+- **New runtime CDN dependency for Bootstrap's source maps (#1414).** This
+  ADR exists in part to eliminate CDN runtime dependencies, but
+  `scripts/vendor-bootstrap-maps.php` reintroduces one specifically for
+  Bootstrap: it fetches from `cdn.jsdelivr.net` on every local `git pull`
+  (via `.githooks/post-merge`) and every test/prod deploy (via
+  `scripts/server-hooks/post-receive`) to keep the vendored `.map` files in
+  sync (see the Bootstrap note above). This is deliberately scoped to
+  Bootstrap only — it's the one library whose canonical copy lives in
+  `users/`, gitignored and updated outside git by UserSpice's own updater,
+  so the usual "commit the vendored file" approach doesn't apply. The fetch
+  is non-fatal (a failure just means a stale/missing `.map`, not a broken
+  pull or deploy) and short-circuits to zero network calls once the local
+  file's hash is already accounted for.
 
 - **No runtime configurability.** Switching CDN providers or rolling back a
   bad library version now requires a code deploy rather than an admin panel

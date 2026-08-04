@@ -308,7 +308,22 @@ class SecurityHeadersTest extends TestCase
      * IMPORTANT: this method must not contain the literal two-char PHP closing sequence
      * in any comment or string, or PHP will exit its own parsing mode mid-file.
      * We construct it dynamically: chr(63).chr(62) = question-mark + greater-than.
+     *
+     * This is a LOCAL-ONLY maintenance check, not a CI regression gate: the 3 upstream
+     * files it reads are gitignored, environment-local UserSpice files (see CLAUDE.md's
+     * Template Customization Rules) that never exist in a fresh checkout. Run this on a
+     * machine with a full UserSpice install after updating those files, before committing
+     * the resulting hash change to security_headers.php. In CI (or any checkout without
+     * them) it skips by design — see the #[Group('requires-upstream-install')] exclusion
+     * in composer.json's test:quick:ci script — not because of a zero-assertion accident.
+     *
+     * Known limitation: the skip below only fires when NONE of the 3 files are found —
+     * a partial local install (or an extraction pattern that fails to match within a
+     * present file) still runs and passes with fewer than 5 assertions, silently
+     * under-verifying. See #1486, a live instance of this (one block is never extracted
+     * due to a line-ending mismatch), for the case this doesn't catch.
      */
+    #[Group('requires-upstream-install')]
     public function testUpstreamScriptHashesMatchActualFiles(): void
     {
         $root = dirname(__DIR__, 3);
@@ -318,6 +333,16 @@ class SecurityHeadersTest extends TestCase
         $phpClose = chr(63) . chr(62);
 
         $bodies = $this->extractUpstreamScriptBodies($root, $phpClose);
+
+        if ($bodies === []) {
+            $this->markTestSkipped(
+                'None of the 3 upstream UserSpice files this test verifies exist in this ' .
+                'checkout (they are gitignored, environment-local files — see CLAUDE.md\'s ' .
+                'Template Customization Rules). This is a local-only maintenance check: run ' .
+                'it on a machine with a full UserSpice install after updating those files, ' .
+                'before committing the resulting hash change to security_headers.php.'
+            );
+        }
 
         foreach ($bodies as $label => $body) {
             $hash = base64_encode(hash('sha256', $body, true));

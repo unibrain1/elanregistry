@@ -66,13 +66,17 @@ quality, security, and project management compliance.
 
 ### Quick Reference: PR Check Status
 
-| Check Name               | Purpose            | Blocks | Runs When          |
-| ------------------------ | ------------------ | ------ | ------------------ |
-| **CodeQL Analysis**      | Security scanning  | ✅ Yes | All PRs to main    |
-| **GitGuardian Security** | Secret detection   | ✅ Yes | All commits/PRs    |
-| **Claude Code Review**   | Coding standards   | ✅ Yes | PHP/JS/CSS changes |
-| **Issue Management**     | Auto-label issues  | ❌ No  | Issue events       |
-| **PR Management**        | Link PRs to issues | ❌ No  | PR events          |
+| Check Name                    | Purpose               | Blocks | Runs When          |
+| ----------------------------- | --------------------- | ------ | ------------------ |
+| **CodeQL Analysis**           | Security scanning     | ✅ Yes | All PRs to main    |
+| **GitGuardian Security**      | Secret detection      | ✅ Yes | All commits/PRs    |
+| **Claude Code Review**        | Coding standards      | ✅ Yes | PHP/JS/CSS changes |
+| **Issue Management**          | Auto-label issues     | ❌ No  | Issue events       |
+| **PR Management**             | Link PRs to issues    | ❌ No  | PR events          |
+| **PHPUnit Unit + Regression** | Behavioral test suite | ❌ No* | All PRs            |
+
+\* Not yet a GitHub-required status check — failures are caught by `/finish-issue`'s CI-status gate
+before merge, not by GitHub blocking the merge button itself (see issue #1437).
 
 ### Security & Code Quality Checks
 
@@ -133,6 +137,25 @@ quality, security, and project management compliance.
   - **Auto-closure**: Closes linked issues when PR merges
   - **Draft handling**: Marks issues as "in-progress" for draft PRs
 - **Status flow**: `status: in-progress` → `status: needs-review` → issue closed
+
+### Automated Test Execution
+
+#### 6. **PHPUnit Unit + Regression**
+
+- **What it does**: Runs the PHPUnit `Unit` and `Regression` testsuites (`composer test:quick:ci`
+  and `composer test:regression:ci`) — mocked, no database or network required
+- **When it runs**: On every PR (open/synchronize) and on push to `main`
+  (`.github/workflows/tests.yml`)
+- **Scope**: `tests/unit/` and `tests/regression/`, excluding any test tagged
+  `#[Group('known-broken')]` (see `tests/README.md`'s "CI vs. Local Test Runs" section) — the
+  local `composer test:quick` command runs the same suite without that exclusion, so developers
+  always see the full picture locally
+- **Pass criteria**: All included tests pass
+- **Failure impact**: Not (yet) a GitHub-required status check — merge isn't blocked at the
+  platform level. Enforcement instead relies on `/finish-issue`'s CI-status gate, which polls
+  actual check status and requires explicit confirmation before merging. See
+  [#1437](https://github.com/elan-registry/registry/issues/1437) for the rationale.
+- **Configuration**: `.github/workflows/tests.yml`; PHP 8.3 via `shivammathur/setup-php`
 
 ### Milestone Release PRs
 
@@ -282,6 +305,13 @@ Test and production servers have a single shared post-receive hook
 3. Run `composer install --no-dev --optimize-autoloader`
 4. Run `php vendor/bin/phinx migrate` (halts deployment on failure)
 5. Self-update the installed hook from the newly deployed working tree
+6. Remove dev-only paths listed in `.deployignore` (e.g. `tests/`, `scripts/`,
+   `utilities/`, `wiki/`) via `rm -rf`, then remove `.deployignore` itself
+
+**Important:** Never list a persistent, server-writable directory in
+`.deployignore` (e.g. `backups/`) — step 6's `rm -rf` would delete it wholesale
+on every subsequent push. See #1479, where this happened to the server's
+backup directory.
 
 **Development:**
 

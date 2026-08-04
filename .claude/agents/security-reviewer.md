@@ -1,7 +1,7 @@
 ---
 name: security-reviewer
 description: "Use this agent to perform security reviews of code changes. It checks for OWASP top 10 vulnerabilities, CSRF protection, SQL injection, XSS, input validation, sensitive data exposure, and project-specific security patterns. Launch this agent after completing code changes or before creating a PR.\n\n<example>\nContext: The user has finished implementing a new form submission endpoint.\nuser: \"I've added the new car registration form handler.\"\nassistant: \"I'll launch the security-reviewer agent to audit the new endpoint for vulnerabilities.\"\n<commentary>\nNew form handlers need CSRF, input validation, and SQL injection checks.\n</commentary>\n</example>\n\n<example>\nContext: The assistant has just completed a feature involving database queries.\nassistant: \"Now I'll launch the security-reviewer agent to verify all queries use prepared statements.\"\n<commentary>\nProactively review database code for injection vulnerabilities.\n</commentary>\n</example>\n\n<example>\nContext: Before creating a pull request.\nuser: \"I'm ready to create a PR.\"\nassistant: \"Let me run the security-reviewer agent first to catch any security issues.\"\n<commentary>\nSecurity review is a mandatory step before PR creation per CLAUDE.md.\n</commentary>\n</example>"
-model: sonnet
+model: opus
 color: red
 ---
 

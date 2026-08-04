@@ -7,8 +7,8 @@
         responsive: true,
         pageLength: 15,
         lengthMenu: [
-            [10, 25, 50, 100, -1],
-            [10, 25, 50, 100, 'All']
+            [10, 25, 50, 100],
+            [10, 25, 50, 100]
         ],
         order: [
             [1, 'asc'],

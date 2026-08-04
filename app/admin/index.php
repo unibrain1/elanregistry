@@ -27,6 +27,19 @@ use ElanRegistry\Transfer\CarTransferRepository;
  * @copyright 2025
  */
 
+// Tab routing - determine which tab to show
+$validTabs = [
+    'car-mgmt' => 'Car/Owner Relationships',
+    'manage-cars' => 'Manage Cars',
+    'owner-mgmt' => 'Manage Owners',
+    'account-cleanup' => 'Account Cleanup',
+];
+
+$activeTab = isset($_GET['tab']) && is_string($_GET['tab']) && array_key_exists($_GET['tab'], $validTabs)
+    ? $_GET['tab'] : 'car-mgmt';
+$pageTitle = 'Registry Management - ' . $validTabs[$activeTab];
+$pageDescription = 'Admin tools for managing car and owner relationships in the Lotus Elan Registry.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 
@@ -69,17 +82,6 @@ try {
     Redirect::to($us_url_root . 'users/login.php');
     die();
 }
-
-// Tab routing - determine which tab to show
-$validTabs = [
-    'car-mgmt' => 'Car/Owner Relationships',
-    'manage-cars' => 'Manage Cars',
-    'owner-mgmt' => 'Manage Owners',
-    'account-cleanup' => 'Account Cleanup',
-];
-
-$activeTab = isset($_GET['tab']) && array_key_exists($_GET['tab'], $validTabs) ? $_GET['tab'] : 'car-mgmt';
-$pageTitle = 'Registry Management - ' . $validTabs[$activeTab];
 
 // Generate CSRF token for forms
 $csrfToken = Token::generate();
@@ -358,7 +360,7 @@ if (ElanInput::existsPost()) {
 
 <div class="page-wrapper">
     <!-- Hidden CSRF token for AJAX requests -->
-    <input type="hidden" name="csrf" value="<?= $csrfToken ?>" />
+    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>" />
 
     <div class="container-fluid">
         <div class="page-container">
@@ -473,7 +475,7 @@ if (ElanInput::existsPost()) {
                                 <?php include 'includes/partials/js-data-island.php'; ?>
                                 <?php
                                 // Include the appropriate tab content
-                                $tabFile = 'includes/tab-' . str_replace('-', '_', $activeTab) . '.php';
+                                $tabFile = 'includes/tab-' . str_replace('-', '_', $activeTab) . '.php'; // $activeTab already whitelist-validated above
                                 $tabPath = __DIR__ . '/' . $tabFile;
 
                                 if (file_exists($tabPath)) {
@@ -772,7 +774,7 @@ if (ElanInput::existsPost()) {
                     </div>
 
                     <!-- Hidden fields -->
-                    <input type="hidden" name="csrf" value="<?= Token::generate(); ?>" />
+                    <input type="hidden" name="csrf" value="<?= htmlspecialchars(Token::generate(), ENT_QUOTES, 'UTF-8') ?>" />
                     <input type="hidden" name="action" value="admin_contact_owner" />
                     <input type="hidden" name="car_id" id="contactCarId" value="" />
                     <input type="hidden" name="owner_id" id="contactOwnerId" value="" />

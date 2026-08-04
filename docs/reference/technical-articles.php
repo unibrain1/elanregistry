@@ -10,6 +10,9 @@ declare(strict_types=1);
  * @package ElanRegistry
  */
 
+$pageTitle = 'Lotus Elan Technical Articles — Club Lotus Reference Archive';
+$pageDescription = 'Historical Club Lotus technical articles covering maintenance, engineering, and restoration topics for the Lotus Elan and Elan Plus 2.';
+
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
 
