@@ -713,6 +713,108 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
   });
 });
 
+test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  const BASE = 'https://elanregistry.org';
+
+  const redirects = [
+    {
+      from: '/docs/pdf-viewer.php?subdir=reference/assets&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'pdf-viewer.php legacy subdir=reference/assets → subdir=reference',
+    },
+    {
+      from: `/docs/pdf-viewer.php?subdir=stories/assets&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
+      to: `/docs/pdf-viewer.php?subdir=stories&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
+      label: 'pdf-viewer.php legacy subdir=stories/assets → subdir=stories',
+    },
+  ];
+
+  redirects.forEach(({ from, to, label }) => {
+    test(`301: ${label}`, async ({ request }) => {
+      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      expect(response.status(), `Expected 301 for ${from}`).toBe(301);
+      const location = response.headers()['location'] ?? '';
+      // Normalize absolute Location headers to path + query for comparison
+      const locationPath = location.startsWith('http')
+        ? new URL(location).pathname + new URL(location).search
+        : location;
+      expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
+    });
+  });
+
+  test('200: pdf-viewer.php valid subdir and existing document renders the iframe', async ({ page }) => {
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('iframe')).toHaveAttribute(
+      'src',
+      /elan_s1_s2_coupe_masterpartslist\.pdf$/
+    );
+  });
+
+  test('404: pdf-viewer.php genuinely invalid subdir value', async ({ page }) => {
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir=etc&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+
+  test('404: pdf-viewer.php valid subdir but non-existent document', async ({ page }) => {
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=does-not-exist-12345.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+
+  test('404: pdf-viewer.php omitted subdir with existing document — regression for wrong-directory file_exists() fallback', async ({ page }) => {
+    // Replicates the real malformed-URL shape from the issue's log analysis: an
+    // unescaped &amp; HTML entity produces ?amp&doc=X.pdf, which PHP parses as
+    // $_GET = ['amp' => '', 'doc' => 'X.pdf'] — subdir is never set. Deliberately
+    // NOT ?doc=X.pdf alone: that bare single-param shape is already caught and
+    // 301'd by the existing .htaccess rule (#1369), which would mask this
+    // regression by never reaching PHP with subdir omitted.
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?amp&doc=${encodeURIComponent('Lotus Elan Plus 2 serial numbers.pdf')}`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+
+  test('200: pdf-viewer.php array-valued doc param does not crash (regression for TypeError on strpos())', async ({ page }) => {
+    // Before this fix, ?doc[]=x made $_GET['doc'] an array; strpos() on an array
+    // throws an uncaught TypeError under declare(strict_types=1) — a fatal 500,
+    // not a soft failure. An array-valued doc is now coerced to '' and falls
+    // through to the unchanged "No document specified" branch.
+    const response = await page.goto(`${BASE}/docs/pdf-viewer.php?doc[]=x`, {
+      waitUntil: 'networkidle',
+    });
+    expect(response?.status()).toBe(200);
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).toContain('No document specified.');
+  });
+
+  test('404: pdf-viewer.php array-valued subdir param does not crash, treated as omitted', async ({ page }) => {
+    // Without the is_string() guard, the str_ends_with()/strpos() calls this PR
+    // adds for subdir validation would throw a TypeError on an array value — a
+    // real doc value is required to reach that branch at all.
+    const response = await page.goto(
+      `${BASE}/docs/pdf-viewer.php?subdir[]=x&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      { waitUntil: 'networkidle' }
+    );
+    expect(response?.status()).toBe(404);
+  });
+});
+
 test.describe('Sitemap endpoint (#1373)', () => {
   test.beforeEach(async ({ }, testInfo) => {
     if (testInfo.project.name !== 'not-logged-in') {

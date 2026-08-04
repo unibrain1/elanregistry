@@ -6,7 +6,9 @@ declare(strict_types=1);
  * Document Embed Page
  *
  * Embeds a selected document (PDF) in an iframe for viewing.
- * Requires authentication and uses Bootstrap for layout.
+ * Public page — documents under `docs/<subdir>/assets/` are publicly served;
+ * `securePage()` is called for permission-table registration consistency, not
+ * to require login. Uses Bootstrap for layout.
  */
 require_once '../users/init.php';
 
@@ -27,11 +29,11 @@ if (!securePage($php_self)) {
 $document    = '';
 $path_parts  = [];
 $error_message = '';
-$asset_base  = 'docs/assets/';
+$asset_base  = '';
 
-if (!empty($_GET['doc'])) {
-    $requested_doc = $_GET['doc'];
+$requested_doc = is_string($_GET['doc'] ?? null) ? $_GET['doc'] : '';
 
+if ($requested_doc !== '') {
     // Security: Prevent directory traversal attacks
     if (strpos($requested_doc, '..') !== false ||
         strpos($requested_doc, '/') !== false ||
@@ -53,13 +55,54 @@ if (!empty($_GET['doc'])) {
             $document = '';
         }
 
-        // Validate optional subdir parameter (allowlist only)
+        // Validate subdir parameter (allowlist only). Distinguishes the legacy indexed
+        // alias (normalize via 301 to the equivalent allowlisted subdir), omitted/invalid
+        // (404 — no safe default directory exists since #715 renamed docs/assets/ to
+        // docs/<subdir>/assets/), and valid.
         $allowed_subdirs = ['reference', 'stories'];
         $asset_subdir = '';
-        if (!empty($_GET['subdir'])) {
-            $requested_subdir = $_GET['subdir'];
-            if (!in_array($requested_subdir, $allowed_subdirs, true)) {
-                logger(0, LogCategories::LOG_CATEGORY_SECURITY, 'Invalid subdir attempted: ' . $requested_subdir);
+
+        if (empty($error_message) && !empty($document)) {
+            $requested_subdir = is_string($_GET['subdir'] ?? null) ? $_GET['subdir'] : '';
+
+            // Legacy indexed URL shape (#1473): subdir=<allowlisted>/assets pre-dates
+            // the reference/stories convention (covers reference/assets and
+            // stories/assets alike). Not a security event — just an old crawled URL —
+            // so normalize with a real 301 and do not log.
+            if (str_ends_with($requested_subdir, '/assets')) {
+                $legacy_candidate = substr($requested_subdir, 0, -strlen('/assets'));
+                if (in_array($legacy_candidate, $allowed_subdirs, true)) {
+                    Redirect::sanitized(
+                        $us_url_root . 'docs/pdf-viewer.php',
+                        ['subdir' => $legacy_candidate, 'doc' => $document],
+                        301
+                    );
+                    exit; // Redirect::sanitized() already exits internally; explicit for defense in depth.
+                }
+            }
+
+            if ($requested_subdir === '') {
+                // Omitted (distinct from present-but-invalid). No safe default
+                // directory remains — treat as not-found rather than guessing.
+                logger(0, LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND, 'Missing subdir parameter for document: ' . $document);
+                http_response_code(404);
+                $error_message = 'Invalid document path.';
+                $document = '';
+            } elseif (!in_array($requested_subdir, $allowed_subdirs, true)) {
+                // Traversal/scheme-like values are probing, not legacy-URL noise — keep
+                // them visible in the security log even though the allowlist already
+                // blocks them. subdir has no earlier traversal check (unlike doc above).
+                $suspicious = strpos($requested_subdir, '..') !== false
+                    || strpos($requested_subdir, '/') !== false
+                    || strpos($requested_subdir, '\\') !== false
+                    || strpos($requested_subdir, "\0") !== false
+                    || stripos($requested_subdir, 'http') === 0;
+                logger(
+                    0,
+                    $suspicious ? LogCategories::LOG_CATEGORY_SECURITY : LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND,
+                    'Invalid subdir attempted: ' . $requested_subdir
+                );
+                http_response_code(404);
                 $error_message = 'Invalid document path.';
                 $document = '';
             } else {
@@ -67,12 +110,13 @@ if (!empty($_GET['doc'])) {
             }
         }
 
-        $asset_base = $asset_subdir !== '' ? 'docs/' . $asset_subdir . '/assets/' : 'docs/assets/';
+        $asset_base = $asset_subdir !== '' ? 'docs/' . $asset_subdir . '/assets/' : '';
 
         // Check if file actually exists
         $file_path = $abs_us_root . $us_url_root . $asset_base . $document;
         if (empty($error_message) && !empty($document) && !file_exists($file_path)) {
-            logger(0, LogCategories::LOG_CATEGORY_SECURITY, 'Non-existent document requested: ' . $document);
+            logger(0, LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND, 'Non-existent document requested: ' . $document);
+            http_response_code(404);
             $error_message = 'Document not found.';
             $document = '';
         }
