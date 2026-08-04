@@ -15,3 +15,5 @@
 - /users/ — authentication pages
 - /app/api/ — API endpoints
 - /app/admin/ — admin area
+- /app/owner/cars/edit.php — login-gated car edit form
+- /app/owner/contact/ — login-gated contact/messaging pages
