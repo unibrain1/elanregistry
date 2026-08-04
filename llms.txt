@@ -1,0 +1,17 @@
+# Lotus Elan Registry — llms.txt
+# https://llmstxt.org
+
+> A community registry for Lotus Elan owners: car records, ownership
+> history, and reference documentation.
+
+## Allow
+
+- /app/owner/cars/ — public car listings and detail pages
+- /docs/ — guides and reference documentation
+- /docs/stories/ — car histories
+
+## Disallow
+
+- /users/ — authentication pages
+- /app/api/ — API endpoints
+- /app/admin/ — admin area
