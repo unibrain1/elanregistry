@@ -68,7 +68,7 @@ if (function_exists('logger') && class_exists('LogCategories')) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>404 Page Not Found - Lotus Elan Registry</title>
-    <link href="../users/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= $us_url_root ?? '/' ?>users/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
             --elan-red: #d9230f;
@@ -211,7 +211,7 @@ if (function_exists('logger') && class_exists('LogCategories')) {
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="/">
-                <img src="../usersc/images/logo-72x72.png"
+                <img src="<?= $us_url_root ?? '/' ?>usersc/images/logo-72x72.png"
                      alt="Lotus Elan Registry"
                      onerror="this.parentElement.innerHTML='Lotus Elan Registry'">
             </a>
@@ -265,6 +265,6 @@ if (function_exists('logger') && class_exists('LogCategories')) {
         </div>
     </div>
 
-    <script src="../users/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= $us_url_root ?? '/' ?>users/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

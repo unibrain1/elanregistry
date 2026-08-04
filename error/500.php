@@ -142,7 +142,7 @@ $iconType = $errorInfo['icon_type'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title><?= htmlspecialchars($statusCode . ' ' . $errorTitle, ENT_QUOTES, 'UTF-8') ?> - Lotus Elan Registry</title>
-    <link href="../users/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= $us_url_root ?? '/' ?>users/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
             --elan-red: #d9230f;
@@ -275,7 +275,7 @@ $iconType = $errorInfo['icon_type'];
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="/">
-                <img src="../usersc/images/logo-72x72.png"
+                <img src="<?= $us_url_root ?? '/' ?>usersc/images/logo-72x72.png"
                      alt="Lotus Elan Registry"
                      onerror="this.parentElement.innerHTML='Lotus Elan Registry'">
             </a>
@@ -327,6 +327,6 @@ $iconType = $errorInfo['icon_type'];
         </div>
     </div>
 
-    <script src="../users/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= $us_url_root ?? '/' ?>users/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
