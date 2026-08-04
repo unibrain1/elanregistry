@@ -35,7 +35,11 @@ try {
         }
     }
 } catch (Throwable $e) {
-    // Silently fail - show anonymous version
+    // Show anonymous version — but this failure must not be silent: logger()
+    // is defined inside init.php, so if init.php itself throws, the normal
+    // logger() path below is unreachable and this is the only trace this
+    // failure will ever leave.
+    error_log('404.php: init.php failed to load — ' . get_class($e) . ': ' . $e->getMessage());
     $isLoggedIn = false;
 }
 

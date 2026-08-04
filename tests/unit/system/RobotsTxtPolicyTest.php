@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\SitemapService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +29,9 @@ use PHPUnit\Framework\TestCase;
 class RobotsTxtPolicyTest extends TestCase
 {
     private const ROBOTS_FILE = 'robots.txt';
+    private const ROBOTS_TEST_FILE = 'robots-test.txt';
+    private const LLMS_FILE = 'llms.txt';
+    private const LLMS_TEST_FILE = 'llms-test.txt';
 
     /** A crawler with its own dedicated group in the AI-bot policy — representative of all 17. */
     private const AI_BOT = 'GPTBot';
@@ -101,6 +105,85 @@ class RobotsTxtPolicyTest extends TestCase
         $this->assertFalse($this->isAllowed('SomeSearchEngine', '/app/admin/'));
         $this->assertFalse($this->isAllowed('SomeSearchEngine', '/app/owner/cars/edit.php'));
         $this->assertTrue($this->isAllowed('SomeSearchEngine', '/app/owner/cars/details.php?car_id=1'));
+    }
+
+    /**
+     * Every static page SitemapService (#1373) advertises to crawlers must
+     * actually be reachable per robots.txt's default (search-engine) group —
+     * otherwise Google Search Console reports "Submitted URL blocked by
+     * robots.txt", the exact class of noise this milestone (#1373 + #1413)
+     * set out to eliminate. Reads SitemapService::STATIC_PAGES via
+     * reflection (rather than duplicating the path list here) so this test
+     * can't silently drift from the actual sitemap content.
+     */
+    public function testSitemapStaticPagesAreCrawlable(): void
+    {
+        $reflection = new \ReflectionClass(SitemapService::class);
+        /** @var list<array{path: string, changefreq: string, priority: string}> $staticPages */
+        $staticPages = $reflection->getConstant('STATIC_PAGES');
+        $this->assertNotEmpty($staticPages, 'SitemapService::STATIC_PAGES must be non-empty for this test to be meaningful');
+
+        foreach ($staticPages as $page) {
+            $this->assertTrue(
+                $this->isAllowed('Googlebot', $page['path']),
+                "{$page['path']} is listed in SitemapService::STATIC_PAGES but blocked by robots.txt's " .
+                    "default group — Google would report \"Submitted URL blocked by robots.txt\" for this sitemap entry"
+            );
+        }
+    }
+
+    /**
+     * llms.txt (#1413) is designed to be a self-contained summary an LLM
+     * doesn't need to cross-reference against robots.txt — so its Allow/
+     * Disallow claims must actually be true of the AI-bot group's enforced
+     * policy, not just happen to look similar today. This is a semantic
+     * consistency check, not exact-set equality: llms.txt may legitimately
+     * list a path (e.g. `/docs/stories/`) that robots.txt covers only via a
+     * broader Allow rule (`/docs/`) — what matters is that every path
+     * llms.txt claims is open really is allowed, and every path it claims
+     * is closed really is blocked, per the actual enforced robots.txt policy.
+     */
+    public function testLlmsTxtAgreesWithRobotsTxtAiBotPolicy(): void
+    {
+        $llmsPath = $this->rootDir . '/' . self::LLMS_FILE;
+        $this->assertFileExists($llmsPath, self::LLMS_FILE . ' must exist (Issue #1413)');
+
+        $llms = $this->parseLlmsTxt((string)file_get_contents($llmsPath));
+        $this->assertNotEmpty($llms['allow'], 'llms.txt ## Allow section must list at least one path');
+        $this->assertNotEmpty($llms['disallow'], 'llms.txt ## Disallow section must list at least one path');
+
+        foreach ($llms['allow'] as $path) {
+            $this->assertTrue(
+                $this->isAllowed(self::AI_BOT, $path),
+                "llms.txt claims $path is allowed, but robots.txt's AI-bot group blocks it (Issue #1413)"
+            );
+        }
+        foreach ($llms['disallow'] as $path) {
+            $this->assertFalse(
+                $this->isAllowed(self::AI_BOT, $path),
+                "llms.txt claims $path is disallowed, but robots.txt's AI-bot group allows it (Issue #1413)"
+            );
+        }
+    }
+
+    /**
+     * scripts/server-hooks/post-receive swaps these files over the
+     * production robots.txt/llms.txt on every Test-environment deploy —
+     * test.elanregistry.org has no basic auth and relies entirely on this
+     * swap to stay unindexed. If either tracked source file is ever
+     * deleted or renamed, that swap silently fails (robots.txt) or halts
+     * the deploy (llms.txt) with no CI signal today.
+     */
+    public function testTestEnvironmentLockdownFilesExist(): void
+    {
+        $this->assertFileExists(
+            $this->rootDir . '/' . self::ROBOTS_TEST_FILE,
+            self::ROBOTS_TEST_FILE . ' must exist — post-receive swaps it over robots.txt on Test deploys'
+        );
+        $this->assertFileExists(
+            $this->rootDir . '/' . self::LLMS_TEST_FILE,
+            self::LLMS_TEST_FILE . ' must exist — post-receive swaps it over llms.txt on Test deploys (Issue #1413)'
+        );
     }
 
     /**
@@ -191,5 +274,47 @@ class RobotsTxtPolicyTest extends TestCase
         }
 
         return $groups;
+    }
+
+    /**
+     * Parses llms.txt's `## Allow` / `## Disallow` markdown sections into
+     * flat path lists. Each entry is a `- /path/ — description` bullet;
+     * only the path (up to the first whitespace or em-dash) is extracted.
+     *
+     * @return array{allow: list<string>, disallow: list<string>}
+     */
+    private function parseLlmsTxt(string $content): array
+    {
+        $allow = [];
+        $disallow = [];
+        $currentSection = null;
+
+        foreach (preg_split('/\r\n|\r|\n/', $content) as $line) {
+            $line = trim((string)$line);
+
+            if (preg_match('/^##\s*(Allow|Disallow)\s*$/i', $line, $matches) === 1) {
+                $currentSection = strtolower($matches[1]);
+                continue;
+            }
+            if ($line !== '' && str_starts_with($line, '#')) {
+                // A different heading (e.g. a new ## section, or the H1 title) ends
+                // the current Allow/Disallow list.
+                $currentSection = null;
+                continue;
+            }
+            if ($currentSection === null || !str_starts_with($line, '-')) {
+                continue;
+            }
+
+            if (preg_match('/^-\s*(\S+)/', $line, $matches) === 1) {
+                if ($currentSection === 'allow') {
+                    $allow[] = $matches[1];
+                } else {
+                    $disallow[] = $matches[1];
+                }
+            }
+        }
+
+        return ['allow' => $allow, 'disallow' => $disallow];
     }
 }
