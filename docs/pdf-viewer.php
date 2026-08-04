@@ -77,6 +77,7 @@ if ($requested_doc !== '') {
                         ['subdir' => $legacy_candidate, 'doc' => $document],
                         301
                     );
+                    exit; // Redirect::sanitized() already exits internally; explicit for defense in depth.
                 }
             }
 
