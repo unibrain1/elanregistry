@@ -313,6 +313,31 @@ Test and production servers have a single shared post-receive hook
 on every subsequent push. See #1479, where this happened to the server's
 backup directory.
 
+**Important — deploying a change to `post-receive` itself takes two pushes,
+not one:** Step 5's self-update copies the new hook file to disk *during* the
+currently-running invocation, but that invocation is already executing the
+*old* code — it can't reload itself mid-run. So the first push after any
+change to `scripts/server-hooks/post-receive` still executes the **old**
+hook logic end-to-end (any new steps added in that change do not run yet);
+it only installs the new file for the *next* invocation.
+
+A second push is required to actually exercise the new logic — and it must
+be a **genuine** push. `git push` short-circuits client-side when the remote
+already has the commit ("Everything up-to-date") and never contacts the
+server's hook at all, so simply repeating the same push does nothing. Force
+an empty commit instead:
+
+```bash
+git push test main                                    # 1st push: old hook runs, self-updates the file
+git commit --allow-empty -m "chore: trigger post-receive hook rerun"
+git push origin main                                  # keep origin in sync
+git push test main                                     # 2nd push: new hook logic runs for the first time
+```
+
+Repeat independently for `prod` when you deploy there — each environment's
+installed hook is updated (and needs re-triggering) on its own schedule,
+based only on when that specific remote last received a push.
+
 **Development:**
 
 Run `./scripts/update-version.sh` to generate VERSION file locally after creating tags.
