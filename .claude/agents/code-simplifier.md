@@ -2,7 +2,7 @@
 name: code-simplifier
 description: "Use this agent to simplify and refine recently modified code for clarity, consistency, and maintainability while preserving all functionality. Trigger after completing a coding task or finishing a logical chunk of work. The agent focuses on recently modified code unless instructed otherwise.\n\n<example>\nContext: The assistant just implemented a new action endpoint.\nuser: \"Add the new transfer approval endpoint.\"\nassistant: \"Endpoint implemented. Now let me run the code-simplifier agent to tighten it up.\"\n<commentary>\nAfter a logical chunk of code, simplify it while behaviour is fresh.\n</commentary>\n</example>\n\n<example>\nContext: Bug fix introduced several null checks.\nuser: \"Fix the null handling in the data processor.\"\nassistant: \"Fix applied. Let me use the code-simplifier agent to make sure the null checks are the simplest form.\"\n<commentary>\nBug fixes often leave extra complexity — simplify afterward.\n</commentary>\n</example>"
 model: sonnet
-color: blue
+color: purple
 ---
 
 You are an expert code simplification specialist for the Elan Registry
