@@ -780,22 +780,23 @@ class CodingStandardsChecker
             }
         }
 
-        // Final status
-        if ($this->filesChecked === 0) {
-            // Handled by run()'s zero-files guard, which fails the run — don't
-            // print a misleadingly reassuring "passed" message here too.
-        } elseif (count($this->errors) === 0 && count($this->warnings) === 0) {
-            echo "✅ All coding standards checks passed!\n";
-            echo "🚀 Ready for PR creation!\n\n";
-        } elseif (count($this->errors) === 0) {
-            echo "✅ No blocking issues found.\n";
-            if ($this->strictMode) {
-                echo "⚠️  Warnings are blocking in strict mode.\n";
+        // Final status. filesChecked === 0 is handled by run()'s zero-files
+        // guard, which fails the run — don't print a misleadingly
+        // reassuring "passed" message here too.
+        if ($this->filesChecked > 0) {
+            if (count($this->errors) === 0 && count($this->warnings) === 0) {
+                echo "✅ All coding standards checks passed!\n";
+                echo "🚀 Ready for PR creation!\n\n";
+            } elseif (count($this->errors) === 0) {
+                echo "✅ No blocking issues found.\n";
+                if ($this->strictMode) {
+                    echo "⚠️  Warnings are blocking in strict mode.\n";
+                }
+                echo "\n";
+            } else {
+                echo "💡 Fix the blocking issues above before committing.\n";
+                echo "📖 See docs/development/CODING_STANDARDS.md for details.\n\n";
             }
-            echo "\n";
-        } else {
-            echo "💡 Fix the blocking issues above before committing.\n";
-            echo "📖 See docs/development/CODING_STANDARDS.md for details.\n\n";
         }
 
         // Only show quick fixes if there are errors
