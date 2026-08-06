@@ -125,9 +125,10 @@ keep waiting.
 
 ### Step 4: Handle check results
 
-**If all checks pass** → report results to the user and **ask for explicit
-confirmation before merging**: "All CI checks passed. Ready to squash-merge
-PR #NNN into `MILESTONE_BRANCH` and close issue #NNN. Shall I proceed?"
+**If all checks pass** → run the PHPStan baseline hygiene check (Step 4.5)
+first, then report results to the user and **ask for explicit confirmation
+before merging**: "All CI checks passed. Ready to squash-merge PR #NNN into
+`MILESTONE_BRANCH` and close issue #NNN. Shall I proceed?"
 Do NOT merge until the user confirms.
 
 **If any check fails:**
@@ -145,6 +146,44 @@ Do NOT merge until the user confirms.
   - A suggested fix or next step
 - **Stop here.** Do not merge. Tell the user to fix the issue, push the fix,
   and re-run `/finish-issue` when ready.
+
+### Step 4.5: Verify PHPStan baseline hygiene
+
+Per CLAUDE.md's fix-when-you-touch-it policy (see CODING_STANDARDS.md —
+PHPStan Baseline Hygiene), any project-owned PHP file this PR modified must
+not carry `phpstan-baseline.neon` entries — reported errors on touched files
+must be fixed, not grandfathered into the baseline. Check the PR's changed
+files against the baseline:
+
+```bash
+CHANGED_FILES=$(gh pr view <pr-number> --repo elan-registry/registry \
+  --json files --jq '.files[].path')
+
+for f in $CHANGED_FILES; do
+  case "$f" in
+    *.php)
+      if grep -qF "path: $f" phpstan-baseline.neon 2>/dev/null; then
+        echo "BASELINE OVERRIDE: $f"
+      fi
+      ;;
+  esac
+done
+```
+
+**If any modified PHP file appears in `phpstan-baseline.neon`:** stop before
+merging. Report the affected file(s) to the user and explain that either:
+
+- the underlying PHPStan errors need to be fixed and
+  `composer phpstan:baseline` re-run to drop the now-resolved entries, or
+- the user explicitly confirms the pre-existing entry is still valid to carry
+  over untouched (e.g. the error is in code outside the lines this PR
+  changed).
+
+Do not merge until this is resolved or the user explicitly confirms it's
+acceptable to proceed.
+
+**If no modified file appears in the baseline:** proceed to the merge
+confirmation.
 
 ### Step 5: Squash-merge the PR
 
@@ -228,6 +267,10 @@ Suggest next steps:
 
 - **Never force-merge if checks are failing.** Always investigate and report
   first.
+- **Never merge with new PHPStan baseline entries on touched files.** CI's
+  `reportUnmatchedIgnoredErrors` only catches baseline entries for errors that
+  were already fixed — it doesn't catch a modified file that still has
+  baseline suppressions. Step 4.5 checks for this explicitly.
 - The squash merge keeps the milestone branch history clean — one commit per
   issue.
 - If the PR targets `main` instead of a milestone branch, warn the user.

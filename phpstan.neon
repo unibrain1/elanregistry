@@ -19,6 +19,7 @@ parameters:
     paths:
         # Application
         - app
+        - database/migrations
         - docs
         - error
         - index.php
@@ -81,22 +82,9 @@ parameters:
             message: '#Function (securePage|hasPerm|logger|currentUserId|checkMenu|lang|redirect|passwordStrength|isAdmin|email|usError|usSuccess|deleteUsers|logError|getSettings|checkRateLimit|recordRateLimit|fetchAllUsers|fetchUserDetails|checkPermission|sessionValMessages|currentPage|email_body|getMyHooks|getRateLimitErrorMessage|handleAuthFailure|handleAuthSuccess|hashVericode|includeHook|pluginActive|userSpicePasswordStrength|passwordsAllowed|safeJsonEncodeForJs|safeReturn|tokenHere|fetchUserPermissions|echousername|err|endCloak|isCloaked|passwordResetKillSessions) not found#'
             reportUnmatched: false
 
-        # UserSpice framework uses mixed types extensively
-        -
-            message: '#Function \w+\(\) has no return type specified#'
-            reportUnmatched: false
-        -
-            message: '#Method \w+::\w+\(\) has parameter \$\w+ with no type specified#'
-            reportUnmatched: false
-
         # UserSpice legacy code patterns
         -
             message: '#Unsafe usage of new static\(\)#'
-            reportUnmatched: false
-
-        # Database query results return mixed object types
-        -
-            message: '#Cannot access property .+ on array\|object#'
             reportUnmatched: false
 
         # Framework globals set by z_us_root.php, users/init.php, server_globals.php.
