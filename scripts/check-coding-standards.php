@@ -19,11 +19,123 @@ declare(strict_types=1);
 
 class CodingStandardsChecker
 {
+    /**
+     * Path to the phpstan.neon config this checker sources its project-owned
+     * paths list from. Always the repo's own copy — resolved relative to this
+     * script's fixed location, not the directory being scanned, so it's found
+     * correctly even when scanning a subdirectory or the pre-commit hook's
+     * temp copy of staged files.
+     */
+    private const PHPSTAN_CONFIG = __DIR__ . '/../phpstan.neon';
+
+    /**
+     * Project-owned paths, relative to the repository root. Loaded from
+     * phpstan.neon's `parameters.paths` list (see loadProjectPaths()) so this
+     * checker and PHPStan share one source of truth for which paths count as
+     * project code. Note: only `paths` is read, not `excludePaths` — the two
+     * tools' exclusions (see checkDirectory()'s early-skip list) are
+     * maintained separately and can still drift.
+     *
+     * @var array<int, string>
+     */
+    private array $projectPaths;
+
     private array $errors = [];
     private array $warnings = [];
     private int $filesChecked = 0;
+
+    /**
+     * Count of PHP files that passed the early vendor/node_modules/tests/etc.
+     * skip and were evaluated against isProjectOwnedPath() — as opposed to
+     * files excluded outright before ever reaching that check. Used by
+     * run()'s zero-files guard to tell "nothing to check" (e.g. a PR that
+     * only touches tests/, which the early skip filters out entirely — a
+     * normal pass) apart from "path resolution silently dropped files that
+     * should have matched" (files did reach the ownership check and all were
+     * rejected — the actual bug that guard exists to catch).
+     */
+    private int $filesConsideredForOwnership = 0;
+
+    /**
+     * Whether the scanned directory resolved to an ancestor's composer.json
+     * rather than its own — i.e. it's nested inside a real checkout. See
+     * checkDirectory()'s assignment for the full rationale.
+     */
+    private bool $scanDirNestedInRepo = false;
+
     private bool $strictMode = false;
     private bool $verboseMode = false;
+
+    public function __construct()
+    {
+        $this->projectPaths = $this->loadProjectPaths(self::PHPSTAN_CONFIG);
+    }
+
+    /**
+     * Parse the `parameters.paths` list out of phpstan.neon.
+     *
+     * This is a minimal line-based reader, not a general NEON parser — it
+     * relies on phpstan.neon's `paths:` block being a plain list of `- entry`
+     * lines at a fixed indentation (as it is today). That's a deliberate
+     * trade-off to avoid pulling in a NEON/YAML dependency for one config
+     * file; if phpstan.neon's paths block formatting changes, update this
+     * alongside it.
+     *
+     * @param string $configPath Path to phpstan.neon
+     * @return array<int, string>
+     */
+    private function loadProjectPaths(string $configPath): array
+    {
+        if (!is_file($configPath)) {
+            throw new RuntimeException(
+                "Cannot find phpstan.neon at $configPath — this checker reads its " .
+                "project-owned paths list from it and cannot run without it."
+            );
+        }
+
+        $lines = file($configPath, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            throw new RuntimeException("Failed to read $configPath");
+        }
+
+        $paths = [];
+        $inPathsBlock = false;
+
+        foreach ($lines as $line) {
+            if (preg_match('/^\s{4}paths:\s*$/', $line)) {
+                $inPathsBlock = true;
+                continue;
+            }
+
+            if (!$inPathsBlock) {
+                continue;
+            }
+
+            // A new top-level parameter at the same indentation as `paths:`
+            // (e.g. `excludePaths:`) ends the block. Matched narrowly (an
+            // identifier followed by `:`) rather than "any non-blank char at
+            // this indent", so this stays correct even if a comment is ever
+            // added at 4-space indent inside the paths block — today's
+            // comments (e.g. `# Application`) sit at 8-space/list-item
+            // indent and wouldn't trip the looser match either.
+            if (preg_match('/^\s{4}[\w-]+:/', $line)) {
+                break;
+            }
+
+            if (preg_match('/^\s{8}-\s*(\S+)/', $line, $matches)) {
+                $paths[] = $matches[1];
+            }
+        }
+
+        if ($paths === []) {
+            throw new RuntimeException(
+                "Parsed zero paths from $configPath's paths: block — the file's " .
+                "format may have changed. See loadProjectPaths()'s docblock."
+            );
+        }
+
+        return $paths;
+    }
 
     /**
      * Main execution method
@@ -54,6 +166,35 @@ class CodingStandardsChecker
 
         $this->printResults($isStaged);
 
+        // A CI gate (.github/workflows/static-analysis.yml) and the pre-commit
+        // hook both scan a directory that may legitimately contain zero
+        // project-owned PHP — e.g. a PR that only touches tests/ (filtered by
+        // the early skip before ever reaching isProjectOwnedPath()) or only
+        // touches a real but non-project-owned file like phpstan-bootstrap.php
+        // or users/init.php (filtered by isProjectOwnedPath() itself). Both
+        // must stay a pass. Only fail loudly (with this specific message)
+        // when the scan directory is actually nested inside a real checkout
+        // (see checkDirectory()'s $scanDirNestedInRepo assignment) — that's
+        // the one condition that's never true for a legitimate CI/pre-commit
+        // temp dir, so it's what actually separates "nothing relevant here"
+        // from "path resolution is pointed at the wrong place" — AND files
+        // did reach the ownership check with none producing any outcome (no
+        // successful check, no error). If there's already at least one error
+        // (e.g. an unreadable-file error from checkFile()), that's not a
+        // silent drop: it has its own accurate message above, and the run
+        // already fails via the errors-count check below without a second,
+        // more generic message on top.
+        if ($this->scanDirNestedInRepo &&
+            $this->filesConsideredForOwnership > 0 &&
+            $this->filesChecked === 0 &&
+            count($this->errors) === 0) {
+            echo "\n❌ $this->filesConsideredForOwnership PHP file(s) were found in $directory but none ";
+            echo "matched a project-owned path.\n";
+            echo "   Path resolution likely failed (scan directory is nested inside a real checkout). ";
+            echo "Not treating this as a pass.\n";
+            return 1;
+        }
+
         // In strict mode, warnings also cause failure
         if ($this->strictMode) {
             return (count($this->errors) > 0 || count($this->warnings) > 0) ? 1 : 0;
@@ -70,26 +211,133 @@ class CodingStandardsChecker
      */
     private function checkDirectory(string $directory): void
     {
+        $root = $this->resolveProjectRoot($directory);
+
+        // True only when resolveProjectRoot() actually walked up to find a
+        // composer.json in an ancestor — i.e. $directory sits inside a real
+        // checkout somewhere other than its root. False for both a scan of
+        // the repo root itself AND the fallback case (no composer.json found
+        // upward at all — e.g. a mktemp temp dir, which is what CI and the
+        // pre-commit hook both use). Used by run()'s zero-files guard: a
+        // temp dir containing only files that legitimately aren't
+        // project-owned (e.g. phpstan-bootstrap.php, users/init.php) must
+        // stay a pass, and that case is indistinguishable from a genuine
+        // path-resolution failure by file counts alone — but it's never
+        // "nested," so this flag is what actually separates them.
+        $scanStart = realpath($directory) ?: rtrim($directory, '/');
+        $this->scanDirNestedInRepo = $root !== $scanStart;
+
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($directory)
         );
 
         foreach ($iterator as $file) {
             if ($file->isFile() && $file->getExtension() === 'php') {
-                // Skip vendor, third-party, and test code
+                // Fast early-skip for vendor, third-party, and test code
                 $path = $file->getPathname();
                 if (strpos($path, '/vendor/') !== false ||
                     strpos($path, '/node_modules/') !== false ||
-                    strpos($path, '/usersc/plugins/') !== false ||
                     strpos($path, '/scripts/fix/_ARCHIVE/') !== false ||
                     strpos($path, '/tests/') !== false ||
                     strpos($path, '/.git/') !== false) {
                     continue;
                 }
 
+                // Only scan project-owned paths (see loadProjectPaths())
+                $this->filesConsideredForOwnership++;
+                if (!$this->isProjectOwnedPath($path, $root)) {
+                    continue;
+                }
+
                 $this->checkFile($path);
             }
         }
+    }
+
+    /**
+     * Resolve the repo root $this->projectPaths entries are relative to.
+     *
+     * Walks upward from $directory looking for composer.json so that scanning
+     * a subdirectory (e.g. `usersc/classes`) still resolves paths against the
+     * real repo root instead of the subdirectory itself. Falls back to
+     * $directory when no composer.json is found upward — this is what makes
+     * the pre-commit hook's `--staged` mode work, since its temp directory
+     * mirrors the repo's relative structure starting at its own root and has
+     * no composer.json of its own.
+     *
+     * @param string $directory Directory the scan was started from
+     * @return string Resolved root directory
+     */
+    private function resolveProjectRoot(string $directory): string
+    {
+        $start = realpath($directory) ?: rtrim($directory, '/');
+        $probe = is_dir($start) ? $start : dirname($start);
+
+        while ($probe !== '' && $probe !== DIRECTORY_SEPARATOR) {
+            if (is_file($probe . '/composer.json')) {
+                return $probe;
+            }
+
+            $parent = dirname($probe);
+            if ($parent === $probe) {
+                break;
+            }
+
+            $probe = $parent;
+        }
+
+        return $start;
+    }
+
+    /**
+     * Determine whether a file lives under a project-owned path
+     *
+     * @param string $filePath Path to the file being considered
+     * @param string $root Already-resolved root directory (see resolveProjectRoot())
+     * @return bool True if the file is project-owned and should be checked
+     */
+    private function isProjectOwnedPath(string $filePath, string $root): bool
+    {
+        $absolute = realpath($filePath) ?: $filePath;
+
+        $prefix = rtrim($root, '/') . '/';
+        if (strpos($absolute, $prefix) !== 0) {
+            return false;
+        }
+
+        $relative = substr($absolute, strlen($prefix));
+
+        foreach ($this->projectPaths as $allowed) {
+            if ($relative === $allowed || strpos($relative, $allowed . '/') === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Truncate $content at the real __halt_compiler() statement, if any.
+     *
+     * Uses the tokenizer rather than a substring/regex search so a comment or
+     * string literal that merely mentions the token text doesn't trigger a
+     * truncation — only an actual T_HALT_COMPILER token does.
+     *
+     * @param string $content File content
+     * @return string Content up to (excluding) the halt statement, or the
+     *                 original content unchanged if there isn't one
+     */
+    private function truncateAtHaltCompiler(string $content): string
+    {
+        $offset = 0;
+        foreach (token_get_all($content) as $token) {
+            if (is_array($token) && $token[0] === T_HALT_COMPILER) {
+                return substr($content, 0, $offset);
+            }
+            $offset += strlen(is_array($token) ? $token[1] : $token);
+        }
+
+        return $content;
     }
 
     /**
@@ -100,8 +348,28 @@ class CodingStandardsChecker
      */
     private function checkFile(string $filePath): void
     {
-        $this->filesChecked++;
         $content = file_get_contents($filePath);
+
+        if ($content === false) {
+            // A blocking error, not a warning: we could not run any check on
+            // this file at all (permissions, race with the directory scan,
+            // broken symlink), so "no findings" here would be a false
+            // pass, not a clean result. Also intentionally not counted in
+            // $filesChecked — it wasn't actually checked.
+            $this->errors[] = "$filePath: unreadable, could not be checked";
+            return;
+        }
+
+        $this->filesChecked++;
+
+        // Everything after __halt_compiler() is inert data (e.g. the raw
+        // markdown in usersc/plugins/ai_prompts/custom_prompts/*.md.php),
+        // not live PHP — do not scan it. Locate the real token rather than a
+        // substring match, so a comment or string merely mentioning
+        // "__halt_compiler()" (like this one) can't truncate the file's own
+        // scan.
+        $content = $this->truncateAtHaltCompiler($content);
+
         $lines = explode("\n", $content);
 
         // =================================================================
@@ -284,6 +552,12 @@ class CodingStandardsChecker
      */
     private function checkCSRFProtection(string $filePath, string $content): void
     {
+        // Pure accessor/utility classes are not form-processing endpoints; CSRF
+        // validation is the caller's responsibility. Confirmed false positive — #1489.
+        if (str_ends_with($filePath, 'usersc/classes/Input.php')) {
+            return;
+        }
+
         // Check if file contains form processing but no CSRF validation
         if (preg_match('/\$_POST\[/', $content) &&
             !preg_match('/Token::check\(/', $content) &&
@@ -303,12 +577,31 @@ class CodingStandardsChecker
     {
         // Check for potential SQL injection patterns - variable concatenation inside query string
         // This detects variables embedded directly in query strings (unsafe)
-        // versus using prepared statements with placeholders (safe)
+        // versus using prepared statements with placeholders (safe).
+        //
+        // Deliberately scoped to literal $db->query(...) rather than any
+        // ->query(...) call: broadening this to match $this->db->query(...)
+        // was tried and reverted — it produced blocking false positives on
+        // usersc/classes/admin/BackupManager.php (table name interpolated
+        // from a regex-validated allowlist, not user input — can't be
+        // parameterized via ? placeholders at all) and
+        // usersc/classes/Car/CarRepository.php's distinctCarModelValues()
+        // (private, literal-only call sites). Neither is a real
+        // vulnerability. This narrower detector only under-catches a
+        // theoretical case (unsafe $this->db->query() concatenation in a
+        // file that also has an unrelated properly-parameterized ->query()
+        // call elsewhere) that doesn't currently exist in this codebase —
+        // see #1489.
         if (preg_match('/\$db\s*->\s*query\s*\(\s*["\'][^"\']*\$[^"\']*["\']/', $content)) {
             $this->errors[] = "$filePath: Potential SQL injection - variable concatenation in query";
         }
 
-        if (preg_match('/SELECT.*\$\w+/', $content) && !preg_match('/\$db\s*->\s*query\s*\([^,]+,\s*\[/', $content)) {
+        // The negation recognises any ->query() call (e.g. $db->query,
+        // $this->db->query) whose second argument is an inline array
+        // (short [] or legacy array(...) syntax) or a pre-built params
+        // variable — all are prepared-statement usage.
+        if (preg_match('/SELECT.*\$\w+/', $content) &&
+            !preg_match('/->\s*query\s*\([^,]+,\s*(\[|array\s*\(|\$\w+)/', $content)) {
             $this->warnings[] = "$filePath: SQL query may not be using prepared statements";
         }
     }
@@ -548,19 +841,37 @@ class CodingStandardsChecker
             }
         }
 
-        // Final status
-        if (count($this->errors) === 0 && count($this->warnings) === 0) {
-            echo "✅ All coding standards checks passed!\n";
-            echo "🚀 Ready for PR creation!\n\n";
-        } elseif (count($this->errors) === 0) {
-            echo "✅ No blocking issues found.\n";
-            if ($this->strictMode) {
-                echo "⚠️  Warnings are blocking in strict mode.\n";
+        // Final status. The "scan directory is nested inside a real
+        // checkout, files reached the ownership check, none matched, and
+        // there's no error explaining why" case is handled by run()'s
+        // zero-files guard, which fails the run — don't print a misleadingly
+        // reassuring "passed" message here too. (Mirrors that guard's
+        // condition exactly — see its comment for the full rationale.) A
+        // legitimate zero (tests/-only PR, or a temp dir containing only
+        // non-project-owned files like phpstan-bootstrap.php) still gets its
+        // own closing message below, and a zero explained by a real error
+        // (e.g. an unreadable file) falls through to the normal error-branch
+        // message instead of being suppressed.
+        $suspiciousZero = $this->scanDirNestedInRepo &&
+            $this->filesConsideredForOwnership > 0 &&
+            $this->filesChecked === 0 &&
+            count($this->errors) === 0;
+        if (!$suspiciousZero) {
+            if ($this->filesChecked === 0 && count($this->errors) === 0) {
+                echo "✅ No project-owned PHP files to check.\n\n";
+            } elseif (count($this->errors) === 0 && count($this->warnings) === 0) {
+                echo "✅ All coding standards checks passed!\n";
+                echo "🚀 Ready for PR creation!\n\n";
+            } elseif (count($this->errors) === 0) {
+                echo "✅ No blocking issues found.\n";
+                if ($this->strictMode) {
+                    echo "⚠️  Warnings are blocking in strict mode.\n";
+                }
+                echo "\n";
+            } else {
+                echo "💡 Fix the blocking issues above before committing.\n";
+                echo "📖 See docs/development/CODING_STANDARDS.md for details.\n\n";
             }
-            echo "\n";
-        } else {
-            echo "💡 Fix the blocking issues above before committing.\n";
-            echo "📖 See docs/development/CODING_STANDARDS.md for details.\n\n";
         }
 
         // Only show quick fixes if there are errors
@@ -578,5 +889,10 @@ class CodingStandardsChecker
 }
 
 // Run the checker
-$checker = new CodingStandardsChecker();
-exit($checker->run($argv));
+try {
+    $checker = new CodingStandardsChecker();
+    exit($checker->run($argv));
+} catch (RuntimeException $e) {
+    fwrite(STDERR, "❌ " . $e->getMessage() . "\n");
+    exit(2);
+}

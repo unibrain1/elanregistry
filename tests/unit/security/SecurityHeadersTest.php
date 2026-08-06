@@ -296,7 +296,12 @@ class SecurityHeadersTest extends TestCase
      * script blocks on disk. If a UserSpice update changes one of these files, this
      * test fails and identifies which file needs a new hash in security_headers.php.
      *
-     * Hash = base64(sha256(exact bytes between opening > and closing </script>)).
+     * Hash = base64(sha256(bytes between opening > and closing </script>, with CR/CRLF
+     * normalized to LF). The normalization is not cosmetic: browsers hash the script
+     * element's DOM text, and the HTML parser converts CR and CRLF to LF while
+     * preprocessing the input stream, before tokenizing. A file shipped with CRLF
+     * endings (autoassignun's hook is one) therefore needs its LF-normalized hash in
+     * the CSP allowlist — see commit b85453c5 and #1486.
      *
      * Extraction notes:
      *  - header.php and customize.php select2 block: opening tag contains a PHP nonce
@@ -319,9 +324,10 @@ class SecurityHeadersTest extends TestCase
      *
      * Known limitation: the skip below only fires when NONE of the 3 files are found —
      * a partial local install (or an extraction pattern that fails to match within a
-     * present file) still runs and passes with fewer than 5 assertions, silently
-     * under-verifying. See #1486, a live instance of this (one block is never extracted
-     * due to a line-ending mismatch), for the case this doesn't catch.
+     * present file) still runs and would previously have passed with fewer than 5
+     * assertions, silently under-verifying. The assertCount(5, ...) check below now
+     * catches that case loudly instead (see #1486, where exactly this silent drop
+     * happened because one extraction block was not tolerant of CRLF line endings).
      */
     #[Group('requires-upstream-install')]
     public function testUpstreamScriptHashesMatchActualFiles(): void
@@ -344,8 +350,22 @@ class SecurityHeadersTest extends TestCase
             );
         }
 
+        $this->assertCount(
+            5,
+            $bodies,
+            'Expected all 5 documented upstream script blocks to be extracted. If you have a ' .
+            'full local UserSpice install (all 3 files present) and still see fewer, an ' .
+            'extraction pattern silently failed to match (e.g. a line-ending or markup change ' .
+            'in one of the files). If your install is partial (only some of the 3 files ' .
+            'present), that\'s expected — do not "fix" this by loosening the assertion; instead ' .
+            'install the missing file(s) or accept the skip by removing all 3.'
+        );
+
         foreach ($bodies as $label => $body) {
-            $hash = base64_encode(hash('sha256', $body, true));
+            // Match the browser: the HTML parser normalizes CR/CRLF to LF before the
+            // script text ever reaches the DOM, so the CSP hash is over LF-normalized
+            // bytes, not the raw on-disk bytes.
+            $hash = base64_encode(hash('sha256', str_replace(["\r\n", "\r"], "\n", $body), true));
             $this->assertStringContainsString(
                 "'sha256-{$hash}'",
                 $this->fileContent,
@@ -357,7 +377,8 @@ class SecurityHeadersTest extends TestCase
     }
 
     /**
-     * @return array<string, string>  label => raw script body (exact bytes to hash)
+     * @return array<string, string>  label => raw script body, exactly as it sits on disk
+     *                                (line endings are normalized by the caller before hashing)
      */
     private function extractUpstreamScriptBodies(string $root, string $phpClose): array
     {
@@ -423,15 +444,18 @@ class SecurityHeadersTest extends TestCase
         // 5. autoassignun username_field_removal.php — entire file is one <script> block
         $auFile = $root . '/usersc/plugins/autoassignun/hooks/username_field_removal.php';
         if (is_file($auFile)) {
-            $src   = (string) file_get_contents($auFile);
-            $tag   = "<script>\n";
-            $pos5  = strpos($src, $tag);
-            if ($pos5 !== false) {
-                $start = $pos5 + strlen($tag);
-                $end   = strpos($src, "\n</script>", $start);
-                if ($end !== false) {
+            $src = (string) file_get_contents($auFile);
+
+            // Tolerant of both LF and CRLF line endings — this upstream file uses CRLF
+            // while header.php/customize.php use LF. See #1486.
+            if (preg_match('/<script>(\r\n|\n)/', $src, $open, PREG_OFFSET_CAPTURE)) {
+                $eolOpen = $open[1][0];
+                $start   = $open[0][1] + strlen($open[0][0]);
+                if (preg_match('/(\r\n|\n)<\/script>/', $src, $close, PREG_OFFSET_CAPTURE, $start)) {
+                    $eolClose = $close[1][0];
+                    $end      = $close[0][1];
                     $bodies['autoassignun/hooks/username_field_removal.php: username field hide'] =
-                        "\n" . substr($src, $start, $end - $start) . "\n";
+                        $eolOpen . substr($src, $start, $end - $start) . $eolClose;
                 }
             }
         }
