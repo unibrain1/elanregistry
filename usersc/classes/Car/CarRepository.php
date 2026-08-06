@@ -273,7 +273,7 @@ class CarRepository
             'SELECT id, car_id, ctime, mtime, timestamp, operation,
                     model, series, variant, year, type, chassis, chassis_override, color, engine,
                     purchasedate, solddate, comments, image,
-                    user_id, fname, join_date, city, state, country, lat, lon, website
+                    fname, join_date, city, state, country, website
              FROM cars_hist WHERE car_id = ? ORDER BY timestamp DESC',
             [$carId]
         )->results();
