@@ -111,6 +111,7 @@ class BackupManager {
      * @return array Array containing backup statistics including:
      *               - Basic statistics (count, total_size per type)
      *               - Retention analysis (within_policy, approaching_expiry, expired)
+     *               - Recent failures (bool) - whether a backup failed in the lookback window
      *               - Health score (0-100)
      *               - Recommendations array
      * @throws BackupException If statistics calculation fails
@@ -123,6 +124,7 @@ class BackupManager {
             // Enhance with retention analysis
             $stats = $basicStats;
             $stats['retention_analysis'] = $this->analyzeRetention();
+            $stats['recent_failures'] = $this->hasRecentBackupFailures();
             $stats['health_score'] = $this->calculateHealthScore($stats);
             $stats['recommendations'] = $this->generateRecommendations($stats);
 
@@ -191,19 +193,59 @@ class BackupManager {
     }
 
     /**
+     * Determine whether any backup failure was logged in the recent lookback window.
+     *
+     * Backups are triggered on demand rather than on a fixed schedule, so staleness of
+     * the newest backup file is not a reliable failure signal. Instead this reads the
+     * logs table for BackupFailed entries within BACKUP_FAILURE_LOOKBACK_DAYS. Only
+     * createStandardizedBackup() writes that category, and only when a backup attempt
+     * was aborted, so unrelated BackupError entries (invalid delete requests, missing
+     * tables) cannot raise a false alarm.
+     *
+     * Fails open: if the logs query itself errors, this returns false rather than
+     * throwing, so a logs table hiccup cannot block performEnhancedCleanup() — which
+     * 21-Fix-Page-Permissions.php calls as a safety step before every permission-fix run.
+     *
+     * @return bool True if at least one backup failure was logged in the window
+     */
+    private function hasRecentBackupFailures(): bool {
+        $cutoff = date('Y-m-d H:i:s', time() - (BACKUP_FAILURE_LOOKBACK_DAYS * 24 * 60 * 60));
+
+        $result = $this->db->query(
+            "SELECT COUNT(*) as cnt FROM logs WHERE logtype = ? AND logdate >= ?",
+            [LogCategories::LOG_CATEGORY_BACKUP_FAILED, $cutoff]
+        );
+
+        if ($this->db->error()) {
+            ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, 'Failed to check for recent backup failures: ' . $this->db->errorString());
+            return false;
+        }
+
+        // COUNT(*) always returns exactly one row, so a successful query always has a
+        // first() result here.
+        return (int)$result->first()->cnt > 0;
+    }
+
+    /**
      * Calculate overall backup system health score.
      *
-     * Evaluates backup system health based on retention compliance, replication status,
-     * and storage metrics. Deducts points for expired backups, approaching expiry dates,
-     * missing replication targets, and excessive storage usage.
+     * Evaluates backup system health based on recent failures, retention compliance,
+     * and storage metrics. Deducts points for failed backups, expired backups,
+     * approaching expiry dates, and excessive storage usage.
      *
-     * @param array $stats Statistics array containing retention_analysis, replication,
+     * @param array $stats Statistics array containing recent_failures, retention_analysis,
      *                     and storage data
      *
      * @return int Health score from 0-100, where 100 indicates optimal health
      */
     private function calculateHealthScore(array $stats): int {
         $score = 100;
+
+        // Deduct heavily for a recent backup failure - a backup that did not complete is a
+        // data-loss risk, which outweighs retention and storage housekeeping issues
+        if (!empty($stats['recent_failures'])) {
+            $score -= 30;
+        }
 
         // Deduct points for retention issues
         foreach (['automated', 'manual', 'rollback'] as $type) {
@@ -238,10 +280,10 @@ class BackupManager {
      * Generate backup system recommendations.
      *
      * Analyzes backup statistics and produces actionable recommendations for system
-     * administrators. Covers retention cleanup, replication issues, and storage
+     * administrators. Covers recent failures, retention cleanup, and storage
      * optimization based on current conditions.
      *
-     * @param array $stats Statistics array containing retention_analysis, replication,
+     * @param array $stats Statistics array containing recent_failures, retention_analysis,
      *                     storage data, and health score
      *
      * @return array Array of recommendation strings describing actions to improve
@@ -249,6 +291,11 @@ class BackupManager {
      */
     private function generateRecommendations(array $stats): array {
         $recommendations = [];
+
+        // Check for a recent backup failure
+        if (!empty($stats['recent_failures'])) {
+            $recommendations[] = "Investigate the cause of the recent backup failure before relying on this backup type";
+        }
 
         // Check retention analysis
         if (isset($stats['retention_analysis'])) {
@@ -377,33 +424,52 @@ class BackupManager {
             return ['valid' => false, 'error' => 'Backup file not found'];
         }
 
-        try {
-            // Basic file checks
-            $fileSize = filesize($backupPath);
-            if ($fileSize === 0) {
-                return ['valid' => false, 'error' => 'Backup file is empty'];
-            }
-
-            // Check if it's a valid SQL file by reading first few lines
-            $handle = fopen($backupPath, 'r');
-            $header = fread($handle, 1024);
-            fclose($handle);
-
-            // Look for SQL markers
-            if (!preg_match('/CREATE|INSERT|DROP|ALTER/i', $header)) {
-                return ['valid' => false, 'error' => 'File does not appear to contain valid SQL'];
-            }
-
-            return [
-                'valid' => true,
-                'file_size' => $fileSize,
-                'created_at' => date('Y-m-d H:i:s', filemtime($backupPath)),
-                'age_hours' => round((time() - filemtime($backupPath)) / 3600, 1)
-            ];
-
-        } catch (BackupException $e) {
-            return ['valid' => false, 'error' => 'Verification failed: ' . $e->getMessage()];
+        // Basic file checks
+        $fileSize = filesize($backupPath);
+        if ($fileSize === 0) {
+            return ['valid' => false, 'error' => 'Backup file is empty'];
         }
+
+        // Scan the dump for structure and data statements. INSERT rows normally fall
+        // well past the header, so the file is streamed line by line rather than
+        // sampled — and the loop stops at the first INSERT it finds, so most dumps are
+        // only read as far as their first table that has data. Only a dump with no data
+        // at all is read to the end.
+        $handle = fopen($backupPath, 'r');
+        if ($handle === false) {
+            return ['valid' => false, 'error' => 'Backup file could not be opened'];
+        }
+
+        $hasStructure = false;
+        $hasData = false;
+
+        while (($line = fgets($handle)) !== false) {
+            if (preg_match('/^\s*INSERT\b/i', $line)) {
+                $hasData = true;
+                break;
+            }
+            if (preg_match('/^\s*(CREATE|DROP|ALTER)\b/i', $line)) {
+                $hasStructure = true;
+            }
+        }
+        fclose($handle);
+
+        if (!$hasStructure && !$hasData) {
+            return ['valid' => false, 'error' => 'File does not appear to contain valid SQL'];
+        }
+
+        // Structure without a single INSERT is the signature of a data dump that failed
+        // silently, so it is reported invalid rather than rubber-stamped as good.
+        if (!$hasData) {
+            return ['valid' => false, 'error' => 'Backup contains table structure but no data'];
+        }
+
+        return [
+            'valid' => true,
+            'file_size' => $fileSize,
+            'created_at' => date('Y-m-d H:i:s', filemtime($backupPath)),
+            'age_hours' => round((time() - filemtime($backupPath)) / 3600, 1)
+        ];
     }
 
     /**
@@ -415,9 +481,13 @@ class BackupManager {
      * @param string $environment Environment: 'development', 'test', 'production'
      * @return string Path to created backup file
      * @throws BackupException If backup creation fails
+     * @throws \Throwable Any other failure during the backup attempt (e.g. a DB
+     *                     connection fault) is logged as a failed attempt and rethrown as-is
      */
     private function createStandardizedBackup(string $scriptName, array $tables = [], string $type = 'automated', string $environment = 'development'): string {
-        // Validate parameters
+        // Validate parameters before any work starts. These are caller mistakes rather
+        // than a backup attempt that failed, so they are deliberately thrown outside the
+        // try block below and never reach the BackupFailed alarm.
         $validTypes = ['automated', 'manual', 'rollback'];
         $validEnvironments = ['development', 'test', 'production'];
 
@@ -429,40 +499,56 @@ class BackupManager {
             throw new BackupException("Invalid environment: $environment. Must be one of: " . implode(', ', $validEnvironments));
         }
 
-        // Generate standardized filename
-        $timestamp = date('Ymd_His');
-        $filename = "{$type}_{$scriptName}_{$environment}_{$timestamp}.sql";
+        try {
+            // Generate standardized filename
+            $timestamp = date('Ymd_His');
+            $filename = "{$type}_{$scriptName}_{$environment}_{$timestamp}.sql";
 
-        // Determine backup directory
-        $backupDir = $this->backupBaseDir . "{$type}/";
+            // Determine backup directory
+            $backupDir = $this->backupBaseDir . "{$type}/";
 
-        // Ensure backup directory exists
-        if (!is_dir($backupDir)) {
-            if (!mkdir($backupDir, 0755, true)) {
-                throw new BackupException("Failed to create backup directory: $backupDir");
+            // Ensure backup directory exists
+            if (!is_dir($backupDir)) {
+                if (!mkdir($backupDir, 0755, true)) {
+                    throw new BackupException("Failed to create backup directory: $backupDir");
+                }
             }
-        }
 
-        $backupPath = $backupDir . $filename;
+            $backupPath = $backupDir . $filename;
 
-        // Create backup content with metadata
-        $backupContent = $this->generateBackupMetadata($scriptName, $type, $environment, $tables);
+            // Create backup content with metadata
+            $backupContent = $this->generateBackupMetadata($scriptName, $type, $environment, $tables);
 
-        // Add table dumps
-        if (!empty($tables)) {
-            foreach ($tables as $table) {
-                $backupContent .= $this->generateTableDump($table);
+            // Add table dumps
+            if (!empty($tables)) {
+                foreach ($tables as $table) {
+                    $backupContent .= $this->generateTableDump($table);
+                }
             }
+
+            // Write backup file
+            if (!file_put_contents($backupPath, $backupContent)) {
+                throw new BackupException("Failed to write backup file: $backupPath");
+            }
+
+            $this->logBackupEvent('created', $scriptName, $type, $environment, $backupPath);
+
+            return $backupPath;
+
+        } catch (\Throwable $e) {
+            // Single choke point for "a backup was attempted and did not complete" —
+            // unwritable directory, failed table dump, and failed file write alike.
+            // Catches \Throwable, not just BackupException: a connection-level fault
+            // (e.g. the DB going away mid-dump) surfaces as a raw PDOException out of
+            // $this->db->query(), and that must reach this alarm too, or the health
+            // badge stays falsely "Healthy" for a backup that never wrote a file.
+            // Logged under BackupFailed rather than the generic BackupError so
+            // hasRecentBackupFailures() sees every aborted attempt and routine
+            // BackupError entries cannot raise a false alarm.
+            ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_FAILED,
+                "Backup aborted for '{$scriptName}' ({$type}/{$environment}): " . $e->getMessage());
+            throw $e;
         }
-
-        // Write backup file
-        if (!file_put_contents($backupPath, $backupContent)) {
-            throw new BackupException("Failed to write backup file: $backupPath");
-        }
-
-        $this->logBackupEvent('created', $scriptName, $type, $environment, $backupPath);
-
-        return $backupPath;
     }
 
     /**
@@ -498,11 +584,15 @@ class BackupManager {
      *
      * Creates a complete SQL dump including table structure (CREATE TABLE)
      * and data (INSERT statements). Validates table names to prevent SQL
-     * injection and handles missing tables gracefully with warnings.
+     * injection. A table that does not exist (MySQL 1146 / SQLSTATE 42S02) is
+     * degraded to a warning comment so the rest of the backup still completes.
      *
      * @param string $tableName Table name to dump (validated against injection)
-     * @return string Complete SQL dump with CREATE and INSERT statements
-     * @throws BackupException If table name contains invalid characters or SQL structure retrieval fails
+     * @return string Complete SQL dump with CREATE and INSERT statements, or a warning
+     *                comment if the table does not exist
+     * @throws BackupException If the table name contains invalid characters or either the
+     *                         structure or data query fails for any reason other than a
+     *                         missing table, aborting the whole backup
      */
     private function generateTableDump(string $tableName): string {
         try {
@@ -512,16 +602,28 @@ class BackupManager {
             }
 
             // Get table structure
+            // UserSpice swallows DB errors into a flag rather than throwing, so a failed
+            // query is indistinguishable from an empty result without this check.
+            // SHOW CREATE TABLE either errors or returns exactly one row, so a missing
+            // table always surfaces here as 1146/42S02 rather than as an empty result.
             $createResult = $this->db->query("SHOW CREATE TABLE `{$tableName}`");
-            if ($createResult->count() === 0) {
-                ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, "Table {$tableName} not found during backup");
-                return "-- Warning: Table {$tableName} not found\n\n";
+            if ($this->db->error()) {
+                if ($this->isTableNotFoundError()) {
+                    ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, "Table {$tableName} not found during backup");
+                    return "-- Warning: Table {$tableName} not found\n\n";
+                }
+                throw new BackupException("Failed to read structure for table {$tableName}: " . $this->db->errorString());
             }
 
             $createStatement = $createResult->first()->{'Create Table'};
 
             // Get table data
+            // A failed SELECT reports count() === 0 exactly like an empty table, so the
+            // error flag is the only way to avoid silently writing a dump with no rows.
             $dataResult = $this->db->query("SELECT * FROM `{$tableName}`");
+            if ($this->db->error()) {
+                throw new BackupException("Failed to read data for table {$tableName}: " . $this->db->errorString());
+            }
 
             $dump = "-- Dump for table: {$tableName}\n";
             $dump .= "DROP TABLE IF EXISTS `{$tableName}`;\n";
@@ -549,16 +651,30 @@ class BackupManager {
             return $dump . "\n";
 
         } catch (BackupException $e) {
-            $errorMsg = "Error backing up table {$tableName}: " . $e->getMessage();
-            ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, $errorMsg);
-
-            // Re-throw critical errors, return warning comment for non-critical
-            if (strpos($e->getMessage(), 'Invalid table name') !== false) {
-                throw $e;
-            }
-
-            return "-- {$errorMsg}\n\n";
+            // Always abort: a partial or empty dump written as if it succeeded is a
+            // silent data-loss risk. createStandardizedBackup() only writes the file
+            // after every table dumps successfully, so throwing here means no file.
+            //
+            // Logged with the per-table detail for diagnosis; createStandardizedBackup()
+            // raises the BackupFailed alarm once the exception reaches it.
+            ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, "Error backing up table {$tableName}: " . $e->getMessage());
+            throw $e;
         }
+    }
+
+    /**
+     * Determine whether the last query failed because the table does not exist.
+     *
+     * MySQL reports a missing table as error 1146 / SQLSTATE 42S02. Every other
+     * error is a genuine database problem that must abort the backup rather than
+     * degrade to a warning comment.
+     *
+     * @return bool True if the last query error was "table not found"
+     */
+    private function isTableNotFoundError(): bool {
+        $errorInfo = $this->db->errorInfo();
+
+        return ($errorInfo[0] ?? null) === '42S02' || (int)($errorInfo[1] ?? 0) === 1146;
     }
 
     /**

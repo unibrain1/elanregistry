@@ -400,6 +400,15 @@ class LogCategories
      */
     public const LOG_CATEGORY_BACKUP_ERROR = 'BackupError';
 
+    /**
+     * Aborted backup attempts
+     * Used only when a backup attempt is abandoned without writing a file
+     * (unwritable directory, failed table dump, or failed file write), so the
+     * maintenance health check can distinguish a genuine data-loss risk from
+     * routine BackupError entries
+     */
+    public const LOG_CATEGORY_BACKUP_FAILED = 'BackupFailed';
+
     // ========== SYSTEM & FILE OPERATION CATEGORIES ==========
 
     /**

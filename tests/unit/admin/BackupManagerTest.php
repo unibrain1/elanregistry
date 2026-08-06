@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use ElanRegistry\Admin\BackupManager;
+use ElanRegistry\Exceptions\BackupException;
+use ElanRegistry\LogCategories;
 use PHPUnit\Framework\TestCase;
 
 use PHPUnit\Framework\Attributes\Group;
@@ -189,6 +191,82 @@ final class BackupManagerTest extends TestCase
 
         $this->assertFalse($result['valid']);
         $this->assertStringContainsString('empty', $result['error']);
+    }
+
+    /**
+     * Test verifyBackupIntegrity flags a dump that has table structure (CREATE/DROP/
+     * ALTER statements) but no INSERT statements as invalid — the signature of a data
+     * dump that failed silently, per the comment above the check in
+     * verifyBackupIntegrity().
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testVerifyBackupIntegrityStructureOnlyNoData(): void
+    {
+        $structureOnlyFile = $this->testBackupDir . 'structure_only_backup.sql';
+        file_put_contents(
+            $structureOnlyFile,
+            "DROP TABLE IF EXISTS `settings`;\nCREATE TABLE `settings` (`id` int) ENGINE=InnoDB;\n"
+        );
+
+        $result = $this->backupManager->verifyBackupIntegrity($structureOnlyFile);
+
+        $this->assertFalse($result['valid']);
+        $this->assertSame('Backup contains table structure but no data', $result['error']);
+    }
+
+    /**
+     * Test verifyBackupIntegrity's fopen() failure guard: an existing, non-empty file
+     * that cannot be opened for reading (e.g. permissions) is reported invalid rather
+     * than throwing or crashing.
+     *
+     * fopen() emits a PHP E_WARNING on failure that verifyBackupIntegrity() does not
+     * suppress; a temporary error handler captures it here so PHPUnit does not flag it
+     * as an unexpected warning, matching the pattern used in LocationServiceCacheTest.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testVerifyBackupIntegrityFopenFailureGuard(): void
+    {
+        if (posix_getuid() === 0) {
+            $this->markTestSkipped('Cannot test fopen() failure as root — chmod 0000 has no effect.');
+        }
+
+        $unreadableFile = $this->testBackupDir . 'unreadable_backup.sql';
+        file_put_contents(
+            $unreadableFile,
+            "CREATE TABLE `settings` (`id` int) ENGINE=InnoDB;\nINSERT INTO `settings` VALUES (1);\n"
+        );
+        chmod($unreadableFile, 0000);
+
+        $capturedWarning = null;
+        set_error_handler(
+            static function (int $errno, string $errstr) use (&$capturedWarning): bool {
+                if ($errno === E_WARNING) {
+                    $capturedWarning = $errstr;
+                    return true;
+                }
+                return false;
+            },
+            E_WARNING
+        );
+        try {
+            $result = $this->backupManager->verifyBackupIntegrity($unreadableFile);
+        } finally {
+            restore_error_handler();
+            chmod($unreadableFile, 0644);
+        }
+
+        $this->assertFalse($result['valid']);
+        $this->assertSame('Backup file could not be opened', $result['error']);
+        $this->assertNotNull(
+            $capturedWarning,
+            'A PHP E_WARNING should be emitted when fopen() fails on an unreadable file.'
+        );
     }
 
     /**
@@ -482,15 +560,463 @@ final class BackupManagerTest extends TestCase
     }
 
     /**
+     * Verify that a failed data query (SELECT *) during table dumping aborts the
+     * whole backup and leaves no partial backup file on disk.
+     *
+     * generateTableDump() now checks $this->db->error() after the data query and
+     * throws BackupException instead of silently continuing. Because
+     * createStandardizedBackup() only calls file_put_contents() after every table
+     * dumps successfully, the thrown exception must propagate all the way out of
+     * createManualBackup() with zero bytes written to the manual/ directory.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testTableDumpDataQueryFailureAbortsBackup(): void
+    {
+        $mockDb = $this->createMockDatabase('SELECT * FROM `cars`');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $filesBefore = glob($this->testBackupDir . 'manual/*.sql');
+
+        try {
+            $backupManager->createManualBackup('Data Query Failure', ['cars']);
+            $this->fail('Expected BackupException was not thrown');
+        } catch (BackupException $e) {
+            $this->assertStringContainsString('Failed to read data for table cars', $e->getMessage());
+        }
+
+        $filesAfter = glob($this->testBackupDir . 'manual/*.sql');
+        $this->assertSame($filesBefore, $filesAfter, 'No partial backup file should be written when the data query fails');
+    }
+
+    /**
+     * Verify that a failed structure query (SHOW CREATE TABLE) during table dumping
+     * aborts the whole backup and leaves no partial backup file on disk.
+     *
+     * Companion to testTableDumpDataQueryFailureAbortsBackup(): the structure query
+     * is checked first in generateTableDump(), so this exercises the earlier of the
+     * two error branches.
+     *
+     * Also verifies the category split introduced alongside the 42S02/1146
+     * soft-warning path: generateTableDump()'s own catch now logs the per-table
+     * detail under LOG_CATEGORY_BACKUP_ERROR (it no longer raises the BackupFailed
+     * alarm itself), while createStandardizedBackup()'s outer catch — the single
+     * choke point for "a backup was attempted and did not complete" — logs the
+     * propagated failure under LOG_CATEGORY_BACKUP_FAILED. This directly proves
+     * BackupFailed is emitted from the outer catch, not (also/instead) from
+     * generateTableDump()'s catch.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testTableDumpStructureQueryFailureAbortsBackup(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $mockDb = $this->createMockDatabase('SHOW CREATE TABLE `cars`');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $filesBefore = glob($this->testBackupDir . 'manual/*.sql');
+
+        try {
+            $backupManager->createManualBackup('Structure Query Failure', ['cars']);
+            $this->fail('Expected BackupException was not thrown');
+        } catch (BackupException $e) {
+            $this->assertStringContainsString('Failed to read structure for table cars', $e->getMessage());
+        }
+
+        $filesAfter = glob($this->testBackupDir . 'manual/*.sql');
+        $this->assertSame($filesBefore, $filesAfter, 'No partial backup file should be written when the structure query fails');
+
+        $backupFailedEntries = array_filter(
+            $mockLogEntries,
+            fn($e) => $e['category'] === LogCategories::LOG_CATEGORY_BACKUP_FAILED
+                && str_contains($e['message'], 'Backup aborted for')
+        );
+        $this->assertNotEmpty(
+            $backupFailedEntries,
+            'createStandardizedBackup() should log LOG_CATEGORY_BACKUP_FAILED for the propagated table-dump failure'
+        );
+
+        $tableDumpErrorEntries = array_filter(
+            $mockLogEntries,
+            fn($e) => $e['category'] === LogCategories::LOG_CATEGORY_BACKUP_ERROR
+                && str_contains($e['message'], 'Error backing up table cars')
+        );
+        $this->assertNotEmpty(
+            $tableDumpErrorEntries,
+            'generateTableDump() should log the per-table detail under LOG_CATEGORY_BACKUP_ERROR, not LOG_CATEGORY_BACKUP_FAILED'
+        );
+    }
+
+    /**
+     * Verify that a table dump for a table that does not exist (MySQL error 1146,
+     * SQLSTATE 42S02) takes the soft-warning path instead of aborting the backup.
+     *
+     * This is the regression test for the bug this fix round exists to prevent: a
+     * missing table must degrade gracefully to a warning comment in the dump — the
+     * backup file must still be written, and any other, successful table in the same
+     * backup must still be dumped in full. Without this test, a future change that
+     * re-broke the SQLSTATE/driver-code distinction in isTableNotFoundError() (e.g.
+     * routing 42S02 through the generic-failure branch again) would not be caught.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testTableDumpTableNotFoundTakesSoftWarningPath(): void
+    {
+        $mockDb = $this->createMockDatabase(null, 0, 'SHOW CREATE TABLE `missing_table`');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $backupPath = $backupManager->createManualBackup('Missing Table Test', ['missing_table', 'cars']);
+
+        $this->assertFileExists($backupPath, 'A missing table should degrade to a warning, not abort the backup');
+
+        $content = file_get_contents($backupPath);
+        $this->assertStringContainsString(
+            '-- Warning: Table missing_table not found',
+            $content,
+            'The missing table should be recorded as a warning comment'
+        );
+        $this->assertStringContainsString(
+            '-- Dump for table: cars',
+            $content,
+            'The other, successful table should still be dumped in full'
+        );
+        $this->assertStringContainsString('CREATE TABLE', $content);
+        $this->assertStringContainsString('INSERT INTO', $content);
+    }
+
+    /**
+     * Verify that a backup-directory creation failure (mkdir() failing inside
+     * createStandardizedBackup(), before generateTableDump() is ever reached) is
+     * logged under LOG_CATEGORY_BACKUP_FAILED — proving the other new source of
+     * BackupFailed (not just a propagated table-dump failure) works too.
+     *
+     * A fresh backup base directory is used (unlike $this->testBackupDir from
+     * setUp(), whose automated/manual/rollback/ subdirectories already exist) and
+     * made read-only, so mkdir()'s attempt to create manual/ on demand fails.
+     * mkdir() emits a PHP E_WARNING on failure that createStandardizedBackup() does
+     * not suppress; a temporary error handler captures it, matching the pattern used
+     * in testVerifyBackupIntegrityFopenFailureGuard().
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testMkdirFailureLogsBackupFailedFromCreateStandardizedBackup(): void
+    {
+        if (posix_getuid() === 0) {
+            $this->markTestSkipped('Cannot test mkdir() failure as root — permission checks have no effect.');
+        }
+
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $readonlyBase = sys_get_temp_dir() . '/backup_readonly_' . uniqid() . '/';
+        mkdir($readonlyBase);
+        chmod($readonlyBase, 0555);
+
+        $capturedWarning = null;
+        set_error_handler(
+            static function (int $errno, string $errstr) use (&$capturedWarning): bool {
+                if ($errno === E_WARNING) {
+                    $capturedWarning = $errstr;
+                    return true;
+                }
+                return false;
+            },
+            E_WARNING
+        );
+
+        try {
+            $backupManager = new BackupManager($this->mockDb, $readonlyBase, 1);
+
+            try {
+                $backupManager->createManualBackup('Mkdir Failure', ['settings']);
+                $this->fail('Expected BackupException was not thrown');
+            } catch (BackupException $e) {
+                $this->assertStringContainsString('Failed to create backup directory', $e->getMessage());
+            }
+        } finally {
+            restore_error_handler();
+            chmod($readonlyBase, 0755);
+            $this->recursiveRemoveDirectory($readonlyBase);
+        }
+
+        $this->assertNotNull(
+            $capturedWarning,
+            'A PHP E_WARNING should be emitted when mkdir() fails on a read-only parent directory.'
+        );
+
+        $backupFailedEntries = array_filter(
+            $mockLogEntries,
+            fn($e) => $e['category'] === LogCategories::LOG_CATEGORY_BACKUP_FAILED
+                && str_contains($e['message'], 'Backup aborted for')
+        );
+        $this->assertNotEmpty(
+            $backupFailedEntries,
+            'createStandardizedBackup() should log LOG_CATEGORY_BACKUP_FAILED when mkdir() fails, not just on propagated table-dump failures'
+        );
+    }
+
+    /**
+     * Verify createStandardizedBackup() logs LOG_CATEGORY_BACKUP_FAILED even when the
+     * failure surfaces as a raw \Throwable rather than a BackupException — e.g. a
+     * PDOException from a DB connection dropping mid-dump. The outer catch widens to
+     * \Throwable specifically so this doesn't silently skip the BackupFailed alarm and
+     * leave the health badge falsely "Healthy" for a backup that never wrote a file.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testNonBackupExceptionFailureStillLogsBackupFailed(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $throwingDb = new class {
+            public function query(string $sql, array $params = []): object
+            {
+                throw new \RuntimeException('MySQL server has gone away');
+            }
+
+            public function error(): bool
+            {
+                return false;
+            }
+
+            public function errorString(): string
+            {
+                return '';
+            }
+
+            /**
+             * @return array{0: string, 1: int, 2: string}
+             */
+            public function errorInfo(): array
+            {
+                return ['', 0, ''];
+            }
+        };
+
+        $backupManager = new BackupManager($throwingDb, $this->testBackupDir, 1);
+
+        try {
+            $backupManager->createManualBackup('Connection Drop', ['settings']);
+            $this->fail('Expected \RuntimeException was not thrown');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('MySQL server has gone away', $e->getMessage());
+        }
+
+        $backupFailedEntries = array_filter(
+            $mockLogEntries,
+            fn($e) => $e['category'] === LogCategories::LOG_CATEGORY_BACKUP_FAILED
+                && str_contains($e['message'], 'Backup aborted for')
+        );
+        $this->assertNotEmpty(
+            $backupFailedEntries,
+            'createStandardizedBackup() should log LOG_CATEGORY_BACKUP_FAILED even when the failure is a raw \Throwable, not a BackupException'
+        );
+    }
+
+    /**
+     * Verify that getEnhancedBackupStatistics() reflects recent backup failures and
+     * that the health score deducts exactly 30 points when hasRecentBackupFailures()
+     * is true, compared to an otherwise-identical run with no recent failures.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testHealthScoreReflectsRecentBackupFailures(): void
+    {
+        // Same on-disk backup state is used for both calls below, so the only
+        // difference between the two health scores is the recent_failures signal.
+        $this->backupManager->createSchemaBackup('Health Failure Baseline', ['settings']);
+
+        $baselineStats = $this->backupManager->getEnhancedBackupStatistics();
+        $this->assertFalse($baselineStats['recent_failures']);
+
+        $failureMockDb = $this->createMockDatabase(null, 1);
+        $failureBackupManager = new BackupManager($failureMockDb, $this->testBackupDir, 1);
+
+        $failureStats = $failureBackupManager->getEnhancedBackupStatistics();
+
+        $this->assertTrue($failureStats['recent_failures']);
+        $this->assertSame(
+            $baselineStats['health_score'] - 30,
+            $failureStats['health_score'],
+            'Recent backup failures should deduct exactly 30 points from the health score'
+        );
+    }
+
+    /**
+     * Verify that hasRecentBackupFailures() fails open when the logs COUNT(*) query
+     * itself errors: getEnhancedBackupStatistics() must not throw, `recent_failures`
+     * must report false (not counted as a failure), and the health score must be
+     * identical to a plain happy-path baseline on the same on-disk backup state —
+     * proving the failed check has zero effect on the score rather than silently
+     * being treated as a failure or blowing up the whole statistics call.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testRecentBackupFailuresCheckFailsOpenOnDbError(): void
+    {
+        // Plain happy-path baseline, using the default (non-failing) mock database
+        // set up in setUp(). Same on-disk backup state is reused for the fail-open
+        // call below so the only variable is the logs-query outcome.
+        $this->backupManager->createSchemaBackup('Fail Open Baseline', ['settings']);
+        $baselineStats = $this->backupManager->getEnhancedBackupStatistics();
+        $this->assertFalse($baselineStats['recent_failures']);
+
+        // Mock database that fails only the 'FROM logs' COUNT(*) query, mirroring
+        // the "logs table hiccup" scenario hasRecentBackupFailures() is documented
+        // to fail open on.
+        $failingLogsDb = $this->createMockDatabase('FROM logs');
+        $failingLogsBackupManager = new BackupManager($failingLogsDb, $this->testBackupDir, 1);
+
+        $failureStats = $failingLogsBackupManager->getEnhancedBackupStatistics();
+
+        $this->assertFalse(
+            $failureStats['recent_failures'],
+            'A logs-query DB error must fail open (false), not be treated as a recent failure'
+        );
+        $this->assertSame(
+            $baselineStats['health_score'],
+            $failureStats['health_score'],
+            'A failed (fail-open) recent-failures check must not affect the health score'
+        );
+    }
+
+    /**
      * Helper: Create a mock database object
      *
-     * @return object Mock database object with query method
+     * The mock's outer object is what BackupManager holds as `$this->db`, so it must
+     * expose `error()`/`errorString()`/`errorInfo()` in addition to `query()` —
+     * mirroring UserSpice's DB class, which flags failures via `error()` rather than
+     * throwing, and `errorInfo()`, which BackupManager's `isTableNotFoundError()`
+     * inspects for SQLSTATE `42S02` / driver code `1146` to distinguish a missing
+     * table from a genuine query failure.
+     *
+     * By default every query "succeeds": table-structure/data queries return two canned
+     * rows, and the `logs` recent-failures COUNT(*) query returns `$recentFailureCount`
+     * (default 0, i.e. no recent failures) — but only when the bound `logtype` param
+     * (the query's first bound parameter) equals `LogCategories::LOG_CATEGORY_BACKUP_FAILED`;
+     * any other logtype value (or no bound params at all) yields 0 regardless of
+     * `$recentFailureCount`, so this mock only reports failures for the category
+     * `hasRecentBackupFailures()` is actually documented to query. Passing
+     * `$failOnSqlSubstring` makes any query whose SQL contains that substring behave as
+     * a failed query (`error()` becomes true for that call, and the result reports zero
+     * rows / null `first()`), letting a test target a specific query (e.g.
+     * `'SELECT * FROM `cars`'`, `'SHOW CREATE TABLE `cars`'`, or `'FROM logs'`) without
+     * affecting unrelated queries. `errorInfo()` reports a generic, non-42S02 error
+     * (`['HY000', 2006, ...]`) for a `$failOnSqlSubstring` match, so
+     * `isTableNotFoundError()` correctly treats it as a genuine failure.
+     *
+     * Passing `$tableNotFoundOnSqlSubstring` behaves like `$failOnSqlSubstring` (query
+     * fails, empty result) but reports `errorInfo()` as MySQL's "table not found" error
+     * (`['42S02', 1146, ...]`), so `isTableNotFoundError()` routes it to the soft-warning
+     * path instead of aborting the backup. The two substrings are independent — a test
+     * can configure one, the other, or both to target different queries.
+     *
+     * @param string|null $failOnSqlSubstring Substring to match against query SQL; when
+     *                                        matched, that query is simulated as a
+     *                                        generic (non-table-not-found) failure
+     * @param int $recentFailureCount Canned `cnt` value returned by the `logs` COUNT(*)
+     *                                query (used by hasRecentBackupFailures())
+     * @param string|null $tableNotFoundOnSqlSubstring Substring to match against query
+     *                                        SQL; when matched, that query is simulated
+     *                                        as a MySQL 1146/42S02 "table not found" failure
+     * @return object Mock database object with query()/error()/errorString()/errorInfo() methods
      */
-    private function createMockDatabase(): object
+    private function createMockDatabase(
+        ?string $failOnSqlSubstring = null,
+        int $recentFailureCount = 0,
+        ?string $tableNotFoundOnSqlSubstring = null
+    ): object
     {
-        return new class {
+        return new class ($failOnSqlSubstring, $recentFailureCount, $tableNotFoundOnSqlSubstring) {
+            private bool $lastQueryFailed = false;
+            /** @var array{0: string, 1: int, 2: string} */
+            private array $lastErrorInfo = ['', 0, ''];
+
+            public function __construct(
+                private readonly ?string $failOnSqlSubstring,
+                private readonly int $recentFailureCount,
+                private readonly ?string $tableNotFoundOnSqlSubstring = null
+            ) {
+            }
+
             public function query(string $sql, array $params = []): object {
-                // Mock result object
+                $this->lastQueryFailed = false;
+                $this->lastErrorInfo = ['', 0, ''];
+
+                if ($this->tableNotFoundOnSqlSubstring !== null && str_contains($sql, $this->tableNotFoundOnSqlSubstring)) {
+                    $this->lastQueryFailed = true;
+                    $this->lastErrorInfo = ['42S02', 1146, "Table doesn't exist"];
+                } elseif ($this->failOnSqlSubstring !== null && str_contains($sql, $this->failOnSqlSubstring)) {
+                    $this->lastQueryFailed = true;
+                    $this->lastErrorInfo = ['HY000', 2006, 'MySQL server has gone away'];
+                }
+
+                if ($this->lastQueryFailed) {
+                    // Mock result object for a failed query: no rows, no first()
+                    return new class {
+                        public function results(): array {
+                            return [];
+                        }
+
+                        public function count(): int {
+                            return 0;
+                        }
+
+                        public function first(): null {
+                            return null;
+                        }
+                    };
+                }
+
+                if (str_contains($sql, 'FROM logs')) {
+                    // Mock result object for the recent-failures COUNT(*) query. Only
+                    // honors the configured recentFailureCount when the bound logtype
+                    // param actually matches LOG_CATEGORY_BACKUP_FAILED — otherwise
+                    // returns 0. This keeps the mock (and any test built on it)
+                    // sensitive to a regression back to querying the wrong log
+                    // category, since a mismatched category would silently report
+                    // zero failures regardless of the configured count.
+                    $matchesFailedCategory = ($params[0] ?? null) === LogCategories::LOG_CATEGORY_BACKUP_FAILED;
+                    $cnt = $matchesFailedCategory ? $this->recentFailureCount : 0;
+
+                    return new class ($cnt) {
+                        public function __construct(private readonly int $cnt) {
+                        }
+
+                        public function results(): array {
+                            return [];
+                        }
+
+                        public function count(): int {
+                            return 1;
+                        }
+
+                        public function first(): object {
+                            $countObj = new \stdClass();
+                            $countObj->cnt = $this->cnt;
+                            return $countObj;
+                        }
+                    };
+                }
+
+                // Mock result object for a successful table structure/data query
                 return new class {
                     public function results(): array {
                         $createTableObj = new \stdClass();
@@ -514,6 +1040,21 @@ final class BackupManagerTest extends TestCase
                         return $createTableObj;
                     }
                 };
+            }
+
+            public function error(): bool {
+                return $this->lastQueryFailed;
+            }
+
+            public function errorString(): string {
+                return $this->lastQueryFailed ? 'Mock database error: query failed' : '';
+            }
+
+            /**
+             * @return array{0: string, 1: int, 2: string}
+             */
+            public function errorInfo(): array {
+                return $this->lastErrorInfo;
             }
         };
     }
