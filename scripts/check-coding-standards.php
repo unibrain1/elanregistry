@@ -43,6 +43,26 @@ class CodingStandardsChecker
     private array $errors = [];
     private array $warnings = [];
     private int $filesChecked = 0;
+
+    /**
+     * Count of PHP files that passed the early vendor/node_modules/tests/etc.
+     * skip and were evaluated against isProjectOwnedPath() — as opposed to
+     * files excluded outright before ever reaching that check. Used by
+     * run()'s zero-files guard to tell "nothing to check" (e.g. a PR that
+     * only touches tests/, which the early skip filters out entirely — a
+     * normal pass) apart from "path resolution silently dropped files that
+     * should have matched" (files did reach the ownership check and all were
+     * rejected — the actual bug that guard exists to catch).
+     */
+    private int $filesConsideredForOwnership = 0;
+
+    /**
+     * Whether the scanned directory resolved to an ancestor's composer.json
+     * rather than its own — i.e. it's nested inside a real checkout. See
+     * checkDirectory()'s assignment for the full rationale.
+     */
+    private bool $scanDirNestedInRepo = false;
+
     private bool $strictMode = false;
     private bool $verboseMode = false;
 
@@ -93,8 +113,11 @@ class CodingStandardsChecker
 
             // A new top-level parameter at the same indentation as `paths:`
             // (e.g. `excludePaths:`) ends the block. Matched narrowly (an
-            // identifier followed by `:`) so a 4-space-indented comment line
-            // inside the paths block doesn't falsely end it early.
+            // identifier followed by `:`) rather than "any non-blank char at
+            // this indent", so this stays correct even if a comment is ever
+            // added at 4-space indent inside the paths block — today's
+            // comments (e.g. `# Application`) sit at 8-space/list-item
+            // indent and wouldn't trip the looser match either.
             if (preg_match('/^\s{4}[\w-]+:/', $line)) {
                 break;
             }
@@ -144,14 +167,31 @@ class CodingStandardsChecker
         $this->printResults($isStaged);
 
         // A CI gate (.github/workflows/static-analysis.yml) and the pre-commit
-        // hook both invoke this against a directory that should always contain
-        // at least one project-owned PHP file. Zero files checked means path
-        // resolution silently filtered everything out — that must not read as
-        // a pass.
-        if ($this->filesChecked === 0) {
-            echo "\n❌ No PHP files were scanned in $directory.\n";
-            echo "   Either it contains no project-owned PHP, or path resolution failed ";
-            echo "(e.g. a scan directory nested inside the repo). Not treating this as a pass.\n";
+        // hook both scan a directory that may legitimately contain zero
+        // project-owned PHP — e.g. a PR that only touches tests/ (filtered by
+        // the early skip before ever reaching isProjectOwnedPath()) or only
+        // touches a real but non-project-owned file like phpstan-bootstrap.php
+        // or users/init.php (filtered by isProjectOwnedPath() itself). Both
+        // must stay a pass. Only fail loudly (with this specific message)
+        // when the scan directory is actually nested inside a real checkout
+        // (see checkDirectory()'s $scanDirNestedInRepo assignment) — that's
+        // the one condition that's never true for a legitimate CI/pre-commit
+        // temp dir, so it's what actually separates "nothing relevant here"
+        // from "path resolution is pointed at the wrong place" — AND files
+        // did reach the ownership check with none producing any outcome (no
+        // successful check, no error). If there's already at least one error
+        // (e.g. an unreadable-file error from checkFile()), that's not a
+        // silent drop: it has its own accurate message above, and the run
+        // already fails via the errors-count check below without a second,
+        // more generic message on top.
+        if ($this->scanDirNestedInRepo &&
+            $this->filesConsideredForOwnership > 0 &&
+            $this->filesChecked === 0 &&
+            count($this->errors) === 0) {
+            echo "\n❌ $this->filesConsideredForOwnership PHP file(s) were found in $directory but none ";
+            echo "matched a project-owned path.\n";
+            echo "   Path resolution likely failed (scan directory is nested inside a real checkout). ";
+            echo "Not treating this as a pass.\n";
             return 1;
         }
 
@@ -173,6 +213,20 @@ class CodingStandardsChecker
     {
         $root = $this->resolveProjectRoot($directory);
 
+        // True only when resolveProjectRoot() actually walked up to find a
+        // composer.json in an ancestor — i.e. $directory sits inside a real
+        // checkout somewhere other than its root. False for both a scan of
+        // the repo root itself AND the fallback case (no composer.json found
+        // upward at all — e.g. a mktemp temp dir, which is what CI and the
+        // pre-commit hook both use). Used by run()'s zero-files guard: a
+        // temp dir containing only files that legitimately aren't
+        // project-owned (e.g. phpstan-bootstrap.php, users/init.php) must
+        // stay a pass, and that case is indistinguishable from a genuine
+        // path-resolution failure by file counts alone — but it's never
+        // "nested," so this flag is what actually separates them.
+        $scanStart = realpath($directory) ?: rtrim($directory, '/');
+        $this->scanDirNestedInRepo = $root !== $scanStart;
+
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($directory)
         );
@@ -190,6 +244,7 @@ class CodingStandardsChecker
                 }
 
                 // Only scan project-owned paths (see loadProjectPaths())
+                $this->filesConsideredForOwnership++;
                 if (!$this->isProjectOwnedPath($path, $root)) {
                     continue;
                 }
@@ -275,7 +330,7 @@ class CodingStandardsChecker
     private function truncateAtHaltCompiler(string $content): string
     {
         $offset = 0;
-        foreach (@token_get_all($content) as $token) {
+        foreach (token_get_all($content) as $token) {
             if (is_array($token) && $token[0] === T_HALT_COMPILER) {
                 return substr($content, 0, $offset);
             }
@@ -293,13 +348,19 @@ class CodingStandardsChecker
      */
     private function checkFile(string $filePath): void
     {
-        $this->filesChecked++;
         $content = file_get_contents($filePath);
 
         if ($content === false) {
-            $this->warnings[] = "$filePath: unreadable, skipped";
+            // A blocking error, not a warning: we could not run any check on
+            // this file at all (permissions, race with the directory scan,
+            // broken symlink), so "no findings" here would be a false
+            // pass, not a clean result. Also intentionally not counted in
+            // $filesChecked — it wasn't actually checked.
+            $this->errors[] = "$filePath: unreadable, could not be checked";
             return;
         }
+
+        $this->filesChecked++;
 
         // Everything after __halt_compiler() is inert data (e.g. the raw
         // markdown in usersc/plugins/ai_prompts/custom_prompts/*.md.php),
@@ -780,11 +841,25 @@ class CodingStandardsChecker
             }
         }
 
-        // Final status. filesChecked === 0 is handled by run()'s zero-files
-        // guard, which fails the run — don't print a misleadingly
-        // reassuring "passed" message here too.
-        if ($this->filesChecked > 0) {
-            if (count($this->errors) === 0 && count($this->warnings) === 0) {
+        // Final status. The "scan directory is nested inside a real
+        // checkout, files reached the ownership check, none matched, and
+        // there's no error explaining why" case is handled by run()'s
+        // zero-files guard, which fails the run — don't print a misleadingly
+        // reassuring "passed" message here too. (Mirrors that guard's
+        // condition exactly — see its comment for the full rationale.) A
+        // legitimate zero (tests/-only PR, or a temp dir containing only
+        // non-project-owned files like phpstan-bootstrap.php) still gets its
+        // own closing message below, and a zero explained by a real error
+        // (e.g. an unreadable file) falls through to the normal error-branch
+        // message instead of being suppressed.
+        $suspiciousZero = $this->scanDirNestedInRepo &&
+            $this->filesConsideredForOwnership > 0 &&
+            $this->filesChecked === 0 &&
+            count($this->errors) === 0;
+        if (!$suspiciousZero) {
+            if ($this->filesChecked === 0 && count($this->errors) === 0) {
+                echo "✅ No project-owned PHP files to check.\n\n";
+            } elseif (count($this->errors) === 0 && count($this->warnings) === 0) {
                 echo "✅ All coding standards checks passed!\n";
                 echo "🚀 Ready for PR creation!\n\n";
             } elseif (count($this->errors) === 0) {
