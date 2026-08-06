@@ -26,6 +26,17 @@ $user_manager_columns = [
 // Define column data handlers
 // This function takes a user object and column name and returns the HTML for that cell
 // Only define special cases here - standard columns will be handled by the default case
+//
+// SECURITY (#1499): the perms and default cases below escape their values because
+// _admin_users.php echoes this closure's return value directly into a <td> with no
+// escaping of its own — this closure is the last line of defense against stored XSS
+// from usernames/emails/permission names. Do not remove even if this file is refactored.
+//
+// Note: values written via legacy UserSpice \Input::get() (e.g. core registration/
+// admin-create flows) are already htmlspecialchars-encoded at storage time, so those
+// rows will render double-encoded here (e.g. O'Brien -> O&#039;Brien on screen). This
+// is a known cosmetic tradeoff, not a security regression — escaping stays because
+// ElanRegistry-side writes use ElanRegistry\Input::raw() and store unescaped text.
 $user_manager_column_data = function($user, $column) use ($act, $uCount, $maxUsers) {
     switch($column) {
         case 'id':
@@ -50,7 +61,7 @@ $user_manager_column_data = function($user, $column) use ($act, $uCount, $maxUse
 
         case 'perms':
             if ($uCount < $maxUsers) {
-                return $user->perms;
+                return htmlspecialchars((string) ($user->perms ?? ''), ENT_QUOTES, 'UTF-8');
             }
             return null; // Don't show this column
 
@@ -68,8 +79,7 @@ $user_manager_column_data = function($user, $column) use ($act, $uCount, $maxUse
             return $html;
 
         default:
-            // For standard columns, just return the value if it exists, otherwise blank
-            return isset($user->$column) ? $user->$column : '';
+            return isset($user->$column) ? htmlspecialchars((string) $user->$column, ENT_QUOTES, 'UTF-8') : '';
     }
 };
 
