@@ -418,12 +418,10 @@ class LocationService
             if ($response === false) {
                 logger(0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE,
                     'LocationService: cURL error (' . curl_errno($ch) . '): ' . curl_error($ch));
-                curl_close($ch);
                 return false;
             }
 
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
 
             if ($httpCode !== 200) {
                 logger(0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE,
