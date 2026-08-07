@@ -1,0 +1,22 @@
+# Local overrides (not committed — see .gitignore)
+
+Copy this file to `.claude.local.md` and fill in your own values:
+
+```bash
+cp .claude.local.md.example .claude.local.md
+```
+
+This file is read manually by Claude Code when `CLAUDE.md` tells it to check
+here (e.g. for the GitHub Wiki clone path) — it is not Claude Code's
+built-in auto-loaded project memory. Nothing reads it unless a prompt or a
+CLAUDE.md instruction explicitly points at it.
+
+## Wiki clone
+
+The permanent local clone of the GitHub Wiki repo (elan-registry/registry.wiki)
+lives at:
+
+/path/to/your/local/wiki/clone
+
+Always use this exact path. Never clone to /tmp/, a worktree, or any other
+temporary location — there should be one permanent clone per machine.

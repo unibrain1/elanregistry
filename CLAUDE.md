@@ -11,6 +11,7 @@ working with code in this repository.
 - `docs/development/UI_STANDARDS.md` - **UI component standards** (color tokens, card hierarchy, component patterns) — read before any UI change
 - `docs/development/EMAIL_SYSTEM.md` - Brevo email plugin setup and configuration
 - `docs/development/CODING_STANDARDS.md` - Code quality requirements
+- `docs/development/TESTING_STRATEGY.md` - Testing tier architecture and UserSpice DB conventions
 - `docs/development/QUICK_REFERENCE.md` - Common tasks lookup
 - `docs/development/DEPLOYMENT.md` - Production deployment procedures
 - `docs/development/ENVIRONMENT.md` - Environment setup and configuration
@@ -308,6 +309,7 @@ and architecture agents.
 /architecture-update — Full wiki architecture documentation refresh
 /revise-claude-md    — Update CLAUDE.md with session learnings
 /clean_gone          — Delete local branches removed from remote
+/found               — Capture a pre-existing issue found mid-task; classify and file or fix
 ```
 
 ### Release Notes
@@ -343,21 +345,23 @@ See [DEPLOYMENT.md](docs/development/DEPLOYMENT.md) for complete procedures. **C
 
 ## GitHub Wiki
 
-The wiki is a **separate git repository** at the permanent path:
+The wiki is a **separate git repository**, cloned once at a permanent local
+path outside this repo. That path is developer-specific (not committed here
+— see `.claude.local.md`, gitignored; copy `.claude.local.md.example` to set
+it up). Note this is a plain reference file Claude Code reads on demand when
+a prompt or instruction like this one points at it — it is not Claude Code's
+built-in auto-loaded project memory.
 
-```text
-/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki
-```
+**CRITICAL:** ALWAYS use that one permanent clone. NEVER clone to `/tmp/`, a
+worktree, or any other temporary location.
 
-**CRITICAL:** ALWAYS use this exact path. NEVER clone to `/tmp/`, a worktree,
-or any other temporary location — there is one permanent clone and it is the
-only place to use.
-
-To update the live wiki after editing files in `wiki/` on a branch:
+To update the live wiki, edit files directly in that clone (path in
+`.claude.local.md`):
 
 ```bash
-cp wiki/<file>.md /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/
-cd /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki
+cd <your wiki clone path>
+git pull
+# edit <file>.md directly in this clone
 git add <file>.md
 git commit -m "docs: <description>"
 git push
