@@ -23,7 +23,7 @@ path directly.
 that file doesn't exist or doesn't list a wiki clone path, stop and ask the
 user for the local path to the wiki repo before proceeding. Every
 `<wiki repo path>` placeholder below refers to this resolved path.
-**Main repo path:** `/Users/jimboone/Documents/Developer/Web/ElanRegistry/Registry/` (read-only for codebase audit)
+**Main repo path:** the current repository checkout (read-only for codebase audit)
 
 ## Available Agents
 
