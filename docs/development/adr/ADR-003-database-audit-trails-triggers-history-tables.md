@@ -349,7 +349,8 @@ point-in-time history.
 
 - **Database Schema and Triggers**:
   [docs/development/DATABASE.md](../development/DATABASE.md) and
-  [database/1-schema.sql](../../database/1-schema.sql) (Section 5)
+  `database/migrations/` (current schema-of-record; the file cited when this
+  ADR was written has since been removed)
 - **ADR-002 Denormalized Cars Table**:
   [ADR-002](ADR-002-denormalized-cars-table-cached-owner-data.md)
   (explains denormalized owner fields in cars_hist snapshots)

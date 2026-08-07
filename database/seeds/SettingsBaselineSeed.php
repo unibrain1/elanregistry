@@ -19,7 +19,7 @@ use Phinx\Seed\AbstractSeed;
  * "SQLSTATE[HY000]: Field 'x' doesn't have a default value" failure on the next
  * version bump. Placeholders are intentionally dumb ('' / 0) — this seed
  * provisions a bootable install, not a configured one; anything a site actually
- * cares about belongs in $elanDefaults below.
+ * cares about belongs in ELAN_DEFAULTS below.
  *
  * Fail-loud by design: an unrecognised NOT NULL column type, or an
  * `ELAN_DEFAULTS` key that no longer matches a real column, throws rather than

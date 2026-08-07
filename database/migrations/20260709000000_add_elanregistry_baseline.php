@@ -49,7 +49,7 @@ final class AddElanregistryBaseline extends AbstractMigration
      * column in one statement, which is why several hundred per-column
      * differences collapse into 50 lines here.
      *
-     * REVIEW (out of scope for #1553, worth a follow-up issue): dev is *not*
+     * REVIEW (out of scope here, worth a follow-up issue): dev is *not*
      * uniform. The 13 tables in the utf8mb3_unicode_ci group are legacy — stock
      * 6.1.4 creates them as utf8mb4, and dev only has them as utf8mb3 because
      * its database predates the conversion and was carried forward across
@@ -228,6 +228,11 @@ final class AddElanregistryBaseline extends AbstractMigration
              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
                COMMENT='Self-service car ownership transfer requests - stores pending transfers when duplicate chassis detected during car entry'"
         );
+
+        // REVIEW (out of scope here, tracked as #1547): `existing_car_id` has no FK
+        // to `cars.id`, so deleting a car leaves its transfer-request rows orphaned.
+        // Dev itself lacks this constraint, so this is schema fidelity, not a
+        // generator gap — reproducing dev's actual state faithfully.
 
         // `fk_cars_user_id` is an index, not a constraint — it is the leftover
         // half of the foreign key that 20260719120000_drop_cars_user_id_fk
@@ -462,9 +467,15 @@ final class AddElanregistryBaseline extends AbstractMigration
      *
      * MySQL has no CREATE TRIGGER IF NOT EXISTS, so drop-then-create is the
      * idempotent pattern (same as 20260710120000 and 20260711000000).
+     * CREATE TRIGGER also needs SUPER or log_bin_trust_function_creators=1 when
+     * binary logging is enabled — enableTrustFunctionCreators()/
+     * resetTrustFunctionCreators() bracket the creation calls, matching the
+     * precedent in 20260710120000.
      */
     private function createCarAuditTriggers(): void
     {
+        $trustFunctionCreatorsSet = $this->enableTrustFunctionCreators();
+
         $this->execute("DROP TRIGGER IF EXISTS `cars_insert`");
         $this->execute(
             "CREATE TRIGGER `cars_insert` AFTER INSERT ON `cars` FOR EACH ROW BEGIN
@@ -527,6 +538,55 @@ final class AddElanregistryBaseline extends AbstractMigration
                  );
              END"
         );
+
+        $this->resetTrustFunctionCreators($trustFunctionCreatorsSet);
+    }
+
+    /**
+     * CREATE TRIGGER requires either SUPER privilege or log_bin_trust_function_creators=1
+     * when binary logging is enabled. Attempt to set it globally; if the migration user
+     * lacks SUPER/SYSTEM_VARIABLES_ADMIN, continue anyway — the variable may already be
+     * set globally (common on managed hosting panels), otherwise the DBA must set it in
+     * MySQL config (log_bin_trust_function_creators=1 in my.cnf).
+     *
+     * @return bool True if this call set the variable (and so should reset it afterward).
+     */
+    private function enableTrustFunctionCreators(): bool
+    {
+        try {
+            $this->execute("SET GLOBAL log_bin_trust_function_creators = 1");
+            return true;
+        } catch (\RuntimeException $e) {
+            if (isset($this->output)) {
+                $this->output->writeln(
+                    '<comment>Warning: Could not SET GLOBAL log_bin_trust_function_creators=1 '
+                    . '— continuing. If CREATE TRIGGER fails below, set this variable in my.cnf.</comment>'
+                );
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Resets log_bin_trust_function_creators if this migration run set it — limits the
+     * window of elevated trust to only the trigger creation steps.
+     */
+    private function resetTrustFunctionCreators(bool $wasSet): void
+    {
+        if (!$wasSet) {
+            return;
+        }
+        try {
+            $this->execute("SET GLOBAL log_bin_trust_function_creators = 0");
+        } catch (\Exception $e) {
+            if (isset($this->output)) {
+                $this->output->writeln(
+                    '<comment>Warning: Could not reset log_bin_trust_function_creators=0: '
+                    . $e->getMessage()
+                    . ' — set it manually in MySQL or my.cnf.</comment>'
+                );
+            }
+        }
     }
 
     /**
@@ -588,7 +648,7 @@ final class AddElanregistryBaseline extends AbstractMigration
         // `elan_backup_age`, `us_css1..3`, and the extra `recap_v3_*` columns have
         // zero references in `app/`/`usersc/` (consistent with ADR-015's move to
         // self-hosted assets) — reproduced here for schema fidelity to dev, not
-        // because they're in active use. REVIEW (out of scope for #1553): worth a
+        // because they're in active use. REVIEW (out of scope here): worth a
         // follow-up cleanup issue to drop the genuinely dead ones.
         $this->execute("ALTER TABLE `settings` ADD COLUMN `us_css1` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL AFTER `css_sample`");
         $this->execute("ALTER TABLE `settings` ADD COLUMN `us_css2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL AFTER `us_css1`");
@@ -742,7 +802,7 @@ final class AddElanregistryBaseline extends AbstractMigration
         'force_pr'           => "int NOT NULL DEFAULT '0'",
         // Legacy 2FA columns from a UserSpice older than 6.1.4, which moved TOTP
         // to `us_totp_secrets`. Kept for fidelity with dev and prod — dropping
-        // unreferenced columns is out of scope for #1553 — but all three look
+        // unreferenced columns is out of scope here — but all three look
         // like cleanup candidates:
         //   twoKey     — zero references anywhere in the repo, app or framework.
         //   twoEnabled — referenced once, only as the AFTER anchor in

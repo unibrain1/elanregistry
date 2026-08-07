@@ -29,7 +29,7 @@
   5. Now do the push. `composer migrate` will skip `20260709000000` and apply only whatever's genuinely pending on that environment.
   6. After the push, confirm via the deploy log or `composer migrate:status` on that server that `20260709000000` shows as already-applied and everything else applied cleanly with nothing pending or errored.
 
-  See `docs/development/DEPLOYMENT.md` → "One-Time: Stamping the ElanRegistry Baseline Migration (#1553)" for the same procedure in context.
+  See `docs/development/DEPLOYMENT.md` → "One-Time: Stamping the ElanRegistry Baseline Migration" for the same procedure in context.
 
 ## User-Facing Changes
 

@@ -23,12 +23,15 @@ use Phinx\Seed\AbstractSeed;
  * vendor/bin/phinx seed:run -s ElanFactoryInfoSeed
  * ```
  *
- * Idempotent twice over: the seed returns early if the table already holds rows,
- * and the inserts themselves are `INSERT IGNORE` against the primary key.
- * Note the semantic difference from re-running a full data refresh: this seed
- * provisions an empty table and never touches rows that already exist.
- * Correcting existing factory data is a data fix, not a provisioning step, and
- * belongs in `app/admin/scripts/fix/`.
+ * Idempotent twice over: the seed re-attempts every run, checking row count
+ * (not mere presence) against EXPECTED_ROWS before skipping, so an
+ * interrupted prior run (killed mid-batch) self-heals instead of being
+ * permanently mistaken for complete; and the inserts themselves are
+ * `INSERT IGNORE` against the primary key, so re-running against an already
+ * complete table is a safe no-op. Note the semantic difference from
+ * re-running a full data refresh: this seed provisions an empty table and
+ * never touches rows that already exist. Correcting existing factory data is
+ * a data fix, not a provisioning step, and belongs in `app/admin/scripts/fix/`.
  */
 final class ElanFactoryInfoSeed extends AbstractSeed
 {
@@ -82,7 +85,8 @@ final class ElanFactoryInfoSeed extends AbstractSeed
 
     public function run(): void
     {
-        if ($this->fetchRow('SELECT 1 FROM `elan_factory_info` LIMIT 1') !== false) {
+        $existing = (int) $this->fetchRow('SELECT COUNT(*) AS n FROM `elan_factory_info`')['n'];
+        if ($existing >= self::EXPECTED_ROWS) {
             return;
         }
 
@@ -101,9 +105,9 @@ final class ElanFactoryInfoSeed extends AbstractSeed
         }
 
         $loaded = (int) $this->fetchRow('SELECT COUNT(*) AS n FROM `elan_factory_info`')['n'];
-        if ($loaded !== self::EXPECTED_ROWS) {
+        if ($loaded < self::EXPECTED_ROWS) {
             throw new RuntimeException(
-                'ElanFactoryInfoSeed: expected ' . self::EXPECTED_ROWS . ' rows in ' .
+                'ElanFactoryInfoSeed: expected at least ' . self::EXPECTED_ROWS . ' rows in ' .
                 "`elan_factory_info` after seeding, found {$loaded}. Factory data drives " .
                 'the chassis-number lookup — investigate before trusting it.'
             );

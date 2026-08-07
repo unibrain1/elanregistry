@@ -418,6 +418,25 @@ function bt(string $identifier): string
     return '`' . str_replace('`', '``', $identifier) . '`';
 }
 
+/** @param array<string, mixed> $trigger One row from fetchTriggers(). */
+function dropTriggerSql(array $trigger): string
+{
+    return 'DROP TRIGGER IF EXISTS ' . bt((string) $trigger['TRIGGER_NAME']);
+}
+
+/** @param array<string, mixed> $trigger One row from fetchTriggers(). */
+function createTriggerSql(array $trigger, string $table): string
+{
+    return sprintf(
+        'CREATE TRIGGER %s %s %s ON %s FOR EACH ROW %s',
+        bt((string) $trigger['TRIGGER_NAME']),
+        $trigger['ACTION_TIMING'],
+        $trigger['EVENT_MANIPULATION'],
+        bt($table),
+        $trigger['ACTION_STATEMENT']
+    );
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 $opts = parseArgs($argv);
@@ -516,15 +535,8 @@ foreach ($newTables as $table) {
     $out .= emitExecute(showCreateTable($project, $table));
 
     foreach ($projectTriggers[$table] ?? [] as $trigger) {
-        $out .= emitExecute('DROP TRIGGER IF EXISTS ' . bt($trigger['TRIGGER_NAME']));
-        $out .= emitExecute(sprintf(
-            "CREATE TRIGGER %s %s %s ON %s FOR EACH ROW %s",
-            bt($trigger['TRIGGER_NAME']),
-            $trigger['ACTION_TIMING'],
-            $trigger['EVENT_MANIPULATION'],
-            bt($table),
-            $trigger['ACTION_STATEMENT']
-        ));
+        $out .= emitExecute(dropTriggerSql($trigger));
+        $out .= emitExecute(createTriggerSql($trigger, $table));
     }
     $out .= "\n";
 }
@@ -799,15 +811,8 @@ foreach ($sharedTables as $table) {
 
     // Triggers the project added to a stock table.
     foreach ($projectTriggers[$table] ?? [] as $trigger) {
-        $statements[] = 'DROP TRIGGER IF EXISTS ' . bt($trigger['TRIGGER_NAME']);
-        $statements[] = sprintf(
-            "CREATE TRIGGER %s %s %s ON %s FOR EACH ROW %s",
-            bt($trigger['TRIGGER_NAME']),
-            $trigger['ACTION_TIMING'],
-            $trigger['EVENT_MANIPULATION'],
-            bt($table),
-            $trigger['ACTION_STATEMENT']
-        );
+        $statements[] = dropTriggerSql($trigger);
+        $statements[] = createTriggerSql($trigger, $table);
     }
 
     if ($statements !== []) {
@@ -848,7 +853,7 @@ $out .= "\n";
 
 foreach (array_reverse($newTables) as $table) {
     foreach ($projectTriggers[$table] ?? [] as $trigger) {
-        $out .= emitExecute('DROP TRIGGER IF EXISTS ' . bt($trigger['TRIGGER_NAME']));
+        $out .= emitExecute(dropTriggerSql($trigger));
     }
     $out .= emitExecute('DROP TABLE IF EXISTS ' . bt($table));
 }
@@ -860,7 +865,7 @@ foreach ($statementsByTable as $table => $work) {
     $pCols       = $projectColumns[$table] ?? [];
 
     foreach ($projectTriggers[$table] ?? [] as $trigger) {
-        $out .= emitExecute('DROP TRIGGER IF EXISTS ' . bt($trigger['TRIGGER_NAME']));
+        $out .= emitExecute(dropTriggerSql($trigger));
     }
 
     foreach ($pCols as $name => $pCol) {

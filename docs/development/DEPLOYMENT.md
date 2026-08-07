@@ -269,7 +269,7 @@ composer migrate:status   # list pending and applied migrations
 automatically via the post-receive hook. The manual steps above serve as a fallback if the hook needs to
 be bootstrapped on a fresh server.
 
-### One-Time: Stamping the ElanRegistry Baseline Migration (#1553)
+### One-Time: Stamping the ElanRegistry Baseline Migration
 
 `database/migrations/20260709000000_add_elanregistry_baseline.php` reproduces the full
 ElanRegistry-vs-stock-UserSpice schema diff as a single migration — the schema-of-record for any
@@ -291,7 +291,7 @@ Verify first that this hasn't already been stamped (`SELECT * FROM phinxlog WHER
 20260709000000`) — the `PRIMARY KEY` on `version` makes a duplicate `INSERT` fail loudly rather than
 silently, but check anyway before running it against a production database. After the stamp,
 `composer migrate` skips `20260709000000` and applies only the migrations genuinely pending on that
-environment (the 7 that existed before #1553), exactly like any other deploy.
+environment, exactly like any other deploy.
 
 ### Git & Version Control
 

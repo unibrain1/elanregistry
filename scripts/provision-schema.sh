@@ -171,13 +171,9 @@ read_env_default() {
 DB_NAME="$(read_env "${TARGET_ENV}" DB_NAME)"
 DB_USER="$(read_env "${TARGET_ENV}" DB_USER)"
 DB_PASS="$(read_env "${TARGET_ENV}" DB_PASS)"
+# DB_HOST is a bare host — the port travels separately in DB_PORT.
 DB_HOST="$(read_env_default "${TARGET_ENV}" DB_HOST 127.0.0.1)"
 DB_PORT="$(read_env_default "${TARGET_ENV}" DB_PORT 3306)"
-
-# DB_HOST is conventionally written "host:port" in this project's env files.
-# Strip the port so both the mysql client (-h) and Phinx's PDO DSN get a bare
-# host; the port travels separately in DB_PORT.
-DB_HOST="${DB_HOST%%:*}"
 
 # --- Safety guards -----------------------------------------------------------
 # The one destructive operation here is DROP DATABASE on the target. The old

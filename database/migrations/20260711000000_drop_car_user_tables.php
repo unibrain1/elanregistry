@@ -6,16 +6,13 @@ use Phinx\Migration\AbstractMigration;
 
 final class DropCarUserTables extends AbstractMigration
 {
-    // The car_user junction table was a redundant mirror of cars.user_id. It
-    // recorded car ownership as (userid, car_id) rows, but ownership is already
-    // authoritative on cars.user_id. Because car_user had no FK constraint back
-    // to cars or users, the two representations drifted over time — rows in
-    // car_user pointed at cars whose cars.user_id said something different,
-    // producing inconsistent owner data in reports and queries.
-    //
-    // Issue #1162 removes the junction entirely: every JOIN through car_user has
-    // been rewritten to use cars.user_id directly. This migration drops the now-
-    // unused car_user / car_user_hist tables and their audit triggers.
+    // car_user recorded car ownership as (userid, car_id) rows, duplicating the
+    // ownership already authoritative on cars.user_id. It had no FK constraint
+    // back to either table, so the two representations could drift — a row in
+    // car_user could point at a car whose cars.user_id disagreed, producing
+    // inconsistent owner data in reports and queries. cars.user_id is the sole
+    // ownership relationship; this migration drops car_user / car_user_hist and
+    // their audit triggers, after reconciling and verifying any drift below.
     //
     // up()   — drop the audit triggers, then car_user_hist and car_user
     // down() — recreate the tables and triggers from the original schema DDL for
@@ -43,7 +40,28 @@ final class DropCarUserTables extends AbstractMigration
         // would leave the schema partially changed. By doing all data work first,
         // a failure leaves both the data and the schema untouched.
 
-        // ── Step 1: Reconcile drift ───────────────────────────────────────────
+        // ── Step 1: Guard against unrecoverable orphans ───────────────────────
+        //
+        // Block first, before any data is touched, if any car_user row references
+        // a car_id that no longer exists in cars. The reconciliation JOINs in
+        // Step 2 only ever touch rows with a matching car, so a row whose car was
+        // hard-deleted (CarRepository::deleteCar() removes from cars with no
+        // car_user cleanup) is invisible to them and would otherwise be destroyed
+        // unnoticed by the DROP below.
+        $noCar = $this->fetchRow(
+            "SELECT COUNT(*) AS n FROM car_user cu
+             LEFT JOIN cars c ON cu.car_id = c.id
+             WHERE c.id IS NULL"
+        );
+        if ((int) ($noCar['n'] ?? 0) > 0) {
+            throw new \RuntimeException(
+                "Cannot drop car_user: {$noCar['n']} row(s) reference a car_id that no " .
+                'longer exists in cars. Investigate before proceeding — dropping would ' .
+                'destroy the last record of these relationships.'
+            );
+        }
+
+        // ── Step 2: Reconcile drift ────────────────────────────────────────────
         //
         // car_user had no FK constraint, so cars.user_id and car_user.userid
         // could diverge whenever an ownership transfer updated one but not the
@@ -76,7 +94,7 @@ final class DropCarUserTables extends AbstractMigration
              WHERE c.user_id IS NULL"
         );
 
-        // ── Step 2: Guard — hard blocks that cannot be auto-fixed ────────────
+        // ── Step 3: Guard — hard blocks that cannot be auto-fixed ────────────
         //
         // These checks catch data integrity problems that require human review.
         // Unlike drift (which cars.user_id can authoritatively resolve), an
@@ -111,7 +129,7 @@ final class DropCarUserTables extends AbstractMigration
             );
         }
 
-        // ── Step 3: Drop ─────────────────────────────────────────────────────
+        // ── Step 4: Drop ─────────────────────────────────────────────────────
 
         // Triggers must be dropped before their table.
         $this->execute("DROP TRIGGER IF EXISTS `car_user_delete`");

@@ -22,8 +22,8 @@ historical context:
   now authoritative on `cars.user_id` alone; every reference to `car_user`
   below describes a mechanism that no longer exists.
 - **Hard-coded ID 83 in the admin UI** -- still open, still real, tracked as
-  #1562. The file has since moved to `app/admin/assets/admin-core.js` (this
-  ADR's references to `manage-consolidated.js` are stale).
+  #1562. The correct file is `app/admin/assets/admin-core.js`; every reference
+  to `manage-consolidated.js` below is outdated.
 
 ## Context
 

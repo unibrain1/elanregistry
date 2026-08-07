@@ -187,9 +187,8 @@ try {
 /**
  * Write each message line to STDERR and exit(1).
  *
- * Consolidates the repeated "fwrite(STDERR, ...); ...; exit(1);" pattern used
- * throughout the reference-data and settings auto-load blocks below, which
- * fail loudly rather than let tests run against a silently broken environment.
+ * Used by the reference-data verification block below (via abortMissingSeed())
+ * to fail loudly rather than let tests run against a silently broken environment.
  *
  * @param string ...$lines Message lines, printed in order (no trailing "\n" needed).
  */
@@ -199,6 +198,22 @@ function abortBootstrap(string ...$lines): never
         fwrite(STDERR, $line . "\n");
     }
     exit(1);
+}
+
+/**
+ * abortBootstrap(), with the fix instructions shared by every check in the
+ * reference-data verification block below appended automatically.
+ *
+ * @param string ...$reasonLines What's missing and why it matters, printed
+ *                                before the shared "how to fix it" lines.
+ */
+function abortMissingSeed(string ...$reasonLines): never
+{
+    abortBootstrap(...[
+        ...$reasonLines,
+        "Run: ./scripts/provision-schema.sh (composer seed:run alone targets the",
+        "dev database, not this test schema — phinx.php only reads .env).",
+    ]);
 }
 
 // ============================================================
@@ -218,40 +233,36 @@ try {
         $carModelsRow = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
         $carModelsCount = $carModelsRow ? (int) $carModelsRow->cnt : 0;
         if ($carModelsCount === 0) {
-            abortBootstrap(
+            abortMissingSeed(
                 "ERROR: car_models table is empty.",
-                "Integration tests that depend on car_models cannot run. Aborting.",
-                "Run: ./scripts/provision-schema.sh (composer seed:run alone targets the",
-                "dev database, not this test schema — phinx.php only reads .env)."
+                "Integration tests that depend on car_models cannot run. Aborting."
             );
         }
 
         $settingsExists = $db->query("SELECT 1 FROM settings WHERE id = 1")->first();
         if (!$settingsExists) {
-            abortBootstrap(
+            abortMissingSeed(
                 "ERROR: settings row (id=1) is missing.",
-                "Car::__construct() and other framework code silently misbehave without it. Aborting.",
-                "Run: ./scripts/provision-schema.sh (composer seed:run alone targets the",
-                "dev database, not this test schema — phinx.php only reads .env)."
+                "Car::__construct() and other framework code silently misbehave without it. Aborting."
             );
         }
 
-        $noownerExists = $db->query("SELECT 1 FROM users WHERE username = 'noowner'")->first();
-        if (!$noownerExists) {
-            abortBootstrap(
+        $noownerRow = $db->query("SELECT password, protected FROM users WHERE username = 'noowner'")->first();
+        if (!$noownerRow) {
+            abortMissingSeed(
                 "ERROR: the noowner system account is missing.",
-                "GDPR account-deletion reassignment tests depend on it. Aborting.",
-                "Run: ./scripts/provision-schema.sh (composer seed:run alone targets the",
-                "dev database, not this test schema — phinx.php only reads .env)."
+                "GDPR account-deletion reassignment tests depend on it. Aborting."
+            );
+        }
+        if ($noownerRow->password !== null || (int) $noownerRow->protected !== 1) {
+            abortMissingSeed(
+                "ERROR: the noowner account exists but violates ADR-010's invariants",
+                "(password must be NULL, protected must be 1). Aborting."
             );
         }
 
         fwrite(STDERR, "NOTE: Reference data verified (car_models: {$carModelsCount} records, settings, noowner)\n");
     }
 } catch (Throwable $e) {
-    abortBootstrap(
-        "ERROR: Failed to verify reference data: {$e->getMessage()}",
-        "Run: ./scripts/provision-schema.sh (composer seed:run alone targets the",
-        "dev database, not this test schema — phinx.php only reads .env)."
-    );
+    abortMissingSeed("ERROR: Failed to verify reference data: {$e->getMessage()}");
 }

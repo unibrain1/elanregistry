@@ -34,7 +34,9 @@ use Phinx\Seed\AbstractSeed;
  * `permissions = 0` are still required so the account isn't excluded from
  * those (and the deletion hook's) queries once id resolution is fixed.
  *
- * Idempotent: does nothing if a user named `noowner` already exists.
+ * Idempotent: if a user named `noowner` already exists, re-checks the same two
+ * invariants (password NULL, protected = 1) rather than trusting existence
+ * alone — a hand-edited or drifted account would otherwise pass silently.
  */
 final class NoownerSeed extends AbstractSeed
 {
@@ -42,10 +44,9 @@ final class NoownerSeed extends AbstractSeed
 
     public function run(): void
     {
-        $existing = $this->fetchRow(
-            "SELECT id FROM `users` WHERE `username` = '" . self::USERNAME . "'"
-        );
-        if ($existing !== false) {
+        $existing = $this->findExisting();
+        if ($existing !== null) {
+            $this->assertInvariants($existing);
             return;
         }
 
@@ -80,13 +81,46 @@ final class NoownerSeed extends AbstractSeed
             'modified'    => $now,
         ]);
 
-        $created = $this->fetchRow(
-            "SELECT id FROM `users` WHERE `username` = '" . self::USERNAME . "'"
-        );
-        if ($created === false) {
+        $created = $this->findExisting();
+        if ($created === null) {
             throw new RuntimeException(
                 'NoownerSeed: the INSERT ran but no user named ' . self::USERNAME . ' exists. ' .
                 'Account deletion would silently orphan cars — investigate before going live.'
+            );
+        }
+        $this->assertInvariants($created);
+    }
+
+    /**
+     * @return array{id: int, password: string|null, protected: int}|null
+     */
+    private function findExisting(): ?array
+    {
+        $row = $this->query(
+            'SELECT id, password, protected FROM `users` WHERE `username` = ?',
+            [self::USERNAME]
+        )->fetch(\PDO::FETCH_ASSOC);
+
+        return $row !== false ? $row : null;
+    }
+
+    /**
+     * @param array{id: int, password: string|null, protected: int} $user
+     */
+    private function assertInvariants(array $user): void
+    {
+        if ($user['password'] !== null) {
+            throw new RuntimeException(
+                'NoownerSeed: the noowner account has a non-NULL password. Per ADR-010 this ' .
+                'account must be unauthenticatable by construction — investigate before ' .
+                'trusting GDPR-deletion reassignment.'
+            );
+        }
+        if ((int) $user['protected'] !== 1) {
+            throw new RuntimeException(
+                'NoownerSeed: the noowner account has protected != 1, so account-deletion ' .
+                'cleanup would not exclude it. Investigate before trusting GDPR-deletion ' .
+                'reassignment.'
             );
         }
     }
