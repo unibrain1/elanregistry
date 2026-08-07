@@ -20,10 +20,43 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('integration')]
 final class UserDeletionReassignmentTest extends IntegrationTestCase
 {
+    private $savedGlobalUser;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireDatabase();
+
+        // after_user_deletion.php requires an authenticated session (currentUserId()
+        // throws RuntimeException otherwise) — see the ASSUMPTION comment in
+        // after_user_deletion.php for which production callers provide one. The hook
+        // itself only checks for a session, not admin permission, so this fixture is
+        // an authenticated (non-admin) test user, not an actual admin. Without it, the
+        // hook aborts before reassigning cars and the final assertion below fails with
+        // a confusing "wrong ID" message instead of a clear "no session" error.
+        $this->savedGlobalUser = $GLOBALS['user'] ?? null;
+
+        $actingUserId = $this->createTestUser();
+        $actingUser = new User();
+        $actingUser->find($actingUserId);
+        $reflection = new ReflectionClass($actingUser);
+        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
+        $isLoggedInProperty->setValue($actingUser, true);
+        $GLOBALS['user'] = $actingUser;
+    }
+
+    protected function tearDown(): void
+    {
+        // Restore rather than unset — bootstrap-integration.php only seeds a fallback
+        // $GLOBALS['user'] once per process, so unsetting it here would leave later
+        // test classes in the same run with no global $user at all.
+        if ($this->savedGlobalUser !== null) {
+            $GLOBALS['user'] = $this->savedGlobalUser;
+        } else {
+            unset($GLOBALS['user']);
+        }
+
+        parent::tearDown();
     }
 
     /**
@@ -36,9 +69,7 @@ final class UserDeletionReassignmentTest extends IntegrationTestCase
     public function test_afterUserDeletionHook_reassignsCarsToNoowner(): void
     {
         $noOwnerRow = $this->db->query("SELECT id FROM users WHERE username = ?", ['noowner'])->first();
-        if (!$noOwnerRow) {
-            $this->markTestSkipped('noowner system account not present in test DB');
-        }
+        $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer seed:run (NoownerSeed)');
         $noOwnerId = (int) $noOwnerRow->id;
 
         $userId = $this->createTestUser();
