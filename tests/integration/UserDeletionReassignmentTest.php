@@ -47,9 +47,11 @@ final class UserDeletionReassignmentTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        // Restore rather than unset — bootstrap-integration.php only seeds a fallback
-        // $GLOBALS['user'] once per process, so unsetting it here would leave later
-        // test classes in the same run with no global $user at all.
+        // Restore rather than unset — bootstrap-integration.php seeds a fallback
+        // $GLOBALS['user'] once per process, so $savedGlobalUser should never actually
+        // be null here in practice. The unset() branch is defensive: it only matters if
+        // some earlier test explicitly unsets the global (none currently do), so that a
+        // later test class isn't left with no global $user at all if that ever changes.
         if ($this->savedGlobalUser !== null) {
             $GLOBALS['user'] = $this->savedGlobalUser;
         } else {
