@@ -531,10 +531,6 @@ class BackupManager {
                 throw new BackupException("Failed to write backup file: $backupPath");
             }
 
-            $this->logBackupEvent('created', $scriptName, $type, $environment, $backupPath);
-
-            return $backupPath;
-
         } catch (\Throwable $e) {
             // Single choke point for "a backup was attempted and did not complete" —
             // unwritable directory, failed table dump, and failed file write alike.
@@ -545,10 +541,28 @@ class BackupManager {
             // Logged under BackupFailed rather than the generic BackupError so
             // hasRecentBackupFailures() sees every aborted attempt and routine
             // BackupError entries cannot raise a false alarm.
+            //
+            // logBackupEvent() is deliberately NOT inside this try: it runs only
+            // after file_put_contents() has already succeeded, and a failure in
+            // that purely informational audit-log call must never be mistaken for
+            // the backup itself failing (see below).
             ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_FAILED,
                 "Backup aborted for '{$scriptName}' ({$type}/{$environment}): " . $e->getMessage());
             throw $e;
         }
+
+        // The backup file is fully written at this point — everything past here is
+        // a best-effort audit-log entry, not part of "did the backup succeed." If
+        // logging it fails, note that separately rather than letting it propagate
+        // as a BackupException, which would report a successful backup as aborted.
+        try {
+            $this->logBackupEvent('created', $scriptName, $type, $environment, $backupPath);
+        } catch (\Throwable $e) {
+            ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR,
+                "Backup '{$scriptName}' succeeded but its audit-log entry failed: " . $e->getMessage());
+        }
+
+        return $backupPath;
     }
 
     /**

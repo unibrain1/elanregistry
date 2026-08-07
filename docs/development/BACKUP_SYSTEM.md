@@ -372,7 +372,7 @@ echo "Health improvement: +{$cleanupResults['health_improvement']} points\n";
 
 The backup system calculates a health score (0-100) based on:
 
-- **Recent backup failure**: -30 points if a genuine table dump failure was logged within `BACKUP_FAILURE_LOOKBACK_DAYS`
+- **Recent backup failure**: -30 points if an aborted backup attempt (unwritable directory, failed table dump, or failed file write) was logged within `BACKUP_FAILURE_LOOKBACK_DAYS`
 - **Expired backups**: -10 points per type with expired files
 - **Approaching expiry**: -5 points per type with files expiring soon
 - **Excessive storage**: -15 points if total backup size exceeds 1GB
