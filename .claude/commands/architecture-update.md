@@ -11,14 +11,18 @@ Before any other action, create one tracking task per major step below using
 TaskCreate (pull wiki repo, codebase audit, doc split decision, parallel agent
 launches, synthesis, diagram embedding, markdownlint, commit, summary).
 
-Update the ElanRegistry architecture documentation in the local wiki repo at
-`/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`. Reads the
-current wiki pages from disk, audits them against the codebase, updates all
-content, evaluates whether to split into multiple documents, adds Mermaid
-diagrams throughout, ensures all files pass lint, and commits + pushes to the
-wiki remote. All file reads and writes target the wiki repo path directly.
+Update the ElanRegistry architecture documentation in the local wiki repo.
+Reads the current wiki pages from disk, audits them against the codebase,
+updates all content, evaluates whether to split into multiple documents,
+adds Mermaid diagrams throughout, ensures all files pass lint, and commits +
+pushes to the wiki remote. All file reads and writes target the wiki repo
+path directly.
 
-**Wiki repo path:** `/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`
+**Wiki repo path:** developer-specific, not committed here — read it from
+`.claude.local.md` (gitignored; see `CLAUDE.md`'s GitHub Wiki section). If
+that file doesn't exist or doesn't list a wiki clone path, stop and ask the
+user for the local path to the wiki repo before proceeding. Every
+`<wiki repo path>` placeholder below refers to this resolved path.
 **Main repo path:** `/Users/jimboone/Documents/Developer/Web/ElanRegistry/Registry/` (read-only for codebase audit)
 
 ## Available Agents
@@ -35,20 +39,26 @@ when they don't depend on each other.
 
 ## Workflow
 
-### Step 0: Pull the wiki repo to ensure it is up to date
+### Step 0: Resolve the wiki repo path
+
+Read `.claude.local.md` in the main repo root for the wiki clone path. If it
+doesn't exist or doesn't list one, stop and ask the user. Substitute the
+resolved path for every `<wiki repo path>` placeholder in the steps below.
+
+### Step 0.5: Pull the wiki repo to ensure it is up to date
 
 ```bash
-git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki pull
+git -C <wiki repo path> pull
 ```
 
 List the existing wiki pages to understand what is already there:
 
 ```bash
-ls /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/*.md
+ls <wiki repo path>/*.md
 ```
 
 All file reads and writes in subsequent steps use absolute paths under
-`/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`.
+`<wiki repo path>/`.
 
 ### Step 1: Read the current wiki documents
 
@@ -208,7 +218,7 @@ document:
 
 - This step is performed by the orchestrating agent only.
 - Write files to their absolute paths under
-  `/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/`.
+  `<wiki repo path>/`.
 - Place each diagram directly below the section heading it relates to.
 - Do not modify any existing prose — only insert diagram blocks.
 - If a section already has a diagram, add new ones alongside rather than
@@ -228,7 +238,7 @@ document:
   repo:
 
   ```bash
-  markdownlint /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/*.md
+  markdownlint <wiki repo path>/*.md
   ```
 
 - Fix any lint errors before proceeding — do not skip or suppress warnings.
@@ -242,7 +252,7 @@ document:
 - Stage all modified and newly created `.md` files:
 
   ```bash
-  git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki add *.md
+  git -C <wiki repo path> add *.md
   ```
 
 - Write a commit message in the format:
@@ -250,13 +260,13 @@ document:
 - Commit:
 
   ```bash
-  git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki commit -m "docs: update architecture documents with diagrams $(date +%Y-%m-%d)"
+  git -C <wiki repo path> commit -m "docs: update architecture documents with diagrams $(date +%Y-%m-%d)"
   ```
 
 - Push to the wiki remote:
 
   ```bash
-  git -C /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki push
+  git -C <wiki repo path> push
   ```
 
 ### Step 12: Report what was done

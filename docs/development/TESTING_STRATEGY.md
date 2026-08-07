@@ -19,7 +19,10 @@ Three tiers, each with a distinct purpose and a hard boundary:
   not the application). Mocking third-party/framework boundaries (like
   UserSpice's `DB` class itself) is fine when the goal is isolating your own
   code's logic from a real database — the anti-pattern is mocking *your own*
-  classes.
+  classes. This is the target convention, not yet the current state: legacy
+  mocks of `CarModel`/`Car`/`DB` still exist in `tests/unit/` and are
+  documented as such in `tests/README.md` — tracked for removal in #1440 and
+  #1441. Don't add new tests against those mocks; test the real class.
 - **Integration (`tests/integration/`)** — real database, real UserSpice
   framework. Every test creates the fixtures it depends on
   (`IntegrationTestCase::createTestUser()` / `createTestCar()`) and cleans
@@ -31,10 +34,19 @@ Three tiers, each with a distinct purpose and a hard boundary:
   coverage of business logic — browser tests are expensive and should stay
   narrow.
 
-`tests/regression/` is **not** a fourth tier — it's a `#[Group('regression')]`
-tag applied to tests that live in whichever tier fits them, run via
-`composer test:regression`. Treat "which tier" and "is it regression-tagged"
-as orthogonal questions.
+`tests/regression/` is **not** a fourth tier in the unit/integration/E2E
+sense — it's orthogonal in intent, tracking "was this specific bug fixed"
+rather than a class or flow. But mechanically it runs entirely under the
+unit bootstrap: `phpunit-unit.xml` scopes the `Regression` testsuite to the
+`tests/regression/` directory (directory-based, not a `#[Group]` tag), and
+that directory loads via `tests/bootstrap-unit.php` — mocks only, no
+database, same as `tests/unit/`. A regression test that needs a real
+database has to live in `tests/integration/` instead; it isn't a `composer
+test:regression` test. A new mock-compatible regression test belongs in
+`tests/regression/` (copy
+`RegressionTestTemplate.php`, see `tests/regression/README.md`) — a
+`#[Group('regression')]` attribute alone on a test living elsewhere will
+**not** be picked up by `composer test:regression`.
 
 ## UserSpice `DB` Class Conventions
 

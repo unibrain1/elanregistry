@@ -347,7 +347,10 @@ See [DEPLOYMENT.md](docs/development/DEPLOYMENT.md) for complete procedures. **C
 
 The wiki is a **separate git repository**, cloned once at a permanent local
 path outside this repo. That path is developer-specific (not committed here
-— see `.claude.local.md`, gitignored).
+— see `.claude.local.md`, gitignored; copy `.claude.local.md.example` to set
+it up). Note this is a plain reference file Claude Code reads on demand when
+a prompt or instruction like this one points at it — it is not Claude Code's
+built-in auto-loaded project memory.
 
 **CRITICAL:** ALWAYS use that one permanent clone. NEVER clone to `/tmp/`, a
 worktree, or any other temporary location.

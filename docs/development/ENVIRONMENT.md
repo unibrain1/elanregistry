@@ -167,6 +167,17 @@ internally, setting the `X-Forwarded-Proto: https` header so `$is_https` is
    composer test:integration
    ```
 
+5. **Set Up Claude Code Local Overrides (optional)**:
+
+   Personal/machine-specific paths that Claude Code needs (e.g. the local
+   GitHub Wiki clone path — see `CLAUDE.md`'s GitHub Wiki section) go in
+   `.claude.local.md`, gitignored and not shared with the team.
+
+   ```bash
+   cp .claude.local.md.example .claude.local.md
+   # Edit with your own local paths
+   ```
+
 ### Test Database Isolation
 
 Integration tests are **destructive** — they insert, update, delete, and merge real database
