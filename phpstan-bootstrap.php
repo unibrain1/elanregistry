@@ -51,6 +51,8 @@ if (!function_exists('randomstring')) {
 // tests/bootstrap-integration.php defines this at PHPUnit's real runtime bootstrap
 // (see phpunit-integration.xml), which PHPStan never executes — declared here so
 // TESTING_ROOT resolves during analysis of integration tests that reference it (#1555).
+// The empty-string value is only to satisfy defined()/type-checks during analysis —
+// it is never used for real path resolution; the real value is set at PHPUnit runtime.
 if (!defined('TESTING_ROOT')) {
     define('TESTING_ROOT', '');
 }
