@@ -55,6 +55,7 @@ project, structured for different audiences and use cases.
 - **[DATABASE.md](development/DATABASE.md)** - Complete database schema and table relationships
 - **[UserSpice Integration Guide][us-wiki]** - UserSpice integration and custom functions
 - **[CODING_STANDARDS.md](development/CODING_STANDARDS.md)** - Code quality requirements and project conventions
+- **[TESTING_STRATEGY.md](development/TESTING_STRATEGY.md)** - Testing tier architecture and UserSpice DB conventions
 - **[STRICT_TYPE_HANDLING.md](development/STRICT_TYPE_HANDLING.md)** - PHP strict type handling patterns
 
 #### 🔧 SPECIALIZED TOPICS
