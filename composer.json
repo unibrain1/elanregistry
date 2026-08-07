@@ -41,8 +41,6 @@
         "test:unit:all": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml",
         "test:integration": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml --testsuite=Integration",
         "test:database": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/database",
-        "test:api": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/api",
-        "test:workflow": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/workflow",
         "test:full": ["@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml", "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml"],
         "test:coverage": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --coverage-html=coverage",
         "test:medium": ["@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml", "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/database"],
