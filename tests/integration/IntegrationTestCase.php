@@ -247,8 +247,11 @@ abstract class IntegrationTestCase extends TestCase
         }
 
         try {
-            $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
+            // cars_hist is deleted AFTER cars, not before — the cars_delete trigger inserts a
+            // DELETE-operation history row when the car row is removed, so deleting cars_hist
+            // first just leaves that trigger-inserted row orphaned forever (same fix as tearDown()).
             $this->db->delete('cars', ['id', '=', $carId]);
+            $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
             // Remove from tracking so tearDown doesn't double-delete
             $this->createdCarIds = array_values(array_diff($this->createdCarIds, [$carId]));
             return true;

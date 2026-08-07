@@ -280,9 +280,6 @@ class StatisticsApiTest extends IntegrationTestCase
         $this->assertIsArray($pins);
 
         if (empty($pins)) {
-            if ($this->testUserId === null) {
-                $this->markTestSkipped('No users in test DB — cannot create fixture car for getMapPins() test');
-            }
             $this->createTestCar($this->testUserId, ['lat' => '51.5074', 'lon' => '-0.1278']);
             $pins = $service->getMapPins();
         }

@@ -347,6 +347,7 @@ try {
             $insertColumns = ['id'];
             $placeholders = ['?'];
             $bindings = [1];
+            $unmatchedDefaults = array_keys($elanDefaults);
 
             foreach ($columns as $col) {
                 $name = $col->COLUMN_NAME;
@@ -362,6 +363,7 @@ try {
                     $insertColumns[] = $quotedName;
                     $placeholders[] = '?';
                     $bindings[] = $elanDefaults[$name];
+                    $unmatchedDefaults = array_diff($unmatchedDefaults, [$name]);
                     continue;
                 }
 
@@ -390,6 +392,17 @@ try {
                 $insertColumns[] = $quotedName;
                 $placeholders[] = '?';
                 $bindings[] = $placeholderValue;
+            }
+
+            // A key in $elanDefaults that never matched an actual settings column (renamed,
+            // typo'd, or a future schema change) would otherwise be silently dropped — the
+            // column falls through to a generic placeholder with no error, undercutting the
+            // whole point of layering in real values. Fail loudly instead.
+            if ($unmatchedDefaults) {
+                abortBootstrap(
+                    "ERROR: \$elanDefaults keys not found as settings columns: " . implode(', ', $unmatchedDefaults),
+                    "Update \$elanDefaults in this file to match the current settings schema. Aborting."
+                );
             }
 
             $seedSql = 'INSERT INTO `settings` (' . implode(', ', $insertColumns) . ') VALUES ('

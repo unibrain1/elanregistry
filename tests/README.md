@@ -175,10 +175,15 @@ steady state — after the first run, `car_models` and `settings` will already
 be populated, and the bootstrap logs `NOTE: ... already present/populated`
 instead of re-seeding.
 
-The auto-seeded `settings` row uses placeholder values (see the seeding logic
-in `tests/bootstrap-integration.php`), not production values — if a test
-depends on a specific setting, set it explicitly in that test rather than
-assuming the seeded default matches a real install.
+The auto-seeded `settings` row layers real values over generic type-based
+placeholders (`''`/`0`) for the remaining NOT NULL columns with no default —
+see `$elanDefaults` in `tests/bootstrap-integration.php`. Most of these
+(`site_name`, `permission_restriction`, `session_manager`, `req_cap`/`req_num`,
+`email_login`, etc.) come from the real ElanRegistry production configuration
+in `database/3-configuration.sql`; a few (`min_pw`/`max_pw`/`min_un`/`max_un`)
+are standard UserSpice defaults not tracked in that file. Don't assume a
+setting *not* in `$elanDefaults` matches production — set it explicitly in
+your test if it does.
 
 Every test must create the fixtures it depends on and must never assume
 pre-existing data exists. Tests that relied on ambient data in the old shared

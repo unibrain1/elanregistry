@@ -49,12 +49,15 @@ final class CarTransferTest extends IntegrationTestCase
         // city/state/country/lat/lon live on `profiles`, not `users` — createTestUser() only
         // writes `users`. Give the transfer target real location data so
         // testTransferUpdatesLocationData verifies an actual copy instead of comparing '' === ''.
-        $this->db->insert('profiles', [
+        // If this insert silently failed, the test would go right back to comparing '' === ''
+        // with no signal — so check it explicitly rather than let a failure hide.
+        $profileInserted = $this->db->insert('profiles', [
             'user_id' => $this->targetUserId,
             'city'    => 'Hethel',
             'state'   => 'Norfolk',
             'country' => 'United Kingdom',
         ]);
+        $this->assertTrue((bool) $profileInserted, 'Test fixture: profiles insert must succeed');
 
         // Create unique test car for this test
         try {
