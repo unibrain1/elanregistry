@@ -164,7 +164,7 @@ if [ -n "$CRITICAL_FILES" ]; then
     if [ ! -f "composer.json" ] || [ ! -d "vendor" ]; then
         echo "⚠️  Skipping: composer dependencies not installed"
     else
-        if vendor/bin/phpunit --testsuite=Unit --exclude-group broken 2>&1; then
+        if vendor/bin/phpunit --testsuite=Unit --exclude-group known-broken 2>&1; then
             echo "✅ Passed"
         else
             echo ""
