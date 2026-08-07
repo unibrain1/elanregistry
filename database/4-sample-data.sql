@@ -2,7 +2,8 @@
 -- ELAN REGISTRY - SAMPLE USER CONFIGURATION
 -- ==================================================================
 -- This script adds a sample user based on the development admin user
--- Run AFTER 1-schema.sql, 2-reference-data.sql, and 3-configuration.sql
+-- Run AFTER provisioning a schema (scripts/provision-schema.sh) — dev/test-only
+-- sample data, not part of the standard provisioning path.
 -- ==================================================================
 
 -- ==================================================================

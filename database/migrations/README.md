@@ -81,8 +81,9 @@ support and breaks the `--dry-run` preview.
 - **DDL migrations** (`ALTER TABLE`, `CREATE TABLE`, `ADD CONSTRAINT`) **cannot**
   be wrapped in a transaction. MySQL issues an implicit commit on DDL, so a
   transaction has no effect. Document this clearly in the migration file header
-  (see `20260709202522_add_foreign_key_constraints.php` for an example) so the
-  next reader knows the change is not atomic.
+  (see `20260711000000_drop_car_user_tables.php` or
+  `20260709000000_add_elanregistry_baseline.php` for examples) so the next
+  reader knows the change is not atomic.
 
 ## Naming Convention
 

@@ -14,8 +14,6 @@
   geographic data
 - **Car Registry**: `cars`, `cars_hist` tables with comprehensive vehicle
   records and audit trails
-- **Relationships**: `car_user`, `car_user_hist` junction tables with audit
-  trails
 - **Ownership Transfers**: `car_transfer_requests` table for self-service
   ownership transfer workflow
 - **Factory Data**: `elan_factory_info` reference table for Lotus Elan
@@ -93,31 +91,6 @@ automatically synchronized from user profiles when user data changes.
 | `car_id` | `int UNSIGNED` | Original car ID |
 | `timestamp` | `timestamp` | Change timestamp |
 | *(All car columns)* | | Mirror of `cars` table structure including `chassis_override`. `year` is `SMALLINT UNSIGNED NULL` to match cars. |
-
-#### `car_user` - Car sharing relationships
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | `int` | PRIMARY KEY, AUTO_INCREMENT |
-| `userid` | `int` | User ID (INDEXED) |
-| `car_id` | `int` | Car ID (INDEXED) |
-| `mtime` | `timestamp` | Relationship modification time |
-
-**Note**: This junction table enables many-to-many relationships between users
-and cars, allowing multiple users to be associated with a single car and users
-to own multiple cars.
-
-#### `car_user_hist` - Relationship audit trail
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | `int` | PRIMARY KEY, AUTO_INCREMENT |
-| `operation` | `varchar(32)` | Operation type (INSERT/UPDATE/DELETE) |
-| `car_id` | `int UNSIGNED` | Car ID |
-| `userid` | `int` | User ID |
-| `timestamp` | `timestamp` | Change timestamp |
-
-**Note**: This table is populated by database triggers on `car_user` (added in [#592](https://github.com/unibrain1/elanregistry/issues/592)). Indexes on `car_id` and `userid` were added for query performance.
 
 #### `car_transfer_requests` - Ownership transfer workflow
 
@@ -254,23 +227,21 @@ migrations live in `database/migrations/` — see
 
 - **Users ↔ Profiles**: One-to-one relationship
   (`users.id` → `profiles.user_id`)
-- **Users ↔ Cars**: One-to-many direct ownership
-  (`users.id` → `cars.user_id`)
-- **Users ↔ Cars**: Many-to-many sharing via `car_user` junction table
+- **Users ↔ Cars**: One-to-many direct ownership (`users.id` → `cars.user_id`)
+  — the sole ownership relationship; there is no junction table
 - **Cars → History**: One-to-many audit trail (`cars.id` → `cars_hist.car_id`)
 
-### Enforced Foreign Key Constraints
+### Foreign Key Constraints
 
-The following foreign keys are enforced at the database level. They were added
-by the Phinx migration
-`database/migrations/20260709202522_add_foreign_key_constraints.php`.
+No foreign keys are enforced at the database level. Ownership reassignment
+and transfer-request cleanup are both the application layer's responsibility:
 
-- `cars.user_id → users.id` **ON DELETE SET NULL** (constraint
-  `fk_cars_user_id`) — deleting a user leaves the car record intact with a
-  null owner rather than deleting the car.
-- `car_transfer_requests.existing_car_id → cars.id` **ON DELETE CASCADE**
-  (constraint `fk_transfer_existing_car`) — deleting a car removes its
-  associated transfer requests.
+- `cars.user_id` has no FK to `users.id`. A DB-level delete cascade would fire
+  before `usersc/scripts/after_user_deletion.php`'s reassignment hook runs,
+  orphaning car records — reassignment happens in that hook instead.
+- `car_transfer_requests.existing_car_id` has no FK to `cars.id`. Deleting a
+  car leaves orphaned `car_transfer_requests` rows unless application code
+  cleans them up explicitly — tracked as a gap in #1547.
 
 ### Data Access Patterns
 
@@ -293,16 +264,9 @@ by the Phinx migration
 - All triggers use current schema (no deprecated columns); `chassis_override` added in #915
 - Each trigger records operation type (INSERT/UPDATE/DELETE) and timestamp
 
-**Car-User Relationship Triggers** (implemented in #592):
-
-- `car_user_insert`: Logs new car-user relationships to `car_user_hist`
-- `car_user_update`: Logs car-user relationship modifications to `car_user_hist` with bypass via
-  `@disable_triggers` variable
-- `car_user_delete`: Logs car-user relationship removals to `car_user_hist`
-
 ### Special System Accounts
 
-- **`noowner` (ID: 83)**: Fallback owner for cars when users are deleted
+- **`noowner`**: Fallback owner for cars when users are deleted
   (GDPR compliance)
 - **`admin` (ID: 1)**: Primary administrative account
 
@@ -314,9 +278,8 @@ ID.
 **Cleanup Process** (`/usersc/scripts/after_user_deletion.php`):
 
 1. Remove orphaned `profiles` records
-2. Remove user's `car_user` relationships
-3. Transfer car ownership to `noowner` user (preserves registry data)
-4. All changes automatically logged via database triggers
+2. Transfer car ownership to `noowner` user (preserves registry data)
+3. All changes automatically logged via database triggers
 
 **Maintenance Utilities** (`/app/admin/scripts/fix/02-Cleanup-Orphaned-Profiles.php`):
 

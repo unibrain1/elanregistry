@@ -32,7 +32,8 @@ the`settings`database table. Tags are decoded at render time via`html_entity_dec
 
 ### Database Schema
 
-14 `mediumtext`columns in the`settings`table (defined in`database/1-schema.sql`, lines 216-228, 240):
+14 `mediumtext`columns in the`settings`table (defined in the schema version current when this ADR
+was written; see `database/migrations/` for the present schema-of-record):
 
 | Column | Library | Version | CDN Provider |
 | --- | --- | --- | --- |
@@ -53,7 +54,7 @@ the`settings`database table. Tags are decoded at render time via`html_entity_dec
 
 ### Storage Format
 
-Values are stored as HTML-entity-encoded complete HTML tags. Example from `database/3-configuration.sql`:
+Values are stored as HTML-entity-encoded complete HTML tags. Example:
 
 ```sql
 elan_jquery_cdn = '&lt;script src=&quot;https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js&quot; integrity=&quot;sha384-vtXRMe3mGCbOeY7l30aIg8H9p3GdeSe4IFlP6G8JMa7o7lXvnz3GFKzPxzJdPfGK&quot; crossorigin=&quot;anonymous&quot;&gt;&lt;/script&gt;'
@@ -105,8 +106,9 @@ Two approaches for updating CDN versions:
 
 ### Initialization
 
-Default CDN values are seeded in `database/3-configuration.sql`. The `processSettingsAutoCreation()` function in the admin panel auto-creates any missing
-columns with sensible defaults, ensuring forward compatibility.
+At the time this ADR was written, default CDN values were seeded as part of provisioning. This
+document is superseded by [ADR-015](ADR-015-self-host-frontend-libraries.md) — current provisioning
+does not seed CDN values (see `database/seeds/SettingsBaselineSeed.php`).
 
 ## Consequences
 
@@ -151,9 +153,10 @@ columns with sensible defaults, ensuring forward compatibility.
 - **Full HTML tags are harder to validate.** The admin panel accepts raw HTML tag input. There is no server-side validation that the submitted value is a
   well-formed `<script>`or`<link>` tag with valid SRI attributes. Malformed input silently breaks pages.
 
-- **Seed data drifts from production.** `database/3-configuration.sql` contains initial CDN values (some at older versions like Bootstrap 4.5.3, jQuery 3.5.1)
-  that no longer match production values (updated via FIX scripts to Bootstrap 4.6.2, jQuery 3.6.0). New installations seed outdated URLs that require running
-  FIX scripts to update.
+- **Seed data drifts from production.** The initial CDN values seeded at provisioning time (some at
+  older versions like Bootstrap 4.5.3, jQuery 3.5.1) no longer matched production values (updated via
+  FIX scripts to Bootstrap 4.6.2, jQuery 3.6.0). New installations seeded outdated URLs that required
+  running FIX scripts to update.
 
 ### Risks
 
@@ -229,8 +232,8 @@ Store CDN URLs and SRI hashes as separate database columns (e.g., `elan_jquery_u
 
 ## References
 
-- **Schema Definition**: [database/1-schema.sql](../../database/1-schema.sql) (lines 216-228, 240)
-- **Initial Configuration**: [database/3-configuration.sql](../../database/3-configuration.sql) (lines 54-66, 83)
+- **Schema Definition**: `database/migrations/` (current schema-of-record; the file cited when this
+  ADR was written has since been removed — see `database/migrations/README.md`)
 - **Template Loading**: [usersc/templates/ElanRegistry/header.php](../../usersc/templates/ElanRegistry/header.php)
 - **Admin Interface**: [app/admin/includes/tab-settings.php](../../app/admin/includes/tab-settings.php)
 - **FIX Script (SRI)**: [FIX/_ARCHIVE/17-Add-SRI-To-CDN-Resources.php](../../FIX/_ARCHIVE/17-Add-SRI-To-CDN-Resources.php)

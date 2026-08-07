@@ -377,8 +377,8 @@ if (displaying_email($context)) {
 
 ## References
 
-- **Schema Definition**: [database/1-schema.sql](../../database/1-schema.sql)
-  (cars table lines 62-92, cars_hist lines 97-128, triggers lines 335-398)
+- **Schema Definition**: `database/migrations/` (current schema-of-record; the
+  file cited when this ADR was written has since been removed)
 - **Car Class**: [usersc/classes/Car.php](../../usersc/classes/Car.php)
 - **Car Administration**: [usersc/classes/Car/CarAdministrationService.php](../../usersc/classes/Car/CarAdministrationService.php)
   (transfer method lines 125-230)

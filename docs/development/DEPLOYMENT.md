@@ -269,6 +269,30 @@ composer migrate:status   # list pending and applied migrations
 automatically via the post-receive hook. The manual steps above serve as a fallback if the hook needs to
 be bootstrapped on a fresh server.
 
+### One-Time: Stamping the ElanRegistry Baseline Migration
+
+`database/migrations/20260709000000_add_elanregistry_baseline.php` reproduces the full
+ElanRegistry-vs-stock-UserSpice schema diff as a single migration — the schema-of-record for any
+newly provisioned environment (`scripts/provision-schema.sh`). Dev and prod already have this exact
+schema natively; their databases predate Phinx and were never migrated through it. Running the
+baseline migration for real against either would try to `CREATE TABLE car_models` (and 12 other
+already-existing tables) and fail immediately.
+
+**Before the next `composer migrate` runs on dev or prod** (once, the first time this migration is
+ever deployed there — not a repeatable step), manually mark it as already-applied instead of running
+it:
+
+```sql
+INSERT INTO phinxlog (version, migration_name, start_time, end_time, breakpoint)
+VALUES (20260709000000, 'AddElanregistryBaseline', NOW(), NOW(), 0);
+```
+
+Verify first that this hasn't already been stamped (`SELECT * FROM phinxlog WHERE version =
+20260709000000`) — the `PRIMARY KEY` on `version` makes a duplicate `INSERT` fail loudly rather than
+silently, but check anyway before running it against a production database. After the stamp,
+`composer migrate` skips `20260709000000` and applies only the migrations genuinely pending on that
+environment, exactly like any other deploy.
+
 ### Git & Version Control
 
 #### Branch Management Strategy

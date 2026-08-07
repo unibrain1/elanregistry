@@ -294,7 +294,7 @@ Dedicated button on car detail page to initiate transfer, visible even before us
 | Admin JS handlers | [/app/admin/assets/manage-consolidated.js](../../app/admin/assets/manage-consolidated.js) |
 | Owner UI modals | [/app/owner/cars/edit.php](../../app/owner/cars/edit.php) |
 | Chassis check UI | [/app/owner/cars/edit.php](../../app/owner/cars/edit.php) (integrated into edit page) |
-| Database schema | [/database/1-schema.sql](../../database/1-schema.sql) |
+| Database schema | `database/migrations/` (current schema-of-record) |
 | Integration tests | [/tests/integration/transfer/CarTransferWorkflowTest.php](../../tests/integration/transfer/CarTransferWorkflowTest.php) |
 | Car repository | [/usersc/classes/Car/CarRepository.php](../../usersc/classes/Car/CarRepository.php) |
 | User guide | [/docs/faq/CAR_TRANSFER_USER_GUIDE.md](../faq/CAR_TRANSFER_USER_GUIDE.md) |

@@ -115,6 +115,12 @@ usersc/vendor/
 composer.phar
 *.phar
 
+# database/vendor/ is not a dependency directory — it holds the vendored stock
+# UserSpice schema that provisioning applies before Phinx runs. The `vendor/`
+# rule above matches any directory of that name at any depth, so it has to be
+# re-included explicitly or the schema-of-record would never be committed.
+!database/vendor/
+
 ########################################
 # Node.js & NPM
 ########################################

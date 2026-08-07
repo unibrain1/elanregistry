@@ -118,28 +118,20 @@ final class MyFeatureIntegrationTest extends IntegrationTestCase
 
 ## Test Database Setup
 
-Integration tests require the `car_models` reference table to be populated with Lotus Elan model data.
+Integration tests require the `car_models` reference table (plus `settings`
+and the `noowner` system account) to be populated.
 
-### Automatic Fixture Loading
-
-The `bootstrap-integration.php` automatically loads reference data from
-`database/2-reference-data.sql` when the `car_models` table is empty. This
-happens transparently when you run integration tests.
-
-### Manual Setup
-
-You can manually run the setup script if needed:
+### Provisioning
 
 ```bash
-php tests/setup-test-database.php
+./scripts/provision-schema.sh
 ```
 
-This script:
-
-- Verifies database connection
-- Checks if `car_models` table is populated
-- Loads 24 car model records from `database/2-reference-data.sql`
-- Provides confirmation and sample data output
+Applies the vendored stock UserSpice structure, runs `composer migrate`, then
+`phinx seed:run` for `CarModelsSeed`, `NoownerSeed`, and `SettingsBaselineSeed`
+(`database/seeds/`). `tests/bootstrap-integration.php` only *verifies* these
+exist on every test run — it aborts with a clear message (pointing at
+`composer seed:run`) if they don't, rather than seeding inline.
 
 ### Reference Data Requirements
 
@@ -171,10 +163,13 @@ Unit tests use mock CarModel class (no database required).
 
 ### Integration Tests
 
-- **DB connection failed**: Check `.env.local` credentials
+- **DB connection failed**: Check `.env.test.local` credentials
 - **MAMP socket**: Verify `/Applications/MAMP/tmp/mysql/mysql.sock`
-- **Missing data**: Ensure user ID 1 and car ID 1 exist
-- **Empty car_models**: Run `php tests/setup-test-database.php` to load reference data
+- **Missing data**: Tests must create their own fixtures via
+  `IntegrationTestCase::createTestUser()`/`createTestCar()` — the isolated test
+  schema starts empty, so no ambient user/car ID is guaranteed to exist
+- **Empty car_models**: Run `./scripts/provision-schema.sh` (bare `composer seed:run`
+  targets `.env`'s database, not the test schema in `.env.test.local`)
 
 ### Debugging
 

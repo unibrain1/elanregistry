@@ -20,6 +20,7 @@ parameters:
         # Application
         - app
         - database/migrations
+        - database/seeds
         - docs
         - error
         - index.php

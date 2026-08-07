@@ -8,6 +8,23 @@
 
 Retroactive -- documented 2026-02-25
 
+## Update (2026-08, #1553)
+
+Two of this ADR's P2 items are now resolved; the rest of the document below
+describes the mechanism as it existed before this update and is kept for
+historical context:
+
+- **"No migration script creates noowner"** -- resolved. `database/seeds/NoownerSeed.php`
+  creates the account on any provisioned environment, with `password = NULL`
+  and `protected = 1` exactly as this ADR specifies.
+- **`car_user` junction table** -- removed entirely (#1162,
+  `database/migrations/20260711000000_drop_car_user_tables.php`). Ownership is
+  now authoritative on `cars.user_id` alone; every reference to `car_user`
+  below describes a mechanism that no longer exists.
+- **Hard-coded ID 83 in the admin UI** -- still open, still real, tracked as
+  #1562. The correct file is `app/admin/assets/admin-core.js`; every reference
+  to `manage-consolidated.js` below is outdated.
+
 ## Context
 
 The Lotus Elan Registry maintains a historical database of Lotus Elan cars manufactured between 1963 and 1974. Car records have independent historical value
