@@ -484,8 +484,13 @@ if (!class_exists('Token')) {
 // No longer using mock implementations - allows tests to verify actual exception behavior
 
 // Mock logger function — tracks calls in $mockLogEntries for test assertions
+// Signature must match the real logger() (users/helpers/us_helpers.php) — the
+// optional $metadata param is required here too. The real signature is invisible
+// to PHPStan (users/ is excluded from its scan), so this stub is the only
+// declaration it can resolve logger() calls against once tests/ is in its scan
+// path — including calls in production files like usersc/join.php.
 if (!function_exists('logger')) {
-    function logger($userId, $category, $message): void {
+    function logger($userId, $category, $message, $metadata = null): void {
         global $mockLogEntries;
         if (!isset($mockLogEntries)) {
             $mockLogEntries = [];
@@ -829,31 +834,33 @@ if (!function_exists('getExtension')) {
 if (!function_exists('validateFileUpload')) {
     /**
      * Validate file upload security
+     *
+     * Signature must match the real validateFileUpload() (app/api/cars/save.php)
+     * — void, not bool, and takes an optional $maxSize — otherwise PHPStan
+     * resolves calls project-wide against this narrower stub once tests/ is in
+     * its scan path.
      */
-    function validateFileUpload(array $file): bool {
+    function validateFileUpload(array $file, int $maxSize = 5 * 1024 * 1024): void {
         // Check for upload errors
         if ($file['error'] !== UPLOAD_ERR_OK) {
             throw new ImageProcessingException('File upload error: ' . $file['error']);
         }
-        
+
         // Check file size limits
-        $maxSize = 5 * 1024 * 1024; // 5MB
         $minSize = 100; // 100 bytes
-        
+
         if ($file['size'] > $maxSize) {
             throw new ImageProcessingException('File too large. Maximum size is ' . ($maxSize / 1024 / 1024) . 'MB');
         }
-        
+
         if ($file['size'] < $minSize) {
             throw new ImageProcessingException('File too small. Minimum size is ' . $minSize . ' bytes');
         }
-        
+
         // Validate that uploaded file exists
         if (!is_uploaded_file($file['tmp_name']) && !file_exists($file['tmp_name'])) {
             throw new ImageProcessingException('Invalid file upload');
         }
-        
-        return true;
     }
 }
 
@@ -1115,8 +1122,19 @@ if (!function_exists('isRegistryAdmin')) {
     /**
      * Mock isRegistryAdmin function for testing
      * Uses global $mockIsRegistryAdmin to control behavior
+     *
+     * Signature must match the real isRegistryAdmin() (usersc/includes/custom_functions.php)
+     * — the optional, nullable $userId is required here too, otherwise PHPStan resolves
+     * every isRegistryAdmin() call project-wide against this narrower stub once tests/ is
+     * in its scan path. The null case falls back to currentUserId(), mirroring the real
+     * function's "no argument means current user" behavior — the old stricter `int
+     * $userId` signature made a no-argument call a loud ArgumentCountError; silently
+     * resolving null to "not admin" here instead would trade that for a quiet wrong answer.
+     * dbInt() normalizes the string-ID case too (both real call sites pass $user->data()->id,
+     * which is a string) — a bare `=== 1` would silently return false for '1' under strict
+     * comparison, the same quiet-wrong-answer trap the null case was fixed to avoid.
      */
-    function isRegistryAdmin(int $userId): bool
+    function isRegistryAdmin(int|string|null $userId = null): bool
     {
         global $mockIsRegistryAdmin;
 
@@ -1126,7 +1144,7 @@ if (!function_exists('isRegistryAdmin')) {
         }
 
         // Default: user ID 1 is admin
-        return $userId === 1;
+        return dbInt($userId ?? currentUserId()) === 1;
     }
 }
 

@@ -1,5 +1,6 @@
 includes:
     - phpstan-baseline.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
 
 # PHPStan Configuration for Elan Registry
 #
@@ -26,6 +27,7 @@ parameters:
         - index.php
         - phinx.php
         - scripts
+        - tests
         - z_us_root.php
         # UserSpice customizations (project-owned)
         - usersc/account.php
@@ -56,6 +58,9 @@ parameters:
         # Excluded because its placeholder code generates errors that can never be fixed;
         # keeping it out of scope prevents those errors from entering the baseline.
         - app/admin/scripts/fix/_TEMPLATE_Fix-Script.php
+        # Not valid PHP — placeholder template syntax for copy-pasting new regression
+        # tests, same treatment as the fix-script template above.
+        - tests/regression/RegressionTestTemplate.php
 
     treatPhpDocTypesAsCertain: false
     checkMissingTypehints: true
@@ -78,6 +83,32 @@ parameters:
             message: '#invalid (return )?type (DB|Token|Input|User|Redirect|Session|Cookie)#'
             reportUnmatched: false
 
+        # Method-call-shape errors on the same runtime-loaded classes above, plus
+        # QueryResult (the return type of DB::query(), also unanalyzable — real class
+        # lives in users/, has no project-owned counterpart to check a signature
+        # against). Since tests/ entered the scan path (#1555), PHPStan resolves calls
+        # on these classes against whichever test double happens to declare a
+        # same-named global class/method — narrower or differently-typed than the
+        # real runtime class — and misreports call sites throughout the whole
+        # project, not just the test file that defines the double. This is the same
+        # "unanalyzable at runtime" root cause as the block above, just two different
+        # error shapes it produces: the first three patterns below are call-site
+        # mismatches (undefined method, wrong arg count, wrong arg type); the fourth
+        # is PHPStan's redundant-comparison check firing on a `===`/`!==` expression,
+        # because it thinks QueryResult's real vs. stubbed type can never overlap.
+        -
+            message: '#Call to an undefined method (DB|Token|Input|User|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|QueryResult)::\w+\(\)#'
+            reportUnmatched: false
+        -
+            message: '#(Static m|M)ethod (DB|Token|Input|User|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|QueryResult)::\w+\(\) invoked with#'
+            reportUnmatched: false
+        -
+            message: '#of (method|class) (DB|Token|Input|User|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|QueryResult)(::|\s)#'
+            reportUnmatched: false
+        -
+            message: '#(comparison using === between|comparison using !== between) QueryResult#'
+            reportUnmatched: false
+
         # UserSpice framework functions loaded at runtime via init.php
         -
             message: '#Function (securePage|hasPerm|logger|currentUserId|checkMenu|lang|redirect|passwordStrength|isAdmin|email|usError|usSuccess|deleteUsers|logError|getSettings|checkRateLimit|recordRateLimit|fetchAllUsers|fetchUserDetails|checkPermission|sessionValMessages|currentPage|email_body|getMyHooks|getRateLimitErrorMessage|handleAuthFailure|handleAuthSuccess|hashVericode|includeHook|pluginActive|userSpicePasswordStrength|passwordsAllowed|safeJsonEncodeForJs|safeReturn|tokenHere|fetchUserPermissions|echousername|err|endCloak|isCloaked|passwordResetKillSessions) not found#'
@@ -96,10 +127,10 @@ parameters:
             identifier: variable.undefined
             reportUnmatched: false
 
-        # Relative require_once paths (e.g. ../../users/init.php) can't be
+        # Relative require/require_once paths (e.g. ../../users/init.php) can't be
         # resolved at analysis time — these are valid runtime paths
         -
-            message: '#Path in require_once\(\) .+ is not a file or it does not exist\.$#'
+            message: '#Path in require(_once)?\(\) .+ is not a file or it does not exist\.$#'
             reportUnmatched: false
 
     bootstrapFiles:

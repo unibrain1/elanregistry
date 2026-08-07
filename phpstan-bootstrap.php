@@ -48,4 +48,11 @@ if (!function_exists('randomstring')) {
     }
 }
 
+// tests/bootstrap-integration.php defines this at PHPUnit's real runtime bootstrap
+// (see phpunit-integration.xml), which PHPStan never executes — declared here so
+// TESTING_ROOT resolves during analysis of integration tests that reference it (#1555).
+if (!defined('TESTING_ROOT')) {
+    define('TESTING_ROOT', '');
+}
+
 require_once __DIR__ . '/usersc/includes/config.php';

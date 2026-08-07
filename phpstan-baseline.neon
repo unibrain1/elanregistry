@@ -1,6 +1,12 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Call to function is_string\(\) with false will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: app/admin/includes/process-admin-contact.php
+
+		-
 			message: '#^Variable \$activeTab might not be defined\.$#'
 			identifier: variable.undefined
 			count: 5
@@ -11,6 +17,12 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: app/admin/includes/tab-placeholder.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 1
+			path: app/admin/scripts/maintenance/21-Fix-Page-Permissions.php
 
 		-
 			message: '#^Variable \$car might not be defined\.$#'
@@ -43,6 +55,12 @@ parameters:
 			path: app/admin/verify/_email_template.php
 
 		-
+			message: '#^Cannot access property \$id on object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/admin/verify/send_email.php
+
+		-
 			message: '#^Parameter \#1 \$prefix of function uniqid expects string, int\<0, max\> given\.$#'
 			identifier: argument.type
 			count: 1
@@ -65,6 +83,18 @@ parameters:
 			identifier: deadCode.unreachable
 			count: 2
 			path: app/api/cars/models.php
+
+		-
+			message: '#^Cannot access property \$id on object\|false\.$#'
+			identifier: property.nonObject
+			count: 4
+			path: app/api/cars/transfer-request.php
+
+		-
+			message: '#^Cannot access property \$user_id on object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/api/cars/transfer-request.php
 
 		-
 			message: '#^Variable \$context might not be defined\.$#'
@@ -193,10 +223,538 @@ parameters:
 			path: index.php
 
 		-
+			message: '#^Cannot access property \$name on object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: tests/bootstrap-integration.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between mixed and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: tests/bootstrap-integration.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: tests/bootstrap-integration.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertEmpty\(\) with array\{\} will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/integration/CarActionsHistoryAndValidationTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 9
+			path: tests/integration/CarActionsHistoryAndValidationTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 4
+			path: tests/integration/CarActionsHistoryAndValidationTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 5
+			path: tests/integration/CarActionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/integration/CarActionsTest.php
+
+		-
+			message: '#^Parameter \#2 \$columns of method CarDataTablesTest\:\:buildDataTablesRequest\(\) expects list\<array\<string, string\>\>, array\{array\{data\: ''color'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''''\}\}, array\{data\: ''series'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''S4''\}\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/integration/CarDataTablesTest.php
+
+		-
+			message: '#^Parameter \#2 \$columns of method CarDataTablesTest\:\:buildDataTablesRequest\(\) expects list\<array\<string, string\>\>, array\{array\{data\: ''series'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''S4''\}\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/integration/CarDataTablesTest.php
+
+		-
+			message: '#^Parameter \#2 \$columns of method CarDataTablesTest\:\:buildDataTablesRequest\(\) expects list\<array\<string, string\>\>, array\{array\{data\: ''series'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: non\-falsy\-string\}\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/integration/CarDataTablesTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 7
+			path: tests/integration/CarTransferTest.php
+
+		-
+			message: '#^Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects class\-string\<Server\>\|Server, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/integration/GetBaseUrlTest.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: tests/integration/LogDeploymentScriptTest.php
+
+		-
+			message: '#^Parameter \#1 \$fields of method OwnerIntegrationTest\:\:callValidateAndSanitize\(\) expects array\<string, string\>, array\<string, null\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/integration/OwnerIntegrationTest.php
+
+		-
+			message: '#^Property StatisticsApiTest\:\:\$testCarId is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: tests/integration/StatisticsApiTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotEmpty\(\) with non\-falsy\-string will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/integration/TestInfrastructureValidationTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/integration/database/CarDatabaseOperationsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Reference\\\\CarModel'' and ElanRegistry\\Reference\\CarModel will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/integration/reference/CarModelTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ''0'' and ''"0" must not be…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/regression/Issue838RegressionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotSame\(\) with arguments '''', ''0'' and ''"0" must pass the \!…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/regression/Issue838RegressionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ''0'' and ''"0" must not be…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/regression/Issue841RegressionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotSame\(\) with arguments '''', ''0'' and non\-falsy\-string will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/regression/Issue841RegressionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ''0'' and ''"0" must not be…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/regression/Issue842RegressionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotSame\(\) with arguments '''', ''0'' and non\-falsy\-string will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/regression/Issue842RegressionTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Admin\\\\BackupManager'' and ElanRegistry\\Admin\\BackupManager will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/admin/BackupManagerTest.php
+
+		-
+			message: '#^Method class@anonymous/tests/unit/admin/BackupManagerTest\.php\:1020\:\:first\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: tests/unit/admin/BackupManagerTest.php
+
+		-
+			message: '#^Variable \$symlinkPath on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: tests/unit/admin/BackupManagerTest.php
+
+		-
+			message: '#^Variable \$matches in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: tests/unit/admin/ProcessAdminSettingsTest.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/unit/cars/CarCoreTest.php
+
+		-
+			message: '#^Call to function is_array\(\) with non\-empty\-array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/unit/cars/CarCoreTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''Car'' and Car will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/unit/cars/CarCoreTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNull\(\) with null will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/cars/CarCoreTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/cars/CarCoreTest.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/unit/cars/CarCrudTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 3
+			path: tests/unit/cars/CarCrudTest.php
+
+		-
+			message: '#^Comparison operation "\<" between 1024 and 5242880 is always true\.$#'
+			identifier: smaller.alwaysTrue
+			count: 1
+			path: tests/unit/cars/CarCrudTest.php
+
+		-
+			message: '#^Comparison operation "\>" between 1024 and 0 is always true\.$#'
+			identifier: greater.alwaysTrue
+			count: 1
+			path: tests/unit/cars/CarCrudTest.php
+
+		-
+			message: '#^Comparison operation "\>" between 10485760 and 5242880 is always true\.$#'
+			identifier: greater.alwaysTrue
+			count: 1
+			path: tests/unit/cars/CarCrudTest.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between \*NEVER\* and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: tests/unit/cars/CarCrudTest.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between 0 and 0 will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: tests/unit/cars/CarCrudTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/cars/services/CarAdministrationServiceTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/unit/cars/services/CarRepositoryTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with arguments ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'', ElanRegistry\\Exceptions\\CarValidationException and ''CarValidationExcept…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/cars/services/CarValidatorTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{icon\: ''fa\-car'', url\: ''/test'', buttonText\: ''View''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{title\: ''Title'', icon\: ''fa\-car'', buttonText\: ''View''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{title\: ''Title'', icon\: ''fa\-car'', url\: ''/test''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{title\: ''Title'', url\: ''/test'', buttonText\: ''View''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$config of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderPortalHeader\(\) expects array\{title\: string, description\: string, titleIcon\?\: string, headerClass\?\: string, leadText\?\: string, isAdmin\?\: bool\}, array\{description\: ''Desc''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$config of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderPortalHeader\(\) expects array\{title\: string, description\: string, titleIcon\?\: string, headerClass\?\: string, leadText\?\: string, isAdmin\?\: bool\}, array\{title\: ''Title''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$links of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderNavFooter\(\) expects list\<array\{label\: string, url\: string, icon\?\: string, btnClass\?\: string\}\>, array\{array\{label\: ''Home''\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$links of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderNavFooter\(\) expects list\<array\{label\: string, url\: string, icon\?\: string, btnClass\?\: string\}\>, array\{array\{url\: ''/''\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\AdminContactException'' and ElanRegistry\\Exceptions\\AdminContactException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\AdminOperationException'' and ElanRegistry\\Exceptions\\AdminOperationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\AdminContactException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\AdminOperationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerSearchException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerSearchException'' and ElanRegistry\\Exceptions\\OwnerSearchException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''AdminContactExcepti…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''AdminOperationExcep…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to function is_subclass_of\(\) with ''ElanRegistry\\\\Exceptions\\\\CarException'' and ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/CarExceptionHierarchyTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''ElanRegistry…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/CarExceptionHierarchyTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerCreationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerUpdateException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerValidationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerCreationException'' and ElanRegistry\\Exceptions\\OwnerCreationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerUpdateException'' and ElanRegistry\\Exceptions\\OwnerUpdateException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerValidationException'' and ElanRegistry\\Exceptions\\OwnerValidationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''ElanRegistry…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertSame\(\) with arguments ''FileError'', ''FileError'' and ''LOG_CATEGORY_FILE…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/location/LocationServiceCacheTest.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: tests/unit/location/LocationServiceCacheTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with string will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/location/LocationServiceUserAgentTest.php
+
+		-
+			message: '#^Parameter \#2 \$trim of static method ElanRegistry\\Input\:\:raw\(\) expects bool, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/security/ElanRegistryInputTest.php
+
+		-
+			message: '#^Property InputSanitizationTest\:\:\$tempDir is unused\.$#'
+			identifier: property.unused
+			count: 1
+			path: tests/unit/security/InputSanitizationTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\BackupException'' and ElanRegistry\\Exceptions\\BackupException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/system/AutoloaderTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\CarNotFoundException'' and ElanRegistry\\Exceptions\\CarNotFoundException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/system/AutoloaderTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerNotFoundException'' and ElanRegistry\\Exceptions\\OwnerNotFoundException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/system/AutoloaderTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with arguments ''ElanRegistry\\\\Owner'', ElanRegistry\\Owner and ''Owner must…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/system/AutoloaderTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/uploads/FileUploadSecurityTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Resize'' and ElanRegistry\\Resize will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/unit/uploads/ImageOrientationTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ElanRegistry\\Resize and ''Resize object…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/uploads/ImageOrientationTest.php
+
+		-
+			message: '#^Property ImageOrientationTest\:\:\$testImageDir is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: tests/unit/uploads/ImageOrientationTest.php
+
+		-
+			message: '#^Property UserDeletionCleanupTest\:\:\$db is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: tests/unit/users/UserDeletionCleanupTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotEmpty\(\) with non\-falsy\-string will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/users/VerificationSecurityTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/users/VerificationSecurityTest.php
+
+		-
 			message: '#^Using nullsafe property access "\?\-\>website" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: usersc/account.php
+
+		-
+			message: '#^Cannot access property \$count on object\|false\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: usersc/classes/Car/CarDataTablesService.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 2
+			path: usersc/classes/Car/CarDataTablesService.php
+
+		-
+			message: '#^Cannot access property \$count on object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: usersc/classes/Transfer/CarTransferRepository.php
 
 		-
 			message: '#^File ends with a trailing whitespace\. This may cause problems when running the code in the web browser\. Remove the closing \?\> mark or remove the whitespace\.$#'
