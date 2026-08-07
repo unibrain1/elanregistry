@@ -254,23 +254,21 @@ migrations live in `database/migrations/` — see
 
 - **Users ↔ Profiles**: One-to-one relationship
   (`users.id` → `profiles.user_id`)
-- **Users ↔ Cars**: One-to-many direct ownership
-  (`users.id` → `cars.user_id`)
-- **Users ↔ Cars**: Many-to-many sharing via `car_user` junction table
+- **Users ↔ Cars**: One-to-many direct ownership (`users.id` → `cars.user_id`)
+  — the sole ownership relationship; there is no junction table
 - **Cars → History**: One-to-many audit trail (`cars.id` → `cars_hist.car_id`)
 
-### Enforced Foreign Key Constraints
+### Foreign Key Constraints
 
-The following foreign keys are enforced at the database level. They were added
-by the Phinx migration
-`database/migrations/20260709202522_add_foreign_key_constraints.php`.
+No foreign keys are enforced at the database level. Ownership reassignment
+and transfer-request cleanup are both the application layer's responsibility:
 
-- `cars.user_id → users.id` **ON DELETE SET NULL** (constraint
-  `fk_cars_user_id`) — deleting a user leaves the car record intact with a
-  null owner rather than deleting the car.
-- `car_transfer_requests.existing_car_id → cars.id` **ON DELETE CASCADE**
-  (constraint `fk_transfer_existing_car`) — deleting a car removes its
-  associated transfer requests.
+- `cars.user_id` has no FK to `users.id`. A DB-level delete cascade would fire
+  before `usersc/scripts/after_user_deletion.php`'s reassignment hook runs,
+  orphaning car records — reassignment happens in that hook instead.
+- `car_transfer_requests.existing_car_id` has no FK to `cars.id`. Deleting a
+  car leaves orphaned `car_transfer_requests` rows unless application code
+  cleans them up explicitly — tracked as a gap in #1547.
 
 ### Data Access Patterns
 

@@ -25,6 +25,19 @@ final class DropCarUserTables extends AbstractMigration
     // TRIGGER is not auto-reversible.
     public function up(): void
     {
+        // A freshly provisioned environment (database/vendor/ base +
+        // 20260709000000_add_elanregistry_baseline) never creates car_user in the
+        // first place — the baseline reproduces dev, which already lacks it. This
+        // migration only has work to do on an environment that still has the table.
+        $exists = $this->fetchAll(
+            "SELECT COUNT(*) AS cnt
+             FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'car_user'"
+        );
+        if ((int) ($exists[0]['cnt'] ?? 0) === 0) {
+            return;
+        }
+
         // All reads (fetchRow / fetchAll) run before any DDL. DDL triggers an
         // implicit commit in MySQL, so any exception thrown after DDL starts
         // would leave the schema partially changed. By doing all data work first,

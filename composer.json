@@ -55,6 +55,7 @@
         "migrate": "vendor/bin/phinx migrate",
         "migrate:status": "vendor/bin/phinx status",
         "migrate:dry-run": "vendor/bin/phinx migrate --dry-run",
-        "migrate:rollback": "vendor/bin/phinx rollback"
+        "migrate:rollback": "vendor/bin/phinx rollback",
+        "seed:run": "vendor/bin/phinx seed:run"
     }
 }

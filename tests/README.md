@@ -29,8 +29,7 @@ tests/
 │   └── ui/                    # UI consistency
 │
 ├── bootstrap-unit.php         # Unit test bootstrap (mocks)
-├── bootstrap-integration.php  # Integration test bootstrap (database)
-└── setup-test-database.php    # Test database fixture loader
+└── bootstrap-integration.php  # Integration test bootstrap (database)
 ```
 
 ## Test Categories
@@ -98,50 +97,22 @@ tests/
 
 ## Database Fixtures
 
-Integration tests require the `car_models` reference table to be populated.
+Integration tests require the `car_models` reference table (plus `settings`
+and the `noowner` system account) to be populated. This is provisioning's job,
+not the test bootstrap's — see [Test Data Isolation](#test-data-isolation) below.
 
-### Automatic Fixture Loading
-
-The `bootstrap-integration.php` automatically loads reference data from
-`database/2-reference-data.sql` when the `car_models` table is empty:
-
-```php
-// Happens automatically on first integration test run
-// Loads 24 car model records into car_models table
-```
-
-### Manual Fixture Setup
-
-You can manually run the setup script:
+### Provisioning a Test Schema
 
 ```bash
-php tests/setup-test-database.php
+./scripts/provision-schema.sh
 ```
 
-**Output:**
-
-```text
-================================================================================
-ELAN REGISTRY TEST DATABASE SETUP
-================================================================================
-
-✅ Database connection verified
-📊 Current car_models records: 0
-📂 Loading reference data from: /path/to/database/2-reference-data.sql
-🔄 Loading car_models reference data...
-✅ Loaded 24 car_models records successfully
-
-📋 Sample records:
-   - Elan 1500|Roadster|26 (Elan 1500)
-   - S1|Roadster|26 (Elan 1600)
-   - S4|FHC|36 (Coupe S4)
-   - Sprint|FHC|36 (Coupe Sprint)
-   - +2|FHC|50 (Plus 2)
-
-================================================================================
-✅ Test database setup complete.
-================================================================================
-```
+This applies the vendored stock UserSpice structure, runs `composer migrate`,
+then `phinx seed:run` for `CarModelsSeed`, `NoownerSeed`, and
+`SettingsBaselineSeed` (see `database/seeds/`). `tests/bootstrap-integration.php`
+verifies these exist on every test run and aborts with a clear message —
+telling you to run `composer seed:run` — if they don't, rather than silently
+trying to fix it inline.
 
 ### Fixture Requirements by Test
 
@@ -155,35 +126,32 @@ ELAN REGISTRY TEST DATABASE SETUP
 ## Test Data Isolation
 
 Integration tests run against a dedicated, isolated test schema (see #1436).
-A **freshly cloned** schema (`scripts/create-test-schema.sh`) starts completely
-empty — no ambient cars, users, or other rows. Two different lifecycles apply
+A **freshly provisioned** schema (`scripts/provision-schema.sh`) starts with no
+ambient cars, users, or other rows. Two different lifecycles apply
 after that:
 
 - **Per-test fixtures** — anything a test creates (via `createTestUser()`,
   `createTestCar()`, or a direct insert like a `profiles`/`car_transfer_requests`
   row) is torn down after *that test* in `tearDown()`. Every test starts and
   ends with none of its own data left behind.
-- **Schema-level reference/config data** — `car_models` and `settings` are
-  auto-seeded once by `tests/bootstrap-integration.php` the first time either
-  is found empty, then **persist across every subsequent run** (they are never
-  torn down). This mirrors a real install, which configures these once, not
-  per test. Re-running `scripts/create-test-schema.sh` resets them along with
-  everything else.
+- **Schema-level reference/config data** — `car_models`, `settings`, and the
+  `noowner` system account are seeded once by `composer seed:run`
+  (`database/seeds/CarModelsSeed.php`, `SettingsBaselineSeed.php`,
+  `NoownerSeed.php`), then **persist across every subsequent run** (they are
+  never torn down). This mirrors a real install, which configures these once,
+  not per test. `tests/bootstrap-integration.php` only *verifies* they exist —
+  it does not seed them itself. Re-running `scripts/provision-schema.sh` resets
+  everything, seeds included.
 
-So "starts empty" describes a fresh clone's initial state, not every run's
-steady state — after the first run, `car_models` and `settings` will already
-be populated, and the bootstrap logs `NOTE: ... already present/populated`
-instead of re-seeding.
-
-The auto-seeded `settings` row layers real values over generic type-based
+The seeded `settings` row layers real values over generic type-based
 placeholders (`''`/`0`) for the remaining NOT NULL columns with no default —
-see `$elanDefaults` in `tests/bootstrap-integration.php`. Most of these
+see `ELAN_DEFAULTS` in `database/seeds/SettingsBaselineSeed.php`. Those values
+come from the real ElanRegistry production configuration
 (`site_name`, `permission_restriction`, `session_manager`, `req_cap`/`req_num`,
-`email_login`, etc.) come from the real ElanRegistry production configuration
-in `database/3-configuration.sql`; a few (`min_pw`/`max_pw`/`min_un`/`max_un`)
-are standard UserSpice defaults not tracked in that file. Don't assume a
-setting *not* in `$elanDefaults` matches production — set it explicitly in
-your test if it does.
+`email_login`, etc.), plus a few standard UserSpice defaults
+(`min_pw`/`max_pw`/`min_un`/`max_un`) not tied to any ElanRegistry-specific
+value. Don't assume a setting *not* in `ELAN_DEFAULTS` matches production —
+set it explicitly in your test if it does.
 
 Every test must create the fixtures it depends on and must never assume
 pre-existing data exists. Tests that relied on ambient data in the old shared
@@ -350,7 +318,7 @@ class MyCarModelTest extends TestCase
     protected function setUp(): void
     {
         // Real CarModel with database
-        // car_models table auto-populated by bootstrap
+        // car_models table populated by CarModelsSeed during provisioning
         $this->carModel = new CarModel();
     }
 
@@ -369,10 +337,12 @@ class MyCarModelTest extends TestCase
 **Solution:**
 
 ```bash
-php tests/setup-test-database.php
+./scripts/provision-schema.sh
 ```
 
-Or check bootstrap output for fixture loading errors.
+`composer seed:run` alone targets whatever `.env` (not `.env.test.local`) points
+at — the app/dev database, not the test schema — so it's not a safe substitute
+here.
 
 ### Unit Tests Access Real Database
 
