@@ -7,8 +7,8 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Direct tests of security functions without full framework bootstrap
- * SECURITY: Removed eval() usage and implemented safe function definitions
+ * Tests the global security-helper functions (generateSecureFilename, validateFileUpload,
+ * getMimeType, getExtension) as mocked in tests/bootstrap-unit.php — no live framework or DB.
  */
 #[Group('fast')]
 class SecurityFunctionsTest extends TestCase
@@ -20,99 +20,12 @@ class SecurityFunctionsTest extends TestCase
         // Create temporary directory for testing
         $this->tempDir = sys_get_temp_dir() . '/elan_test_' . uniqid();
         mkdir($this->tempDir, 0755, true);
-        
-        // Include the security functions directly
-        if (!function_exists('generateSecureFilename')) {
-            $this->loadSecurityFunctions();
-        }
     }
-    
+
     protected function tearDown(): void
     {
         // Clean up temporary files
         $this->cleanupTempDir();
-    }
-    
-    private function loadSecurityFunctions(): void
-    {
-        // Define security functions directly without eval() - SECURITY FIX
-        if (!function_exists('generateSecureFilename')) {
-            function generateSecureFilename($extension)
-            {
-                $randomBytes = random_bytes(16);
-                $secureFilename = "img_" . bin2hex($randomBytes) . "." . $extension;
-                return $secureFilename;
-            }
-        }
-        
-        if (!function_exists('validateFileUpload')) {
-            function validateFileUpload($file, $maxSize = 5242880)
-            {
-                if ($file["error"] !== UPLOAD_ERR_OK) {
-                    throw new Exception("File upload error: " . $file["error"]);
-                }
-                
-                if ($file["size"] > $maxSize) {
-                    throw new Exception("File too large. Maximum size: " . ($maxSize / 1024 / 1024) . "MB");
-                }
-                
-                if (!file_exists($file["tmp_name"])) {
-                    throw new Exception("Invalid file upload");
-                }
-                
-                if ($file["size"] < 100) {
-                    throw new Exception("File too small - minimum 100 bytes required");
-                }
-                
-                return true;
-            }
-        }
-        
-        if (!function_exists('getMimeType')) {
-            function getMimeType($file)
-            {
-                if (!file_exists($file)) {
-                    throw new Exception("File does not exist");
-                }
-                
-                $mtype = false;
-                
-                if (function_exists("finfo_open")) {
-                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                    $mtype = finfo_file($finfo, $file);
-                } elseif (function_exists("mime_content_type")) {
-                    $mtype = mime_content_type($file);
-                } else {
-                    throw new Exception("Unable to determine file MIME type");
-                }
-                
-                $allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
-                if (!in_array($mtype, $allowedTypes, true)) {
-                    throw new Exception("Invalid file type detected: " . $mtype);
-                }
-                
-                return $mtype;
-            }
-        }
-        
-        if (!function_exists('getExtension')) {
-            function getExtension($mimeType)
-            {
-                $allowedExtensions = array(
-                    "image/jpeg" => "jpg",
-                    "image/jpg" => "jpg", 
-                    "image/png" => "png",
-                    "image/gif" => "gif",
-                    "image/webp" => "webp"
-                );
-                
-                if (!array_key_exists($mimeType, $allowedExtensions)) {
-                    throw new Exception("Unsupported file type: " . $mimeType);
-                }
-                
-                return $allowedExtensions[$mimeType];
-            }
-        }
     }
 
     #[Group('fast')]
@@ -181,7 +94,7 @@ class SecurityFunctionsTest extends TestCase
             'tmp_name' => $this->createTestFile('valid.jpg', str_repeat('x', 1024 * 1024))
         ];
         
-        $this->assertTrue(validateFileUpload($validFile));
+        validateFileUpload($validFile); // void — success means no exception thrown
         
         // Test file exceeding size limit
         $largeFile = [
