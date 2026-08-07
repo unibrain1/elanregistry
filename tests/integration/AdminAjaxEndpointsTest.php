@@ -22,13 +22,8 @@ class AdminAjaxEndpointsTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
-        // Find test car data
-        $car = $this->db->query("SELECT id FROM cars LIMIT 1")->first();
-        $this->testCarId = $car ? $car->id : null;
-
-        // Find test user data
-        $user = $this->db->query("SELECT id FROM users WHERE active = 1 LIMIT 1")->first();
-        $this->testUserId = $user ? $user->id : null;
+        $this->testUserId = $this->createTestUser();
+        $this->testCarId = $this->createTestCar($this->testUserId);
     }
 
     // =========================================================================
@@ -152,144 +147,6 @@ class AdminAjaxEndpointsTest extends IntegrationTestCase
     }
 
     // =========================================================================
-    // Integration Tests - Endpoint Response Format
-    // =========================================================================
-
-    /**
-     * Test that endpoints follow ApiResponse pattern
-     * Success responses should have: success, message, data fields
-     */
-    public function testApiResponseSuccessFormat(): void
-    {
-        // This test validates the ApiResponse pattern structure
-        // Expected success response format:
-        // {
-        //   "success": true,
-        //   "message": "...",
-        //   "car": { ... } or "user": { ... }
-        // }
-
-        $this->assertTrue(true, 'ApiResponse pattern validation placeholder');
-    }
-
-    /**
-     * Test that error responses include message field
-     * Error responses should have: success=false, message field (not error)
-     */
-    public function testApiResponseErrorFormat(): void
-    {
-        // This test validates error response uses "message" not "error"
-        // Expected error response format:
-        // {
-        //   "success": false,
-        //   "message": "Error description"
-        // }
-
-        $this->assertTrue(true, 'Error response format validation placeholder');
-    }
-
-    // =========================================================================
-    // Security Tests
-    // =========================================================================
-
-    /**
-     * Test that endpoints require authentication
-     * Unauthenticated requests should return 403 Forbidden
-     */
-    public function testCarDetailsRequiresAuthentication(): void
-    {
-        // This test would verify that unauthenticated access is rejected
-        // Expected: ApiResponse::forbidden() - HTTP 403
-
-        $this->assertTrue(true, 'Authentication requirement validation placeholder');
-    }
-
-    /**
-     * Test that endpoints require admin permission
-     * Non-admin authenticated requests should return 403 Forbidden
-     */
-    public function testCarDetailsRequiresAdminPermission(): void
-    {
-        // This test would verify that non-admin users cannot access endpoints
-        // Expected: ApiResponse::forbidden() - HTTP 403
-
-        $this->assertTrue(true, 'Admin permission validation placeholder');
-    }
-
-    /**
-     * Test that endpoints validate CSRF tokens
-     * Requests with invalid CSRF should return 400 Bad Request
-     */
-    public function testCarDetailsValidatesCsrf(): void
-    {
-        // This test would verify CSRF token validation
-        // Expected: ApiResponse::error(..., 400) - HTTP 400
-
-        $this->assertTrue(true, 'CSRF validation placeholder');
-    }
-
-    /**
-     * Test that endpoints validate input parameters
-     * Requests with invalid car_id should return 400 Bad Request
-     */
-    public function testCarDetailsValidatesInput(): void
-    {
-        // This test would verify input validation
-        // Expected: ApiResponse::error(..., 400) - HTTP 400
-
-        $this->assertTrue(true, 'Input validation placeholder');
-    }
-
-    // =========================================================================
-    // HTTP Status Code Tests
-    // =========================================================================
-
-    /**
-     * Test that valid requests return 200 OK
-     */
-    public function testSuccessfulRequestReturnsOk(): void
-    {
-        // Expected HTTP status: 200
-        $this->assertTrue(true, 'HTTP 200 validation placeholder');
-    }
-
-    /**
-     * Test that missing resources return 404 Not Found
-     */
-    public function testMissingResourceReturns404(): void
-    {
-        // Expected HTTP status: 404 for non-existent car/user
-        $this->assertTrue(true, 'HTTP 404 validation placeholder');
-    }
-
-    /**
-     * Test that invalid requests return 400 Bad Request
-     */
-    public function testInvalidRequestReturns400(): void
-    {
-        // Expected HTTP status: 400 for invalid input
-        $this->assertTrue(true, 'HTTP 400 validation placeholder');
-    }
-
-    /**
-     * Test that unauthorized requests return 403 Forbidden
-     */
-    public function testUnauthorizedRequestReturns403(): void
-    {
-        // Expected HTTP status: 403 for unauthorized access
-        $this->assertTrue(true, 'HTTP 403 validation placeholder');
-    }
-
-    /**
-     * Test that server errors return 500 Internal Server Error
-     */
-    public function testServerErrorReturns500(): void
-    {
-        // Expected HTTP status: 500 for database errors
-        $this->assertTrue(true, 'HTTP 500 validation placeholder');
-    }
-
-    // =========================================================================
     // Data Consistency Tests
     // =========================================================================
 
@@ -316,45 +173,4 @@ class AdminAjaxEndpointsTest extends IntegrationTestCase
         $this->assertNotNull($user, "User should exist in database");
         $this->assertEquals($this->testUserId, $user->id, "User ID should match");
     }
-
-    // =========================================================================
-    // Logging Tests
-    // =========================================================================
-
-    /**
-     * Test that security violations are logged
-     * Unauthorized access attempts should create audit log entries
-     */
-    public function testSecurityViolationsAreLogged(): void
-    {
-        // This test validates that security errors trigger logging
-        // Expected: UserSpice logger entries for SecurityError category
-
-        $this->assertTrue(true, 'Security logging validation placeholder');
-    }
-
-    /**
-     * Test that database errors are logged
-     * Query failures should create audit log entries
-     */
-    public function testDatabaseErrorsAreLogged(): void
-    {
-        // This test validates that database errors trigger logging
-        // Expected: UserSpice logger entries for DatabaseError category
-
-        $this->assertTrue(true, 'Error logging validation placeholder');
-    }
-
-    /**
-     * Test that successful read operations don't create unnecessary logs
-     * Successful car/user lookups should not log (read-only operations)
-     */
-    public function testSuccessfulReadOperationsNotLogged(): void
-    {
-        // This test validates that successful reads don't clutter the audit log
-        // Expected: No log entry for successful read-only operations
-
-        $this->assertTrue(true, 'Read operation logging validation placeholder');
-    }
 }
-?>

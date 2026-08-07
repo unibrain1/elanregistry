@@ -23,7 +23,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('migration')]
 final class CarsYearSmallintMigrationTest extends IntegrationTestCase
 {
-    private int $testUserId = 1;
+    private int $testUserId;
 
     /** Car IDs created by individual tests that need early cleanup (e.g. DELETE tests). */
     private array $localCarIds = [];
@@ -51,6 +51,8 @@ final class CarsYearSmallintMigrationTest extends IntegrationTestCase
                 'Run: composer migrate'
             );
         }
+
+        $this->testUserId = $this->createTestUser();
 
         // Mirror the authenticated-user context required by Car::update() / Car::delete().
         global $user;

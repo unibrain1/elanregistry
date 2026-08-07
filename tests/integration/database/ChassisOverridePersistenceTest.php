@@ -24,7 +24,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('chassis-override')]
 final class ChassisOverridePersistenceTest extends IntegrationTestCase
 {
-    private int $testUserId = 1;
+    private int $testUserId;
 
     protected function setUp(): void
     {
@@ -48,6 +48,8 @@ final class ChassisOverridePersistenceTest extends IntegrationTestCase
                 'chassis_override column not yet available — run fix script 07-Chassis-Override-Schema-Backfill.php'
             );
         }
+
+        $this->testUserId = $this->createTestUser();
 
         // Set up an authenticated user context (mirrors CarDatabaseOperationsTest pattern).
         // Bypass login() to set the private $_isLoggedIn flag directly via reflection.

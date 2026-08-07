@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Owner;
 
 use PHPUnit\Framework\Attributes\Group;
@@ -27,10 +28,13 @@ final class CarTransferTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
+        $this->testUserId = $this->createTestUser();
+        $this->targetUserId = $this->createTestUser();
+
         // Set up authenticated user context for transfer operations
         global $user;
         $user = new User();
-        $user->find(1);  // Load user ID 1
+        $user->find($this->testUserId);
 
         // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
         // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
@@ -40,9 +44,17 @@ final class CarTransferTest extends IntegrationTestCase
 
         $GLOBALS['user'] = $user;
 
-        $this->testUserId = 1;
-        $this->targetUserId = 10;  // Use existing user ID (FredHansen)
         $this->db = DB::getInstance();
+
+        // city/state/country/lat/lon live on `profiles`, not `users` — createTestUser() only
+        // writes `users`. Give the transfer target real location data so
+        // testTransferUpdatesLocationData verifies an actual copy instead of comparing '' === ''.
+        $this->db->insert('profiles', [
+            'user_id' => $this->targetUserId,
+            'city'    => 'Hethel',
+            'state'   => 'Norfolk',
+            'country' => 'United Kingdom',
+        ]);
 
         // Create unique test car for this test
         try {
@@ -56,6 +68,9 @@ final class CarTransferTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
+        if ($this->databaseConnected && $this->targetUserId) {
+            $this->db->query("DELETE FROM profiles WHERE user_id = ?", [$this->targetUserId]);
+        }
         parent::tearDown();
     }
 
@@ -243,11 +258,14 @@ final class CarTransferTest extends IntegrationTestCase
     #[Group('fast')]
     public function testTransferHonorsExplicitActingUserIdWithoutGlobalUser(): void
     {
+        // Car::__construct() needs a global $user (via getSettings()), so construct before
+        // unsetting it — only transfer() itself must not fall back to a global $user internally.
+        $car = new Car($this->testCarId);
+
         $savedUser = $GLOBALS['user'] ?? null;
         unset($GLOBALS['user']);
 
         try {
-            $car = new Car($this->testCarId);
             $result = $car->transfer($this->targetUserId, 'Explicit actingUserId test', 'NEWOWNER', $this->testUserId);
             $this->assertTrue($result);
         } finally {

@@ -15,7 +15,7 @@ use PHPUnit\Framework\Attributes\Group;
  * triggers, and audit trails. These tests verify that the database layer
  * works correctly with the Car class.
  *
- * Uses real database fixtures (user ID 1, car IDs 1-2).
+ * Uses fixtures created via IntegrationTestCase::createTestUser()/createTestCar().
  */
 #[Group('integration')]
 final class CarDatabaseOperationsTest extends IntegrationTestCase
@@ -28,10 +28,12 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
+        $this->testUserId = $this->createTestUser();
+
         // Set up authenticated user context for tests
         global $user;
         $user = new User();
-        $user->find(1);  // Load user ID 1
+        $user->find($this->testUserId);
 
         // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
         // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
@@ -40,8 +42,6 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         $isLoggedInProperty->setValue($user, true);
 
         $GLOBALS['user'] = $user;
-
-        $this->testUserId = 1;
 
         // Create unique test car for this test
         try {
@@ -163,7 +163,7 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     public function testCarTransferUpdatesRelationships(): void
     {
         $car = new Car($this->testCarId);
-        $targetUserId = 10;  // Use existing user ID (FredHansen)
+        $targetUserId = $this->createTestUser();
 
         // Verify original owner
         $origRelation = $this->db->query(
@@ -192,9 +192,9 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     public function testCarTransferCreatesHistoryRecord(): void
     {
         $car = new Car($this->testCarId);
+        $targetUserId = $this->createTestUser();
 
-        // Transfer car to existing user ID 10 (FredHansen)
-        $result = $car->transfer(10, 'Integration test transfer history', 'NEWOWNER', $this->testUserId);
+        $result = $car->transfer($targetUserId, 'Integration test transfer history', 'NEWOWNER', $this->testUserId);
 
         $this->assertTrue($result);
 

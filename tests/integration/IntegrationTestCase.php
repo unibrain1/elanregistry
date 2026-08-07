@@ -74,12 +74,15 @@ abstract class IntegrationTestCase extends TestCase
     protected function tearDown(): void
     {
         if ($this->databaseConnected) {
-            // Delete cars first (may depend on foreign key constraints)
+            // Delete cars first (may depend on foreign key constraints). cars_hist is deleted
+            // AFTER cars, not before — the cars_delete trigger inserts a DELETE-operation history
+            // row when the car row is removed, so deleting cars_hist first just leaves that
+            // trigger-inserted row orphaned forever.
             foreach ($this->createdCarIds as $carId) {
                 try {
                     $this->db->query("DELETE FROM car_transfer_requests WHERE existing_car_id = ?", [$carId]);
-                    $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
                     $this->db->delete('cars', ['id', '=', $carId]);
+                    $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
                 } catch (RuntimeException $e) {
                     // Ignore cleanup errors
                 }
