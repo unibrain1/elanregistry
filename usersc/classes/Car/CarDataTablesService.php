@@ -27,13 +27,26 @@ class CarDataTablesService
         'factory' => 'elan_factory_info'
     ];
 
-    /** @var array<string, array<string>> Allowed columns per table */
+    /**
+     * Allowed columns per table — dual-purpose, read before editing.
+     *
+     * Used for BOTH (a) the SELECT list returned to unauthenticated DataTables
+     * clients (see getDataTablesData()) and (b) the ORDER BY / WHERE allowlist
+     * in validateColumnName(). Adding a column here exposes it publicly.
+     *
+     * Do not re-add user_id, lat, or lon (removed in #1501 — owner PII and
+     * internal identifiers). If a feature needs to sort or filter on a
+     * non-public column, split this into separate SELECT and FILTERABLE
+     * allowlists rather than widening this one.
+     *
+     * @var array<string, array<string>>
+     */
     private const ALLOWED_COLUMNS = [
         'cars' => [
             'id', 'ctime', 'mtime',
             'model', 'series', 'variant', 'year', 'type', 'chassis', 'color', 'engine',
-            'purchasedate', 'solddate', 'comments', 'image', 'user_id', 'fname',
-            'join_date', 'city', 'state', 'country', 'lat', 'lon', 'website'
+            'purchasedate', 'solddate', 'comments', 'image', 'fname',
+            'join_date', 'city', 'state', 'country', 'website'
         ],
         'elan_factory_info' => [
             'id', 'year', 'month', 'batch', 'type', 'serial', 'suffix',

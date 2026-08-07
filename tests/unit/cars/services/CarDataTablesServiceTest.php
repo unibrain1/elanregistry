@@ -95,6 +95,24 @@ final class CarDataTablesServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
+    public function testValidateColumnNameRejectsUserId(): void
+    {
+        $result = $this->invokeValidateColumnName('user_id', 'cars');
+        $this->assertFalse($result);
+    }
+
+    public function testValidateColumnNameRejectsLat(): void
+    {
+        $result = $this->invokeValidateColumnName('lat', 'cars');
+        $this->assertFalse($result);
+    }
+
+    public function testValidateColumnNameRejectsLon(): void
+    {
+        $result = $this->invokeValidateColumnName('lon', 'cars');
+        $this->assertFalse($result);
+    }
+
     // ============================================================
     // getDataTablesData tests
     // ============================================================

@@ -165,10 +165,11 @@ final class CarRepositoryTest extends TestCase
 
     public function testGetHistoryExcludesPII(): void
     {
-        // Security contract: email and lname must not appear in the SELECT clause.
-        // vericode and last_verified are not asserted here because cars_hist has no
-        // such columns — they exist only on the cars table and can never leak from
-        // this path even under SELECT *.
+        // Security contract: email, lname, user_id, lat, and lon must not appear in the
+        // SELECT clause — this method backs the public, unauthenticated
+        // app/api/cars/history.php endpoint (see #1501). vericode and last_verified are
+        // not asserted here because cars_hist has no such columns — they exist only on
+        // the cars table and can never leak from this path even under SELECT *.
         $capturedSql = null;
         $db = $this->makeDbMock();
         $db->expects($this->once())
@@ -190,6 +191,20 @@ final class CarRepositoryTest extends TestCase
         $this->assertStringNotContainsStringIgnoringCase(
             'lname', $capturedSql,
             'getHistory() SELECT must not include lname column (PII)'
+        );
+        $this->assertStringNotContainsStringIgnoringCase(
+            'user_id', $capturedSql,
+            'getHistory() SELECT must not include user_id column (#1501)'
+        );
+        // Word-boundary match, not substring: 'lat'/'lon' are short enough to
+        // false-positive against a future column like 'plate' or 'longitude'.
+        $this->assertDoesNotMatchRegularExpression(
+            '/\blat\b/i', $capturedSql,
+            'getHistory() SELECT must not include lat column (#1501)'
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/\blon\b/i', $capturedSql,
+            'getHistory() SELECT must not include lon column (#1501)'
         );
     }
 
