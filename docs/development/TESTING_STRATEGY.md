@@ -21,8 +21,9 @@ Three tiers, each with a distinct purpose and a hard boundary:
   code's logic from a real database — the anti-pattern is mocking *your own*
   classes. This is the target convention, not yet the current state: legacy
   mocks of `CarModel`/`Car`/`DB` still exist in `tests/unit/` and are
-  documented as such in `tests/README.md` — tracked for removal in #1440 and
-  #1441. Don't add new tests against those mocks; test the real class.
+  documented as such in `tests/README.md`. Their removal is tracked
+  separately in #1440 and #1441. Don't add new tests against those mocks;
+  test the real class.
 - **Integration (`tests/integration/`)** — real database, real UserSpice
   framework. Every test creates the fixtures it depends on
   (`IntegrationTestCase::createTestUser()` / `createTestCar()`) and cleans
