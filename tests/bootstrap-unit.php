@@ -30,6 +30,7 @@ if (!defined('BACKUP_RETENTION_AUTOMATED')) {
     define('BACKUP_RETENTION_MANUAL', 30);
     define('BACKUP_RETENTION_ROLLBACK', 30);
     define('BACKUP_WARNING_THRESHOLD_DAYS', 7);
+    define('BACKUP_FAILURE_LOOKBACK_DAYS', 7);
 }
 
 // Prevent any integration test code from loading

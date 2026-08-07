@@ -63,6 +63,31 @@ try {
     $showCleanupPrompt = false;
     $oldBackupsCount = 0;
 }
+
+// The fallback path above cannot report on failures it never managed to read, so it
+// gets its own degraded status rather than defaulting to a reassuring "Healthy".
+$backupStatusUnknown = $backupStatsFallback;
+$backupFailureDetected = $backupStats['recent_failures'] ?? false;
+$backupNeedsAttention = $backupStatusUnknown || $showCleanupPrompt || $backupFailureDetected;
+
+$backupStatusLabel = match(true) {
+    $backupStatusUnknown => 'Status unavailable',
+    $backupFailureDetected => 'Backup failure detected',
+    $showCleanupPrompt => 'Cleanup needed',
+    default => 'Healthy',
+};
+$backupBadgeLabel = match(true) {
+    $backupStatusUnknown => 'Status Unavailable',
+    $backupFailureDetected => 'Failure detected',
+    $showCleanupPrompt => 'Maintenance',
+    default => 'Healthy',
+};
+$backupStatusDetail = match(true) {
+    $backupStatusUnknown => 'Backup health check failed &mdash; see logs',
+    $backupFailureDetected => 'A recent backup attempt failed &mdash; check the logs for BackupFailed entries',
+    $showCleanupPrompt => 'Cleanup recommended for optimal performance',
+    default => 'Backup retention within normal limits',
+};
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -74,10 +99,22 @@ try {
     </div>
 </div>
 
-<?php if ($showCleanupPrompt): ?>
+<?php if ($backupNeedsAttention): ?>
 <div class="alert alert-warning cleanup-prompt-alert">
-    <h5><i class="fas fa-exclamation-triangle"></i> Backup Cleanup Recommended</h5>
-    <p class="mb-2">Found <strong><?= $oldBackupsCount ?></strong> backup files older than 30 days that can be cleaned up.</p>
+    <h5><i class="fas fa-exclamation-triangle"></i> <?= match(true) {
+        $backupStatusUnknown => 'Backup Status Unavailable',
+        $backupFailureDetected => 'Backup Failure Detected',
+        default => 'Backup Cleanup Recommended',
+    } ?></h5>
+    <?php if ($backupStatusUnknown): ?>
+        <p class="mb-2">The backup health check itself failed, so the figures below are placeholders rather than real counts. Check the system logs for <strong>BackupError</strong> entries.</p>
+    <?php endif; ?>
+    <?php if ($backupFailureDetected): ?>
+        <p class="mb-2">A backup attempt failed within the last <?= BACKUP_FAILURE_LOOKBACK_DAYS ?> days. Check the system logs for <strong>BackupFailed</strong> entries before relying on the most recent backup.</p>
+    <?php endif; ?>
+    <?php if ($showCleanupPrompt): ?>
+        <p class="mb-2">Found <strong><?= $oldBackupsCount ?></strong> backup files older than 30 days that can be cleaned up.</p>
+    <?php endif; ?>
     <p class="mb-2"><strong>Current backup storage:</strong></p>
     <ul class="mb-3">
         <li>Automated: <?= $backupStats['automated']['count'] ?> files (<?= round($backupStats['automated']['total_size'] / 1024 / 1024, 2) ?> MB)</li>
@@ -117,13 +154,13 @@ try {
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-<?= $showCleanupPrompt ? 'warning' : 'success' ?>">
+        <div class="card border-<?= $backupNeedsAttention ? 'warning' : 'success' ?>">
             <div class="card-body text-center">
                 <h6><i class="fas fa-hdd"></i> Backup Storage</h6>
-                <div class="text-<?= $showCleanupPrompt ? 'warning' : 'success' ?> mb-2">
-                    <i class="fas fa-<?= $showCleanupPrompt ? 'exclamation-triangle' : 'check-circle' ?>" style="font-size: 2rem;"></i>
+                <div class="text-<?= $backupNeedsAttention ? 'warning' : 'success' ?> mb-2">
+                    <i class="fas fa-<?= $backupNeedsAttention ? 'exclamation-triangle' : 'check-circle' ?>" style="font-size: 2rem;"></i>
                 </div>
-                <p class="mb-0 small"><?= $showCleanupPrompt ? 'Cleanup needed' : 'Healthy' ?></p>
+                <p class="mb-0 small"><?= $backupStatusLabel ?></p>
                 <small class="text-muted">
                     <?= ($backupStats['automated']['count'] + $backupStats['manual']['count'] + $backupStats['rollback']['count']) ?> total files
                     <?php if (isset($backupStats['health_score'])): ?>
@@ -186,10 +223,10 @@ try {
                     </tr>
                     <tr>
                         <td><strong>Backup System</strong></td>
-                        <td><span class="badge text-bg-<?= $showCleanupPrompt ? 'warning' : 'success' ?>">
-                            <?= $showCleanupPrompt ? 'Maintenance' : 'Healthy' ?>
+                        <td><span class="badge text-bg-<?= $backupNeedsAttention ? 'warning' : 'success' ?>">
+                            <?= $backupBadgeLabel ?>
                         </span></td>
-                        <td><?= $showCleanupPrompt ? 'Cleanup recommended for optimal performance' : 'Backup retention within normal limits' ?></td>
+                        <td><?= $backupStatusDetail ?></td>
                         <td><small class="text-muted">Real-time</small></td>
                     </tr>
                 </tbody>

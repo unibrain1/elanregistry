@@ -130,6 +130,7 @@ public function getEnhancedBackupStatistics(): array
 
 - Basic statistics (count, total_size per type)
 - Retention analysis (within_policy, approaching_expiry, expired)
+- `recent_failures` (bool): True if a genuine backup failure was logged within the last `BACKUP_FAILURE_LOOKBACK_DAYS` days
 - Health score (0-100)
 - Recommendations array
 
@@ -162,7 +163,12 @@ public function verifyBackupIntegrity(string $backupPath): array
 **Returns**: Array with:
 
 - `valid` (bool): Whether backup is valid
-- `error` (string): Error message if invalid
+- `error` (string): Error message if invalid. Possible values include:
+  - `"Backup file not found"` — file does not exist
+  - `"Backup file is empty"` — file exists but has 0 bytes
+  - `"Backup file could not be opened"` — file exists but `fopen()` failed
+  - `"File does not appear to contain valid SQL"` — no CREATE, DROP, ALTER, or INSERT statements found
+  - `"Backup contains table structure but no data"` — file has CREATE/DROP/ALTER statements but no INSERT statements (indicates silent data-loss during dump)
 - `file_size` (int): Size in bytes (if valid)
 - `created_at` (string): Creation timestamp (if valid)
 - `age_hours` (float): Age in hours (if valid)
@@ -225,9 +231,16 @@ source of truth.
 | `BACKUP_RETENTION_MANUAL` | Manual | 30 days |
 | `BACKUP_RETENTION_ROLLBACK` | Rollback | 30 days |
 | `BACKUP_WARNING_THRESHOLD_DAYS` | Warning window | 7 days |
+| `BACKUP_FAILURE_LOOKBACK_DAYS` | Failure lookback window | 7 days |
 
 Backups within `BACKUP_WARNING_THRESHOLD_DAYS` of their retention limit are
 flagged as `approaching_expiry` in health statistics and recommendations.
+
+`BACKUP_FAILURE_LOOKBACK_DAYS` controls how far back the health check looks for
+logged backup failures (log category `BackupFailed`). When a backup attempt is
+aborted without writing a file — unwritable backup directory, a genuine table
+dump error, or a failed file write — the failure is logged and flagged in
+statistics within this window.
 
 Cleanup is performed by `performEnhancedCleanup()` and removes files older
 than their retention period.
@@ -359,6 +372,7 @@ echo "Health improvement: +{$cleanupResults['health_improvement']} points\n";
 
 The backup system calculates a health score (0-100) based on:
 
+- **Recent backup failure**: -30 points if an aborted backup attempt (unwritable directory, failed table dump, or failed file write) was logged within `BACKUP_FAILURE_LOOKBACK_DAYS`
 - **Expired backups**: -10 points per type with expired files
 - **Approaching expiry**: -5 points per type with files expiring soon
 - **Excessive storage**: -15 points if total backup size exceeds 1GB
@@ -369,6 +383,34 @@ The backup system calculates a health score (0-100) based on:
 - **70-89**: Good - some maintenance recommended
 - **50-69**: Fair - cleanup needed soon
 - **Below 50**: Poor - immediate cleanup required
+
+## Backup Failure Behavior
+
+As of v2.29.1, backup failures are handled strictly to prevent silent data loss:
+
+**Single Table Dump Failure**: When `createSchemaBackup()` or `createManualBackup()`
+encounters a genuine database query error (not a missing table), that single table's
+dump failure now aborts the **entire backup operation**. No backup file is written at
+all. The failure is logged with category `BackupFailed` for later inspection.
+
+**Custom Script Integration**: If you call `createSchemaBackup()` or
+`createManualBackup()` from a custom script or maintenance tool, you must wrap the call
+in a try-catch to handle `BackupException`. Failures throw an exception rather than
+returning silently with a partial backup file.
+
+```php
+try {
+    $backupPath = $backupManager->createSchemaBackup('my-operation', ['users', 'cars']);
+} catch (BackupException $e) {
+    error_log("Backup failed: " . $e->getMessage());
+    // Handle failure (alert admin, abort operation, retry with fewer tables, etc.)
+}
+```
+
+**Health Dashboard**: The System Health dashboard badge shows a "Backup failure
+detected" warning state when a failure was logged within `BACKUP_FAILURE_LOOKBACK_DAYS`.
+The warning clears automatically once that window passes — there is no manual dismiss
+or acknowledge action.
 
 ## Troubleshooting
 

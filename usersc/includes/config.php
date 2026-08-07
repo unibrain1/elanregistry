@@ -36,6 +36,12 @@ define('BACKUP_RETENTION_ROLLBACK', 30);    // Rollback backups: 30 days
 define('BACKUP_WARNING_THRESHOLD_DAYS', 7);
 
 /**
+ * Backup failure lookback window (in days)
+ * How far back the health check looks for logged backup failures
+ */
+define('BACKUP_FAILURE_LOOKBACK_DAYS', 7);
+
+/**
  * Backup table subdirectories
  * Organized by backup type for clarity and management
  */

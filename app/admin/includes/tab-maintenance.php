@@ -102,6 +102,18 @@ function scriptDisplayName(string $filename): string {
         <h5 class="mb-0 card-header-er-primary-text"><i class="fas fa-shield-alt"></i> Backups</h5>
     </div>
     <div class="card-body">
+        <?php if ($backupStatsFallback): ?>
+            <div class="alert alert-warning py-2 small">
+                <i class="fas fa-exclamation-triangle"></i>
+                Backup statistics are currently unavailable &mdash; the counts below may not be accurate. See <a href="?tab=health">System Health</a> for details.
+            </div>
+        <?php endif; ?>
+        <?php if ($backupStats['recent_failures'] ?? false): ?>
+            <div class="alert alert-warning py-2 small">
+                <i class="fas fa-exclamation-triangle"></i>
+                A recent backup attempt failed &mdash; see <a href="?tab=health">System Health</a> for details.
+            </div>
+        <?php endif; ?>
         <div class="row">
             <div class="col-md-4">
                 <div class="text-center">

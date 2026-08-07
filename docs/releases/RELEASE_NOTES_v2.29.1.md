@@ -8,6 +8,7 @@
 [To be filled in as issues are completed — check for:
 - PHPStan baseline regeneration after #1453/#1500 (`composer phpstan:baseline`)
 - UserSpice framework update steps from #1495 (manual update — see issue for post-update TODOs)
+- Database migration from #1502 (`composer migrate` — adds the `idx_logs_logtype_logdate` index on the `logs` table)
 - Fix-script cleanup if any land during this milestone]
 
 ## User-Facing Changes
@@ -31,6 +32,10 @@
 ### Improvements
 
 - **UserSpice framework update** ([#1495](https://github.com/elan-registry/registry/issues/1495)): Updated to UserSpice >6.1.4.
+
+### Behavior Changes
+
+- **Backup dump failure handling** ([#1502](https://github.com/elan-registry/registry/issues/1502)): A single table's backup failure now aborts the entire backup with no file written (previously wrote a file with an error comment while reporting success). Custom scripts calling `BackupManager::createSchemaBackup()` or `createManualBackup()` must now handle the thrown `BackupException`.
 
 ## Issues Resolved
 
