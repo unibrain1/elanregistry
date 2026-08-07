@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -16,6 +17,7 @@ use PHPUnit\Framework\Attributes\Group;
 final class CarVerificationTest extends IntegrationTestCase
 {
     private $testCarId;
+    private $testUserId;
     protected $db;
 
     protected function setUp(): void
@@ -25,9 +27,11 @@ final class CarVerificationTest extends IntegrationTestCase
 
         $this->db = DB::getInstance();
 
+        $this->testUserId = $this->createTestUser();
+
         // Create unique test car for this test
         try {
-            $this->testCarId = $this->createTestCar(1, [
+            $this->testCarId = $this->createTestCar($this->testUserId, [
                 'chassis' => 'VF' . uniqid()
             ]);
         } catch (RuntimeException $e) {

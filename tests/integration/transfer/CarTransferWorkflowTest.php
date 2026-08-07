@@ -32,17 +32,9 @@ class CarTransferWorkflowTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
-        // Find a car and users for testing
-        $car = $this->db->query("SELECT id, user_id FROM cars LIMIT 1")->first();
-        $this->testCarId = $car ? $car->id : null;
-        $this->currentOwnerId = $car ? $car->user_id : null;
-
-        // Find a different user for transfer testing
-        $user = $this->db->query(
-            "SELECT id FROM users WHERE id != ? AND active = 1 LIMIT 1",
-            [$this->currentOwnerId]
-        )->first();
-        $this->testUserId = $user ? $user->id : null;
+        $this->currentOwnerId = $this->createTestUser();
+        $this->testCarId = $this->createTestCar($this->currentOwnerId);
+        $this->testUserId = $this->createTestUser(); // distinct transfer-target user
     }
 
     protected function tearDown(): void
@@ -234,8 +226,8 @@ class CarTransferWorkflowTest extends IntegrationTestCase
         }
 
         $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId ?? 1,
-            'requested_by_user_id'  => $this->testUserId ?? 1,
+            'existing_car_id'       => $this->testCarId,
+            'requested_by_user_id'  => $this->testUserId,
             'security_token'        => hash('sha256', 'test-' . time()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -254,7 +246,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
             'status'                => 'denied',
-            'created_by'            => 1,
+            'created_by'            => $this->testUserId,
         ]);
 
         $result = $this->db->query(

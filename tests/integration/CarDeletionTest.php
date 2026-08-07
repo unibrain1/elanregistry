@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 
@@ -19,16 +20,19 @@ use PHPUnit\Framework\Attributes\Group;
 final class CarDeletionTest extends IntegrationTestCase
 {
     private $testCarId;
+    private $testUserId;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireDatabase();
 
+        $this->testUserId = $this->createTestUser();
+
         // Set up authenticated user context for deletion operations
         global $user;
         $user = new User();
-        $user->find(1);  // Load user ID 1
+        $user->find($this->testUserId);
 
         // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
         // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
@@ -40,7 +44,7 @@ final class CarDeletionTest extends IntegrationTestCase
 
         // Create unique test car for this test
         try {
-            $this->testCarId = $this->createTestCar(1, [
+            $this->testCarId = $this->createTestCar($this->testUserId, [
                 'chassis' => 'DEL' . uniqid()
             ]);
         } catch (RuntimeException $e) {
@@ -58,7 +62,7 @@ final class CarDeletionTest extends IntegrationTestCase
         $this->assertTrue($car->exists());
 
         $token = Token::generate();
-        $result = $car->delete('Test deletion', $token, 1);
+        $result = $car->delete('Test deletion', $token, $this->testUserId);
 
         $this->assertTrue($result);
         $this->assertFalse($car->exists());
@@ -73,7 +77,7 @@ final class CarDeletionTest extends IntegrationTestCase
         $this->expectException(CarDeletionException::class);
 
         $car = new Car($this->testCarId);
-        $car->delete('Test deletion', 'invalid-token-12345', 1);
+        $car->delete('Test deletion', 'invalid-token-12345', $this->testUserId);
     }
 
     /**
@@ -85,7 +89,7 @@ final class CarDeletionTest extends IntegrationTestCase
         $this->expectException(CarDeletionException::class);
 
         $car = new Car($this->testCarId);
-        $car->delete('Test deletion', '', 1);
+        $car->delete('Test deletion', '', $this->testUserId);
     }
 
     /**
@@ -97,7 +101,7 @@ final class CarDeletionTest extends IntegrationTestCase
         $this->expectException(CarNotFoundException::class);
 
         $car = new Car(99999);
-        $car->delete('Test deletion', Token::generate(), 1);
+        $car->delete('Test deletion', Token::generate(), $this->testUserId);
     }
 
     /**
@@ -112,7 +116,7 @@ final class CarDeletionTest extends IntegrationTestCase
         $car = new Car($this->testCarId);
         $carId = $car->data()->id;
 
-        $result = $car->delete('Test deletion for audit', Token::generate(), 1);
+        $result = $car->delete('Test deletion for audit', Token::generate(), $this->testUserId);
 
         $this->assertTrue($result);
 
@@ -135,7 +139,7 @@ final class CarDeletionTest extends IntegrationTestCase
     {
         // First deletion — must succeed
         $car = new Car($this->testCarId);
-        $car->delete('First deletion', Token::generate(), 1);
+        $car->delete('First deletion', Token::generate(), $this->testUserId);
 
         // tearDown will attempt to clean up $this->testCarId; if the car is
         // already gone the cleanup silently ignores the missing row.
@@ -143,7 +147,7 @@ final class CarDeletionTest extends IntegrationTestCase
         // Second deletion on the same ID — car no longer exists
         $this->expectException(CarNotFoundException::class);
         $car2 = new Car($this->testCarId);
-        $car2->delete('Second deletion', Token::generate(), 1);
+        $car2->delete('Second deletion', Token::generate(), $this->testUserId);
     }
 
     /**
@@ -153,13 +157,16 @@ final class CarDeletionTest extends IntegrationTestCase
     #[Group('fast')]
     public function testDeleteHonorsExplicitActingUserIdWithoutGlobalUser(): void
     {
+        // Car::__construct() needs a global $user (via getSettings()), so construct before
+        // unsetting it — only delete() itself must not fall back to a global $user internally.
+        $car = new Car($this->testCarId);
+
         $savedUser = $GLOBALS['user'] ?? null;
         unset($GLOBALS['user']);
 
         try {
-            $car = new Car($this->testCarId);
             $token = Token::generate();
-            $result = $car->delete('Explicit actingUserId test', $token, 1);
+            $result = $car->delete('Explicit actingUserId test', $token, $this->testUserId);
             $this->assertTrue($result);
         } finally {
             if ($savedUser !== null) {

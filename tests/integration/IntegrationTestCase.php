@@ -74,14 +74,20 @@ abstract class IntegrationTestCase extends TestCase
     protected function tearDown(): void
     {
         if ($this->databaseConnected) {
-            // Delete cars first (may depend on foreign key constraints)
+            // Delete cars first (may depend on foreign key constraints). cars_hist is deleted
+            // AFTER cars, not before — the cars_delete trigger inserts a DELETE-operation history
+            // row when the car row is removed, so deleting cars_hist first just leaves that
+            // trigger-inserted row orphaned forever.
             foreach ($this->createdCarIds as $carId) {
                 try {
                     $this->db->query("DELETE FROM car_transfer_requests WHERE existing_car_id = ?", [$carId]);
-                    $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
                     $this->db->delete('cars', ['id', '=', $carId]);
+                    $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
                 } catch (RuntimeException $e) {
-                    // Ignore cleanup errors
+                    // Don't fail the test over cleanup, but a silent swallow here means the
+                    // fixture row survives into the next test run with no trace of why —
+                    // log it so a polluted test schema is diagnosable.
+                    fwrite(STDERR, "NOTE: tearDown() cleanup failed for car ID {$carId}: {$e->getMessage()}\n");
                 }
             }
 
@@ -90,7 +96,7 @@ abstract class IntegrationTestCase extends TestCase
                 try {
                     $this->db->delete('users', ['id', '=', $userId]);
                 } catch (RuntimeException $e) {
-                    // Ignore cleanup errors
+                    fwrite(STDERR, "NOTE: tearDown() cleanup failed for user ID {$userId}: {$e->getMessage()}\n");
                 }
             }
         }
@@ -227,6 +233,7 @@ abstract class IntegrationTestCase extends TestCase
             $this->createdUserIds = array_values(array_diff($this->createdUserIds, [$userId]));
             return true;
         } catch (RuntimeException $e) {
+            fwrite(STDERR, "NOTE: deleteTestUser() failed for user ID {$userId}: {$e->getMessage()}\n");
             return false;
         }
     }
@@ -244,12 +251,16 @@ abstract class IntegrationTestCase extends TestCase
         }
 
         try {
-            $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
+            // cars_hist is deleted AFTER cars, not before — the cars_delete trigger inserts a
+            // DELETE-operation history row when the car row is removed, so deleting cars_hist
+            // first just leaves that trigger-inserted row orphaned forever (same fix as tearDown()).
             $this->db->delete('cars', ['id', '=', $carId]);
+            $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
             // Remove from tracking so tearDown doesn't double-delete
             $this->createdCarIds = array_values(array_diff($this->createdCarIds, [$carId]));
             return true;
         } catch (RuntimeException $e) {
+            fwrite(STDERR, "NOTE: deleteTestCar() failed for car ID {$carId}: {$e->getMessage()}\n");
             return false;
         }
     }

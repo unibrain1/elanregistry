@@ -79,9 +79,10 @@ final class DatabaseConnectionTest extends IntegrationTestCase
     {
         $this->requireDatabase();
 
-        $result = $this->db->query("SELECT id, username, email FROM users LIMIT 1");
+        $userId = $this->createTestUser();
+        $result = $this->db->query("SELECT id, username, email FROM users WHERE id = ?", [$userId]);
 
-        $this->assertGreaterThan(0, $result->count(), "Should have users in database");
+        $this->assertSame(1, $result->count(), "Fixture user should be retrievable by ID");
 
         $user = $result->first();
         $this->assertNotNull($user->id, "User should have an ID");
@@ -97,9 +98,11 @@ final class DatabaseConnectionTest extends IntegrationTestCase
     {
         $this->requireDatabase();
 
-        $result = $this->db->query("SELECT id, year, model, chassis FROM cars LIMIT 1");
+        $userId = $this->createTestUser();
+        $carId = $this->createTestCar($userId);
+        $result = $this->db->query("SELECT id, year, model, chassis FROM cars WHERE id = ?", [$carId]);
 
-        $this->assertGreaterThan(0, $result->count(), "Should have cars in database");
+        $this->assertSame(1, $result->count(), "Fixture car should be retrievable by ID");
 
         $car = $result->first();
         $this->assertNotNull($car->id, "Car should have an ID");

@@ -152,6 +152,70 @@ ELAN REGISTRY TEST DATABASE SETUP
 | `tests/integration/cars/services/CarValidatorModelTest.php` | Yes | ✅ |
 | Other integration tests | No | N/A |
 
+## Test Data Isolation
+
+Integration tests run against a dedicated, isolated test schema (see #1436).
+A **freshly cloned** schema (`scripts/create-test-schema.sh`) starts completely
+empty — no ambient cars, users, or other rows. Two different lifecycles apply
+after that:
+
+- **Per-test fixtures** — anything a test creates (via `createTestUser()`,
+  `createTestCar()`, or a direct insert like a `profiles`/`car_transfer_requests`
+  row) is torn down after *that test* in `tearDown()`. Every test starts and
+  ends with none of its own data left behind.
+- **Schema-level reference/config data** — `car_models` and `settings` are
+  auto-seeded once by `tests/bootstrap-integration.php` the first time either
+  is found empty, then **persist across every subsequent run** (they are never
+  torn down). This mirrors a real install, which configures these once, not
+  per test. Re-running `scripts/create-test-schema.sh` resets them along with
+  everything else.
+
+So "starts empty" describes a fresh clone's initial state, not every run's
+steady state — after the first run, `car_models` and `settings` will already
+be populated, and the bootstrap logs `NOTE: ... already present/populated`
+instead of re-seeding.
+
+The auto-seeded `settings` row layers real values over generic type-based
+placeholders (`''`/`0`) for the remaining NOT NULL columns with no default —
+see `$elanDefaults` in `tests/bootstrap-integration.php`. Most of these
+(`site_name`, `permission_restriction`, `session_manager`, `req_cap`/`req_num`,
+`email_login`, etc.) come from the real ElanRegistry production configuration
+in `database/3-configuration.sql`; a few (`min_pw`/`max_pw`/`min_un`/`max_un`)
+are standard UserSpice defaults not tracked in that file. Don't assume a
+setting *not* in `$elanDefaults` matches production — set it explicitly in
+your test if it does.
+
+Every test must create the fixtures it depends on and must never assume
+pre-existing data exists. Tests that relied on ambient data in the old shared
+dev database (1590+ cars, 1763+ users) will fail or pass for the wrong reason
+against an empty schema.
+
+**Don't** hardcode assumed IDs, grab "whatever exists", or assert on
+registry-wide counts:
+
+```php
+// Assumes car/user 1 exists, or that a row is "just lying around"
+$owner = new Owner($userId = 1);
+$row = $this->db->query('SELECT * FROM cars LIMIT 1')->first();
+$count = $this->db->query('SELECT COUNT(*) AS c FROM cars')->first();
+$this->assertGreaterThan(0, $count->c);
+```
+
+**Do** create the fixtures the test needs, then assert against them:
+
+```php
+$userId = $this->createTestUser();
+$carId = $this->createTestCar($userId, ['chassis' => 'EL12345S']);
+
+$car = $this->db->query('SELECT * FROM cars WHERE id = ?', [$carId])->first();
+$this->assertSame($userId, (int) $car->user_id);
+```
+
+Use `IntegrationTestCase::createTestUser()` and `createTestCar()`
+(`tests/integration/IntegrationTestCase.php`) to create fixture rows — both
+generate unique, non-colliding data and are automatically cleaned up in
+`tearDown()`.
+
 ## Quick Reference
 
 ```bash

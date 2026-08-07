@@ -87,6 +87,13 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 // Start output buffering to catch any die() output messages
 ob_start();
 
+// Intentionally non-fatal: users/init.php performs framework setup that can throw before
+// the DB connection this bootstrap actually needs is established (e.g. plugin/session
+// init that assumes a fully-configured environment). IntegrationTestCase::setUp() has its
+// own DB connectivity check and skips gracefully via requireDatabase() if the database
+// this init failure may have affected genuinely isn't reachable — that's the real signal,
+// not this early framework noise. A hard abort here would be too coarse: it can't tell
+// framework startup quirks apart from failures that actually block testing.
 try {
     require_once $initPath;
 } catch (Throwable $e) {
@@ -104,6 +111,12 @@ restore_error_handler();
 
 // Ensure $user global is properly initialized for getSettings() calls
 // If users/init.php didn't fully initialize $user, create a minimal User object
+//
+// Intentionally non-fatal: a failure here means only that this fallback couldn't create
+// an empty User() shell (e.g. the User class itself has a constructor issue) — most
+// integration tests set up their own authenticated $user explicitly in setUp() and don't
+// depend on this fallback existing at all. Aborting the whole run over an unused fallback
+// would block tests that never needed it.
 if (!isset($GLOBALS['user']) || $GLOBALS['user'] === null) {
     if (class_exists('User')) {
         try {
@@ -162,7 +175,30 @@ try {
         fwrite(STDERR, "NOTE: Re-initialized global \$db for integration tests\n");
     }
 } catch (Throwable $e) {
+    // Intentionally non-fatal (unlike the stricter inner catch above at the database-identity
+    // check, which does abort): this outer catch covers the DB-singleton-cache reset and
+    // reconnection attempt itself. If those steps fail, IntegrationTestCase::setUp()'s own
+    // DB::getInstance() + requireDatabase() will independently detect the same unreachable
+    // database and skip tests gracefully — that's the authoritative check, this is just an
+    // earlier best-effort reconnection step whose failure the real check will catch anyway.
     fwrite(STDERR, "NOTE: Database reconnection attempt failed: {$e->getMessage()}\n");
+}
+
+/**
+ * Write each message line to STDERR and exit(1).
+ *
+ * Consolidates the repeated "fwrite(STDERR, ...); ...; exit(1);" pattern used
+ * throughout the reference-data and settings auto-load blocks below, which
+ * fail loudly rather than let tests run against a silently broken environment.
+ *
+ * @param string ...$lines Message lines, printed in order (no trailing "\n" needed).
+ */
+function abortBootstrap(string ...$lines): never
+{
+    foreach ($lines as $line) {
+        fwrite(STDERR, $line . "\n");
+    }
+    exit(1);
 }
 
 // ============================================================
@@ -204,15 +240,37 @@ try {
                         $newCount = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
                         $loadedCount = (int)($newCount?->cnt ?? 0);
 
+                        if ($loadedCount === 0) {
+                            abortBootstrap(
+                                "ERROR: car_models INSERT ran but the table is still empty.",
+                                "Integration tests that depend on car_models cannot run. Aborting.",
+                                "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests."
+                            );
+                        }
+
                         fwrite(STDERR, "NOTE: Loaded {$loadedCount} car_models records for integration tests\n");
                     } else {
-                        fwrite(STDERR, "NOTE: Could not parse car_models INSERT from reference data file\n");
+                        abortBootstrap(
+                            "ERROR: Could not parse the car_models INSERT from {$refDataPath}.",
+                            "The file's format may have changed and this bootstrap's parsing regex needs updating. Aborting.",
+                            "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.",
+                            "If that does not help, database/2-reference-data.sql or the bootstrap regex needs attention."
+                        );
                     }
                 } else {
-                    fwrite(STDERR, "NOTE: Failed to read reference data file\n");
+                    abortBootstrap(
+                        "ERROR: Failed to read reference data file: {$refDataPath}",
+                        "Check the file's permissions and readability. Aborting.",
+                        "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests."
+                    );
                 }
             } else {
-                fwrite(STDERR, "NOTE: Reference data file not found: {$refDataPath}\n");
+                abortBootstrap(
+                    "ERROR: Reference data file not found: {$refDataPath}",
+                    "car_models cannot be populated and integration tests would fail confusingly. Aborting.",
+                    "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.",
+                    "If that does not help, database/2-reference-data.sql itself may be missing or misnamed."
+                );
             }
         } else {
             $recordCount = (int)($count?->cnt ?? 0);
@@ -220,6 +278,173 @@ try {
         }
     }
 } catch (Throwable $e) {
-    fwrite(STDERR, "NOTE: Failed to load reference data: {$e->getMessage()}\n");
-    // Non-fatal: tests requiring car_models will handle gracefully
+    abortBootstrap(
+        "ERROR: Failed to load reference data: {$e->getMessage()}",
+        "Integration tests that depend on car_models cannot run. Aborting.",
+        "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests."
+    );
+}
+
+// ============================================================
+// Auto-seed the settings row for Integration Tests
+// ============================================================
+// Car::__construct() and other framework code call getSettings()/query
+// `settings WHERE id = 1` and silently no-op (never loading real data) if
+// that lookup returns nothing — so a missing settings row doesn't throw, it
+// makes unrelated code paths behave as if the row being looked up doesn't
+// exist either. The `settings` table has ~100 UserSpice-core columns with no
+// canonical INSERT tracked in this repo (it's normally created by the
+// UserSpice installer, which isn't part of this checkout). Rather than
+// hand-maintain a giant literal INSERT that drifts from the schema, build
+// one dynamically: satisfy every NOT NULL column with a type-appropriate
+// placeholder, then layer in the real ElanRegistry values that application
+// code actually depends on (documented in database/3-configuration.sql).
+// This also keeps the test DB privacy-safe — a synthetic row avoids ever
+// copying real secrets (gsecret, fbsecret, spice_api, elan_admin_emails, etc.)
+// from a live settings row into a test schema.
+
+try {
+    if (class_exists('DB')) {
+        $db = DB::getInstance();
+
+        $settingsCount = $db->query("SELECT COUNT(*) as cnt FROM settings WHERE id = 1")->first();
+
+        if (!is_object($settingsCount) || !property_exists($settingsCount, 'cnt')) {
+            abortBootstrap(
+                "ERROR: Could not query the settings table: {$db->errorString()}",
+                "Code that depends on settings (e.g. Car::__construct()) would silently misbehave. Aborting."
+            );
+        }
+
+        if ((int) $settingsCount->cnt === 0) {
+            fwrite(STDERR, "NOTE: settings row (id=1) is missing, seeding minimal test settings...\n");
+
+            $columns = $db->query(
+                "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT
+                 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings'"
+            )->results();
+
+            if (!$columns) {
+                abortBootstrap(
+                    "ERROR: Could not introspect the settings table's columns (query returned no rows).",
+                    "The settings table may be missing entirely — check that scripts/create-test-schema.sh",
+                    "was run and cloned the settings table structure. Aborting."
+                );
+            }
+
+            $textTypes = ['varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext'];
+            $numericTypes = ['int', 'tinyint', 'smallint', 'mediumint', 'bigint'];
+
+            // Real ElanRegistry values app code depends on (source: database/3-configuration.sql,
+            // the canonical "UPDATE settings SET ..." for a fresh install). Includes the
+            // security-relevant settings so tests exercise the same permission/session/rate-limit
+            // posture as a real install, not a permissive all-zero fallback.
+            $elanDefaults = [
+                'site_name'              => 'Lotus Elan Registry',
+                'template'               => 'customizer',
+                'copyright'              => 'Lotus Elan Registry and UniBrain',
+                'navigation_type'        => 0,
+                'elan_image_dir'         => 'userimages/',
+                'elan_image_max'         => 6,
+                'permission_restriction' => 1,
+                'session_manager'        => 1,
+                'recaptcha'              => 0,
+                'req_cap'                => 1,
+                'req_num'                => 1,
+                'email_login'            => 2,
+                // Length-range settings validated by users/join.php, user_settings.php, and
+                // forgot_password_reset.php — a 0/0 range would reject every username/password
+                // ("must be at most 0 characters"), silently breaking any test that registers
+                // or resets a user. Standard UserSpice defaults.
+                'min_pw' => 5,
+                'max_pw' => 32,
+                'min_un' => 5,
+                'max_un' => 20,
+            ];
+
+            $insertColumns = ['id'];
+            $placeholders = ['?'];
+            $bindings = [1];
+            $unmatchedDefaults = array_keys($elanDefaults);
+
+            foreach ($columns as $col) {
+                $name = $col->COLUMN_NAME;
+                if ($name === 'id') {
+                    continue;
+                }
+
+                // Column names come from information_schema (a trusted system catalog scoped to
+                // this exact table), never external input — but quote defensively regardless.
+                $quotedName = '`' . str_replace('`', '``', $name) . '`';
+
+                if (array_key_exists($name, $elanDefaults)) {
+                    $insertColumns[] = $quotedName;
+                    $placeholders[] = '?';
+                    $bindings[] = $elanDefaults[$name];
+                    $unmatchedDefaults = array_diff($unmatchedDefaults, [$name]);
+                    continue;
+                }
+
+                // Columns that are nullable, or have their own DB default, don't need a value.
+                if ($col->IS_NULLABLE === 'YES' || $col->COLUMN_DEFAULT !== null) {
+                    continue;
+                }
+
+                // Only fill types where '' or 0 is unambiguously safe. A NOT NULL `datetime`,
+                // `enum`, `decimal`, `json`, etc. could reject or misinterpret either placeholder
+                // (e.g. 0 into a strict-mode `datetime` errors; the equivalent enum member may not
+                // exist) — abort instead of guessing, consistent with this block failing loudly
+                // rather than seeding a row that looks valid but silently misbehaves.
+                if (in_array($col->DATA_TYPE, $textTypes, true)) {
+                    $placeholderValue = '';
+                } elseif (in_array($col->DATA_TYPE, $numericTypes, true)) {
+                    $placeholderValue = 0;
+                } else {
+                    abortBootstrap(
+                        "ERROR: settings column `{$name}` is NOT NULL with no default and an",
+                        "unhandled type ({$col->DATA_TYPE}) — no safe placeholder value is known.",
+                        "Add it to \$elanDefaults or \$textTypes/\$numericTypes above. Aborting."
+                    );
+                }
+
+                $insertColumns[] = $quotedName;
+                $placeholders[] = '?';
+                $bindings[] = $placeholderValue;
+            }
+
+            // A key in $elanDefaults that never matched an actual settings column (renamed,
+            // typo'd, or a future schema change) would otherwise be silently dropped — the
+            // column falls through to a generic placeholder with no error, undercutting the
+            // whole point of layering in real values. Fail loudly instead.
+            if ($unmatchedDefaults) {
+                abortBootstrap(
+                    "ERROR: \$elanDefaults keys not found as settings columns: " . implode(', ', $unmatchedDefaults),
+                    "Update \$elanDefaults in this file to match the current settings schema. Aborting."
+                );
+            }
+
+            $seedSql = 'INSERT INTO `settings` (' . implode(', ', $insertColumns) . ') VALUES ('
+                . implode(', ', $placeholders) . ')';
+
+            $db->query($seedSql, $bindings);
+
+            $verify = $db->query("SELECT COUNT(*) as cnt FROM settings WHERE id = 1")->first();
+            if (!$verify || (int) $verify->cnt === 0) {
+                abortBootstrap(
+                    "ERROR: settings row INSERT ran but id=1 still does not exist.",
+                    "Car::__construct() and other code silently skip loading data without this row. Aborting."
+                );
+            }
+
+            fwrite(STDERR, "NOTE: Seeded settings row (id=1) for integration tests\n");
+        } else {
+            fwrite(STDERR, "NOTE: settings row (id=1) already present\n");
+        }
+    }
+} catch (Throwable $e) {
+    abortBootstrap(
+        "ERROR: Failed to seed the settings row: {$e->getMessage()}",
+        "Code that depends on settings (e.g. Car::__construct()) would silently misbehave. Aborting."
+    );
 }

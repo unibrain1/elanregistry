@@ -24,10 +24,9 @@ class OwnerIntegrationTest extends IntegrationTestCase
      */
     public function testFindWithValidUser(): void
     {
-        // Use user ID 1 for testing
-        $userId = 1;
+        $userId = $this->createTestUser();
         $owner = new Owner();
-        $result = $owner->find((int)$userId);
+        $result = $owner->find($userId);
 
         $this->assertTrue($result);
         $this->assertNotNull($owner->data());
@@ -39,9 +38,9 @@ class OwnerIntegrationTest extends IntegrationTestCase
      */
     public function testGetCarsOwned(): void
     {
-        // Use user ID 1 for testing
-        $userId = 1;
-        $owner = new Owner((int)$userId);
+        $userId = $this->createTestUser();
+        $this->createTestCar($userId);
+        $owner = new Owner($userId);
 
         $ownedCars = $owner->getCarsOwned();
         $this->assertIsArray($ownedCars);
