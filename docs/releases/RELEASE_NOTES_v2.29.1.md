@@ -82,3 +82,4 @@
 - [#1503](https://github.com/elan-registry/registry/issues/1503) — test: make the integration test harness honest
 - [#1553](https://github.com/elan-registry/registry/issues/1553) — chore: derive ElanRegistry-only baseline migration (diff vs. stock UserSpice) and implement composer migrate + seed:run provisioning
 - [#1555](https://github.com/elan-registry/registry/issues/1555) — chore: add tests/ to phpstan.neon coverage
+- [#1560](https://github.com/elan-registry/registry/issues/1560) — chore: fix pre-commit's known-broken/broken group naming mismatch; delete stale test:api/test:workflow composer scripts
