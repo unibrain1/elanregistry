@@ -165,6 +165,23 @@ try {
     fwrite(STDERR, "NOTE: Database reconnection attempt failed: {$e->getMessage()}\n");
 }
 
+/**
+ * Write each message line to STDERR and exit(1).
+ *
+ * Consolidates the repeated "fwrite(STDERR, ...); ...; exit(1);" pattern used
+ * throughout the reference-data and settings auto-load blocks below, which
+ * fail loudly rather than let tests run against a silently broken environment.
+ *
+ * @param string ...$lines Message lines, printed in order (no trailing "\n" needed).
+ */
+function abortBootstrap(string ...$lines): never
+{
+    foreach ($lines as $line) {
+        fwrite(STDERR, $line . "\n");
+    }
+    exit(1);
+}
+
 // ============================================================
 // Auto-load Reference Data for Integration Tests
 // ============================================================
@@ -205,32 +222,36 @@ try {
                         $loadedCount = (int)($newCount?->cnt ?? 0);
 
                         if ($loadedCount === 0) {
-                            fwrite(STDERR, "ERROR: car_models INSERT ran but the table is still empty.\n");
-                            fwrite(STDERR, "Integration tests that depend on car_models cannot run. Aborting.\n");
-                            fwrite(STDERR, "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.\n");
-                            exit(1);
+                            abortBootstrap(
+                                "ERROR: car_models INSERT ran but the table is still empty.",
+                                "Integration tests that depend on car_models cannot run. Aborting.",
+                                "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests."
+                            );
                         }
 
                         fwrite(STDERR, "NOTE: Loaded {$loadedCount} car_models records for integration tests\n");
                     } else {
-                        fwrite(STDERR, "ERROR: Could not parse the car_models INSERT from {$refDataPath}.\n");
-                        fwrite(STDERR, "The file's format may have changed and this bootstrap's parsing regex needs updating. Aborting.\n");
-                        fwrite(STDERR, "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.\n");
-                        fwrite(STDERR, "If that does not help, database/2-reference-data.sql or the bootstrap regex needs attention.\n");
-                        exit(1);
+                        abortBootstrap(
+                            "ERROR: Could not parse the car_models INSERT from {$refDataPath}.",
+                            "The file's format may have changed and this bootstrap's parsing regex needs updating. Aborting.",
+                            "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.",
+                            "If that does not help, database/2-reference-data.sql or the bootstrap regex needs attention."
+                        );
                     }
                 } else {
-                    fwrite(STDERR, "ERROR: Failed to read reference data file: {$refDataPath}\n");
-                    fwrite(STDERR, "Check the file's permissions and readability. Aborting.\n");
-                    fwrite(STDERR, "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.\n");
-                    exit(1);
+                    abortBootstrap(
+                        "ERROR: Failed to read reference data file: {$refDataPath}",
+                        "Check the file's permissions and readability. Aborting.",
+                        "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests."
+                    );
                 }
             } else {
-                fwrite(STDERR, "ERROR: Reference data file not found: {$refDataPath}\n");
-                fwrite(STDERR, "car_models cannot be populated and integration tests would fail confusingly. Aborting.\n");
-                fwrite(STDERR, "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.\n");
-                fwrite(STDERR, "If that does not help, database/2-reference-data.sql itself may be missing or misnamed.\n");
-                exit(1);
+                abortBootstrap(
+                    "ERROR: Reference data file not found: {$refDataPath}",
+                    "car_models cannot be populated and integration tests would fail confusingly. Aborting.",
+                    "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.",
+                    "If that does not help, database/2-reference-data.sql itself may be missing or misnamed."
+                );
             }
         } else {
             $recordCount = (int)($count?->cnt ?? 0);
@@ -238,10 +259,11 @@ try {
         }
     }
 } catch (Throwable $e) {
-    fwrite(STDERR, "ERROR: Failed to load reference data: {$e->getMessage()}\n");
-    fwrite(STDERR, "Integration tests that depend on car_models cannot run. Aborting.\n");
-    fwrite(STDERR, "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests.\n");
-    exit(1);
+    abortBootstrap(
+        "ERROR: Failed to load reference data: {$e->getMessage()}",
+        "Integration tests that depend on car_models cannot run. Aborting.",
+        "Run: ./scripts/create-test-schema.sh to reset the test schema, then re-run tests."
+    );
 }
 
 // ============================================================
@@ -269,9 +291,10 @@ try {
         $settingsCount = $db->query("SELECT COUNT(*) as cnt FROM settings WHERE id = 1")->first();
 
         if (!is_object($settingsCount) || !property_exists($settingsCount, 'cnt')) {
-            fwrite(STDERR, "ERROR: Could not query the settings table: {$db->errorString()}\n");
-            fwrite(STDERR, "Code that depends on settings (e.g. Car::__construct()) would silently misbehave. Aborting.\n");
-            exit(1);
+            abortBootstrap(
+                "ERROR: Could not query the settings table: {$db->errorString()}",
+                "Code that depends on settings (e.g. Car::__construct()) would silently misbehave. Aborting."
+            );
         }
 
         if ((int) $settingsCount->cnt === 0) {
@@ -284,10 +307,11 @@ try {
             )->results();
 
             if (!$columns) {
-                fwrite(STDERR, "ERROR: Could not introspect the settings table's columns (query returned no rows).\n");
-                fwrite(STDERR, "The settings table may be missing entirely — check that scripts/create-test-schema.sh\n");
-                fwrite(STDERR, "was run and cloned the settings table structure. Aborting.\n");
-                exit(1);
+                abortBootstrap(
+                    "ERROR: Could not introspect the settings table's columns (query returned no rows).",
+                    "The settings table may be missing entirely — check that scripts/create-test-schema.sh",
+                    "was run and cloned the settings table structure. Aborting."
+                );
             }
 
             $textTypes = ['varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext'];
@@ -356,10 +380,11 @@ try {
                 } elseif (in_array($col->DATA_TYPE, $numericTypes, true)) {
                     $placeholderValue = 0;
                 } else {
-                    fwrite(STDERR, "ERROR: settings column `{$name}` is NOT NULL with no default and an\n");
-                    fwrite(STDERR, "unhandled type ({$col->DATA_TYPE}) — no safe placeholder value is known.\n");
-                    fwrite(STDERR, "Add it to \$elanDefaults or \$textTypes/\$numericTypes above. Aborting.\n");
-                    exit(1);
+                    abortBootstrap(
+                        "ERROR: settings column `{$name}` is NOT NULL with no default and an",
+                        "unhandled type ({$col->DATA_TYPE}) — no safe placeholder value is known.",
+                        "Add it to \$elanDefaults or \$textTypes/\$numericTypes above. Aborting."
+                    );
                 }
 
                 $insertColumns[] = $quotedName;
@@ -374,9 +399,10 @@ try {
 
             $verify = $db->query("SELECT COUNT(*) as cnt FROM settings WHERE id = 1")->first();
             if (!$verify || (int) $verify->cnt === 0) {
-                fwrite(STDERR, "ERROR: settings row INSERT ran but id=1 still does not exist.\n");
-                fwrite(STDERR, "Car::__construct() and other code silently skip loading data without this row. Aborting.\n");
-                exit(1);
+                abortBootstrap(
+                    "ERROR: settings row INSERT ran but id=1 still does not exist.",
+                    "Car::__construct() and other code silently skip loading data without this row. Aborting."
+                );
             }
 
             fwrite(STDERR, "NOTE: Seeded settings row (id=1) for integration tests\n");
@@ -385,7 +411,8 @@ try {
         }
     }
 } catch (Throwable $e) {
-    fwrite(STDERR, "ERROR: Failed to seed the settings row: {$e->getMessage()}\n");
-    fwrite(STDERR, "Code that depends on settings (e.g. Car::__construct()) would silently misbehave. Aborting.\n");
-    exit(1);
+    abortBootstrap(
+        "ERROR: Failed to seed the settings row: {$e->getMessage()}",
+        "Code that depends on settings (e.g. Car::__construct()) would silently misbehave. Aborting."
+    );
 }
