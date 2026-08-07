@@ -87,6 +87,13 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 // Start output buffering to catch any die() output messages
 ob_start();
 
+// Intentionally non-fatal: users/init.php performs framework setup that can throw before
+// the DB connection this bootstrap actually needs is established (e.g. plugin/session
+// init that assumes a fully-configured environment). IntegrationTestCase::setUp() has its
+// own DB connectivity check and skips gracefully via requireDatabase() if the database
+// this init failure may have affected genuinely isn't reachable — that's the real signal,
+// not this early framework noise. A hard abort here would be too coarse: it can't tell
+// framework startup quirks apart from failures that actually block testing.
 try {
     require_once $initPath;
 } catch (Throwable $e) {
@@ -104,6 +111,12 @@ restore_error_handler();
 
 // Ensure $user global is properly initialized for getSettings() calls
 // If users/init.php didn't fully initialize $user, create a minimal User object
+//
+// Intentionally non-fatal: a failure here means only that this fallback couldn't create
+// an empty User() shell (e.g. the User class itself has a constructor issue) — most
+// integration tests set up their own authenticated $user explicitly in setUp() and don't
+// depend on this fallback existing at all. Aborting the whole run over an unused fallback
+// would block tests that never needed it.
 if (!isset($GLOBALS['user']) || $GLOBALS['user'] === null) {
     if (class_exists('User')) {
         try {
@@ -162,6 +175,12 @@ try {
         fwrite(STDERR, "NOTE: Re-initialized global \$db for integration tests\n");
     }
 } catch (Throwable $e) {
+    // Intentionally non-fatal (unlike the stricter inner catch above at the database-identity
+    // check, which does abort): this outer catch covers the DB-singleton-cache reset and
+    // reconnection attempt itself. If those steps fail, IntegrationTestCase::setUp()'s own
+    // DB::getInstance() + requireDatabase() will independently detect the same unreachable
+    // database and skip tests gracefully — that's the authoritative check, this is just an
+    // earlier best-effort reconnection step whose failure the real check will catch anyway.
     fwrite(STDERR, "NOTE: Database reconnection attempt failed: {$e->getMessage()}\n");
 }
 

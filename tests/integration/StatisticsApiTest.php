@@ -82,14 +82,16 @@ class StatisticsApiTest extends IntegrationTestCase
     public function testGeographicTabUsStateDistribution(): void
     {
 
-        // Verify US state distribution data exists
+        // Verify US state distribution data reflects the fixture car created in setUp()
         $results = $this->db->query(
             "SELECT state, COUNT(*) as count FROM cars
              WHERE country = 'United States' AND state IS NOT NULL AND state != ''
              GROUP BY state ORDER BY count DESC"
         )->results();
-        // May be empty if no US cars, but query should work
-        $this->assertIsArray($results, "Should be able to query US states");
+        $this->assertNotEmpty($results, "Should have US state distribution data");
+
+        $states = array_map(static fn($row) => $row->state, $results);
+        $this->assertContains('California', $states, "Fixture car's state must appear in the distribution");
     }
 
     // =========================================================================

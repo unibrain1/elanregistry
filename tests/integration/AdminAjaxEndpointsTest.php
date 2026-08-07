@@ -4,10 +4,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/IntegrationTestCase.php';
 
 /**
- * Integration tests for Admin AJAX endpoints
+ * Integration tests for Admin AJAX endpoint data
  *
- * Tests process-car-details.php and process-user-details.php
- * Validates ApiResponse pattern implementation, security checks, and error handling
+ * Verifies the car/user data process-car-details.php and process-user-details.php
+ * read from the database: existence, required fields, and consistency with what
+ * was inserted.
  */
 class AdminAjaxEndpointsTest extends IntegrationTestCase
 {
@@ -15,7 +16,7 @@ class AdminAjaxEndpointsTest extends IntegrationTestCase
     private $testUserId;
 
     /**
-     * Set up test database connection and find test data
+     * Create a fixture user and car for the tests to query
      */
     protected function setUp(): void
     {

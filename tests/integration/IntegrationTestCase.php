@@ -84,7 +84,10 @@ abstract class IntegrationTestCase extends TestCase
                     $this->db->delete('cars', ['id', '=', $carId]);
                     $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
                 } catch (RuntimeException $e) {
-                    // Ignore cleanup errors
+                    // Don't fail the test over cleanup, but a silent swallow here means the
+                    // fixture row survives into the next test run with no trace of why —
+                    // log it so a polluted test schema is diagnosable.
+                    fwrite(STDERR, "NOTE: tearDown() cleanup failed for car ID {$carId}: {$e->getMessage()}\n");
                 }
             }
 
@@ -93,7 +96,7 @@ abstract class IntegrationTestCase extends TestCase
                 try {
                     $this->db->delete('users', ['id', '=', $userId]);
                 } catch (RuntimeException $e) {
-                    // Ignore cleanup errors
+                    fwrite(STDERR, "NOTE: tearDown() cleanup failed for user ID {$userId}: {$e->getMessage()}\n");
                 }
             }
         }
@@ -230,6 +233,7 @@ abstract class IntegrationTestCase extends TestCase
             $this->createdUserIds = array_values(array_diff($this->createdUserIds, [$userId]));
             return true;
         } catch (RuntimeException $e) {
+            fwrite(STDERR, "NOTE: deleteTestUser() failed for user ID {$userId}: {$e->getMessage()}\n");
             return false;
         }
     }
@@ -256,6 +260,7 @@ abstract class IntegrationTestCase extends TestCase
             $this->createdCarIds = array_values(array_diff($this->createdCarIds, [$carId]));
             return true;
         } catch (RuntimeException $e) {
+            fwrite(STDERR, "NOTE: deleteTestCar() failed for car ID {$carId}: {$e->getMessage()}\n");
             return false;
         }
     }
