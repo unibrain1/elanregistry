@@ -217,6 +217,21 @@ final class CarVerificationTest extends IntegrationTestCase
     }
 
     /**
+     * Test find by verification code with special characters is handled safely
+     */
+    #[Group('fast')]
+    public function testFindByVerificationCodeWithSpecialCharacters(): void
+    {
+        $result = Car::findByVerificationCode("O'Brien\"; DROP TABLE cars; --<script>");
+
+        $this->assertNull($result, 'No car should match an arbitrary special-character code, and the query must not error');
+
+        // Proves the payload was treated as a literal, bound value — not executed as SQL.
+        $row = $this->db->query('SELECT id FROM cars WHERE id = ?', [$this->testCarId])->first();
+        $this->assertNotEmpty($row, "cars table (and this test's fixture row) must survive the lookup unharmed");
+    }
+
+    /**
      * Test verification code is cleared on verification
      */
     #[Group('fast')]

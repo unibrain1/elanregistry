@@ -55,7 +55,7 @@ npm run test:debug        # Debug mode
 
 ### Unit Tests (`tests/unit/`)
 
-- **cars/**: CarCoreTest.php, CarCrudTest.php
+- **cars/services/**: CarValidatorTest.php, CarRepositoryTest.php, CarImageProcessorTest.php
 - **security/**: FileUploadSecurityTest.php, InputValidationTest.php
 - **users/**: UserDeletionCleanupTest.php
 - **api/**: ApiResponseTest.php, GetDataTablesFindCarByChassisTest.php
@@ -174,11 +174,11 @@ Unit tests use mock CarModel class (no database required).
 ### Debugging
 
 ```bash
-# Verbose output
-vendor/bin/phpunit -c phpunit-unit.xml --verbose
+# Debug output
+vendor/bin/phpunit -c phpunit-unit.xml --debug
 
 # Single test
-vendor/bin/phpunit tests/unit/cars/CarCoreTest.php::testFind
+vendor/bin/phpunit -c phpunit-unit.xml --filter testFindByIdReturnsObjectForExistingCar tests/unit/cars/services/CarRepositoryTest.php
 ```
 
 ## Best Practices
