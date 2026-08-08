@@ -21,7 +21,7 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * This test lives in the integration suite (not unit) because it needs a
  * real DB-backed logging path (countMatchingLogs() queries the real `logs`
- * table). It loads the real Car class and injects a PHPUnit mock via
+ * table). It loads the real Car class and injects a PHPUnit stub via
  * Reflection for the single repository property we need to control.
  *
  * @issue 934
@@ -44,17 +44,17 @@ final class CarUpdateRepositoryFailureTest extends IntegrationTestCase
     }
 
     /**
-     * Helper: build a Car with a mock repository that always returns false
-     * from update().
+     * Helper: build a Car with a stub repository that always returns false
+     * from updateCar().
      */
     private function carWithFailingRepo(): Car
     {
         $car = new Car();
 
-        $mockRepo = $this->createMock(CarRepository::class);
-        $mockRepo->method('update')->willReturn(false);
+        $stubRepo = $this->createStub(CarRepository::class);
+        $stubRepo->method('updateCar')->willReturn(false);
 
-        $this->repositoryProp->setValue($car, $mockRepo);
+        $this->repositoryProp->setValue($car, $stubRepo);
 
         return $car;
     }
@@ -114,9 +114,7 @@ final class CarUpdateRepositoryFailureTest extends IntegrationTestCase
      * CarCreateRepositoryFailureTest::testCreateThrowsCarCreationExceptionWhenPostInsertFindFails,
      * except create() throws on this failure and update() does not.
      *
-     * Uses createStub() (not createMock()) and the real updateCar()/findById()
-     * method names — unlike carWithFailingRepo() above, which predates #1574's
-     * discovery that CarRepository has no update() method.
+     * Uses createStub() (not createMock()), matching carWithFailingRepo() above.
      */
     public function testUpdateStillSucceedsButLogsWhenPostUpdateReloadFails(): void
     {
