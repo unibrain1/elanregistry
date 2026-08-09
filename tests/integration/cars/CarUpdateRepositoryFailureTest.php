@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Car\CarRepository;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use PHPUnit\Framework\Attributes\Group;
@@ -18,15 +19,14 @@ use PHPUnit\Framework\Attributes\Group;
  * ("may indicate no changes") before the second logged the actual failure and
  * threw. That duplicate guard is now removed.
  *
- * This test lives in the integration suite (not unit) because the unit
- * bootstrap substitutes a framework mock for the Car class that does not
- * exercise the real update() logic. Here we load the real Car class and
- * inject a PHPUnit mock via Reflection for the single repository property
- * we need to control.
+ * This test lives in the integration suite (not unit) because it needs a
+ * real DB-backed logging path (countMatchingLogs() queries the real `logs`
+ * table). It loads the real Car class and injects a PHPUnit stub via
+ * Reflection for the single repository property we need to control.
  *
  * @issue 934
  * @link https://github.com/unibrain1/elanregistry/issues/934
- * @see usersc/classes/Car.php Car::update()
+ * @see usersc/classes/Car/Car.php Car::update()
  */
 #[Group('integration')]
 #[Group('car-update')]
@@ -39,22 +39,22 @@ final class CarUpdateRepositoryFailureTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
-        $this->repositoryProp = (new \ReflectionClass(\ElanRegistry\Car\Car::class))
+        $this->repositoryProp = (new \ReflectionClass(Car::class))
             ->getProperty('repository');
     }
 
     /**
-     * Helper: build a Car with a mock repository that always returns false
-     * from update().
+     * Helper: build a Car with a stub repository that always returns false
+     * from updateCar().
      */
-    private function carWithFailingRepo(): \ElanRegistry\Car\Car
+    private function carWithFailingRepo(): Car
     {
-        $car = new \ElanRegistry\Car\Car();
+        $car = new Car();
 
-        $mockRepo = $this->createMock(CarRepository::class);
-        $mockRepo->method('update')->willReturn(false);
+        $stubRepo = $this->createStub(CarRepository::class);
+        $stubRepo->method('updateCar')->willReturn(false);
 
-        $this->repositoryProp->setValue($car, $mockRepo);
+        $this->repositoryProp->setValue($car, $stubRepo);
 
         return $car;
     }
@@ -108,18 +108,38 @@ final class CarUpdateRepositoryFailureTest extends IntegrationTestCase
     }
 
     /**
-     * Count rows in the logs table matching a logtype and lognote pattern.
+     * update() still returns true when updateCar() itself succeeds but the
+     * post-update reload (find() -> findById()) fails — Car.php:254-257 logs a
+     * "state may be stale" warning instead of throwing. Sibling to
+     * CarCreateRepositoryFailureTest::testCreateThrowsCarCreationExceptionWhenPostInsertFindFails,
+     * except create() throws on this failure and update() does not.
      *
-     * @param string $logtype  Exact logtype value (e.g. 'DatabaseError')
-     * @param string $lognote  LIKE pattern for lognote (e.g. 'Car update failed%')
+     * Uses createStub() (not createMock()), matching carWithFailingRepo() above.
      */
-    private function countMatchingLogs(string $logtype, string $lognote): int
+    public function testUpdateStillSucceedsButLogsWhenPostUpdateReloadFails(): void
     {
-        $result = $this->db->query(
-            'SELECT COUNT(*) AS cnt FROM logs WHERE logtype = ? AND lognote LIKE ?',
-            [$logtype, $lognote]
-        );
+        $stubRepo = $this->createStub(CarRepository::class);
+        $stubRepo->method('updateCar')->willReturn(true);
+        $stubRepo->method('findById')->willReturn(null);
 
-        return (int) ($result->first()->cnt ?? 0);
+        $car = new Car();
+        $this->repositoryProp->setValue($car, $stubRepo);
+
+        $before = $this->countMatchingLogs('DatabaseError', '%reload via find() failed%');
+
+        $result = $car->update([
+            'id'    => 999999999,
+            'token' => Token::generate(),
+            'color' => 'Reload Failure Test',
+        ]);
+
+        $this->assertTrue($result, 'update() must still return true even when the post-update reload fails');
+
+        $after = $this->countMatchingLogs('DatabaseError', '%reload via find() failed%');
+        $this->assertSame(
+            $before + 1,
+            $after,
+            'update() must log under DatabaseError when the post-update find() fails to reload'
+        );
     }
 }

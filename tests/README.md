@@ -50,7 +50,7 @@ tests/
 
 **Example test suites:**
 
-- `CarCoreTest.php` - Car class core methods
+- `CarRepositoryTest.php` - Car database repository methods (real class, mocked DB boundary)
 - `CarValidatorTest.php` - Input validation (with mock CarModel)
 - `FileUploadSecurityTest.php` - Upload security
 

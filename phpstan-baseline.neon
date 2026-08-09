@@ -325,12 +325,6 @@ parameters:
 			path: tests/integration/TestInfrastructureValidationTest.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 2
-			path: tests/integration/database/CarDatabaseOperationsTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Reference\\\\CarModel'' and ElanRegistry\\Reference\\CarModel will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 1
@@ -395,78 +389,6 @@ parameters:
 			identifier: empty.variable
 			count: 1
 			path: tests/unit/admin/ProcessAdminSettingsTest.php
-
-		-
-			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: tests/unit/cars/CarCoreTest.php
-
-		-
-			message: '#^Call to function is_array\(\) with non\-empty\-array will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: tests/unit/cars/CarCoreTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''Car'' and Car will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 2
-			path: tests/unit/cars/CarCoreTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNull\(\) with null will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/cars/CarCoreTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/cars/CarCoreTest.php
-
-		-
-			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: tests/unit/cars/CarCrudTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 3
-			path: tests/unit/cars/CarCrudTest.php
-
-		-
-			message: '#^Comparison operation "\<" between 1024 and 5242880 is always true\.$#'
-			identifier: smaller.alwaysTrue
-			count: 1
-			path: tests/unit/cars/CarCrudTest.php
-
-		-
-			message: '#^Comparison operation "\>" between 1024 and 0 is always true\.$#'
-			identifier: greater.alwaysTrue
-			count: 1
-			path: tests/unit/cars/CarCrudTest.php
-
-		-
-			message: '#^Comparison operation "\>" between 10485760 and 5242880 is always true\.$#'
-			identifier: greater.alwaysTrue
-			count: 1
-			path: tests/unit/cars/CarCrudTest.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between \*NEVER\* and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: tests/unit/cars/CarCrudTest.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between 0 and 0 will always evaluate to true\.$#'
-			identifier: identical.alwaysTrue
-			count: 1
-			path: tests/unit/cars/CarCrudTest.php
 
 		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
@@ -665,30 +587,6 @@ parameters:
 			identifier: property.unused
 			count: 1
 			path: tests/unit/security/InputSanitizationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\BackupException'' and ElanRegistry\\Exceptions\\BackupException will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\CarNotFoundException'' and ElanRegistry\\Exceptions\\CarNotFoundException will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerNotFoundException'' and ElanRegistry\\Exceptions\\OwnerNotFoundException will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with arguments ''ElanRegistry\\\\Owner'', ElanRegistry\\Owner and ''Owner must…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
 
 		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'

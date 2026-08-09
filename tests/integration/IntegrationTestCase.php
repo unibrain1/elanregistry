@@ -292,4 +292,31 @@ abstract class IntegrationTestCase extends TestCase
     {
         return $this->databaseConnected;
     }
+
+    /**
+     * Count rows in the logs table matching a logtype and lognote LIKE pattern.
+     *
+     * DB::query() never throws on an execute-time failure (see DB class conventions
+     * in TESTING_STRATEGY.md) — it just leaves no rows, which count(0)/first([])
+     * would otherwise make indistinguishable from a real "zero matches" result.
+     * Checking error() explicitly means a broken query fails loudly instead of a
+     * before/after count assertion passing vacuously on 0 === 0.
+     *
+     * @param string $logtype Exact logtype value (e.g. 'CarActions')
+     * @param string $lognote LIKE pattern for lognote (e.g. 'Car update failed%')
+     * @throws RuntimeException If the underlying query fails
+     */
+    protected function countMatchingLogs(string $logtype, string $lognote): int
+    {
+        $result = $this->db->query(
+            'SELECT COUNT(*) AS cnt FROM logs WHERE logtype = ? AND lognote LIKE ?',
+            [$logtype, $lognote]
+        );
+
+        if ($result->error()) {
+            throw new RuntimeException("countMatchingLogs() query failed for logtype='{$logtype}': {$result->errorString()}");
+        }
+
+        return (int) $result->first()->cnt;
+    }
 }
