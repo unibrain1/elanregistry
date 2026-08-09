@@ -174,17 +174,21 @@ final class CarDataTablesServiceTest extends TestCase
     #[DataProvider('validPaginationProvider')]
     public function testGetDataTablesDataAcceptsValidPagination(int $start, int $length): void
     {
-        $caught = null;
-        try {
-            $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
-            $this->service->getDataTablesData($request, 'cars', DB::getInstance());
-        } catch (CarValidationException $e) {
-            $caught = $e;
-        } catch (\Throwable) {
-            // DB not available in unit context — validation passed
-        }
+        $db = $this->createStub(DB::class);
+        // getDataTablesData() calls query() twice when search/columns are empty: COUNT(*), then the data SELECT.
+        $db->method('query')->willReturnOnConsecutiveCalls(
+            new QueryResult([(object) ['count' => 5]]),
+            new QueryResult([])
+        );
+        $db->method('error')->willReturn(false);
 
-        $this->assertNull($caught, 'Valid pagination parameters should not throw CarValidationException');
+        $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
+        $result = $this->service->getDataTablesData($request, 'cars', $db);
+
+        $this->assertSame(1, $result['draw']);
+        $this->assertSame(5, $result['recordsTotal']);
+        $this->assertSame(5, $result['recordsFiltered']);
+        $this->assertSame([], $result['data']);
     }
 
 }

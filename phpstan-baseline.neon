@@ -391,18 +391,6 @@ parameters:
 			path: tests/unit/admin/ProcessAdminSettingsTest.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/cars/services/CarAdministrationServiceTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 2
-			path: tests/unit/cars/services/CarRepositoryTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with arguments ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'', ElanRegistry\\Exceptions\\CarValidationException and ''CarValidationExcept…'' will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 1
@@ -611,12 +599,6 @@ parameters:
 			identifier: property.onlyWritten
 			count: 1
 			path: tests/unit/uploads/ImageOrientationTest.php
-
-		-
-			message: '#^Property UserDeletionCleanupTest\:\:\$db is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: tests/unit/users/UserDeletionCleanupTest.php
 
 		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotEmpty\(\) with non\-falsy\-string will always evaluate to true\.$#'
