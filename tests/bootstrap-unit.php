@@ -166,6 +166,17 @@ if (!class_exists('DB')) {
             // Return a standard mock user row so tests that need a valid owner work.
             // The WHERE-clause guard prevents matching Owner::searchOwners() and other
             // queries that join users+profiles but use different WHERE conditions.
+            //
+            // This branch must stay even though #1441 moved most DB-behavior control to
+            // per-test createMock(DB::class) doubles: Owner DOES accept DB via
+            // constructor injection (?object $db = null), but
+            // CarAdministrationService::transfer():96 calls `new Owner($newUserId)`
+            // without passing one, so Owner falls back to this shared
+            // DB::getInstance() singleton — independent of whatever mock DB a test
+            // injects directly into CarRepository. Removing this branch would break
+            // CarAdministrationServiceTest's transfer tests; fixing it properly means
+            // giving transfer() a seam to pass its own DB through to Owner, a
+            // production-code change out of scope for a test-only issue.
             if (stripos($sql, 'profiles') !== false
                 && stripos($sql, 'users') !== false
                 && stripos($sql, 'WHERE u.id') !== false) {
@@ -251,8 +262,7 @@ if (!class_exists('DB')) {
         }
 
         /**
-         * Update a record. Return value can be overridden via
-         * $GLOBALS['mockDbUpdateResult'] to simulate write failures.
+         * Update a record.
          *
          * @param string $table Table name
          * @param int $id Record ID
@@ -260,12 +270,7 @@ if (!class_exists('DB')) {
          * @return bool
          */
         public function update(string $table, int $id, array $data): bool {
-            global $mockDbUpdateCalls, $mockDbUpdateResult;
-            if (!isset($mockDbUpdateCalls)) {
-                $mockDbUpdateCalls = [];
-            }
-            $mockDbUpdateCalls[] = [$table, $id, $data];
-            return $mockDbUpdateResult ?? true;
+            return true;
         }
 
         /**
@@ -302,6 +307,11 @@ if (!class_exists('DB')) {
         /** Returns the first row from the last query result, or null when empty. */
         public function first(): mixed {
             return null;
+        }
+
+        /** @return array<mixed> */
+        public function results(): array {
+            return [];
         }
 
         public function deleteById(string $table, int $id): bool {

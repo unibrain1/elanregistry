@@ -16,8 +16,6 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('fast')]
 final class UserDeletionCleanupTest extends TestCase
 {
-    private $db;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,7 +24,6 @@ final class UserDeletionCleanupTest extends TestCase
         $mockDeletedUsers = [];
         $mockLogEntries = [];
 
-        $this->db = DB::getInstance();
         $this->setupMockData();
     }
 

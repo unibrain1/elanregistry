@@ -15,14 +15,32 @@ Three tiers, each with a distinct purpose and a hard boundary:
 
 - **Unit (`tests/unit/`)** — fast, no database. Test real application
   classes with real logic; never write a hand-rolled mock/reimplementation of
-  your own project code (a mock `DB`, mock `CarModel`, etc. tests the mock,
-  not the application). Mocking third-party/framework boundaries (like
-  UserSpice's `DB` class itself) is fine when the goal is isolating your own
-  code's logic from a real database — the anti-pattern is mocking *your own*
-  classes. This is the target convention, not yet the current state: legacy
-  mocks of `CarModel`/`DB` still exist in `tests/unit/` and are documented as
-  such in `tests/README.md`. Their removal is tracked separately in #1441.
-  Don't add new tests against those mocks; test the real class.
+  your own project code (a mock `CarModel`, mock `CarRepository`, etc. tests
+  the mock, not the application). Mocking third-party/framework boundaries
+  (like UserSpice's `DB` class itself) is fine when the goal is isolating
+  your own code's logic from a real database — the anti-pattern is mocking
+  *your own* classes (e.g. `CarRepository`). Construct the real class against
+  a mocked `DB` instead, so the class's own translation logic (DB response →
+  return value/exception) actually executes.
+
+  `tests/bootstrap-unit.php`'s global `DB` class is intentionally retained as
+  a thin, type-shaped stand-in — every class constructed in the unit tier
+  that type-hints `DB` (`CarRepository`, `CarTransferRepository`,
+  `RegistrationRecoveryNotifier`, and more) needs a class literally named
+  `DB` to resolve, and PHPUnit's `createMock(DB::class)`/`createStub(DB::class)`
+  needs one too to build a double against — a class can't be deleted just
+  because most of its default behavior was (#1441). The convention, per
+  `tests/unit/cars/services/CarRepositoryTest.php`'s `makeDbMock()`: build a
+  per-test `createMock(DB::class)`/`createStub(DB::class)` double configured
+  for exactly what that test needs, rather than relying on the shared
+  singleton's canned defaults for anything beyond "happy path, don't care
+  about the exact shape." A follow-up (extracting a narrow
+  `ElanRegistry\DatabaseInterface` for these classes to type-hint instead of
+  `DB`) would let the shell disappear for real — tracked in #1585.
+
+  A `CarModel` mock still exists in `tests/unit/` and is documented as such
+  in `tests/README.md`; its removal is tracked separately in #1446. Don't add
+  new tests against that mock; test the real class.
 - **Integration (`tests/integration/`)** — real database, real UserSpice
   framework. Every test creates the fixtures it depends on
   (`IntegrationTestCase::createTestUser()` / `createTestCar()`) and cleans

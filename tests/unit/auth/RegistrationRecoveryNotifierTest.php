@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ElanRegistry\RegistrationRecoveryNotifier;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -49,28 +50,26 @@ if (!class_exists('User')) {
 #[Group('fast')]
 final class RegistrationRecoveryNotifierTest extends TestCase
 {
-    /** @var DB */
+    /** @var DB&MockObject */
     private $db;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        global $mockSentEmails, $mockDbUpdateCalls, $mockDbUpdateResult, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
+        global $mockSentEmails, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
         $mockSentEmails = [];
-        $mockDbUpdateCalls = [];
-        $mockDbUpdateResult = null;
         $mockEmailSendResult = null;
         $mockEmailBodyResult = null;
         $mockLogEntries = [];
 
-        $this->db = new DB();
+        $this->db = $this->createMock(DB::class);
     }
 
     protected function tearDown(): void
     {
-        global $mockSentEmails, $mockDbUpdateCalls, $mockDbUpdateResult, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
-        unset($mockSentEmails, $mockDbUpdateCalls, $mockDbUpdateResult, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries);
+        global $mockSentEmails, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries;
+        unset($mockSentEmails, $mockEmailSendResult, $mockEmailBodyResult, $mockLogEntries);
 
         parent::tearDown();
     }
@@ -85,22 +84,24 @@ final class RegistrationRecoveryNotifierTest extends TestCase
         $fuser = new User(true, (object) ['id' => 42, 'fname' => 'Jane']);
         $email = 'jane@example.com';
 
+        $this->db->expects($this->once())
+            ->method('update')
+            ->with(
+                'users',
+                $this->identicalTo(42),
+                $this->callback(static fn(array $data): bool => isset($data['vericode'], $data['vericode_expiry']))
+            )
+            ->willReturn(true);
+
         $notifier = new RegistrationRecoveryNotifier($this->db);
         $result = $notifier->notifyIfAccountExists($fuser, $email, $this->settings());
 
         $this->assertTrue($result);
 
-        global $mockSentEmails, $mockDbUpdateCalls;
+        global $mockSentEmails;
 
         $this->assertCount(1, $mockSentEmails, 'Exactly one email should be sent');
         $this->assertSame($email, $mockSentEmails[0][0], 'Email must be sent to the submitted address');
-
-        $this->assertCount(1, $mockDbUpdateCalls, 'Exactly one DB update should be written');
-        [$table, $id, $data] = $mockDbUpdateCalls[0];
-        $this->assertSame('users', $table);
-        $this->assertSame(42, $id);
-        $this->assertArrayHasKey('vericode', $data);
-        $this->assertArrayHasKey('vericode_expiry', $data);
     }
 
     /**
@@ -119,15 +120,17 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     {
         $fuser = new User(true, (object) ['id' => '42', 'fname' => 'Jane']);
 
+        // identicalTo() is a strict (===) match, so a string '42' reaching
+        // DB::update() fails the expectation rather than passing on ==.
+        $this->db->expects($this->once())
+            ->method('update')
+            ->with('users', $this->identicalTo(42), $this->anything())
+            ->willReturn(true);
+
         $notifier = new RegistrationRecoveryNotifier($this->db);
         $result = $notifier->notifyIfAccountExists($fuser, 'jane@example.com', $this->settings());
 
         $this->assertTrue($result, 'A string account ID must not cause a silent TypeError failure');
-
-        global $mockDbUpdateCalls;
-        $this->assertCount(1, $mockDbUpdateCalls);
-        [, $id] = $mockDbUpdateCalls[0];
-        $this->assertSame(42, $id, 'The ID passed to DB::update() must be cast to a native int');
     }
 
     /**
@@ -141,26 +144,36 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     {
         $fuser = new User(false);
 
+        $this->db->expects($this->never())->method('update');
+
         $notifier = new RegistrationRecoveryNotifier($this->db);
         $result = $notifier->notifyIfAccountExists($fuser, 'nobody@example.com', $this->settings());
 
         $this->assertFalse($result);
 
-        global $mockSentEmails, $mockDbUpdateCalls;
+        global $mockSentEmails;
         $this->assertEmpty($mockSentEmails, 'No email should be sent when the account does not exist');
-        $this->assertEmpty($mockDbUpdateCalls, 'No DB write should occur when the account does not exist');
     }
 
     public function testVericodeIsHashedNotStoredAsPlaintext(): void
     {
         $fuser = new User(true, (object) ['id' => 42, 'fname' => 'Jane']);
 
+        // Capture the persisted value rather than asserting inside the callback:
+        // notifyIfAccountExists() catches \Throwable, so an assertion failure
+        // raised mid-call would be swallowed and reported as an unrelated failure.
+        $storedVericode = null;
+        $this->db->expects($this->once())
+            ->method('update')
+            ->willReturnCallback(
+                function (string $table, int $id, array $data) use (&$storedVericode): bool {
+                    $storedVericode = $data['vericode'] ?? null;
+                    return true;
+                }
+            );
+
         $notifier = new RegistrationRecoveryNotifier($this->db);
         $notifier->notifyIfAccountExists($fuser, 'jane@example.com', $this->settings());
-
-        global $mockDbUpdateCalls;
-        $this->assertCount(1, $mockDbUpdateCalls);
-        $storedVericode = $mockDbUpdateCalls[0][2]['vericode'];
 
         // bootstrap-unit.php mocks randomstring(15) to a fixed raw value of
         // str_repeat('x', 15); the stored value must not equal that raw output —
@@ -173,7 +186,7 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     public function testDbUpdateFailureReturnsFalseWithoutSendingEmail(): void
     {
         $fuser = new User(true, (object) ['id' => 42, 'fname' => 'Jane']);
-        $GLOBALS['mockDbUpdateResult'] = false;
+        $this->db->expects($this->once())->method('update')->willReturn(false);
 
         $notifier = new RegistrationRecoveryNotifier($this->db);
         $result = $notifier->notifyIfAccountExists($fuser, 'jane@example.com', $this->settings());
@@ -190,6 +203,7 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     public function testEmailSendFailureReturnsFalseWithoutThrowing(): void
     {
         $fuser = new User(true, (object) ['id' => 42, 'fname' => 'Jane']);
+        $this->db->expects($this->once())->method('update')->willReturn(true);
         $GLOBALS['mockEmailSendResult'] = false;
 
         $notifier = new RegistrationRecoveryNotifier($this->db);
@@ -201,6 +215,7 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     public function testEmptyRenderedBodyReturnsFalseWithoutSendingEmail(): void
     {
         $fuser = new User(true, (object) ['id' => 42, 'fname' => 'Jane']);
+        $this->db->expects($this->once())->method('update')->willReturn(true);
         $GLOBALS['mockEmailBodyResult'] = '';
 
         $notifier = new RegistrationRecoveryNotifier($this->db);

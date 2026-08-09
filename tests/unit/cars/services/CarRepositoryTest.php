@@ -52,14 +52,14 @@ final class CarRepositoryTest extends TestCase
     {
         $this->repo->beginTransaction();
         $this->repo->commit();
-        $this->assertTrue(true);
+        $this->expectNotToPerformAssertions();
     }
 
     public function testRollbackDoesNotThrow(): void
     {
         $this->repo->beginTransaction();
         $this->repo->rollback();
-        $this->assertTrue(true);
+        $this->expectNotToPerformAssertions();
     }
 
     // =========================================================================
@@ -80,11 +80,18 @@ final class CarRepositoryTest extends TestCase
     {
         $db = $this->createMock(DB::class);
 
-        // No outer transaction — beginTransaction() should call through.
-        // beginTransaction() checks inTransaction() = false → starts tx.
-        // commit() checks inTransaction() = true → commits.
-        $db->method('inTransaction')->willReturnOnConsecutiveCalls(false, true);
-        $db->expects($this->once())->method('beginTransaction');
+        // No outer transaction — beginTransaction() should call through and flip the
+        // state; commit() then sees inTransaction()=true and commits. Modeling actual
+        // state via a callback (not willReturnOnConsecutiveCalls) means this doesn't
+        // depend on inTransaction() being called exactly twice in exactly this order.
+        $inTransaction = false;
+        $db->method('inTransaction')->willReturnCallback(function () use (&$inTransaction): bool {
+            return $inTransaction;
+        });
+        $db->expects($this->once())->method('beginTransaction')
+            ->willReturnCallback(function () use (&$inTransaction): void {
+                $inTransaction = true;
+            });
         $db->expects($this->once())->method('commit');
 
         $repo = new CarRepository($db);
@@ -126,10 +133,17 @@ final class CarRepositoryTest extends TestCase
     {
         $db = $this->createMock(DB::class);
 
-        // beginTransaction() checks inTransaction() = false → starts tx.
-        // rollback() checks inTransaction() = true → rolls back.
-        $db->method('inTransaction')->willReturnOnConsecutiveCalls(false, true);
-        $db->expects($this->once())->method('beginTransaction');
+        // beginTransaction() flips state to "in transaction"; rollback() then sees
+        // inTransaction()=true and rolls back. State-modeled, not call-count-modeled —
+        // see testStandaloneTransactionOwnsCommit's comment for why.
+        $inTransaction = false;
+        $db->method('inTransaction')->willReturnCallback(function () use (&$inTransaction): bool {
+            return $inTransaction;
+        });
+        $db->expects($this->once())->method('beginTransaction')
+            ->willReturnCallback(function () use (&$inTransaction): void {
+                $inTransaction = true;
+            });
         $db->expects($this->once())->method('rollBack');
         $db->expects($this->never())->method('commit');
 
@@ -269,7 +283,7 @@ final class CarRepositoryTest extends TestCase
     private function makeDbMock(): object
     {
         return $this->getMockBuilder(DB::class)
-            ->onlyMethods(['query', 'error', 'errorString', 'count', 'first'])
+            ->onlyMethods(['query', 'error', 'errorString', 'count', 'first', 'results'])
             ->getMock();
     }
 
@@ -468,5 +482,26 @@ final class CarRepositoryTest extends TestCase
 
         $this->expectException(CarDatabaseException::class);
         $repo->getAllForSitemap();
+    }
+
+    /**
+     * getAllForSitemap() returns the rows from DB::results() on the happy path.
+     *
+     * Regression guard for #1441: the shared mock DB previously had no results()
+     * method at all, so this call would have fatally errored ("Call to undefined
+     * method DB::results()") the first time a unit test actually exercised it.
+     */
+    public function testGetAllForSitemapReturnsRows(): void
+    {
+        $db = $this->makeDbMock();
+        $db->expects($this->once())->method('query');
+        $db->method('error')->willReturn(false);
+        $db->method('results')->willReturn([(object) ['id' => 1, 'mtime' => '2026-01-01 00:00:00']]);
+
+        $repo = new CarRepository($db);
+        $result = $repo->getAllForSitemap();
+
+        $this->assertCount(1, $result);
+        $this->assertSame(1, $result[0]->id);
     }
 }
