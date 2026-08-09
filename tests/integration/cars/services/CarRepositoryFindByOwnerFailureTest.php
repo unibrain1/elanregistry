@@ -19,6 +19,11 @@ use PHPUnit\Framework\Attributes\Group;
  * #1441), so this DB-error path is only testable where the real \DB class is
  * loadable, i.e. the integration suite. Nothing here touches an actual
  * database connection.
+ *
+ * Extends plain TestCase, not IntegrationTestCase — it needs no DB fixtures
+ * or connection (fully stubbed), so IntegrationTestCase::setUp()'s connection
+ * check/requireDatabase() would be pure overhead. Don't "fix" this to extend
+ * IntegrationTestCase; it's deliberate.
  */
 #[Group('integration')]
 final class CarRepositoryFindByOwnerFailureTest extends TestCase
