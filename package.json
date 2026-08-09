@@ -62,7 +62,7 @@
     "maplibre-gl": "4.7.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "@versatiles/style": "^5.13.0",
     "dotenv": "^17.4.2",
     "esbuild": "^0.28.1",

@@ -3,15 +3,6 @@ name: Static Analysis
 on:
   pull_request:
     types: [opened, synchronize]
-    paths:
-      - "**.php"
-      - "phpstan.neon"
-      - "phpstan-baseline.neon"
-      - "composer.json"
-      - "composer.lock"
-      - "**.js"
-      - "eslint.config.mjs"
-      - ".github/workflows/static-analysis.yml"
   push:
     branches: [main]
     paths:
@@ -23,8 +14,49 @@ on:
   workflow_dispatch:
 
 jobs:
+  # PHPStan Analysis, PHP Coding Standards Check, and JavaScript Lint Check
+  # are required status checks on main's branch protection. They used to be
+  # gated by a `paths:` filter on the `pull_request` trigger itself — but a
+  # workflow-level path filter means the workflow never runs at all when no
+  # matching file changed, and a required check that never runs never posts
+  # any status, so the PR blocks forever ("Expected — waiting for status to
+  # be reported"). Reproduced on PR #1534, which only touched
+  # .github/workflows/claude-code-review.yml.
+  #
+  # Fix: trigger unconditionally on pull_request, and gate each job with an
+  # `if:` condition computed here instead. A job skipped via `if:` still
+  # reports a "skipped" conclusion, which satisfies a required check —
+  # unlike a workflow that never triggered, which reports nothing.
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      php: ${{ steps.filter.outputs.php }}
+      js: ${{ steps.filter.outputs.js }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            php:
+              - "**.php"
+              - "phpstan.neon"
+              - "phpstan-baseline.neon"
+              - "composer.json"
+              - "composer.lock"
+            js:
+              - "**.js"
+              - "eslint.config.mjs"
+
   phpstan:
     name: PHPStan Analysis
+    needs: changes
+    if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.php == 'true')
     runs-on: ubuntu-latest
 
     steps:
@@ -58,6 +90,8 @@ jobs:
 
   coding-standards:
     name: PHP Coding Standards Check
+    needs: changes
+    if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.php == 'true')
     runs-on: ubuntu-latest
 
     steps:
@@ -103,6 +137,8 @@ jobs:
 
   eslint:
     name: JavaScript Lint Check
+    needs: changes
+    if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.js == 'true')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
