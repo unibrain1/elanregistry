@@ -294,8 +294,11 @@ and architecture agents.
 
 ### Planning Work
 
-- `plans/` directory is for temporary working documents (sprint plans, triage
-  reports) — delete after decisions are applied to GitHub milestones/issues
+- Working documents (sprint plans, triage reports, FRDs) live in a permanent
+  local directory outside this repo — path in `.claude.local.md` (gitignored;
+  copy `.claude.local.md.example` to set it up), same pattern as the wiki
+  clone. Delete a plan's contents after its decisions are applied to GitHub
+  milestones/issues.
 - For milestone planning, use the `senior-product-manager`, `senior-architect`,
   and `security-reviewer` agents in parallel for comprehensive analysis
 
