@@ -325,12 +325,6 @@ parameters:
 			path: tests/integration/TestInfrastructureValidationTest.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 2
-			path: tests/integration/database/CarDatabaseOperationsTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Reference\\\\CarModel'' and ElanRegistry\\Reference\\CarModel will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 1
@@ -593,30 +587,6 @@ parameters:
 			identifier: property.unused
 			count: 1
 			path: tests/unit/security/InputSanitizationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\BackupException'' and ElanRegistry\\Exceptions\\BackupException will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\CarNotFoundException'' and ElanRegistry\\Exceptions\\CarNotFoundException will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerNotFoundException'' and ElanRegistry\\Exceptions\\OwnerNotFoundException will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with arguments ''ElanRegistry\\\\Owner'', ElanRegistry\\Owner and ''Owner must…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/system/AutoloaderTest.php
 
 		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'

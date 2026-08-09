@@ -33,7 +33,7 @@ class AutoloaderTest extends TestCase
         $this->assertTrue(class_exists(\ElanRegistry\Car\Car::class), 'Real Car class must be autoloadable');
         $this->assertTrue(class_exists('Car'), 'Global Car alias should be registered by Car/Car.php');
         $this->assertTrue(class_exists('ElanRegistry\\Owner'), 'ElanRegistry\\Owner class should auto-load');
-        $this->assertInstanceOf(\ElanRegistry\Owner::class, new \ElanRegistry\Owner(), 'Owner must instantiate as the ElanRegistry\\Owner class (not an alias or wrong class declaration)');
+        new \ElanRegistry\Owner();
         $this->assertTrue(class_exists('ElanRegistry\\CarView'), 'ElanRegistry\\CarView class should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\Resize'), 'ElanRegistry\\Resize class should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\ChassisValidator'), 'ElanRegistry\\ChassisValidator class should auto-load');
@@ -197,7 +197,6 @@ class AutoloaderTest extends TestCase
         try {
             throw new \ElanRegistry\Exceptions\CarNotFoundException('Test message');
         } catch (\ElanRegistry\Exceptions\CarNotFoundException $e) {
-            $this->assertInstanceOf(\ElanRegistry\Exceptions\CarNotFoundException::class, $e);
             $this->assertEquals('Test message', $e->getMessage());
         }
 
@@ -205,7 +204,6 @@ class AutoloaderTest extends TestCase
         try {
             throw new \ElanRegistry\Exceptions\OwnerNotFoundException('Test owner message');
         } catch (\ElanRegistry\Exceptions\OwnerNotFoundException $e) {
-            $this->assertInstanceOf(\ElanRegistry\Exceptions\OwnerNotFoundException::class, $e);
             $this->assertEquals('Test owner message', $e->getMessage());
         }
 
@@ -213,7 +211,6 @@ class AutoloaderTest extends TestCase
         try {
             throw new \ElanRegistry\Exceptions\BackupException('Test backup message');
         } catch (\ElanRegistry\Exceptions\BackupException $e) {
-            $this->assertInstanceOf(\ElanRegistry\Exceptions\BackupException::class, $e);
             $this->assertEquals('Test backup message', $e->getMessage());
         }
     }

@@ -177,10 +177,9 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         )->first();
         $this->assertSame($this->testUserId, (int) $origRelation->user_id);
 
-        // Transfer car
-        $result = $car->transfer($targetUserId, 'Integration test transfer', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        // Transfer car — return type is literal `true` (throws on any failure), so no
+        // assertion is needed on the return value itself; the DB checks below are what matter.
+        $car->transfer($targetUserId, 'Integration test transfer', 'NEWOWNER', $this->testUserId);
 
         // Verify owner was updated
         $newRelation = $this->db->query(
@@ -199,9 +198,8 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         $car = new Car($this->testCarId);
         $targetUserId = $this->createTestUser();
 
-        $result = $car->transfer($targetUserId, 'Integration test transfer history', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        // Return type is literal `true` (throws on any failure); the history check below is the real assertion.
+        $car->transfer($targetUserId, 'Integration test transfer history', 'NEWOWNER', $this->testUserId);
 
         // Verify history record exists
         $historyQuery = $this->db->query(
