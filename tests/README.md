@@ -59,10 +59,15 @@ bootstrap mock/fake standing in for the subject under test.
 Issues #1440, #1441, #1444, #1445, #1446, #1554, and #1566 fixed 14 files
 found by name-based grepping; #1556 read the remaining 52 and found 8 more reimplementation/
 tautology cases, now tracked as #1597–#1604 (targeted at v2.29.2). One
-file (`RobotsTxtPolicyTest.php`) has a different, already-tracked honesty gap
-(#1542 — verifies the repo's `robots.txt`, not the Cloudflare-injected
-as-served version). Before assuming a new `tests/unit/` file is clean by
-default, check whether it predates this audit.
+file (`RobotsTxtPolicyTest.php`) has a different honesty gap: it verifies
+the repo's `robots.txt` rather than what's actually served, and its own
+evaluator is a documented, deliberate simplification (first-matching-group
+only, no tie-break) that isn't fully RFC 9309-compliant even against the
+repo file alone. `tests/integration/RobotsTxtAsServedTest.php` (#1542)
+covers the as-served case with a stricter evaluator instead, living in the
+integration tier because it requires live network access. Before assuming a
+new `tests/unit/` file is clean by default, check whether it predates this
+audit.
 
 ### Integration Tests (`tests/integration/`)
 
@@ -83,6 +88,13 @@ default, check whether it predates this audit.
 - `CarModelTest.php` - CarModel reference data queries
 - `CarValidatorModelTest.php` - Model validation with real database
 - `FactoryRegistryLinkIntegrationTest.php` - Registry Link feature
+
+`RobotsTxtAsServedTest.php` in this directory is the one exception to the
+"database only" characterisation: it additionally performs a live outbound
+HTTPS fetch of `https://test.elanregistry.org/robots.txt` (picked up by
+`composer test:integration` and `composer test:full`, but not by
+`composer test:medium`, which runs only `tests/integration/database`), and it
+skips cleanly rather than failing when the network or that host is unreachable.
 
 ### Regression Tests (`tests/regression/`)
 

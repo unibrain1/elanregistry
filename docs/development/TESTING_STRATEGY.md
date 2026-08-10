@@ -92,7 +92,12 @@ Three tiers, each with a distinct purpose and a hard boundary:
   (`IntegrationTestCase::createTestUser()` / `createTestCar()`) and cleans
   them up in `tearDown()`. Never assume ambient data exists — see
   `tests/README.md`'s "Test Data Isolation" section for the do/don't
-  examples.
+  examples. One exception: `RobotsTxtAsServedTest.php` (#1542) needs neither
+  a database nor `IntegrationTestCase` — it lives in this tier solely because
+  it makes a live outbound HTTPS request (to catch edge-injected robots.txt
+  content Cloudflare or similar could add ahead of the repo's own file) and
+  must stay out of `composer test:quick`/`test:medium`, which directory
+  placement achieves without any per-test setup.
 - **Browser/E2E (`tests/playwright/`)** — golden paths and security-critical
   flows only (CSRF, auth, XSS). Not a substitute for unit/integration
   coverage of business logic — browser tests are expensive and should stay
