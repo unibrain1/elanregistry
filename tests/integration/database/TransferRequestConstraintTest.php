@@ -150,12 +150,10 @@ final class TransferRequestConstraintTest extends IntegrationTestCase
         );
         $this->assertSame(1, $before->count(), 'Pre-condition: transfer request must exist');
 
-        // Delete the car via raw SQL so the CASCADE actually fires.
-        // deleteTestCar() pre-deletes related rows first, which would prevent
-        // the cascade from being exercised.
-        $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
-        $this->db->query("DELETE FROM cars WHERE id = ?", [$carId]);
-        $this->untrackCarId($carId); // car is gone; suppress tearDown's redundant DELETE
+        // deleteTestCar() deletes cars before cars_hist (#1503) and self-verifies
+        // both are gone, which the CASCADE assertion below depends on; it also
+        // untracks the car so tearDown() doesn't redundantly delete it again.
+        $this->deleteTestCar($carId);
 
         $after = $this->db->query(
             "SELECT id FROM car_transfer_requests WHERE id = ?",

@@ -88,3 +88,4 @@
 - [#1550](https://github.com/elan-registry/registry/issues/1550) — test: remove dead noowner skip and fix UserDeletionReassignmentTest not exercising the real reassignment path
 - [#1566](https://github.com/elan-registry/registry/issues/1566) — test: retire ad-hoc User double in RegistrationRecoveryNotifierTest.php that pollutes PHPStan analysis project-wide
 - [#1556](https://github.com/elan-registry/registry/issues/1556) — test: audit remaining unit test files for undetected mock/fake usage
+- [#1551](https://github.com/elan-registry/registry/issues/1551) — test: cars_hist DELETE-order leak in TransferRequestConstraintTest and CarsYearSmallintMigrationTest

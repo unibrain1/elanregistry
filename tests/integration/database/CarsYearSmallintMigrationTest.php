@@ -70,13 +70,21 @@ final class CarsYearSmallintMigrationTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        // Clean up any cars that were deleted mid-test (so IntegrationTestCase's tearDown
-        // doesn't try to DELETE them again, which would be a no-op but could hide bugs).
-        foreach ($this->localCarIds as $carId) {
-            $this->untrackCarId($carId);
+        try {
+            // Clean up cars_hist for any car deleted mid-test (localCarIds) — the
+            // cars_delete trigger's own DELETE-operation row still needs removing
+            // (#1551). Running this here, not at the end of the test body, means
+            // cleanup still happens even if the test's own assertions fail.
+            foreach ($this->localCarIds as $carId) {
+                $this->deleteCarWithHistory($carId);
+                $this->untrackCarId($carId);
+            }
+        } finally {
+            // Run even if deleteCarWithHistory() throws (a verification failure must
+            // still fail the test, but must not skip the base class's own user/car
+            // cleanup for the rest of this test's fixtures).
+            parent::tearDown();
         }
-
-        parent::tearDown();
     }
 
     // -------------------------------------------------------------------------
