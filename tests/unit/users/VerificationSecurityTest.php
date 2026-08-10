@@ -169,7 +169,6 @@ class VerificationSecurityTest extends TestCase
         // Generate multiple tokens using uniqid (similar to Token::generate concept)
         for ($i = 0; $i < 10; $i++) {
             $token = 'token_' . uniqid() . '_' . $i;
-            $this->assertNotEmpty($token);
             $this->assertNotContains($token, $tokens);
             $tokens[] = $token;
         }
@@ -195,9 +194,6 @@ class VerificationSecurityTest extends TestCase
         $this->assertIsString($category);
         $this->assertIsString($message);
         $this->assertStringContainsString('CSRF', $message);
-        
-        // Test logging would work if logger function exists
-        $this->assertTrue(true); // Always pass since we're testing the concept
     }
     
     /**

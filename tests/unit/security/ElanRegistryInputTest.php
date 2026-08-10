@@ -571,6 +571,7 @@ final class ElanRegistryInputTest extends TestCase
     {
         $_POST['x'] = '  hello  ';
         $this->expectException(\TypeError::class);
+        // @phpstan-ignore argument.type (intentional type violation; asserts strict_types=1 throws TypeError at runtime for a non-bool second argument)
         Input::raw('x', 'fallback');
     }
 }
