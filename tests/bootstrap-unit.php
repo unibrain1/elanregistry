@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\LogCategories;
 
 /**
@@ -365,98 +364,6 @@ if (!class_exists('QueryResult')) {
          */
         public function results(): array {
             return $this->results;
-        }
-    }
-}
-
-// Ensure required functions are available for file upload tests
-if (!function_exists('generateSecureFilename')) {
-    /**
-     * Generate a cryptographically secure filename
-     */
-    function generateSecureFilename(string $extension): string {
-        $randomBytes = random_bytes(16);
-        return 'img_' . bin2hex($randomBytes) . '.' . $extension;
-    }
-}
-
-if (!function_exists('getMimeType')) {
-    /**
-     * Get and validate MIME type of uploaded file
-     */
-    function getMimeType(string $filepath): string {
-        if (!file_exists($filepath)) {
-            throw new ImageProcessingException('File does not exist');
-        }
-        
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mimeType = finfo_file($finfo, $filepath);
-        
-        $allowedMimes = [
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif',
-            'image/webp'
-        ];
-        
-        if (!in_array($mimeType, $allowedMimes)) {
-            throw new ImageProcessingException('Invalid file type detected: ' . $mimeType);
-        }
-        
-        return $mimeType;
-    }
-}
-
-if (!function_exists('getExtension')) {
-    /**
-     * Get file extension based on MIME type
-     */
-    function getExtension(string $mimeType): string {
-        $extensionMap = [
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/gif' => 'gif',
-            'image/webp' => 'webp'
-        ];
-        
-        if (!isset($extensionMap[$mimeType])) {
-            throw new ImageProcessingException('Unsupported file type: ' . $mimeType);
-        }
-        
-        return $extensionMap[$mimeType];
-    }
-}
-
-if (!function_exists('validateFileUpload')) {
-    /**
-     * Validate file upload security
-     *
-     * Signature must match the real validateFileUpload() (app/api/cars/save.php)
-     * — void, not bool, and takes an optional $maxSize — otherwise PHPStan
-     * resolves calls project-wide against this narrower stub once tests/ is in
-     * its scan path.
-     */
-    function validateFileUpload(array $file, int $maxSize = 5 * 1024 * 1024): void {
-        // Check for upload errors
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            throw new ImageProcessingException('File upload error: ' . $file['error']);
-        }
-
-        // Check file size limits
-        $minSize = 100; // 100 bytes
-
-        if ($file['size'] > $maxSize) {
-            throw new ImageProcessingException('File too large. Maximum size is ' . ($maxSize / 1024 / 1024) . 'MB');
-        }
-
-        if ($file['size'] < $minSize) {
-            throw new ImageProcessingException('File too small. Minimum size is ' . $minSize . ' bytes');
-        }
-
-        // Validate that uploaded file exists
-        if (!is_uploaded_file($file['tmp_name']) && !file_exists($file['tmp_name'])) {
-            throw new ImageProcessingException('Invalid file upload');
         }
     }
 }

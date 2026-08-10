@@ -14,7 +14,7 @@ use ElanRegistry\LogCategories;
  *
  * Extracted from Car.php to provide focused, testable image processing logic.
  * Handles JSON encoding of image lists, decoding and filesystem validation,
- * and image removal operations.
+ * image removal operations, and upload-time MIME/size validation.
  *
  * @package ElanRegistry\Car
  * @since v2.15.0
@@ -27,9 +27,6 @@ class CarImageProcessor
     /**
      * Allowed image file extensions. Shared by generateSecureFilename() (what
      * it may produce) and isValidFilename() (what it will accept).
-     *
-     * One other extension list diverges from this one and must be kept in sync manually:
-     *   - getExtension() in save.php — MIME-to-extension map
      *
      * isSafeFilename() derives its list from this constant (plus 'jpeg' for legacy DB rows)
      * so it stays in sync automatically.
@@ -64,6 +61,113 @@ class CarImageProcessor
             throw new ImageProcessingException("Unsupported image extension: {$ext}");
         }
         return 'img_' . bin2hex(random_bytes(16)) . '.' . $ext;
+    }
+
+    /**
+     * Allowed upload MIME types mapped to their file extension. Also serves
+     * as the MIME allowlist (its keys) used by getMimeType(). Extensions
+     * must match ALLOWED_EXTENSIONS.
+     *
+     * Shared by getMimeType() (validates a detected MIME type is allowed)
+     * and getExtension() (converts an allowed MIME type to its extension),
+     * so the two stay in sync automatically.
+     *
+     * @var array<string, string>
+     */
+    private const MIME_TO_EXTENSION = [
+        'image/jpeg' => 'jpg',
+        // 'image/jpg' isn't a registered MIME type — finfo/mime_content_type always emit
+        // 'image/jpeg' for JPEGs, so this key is unreachable via getMimeType()'s output on
+        // this codebase's supported platforms. Kept as a defensive allowance in case a
+        // future direct caller of getExtension() (or a libmagic build on an untested
+        // platform) ever produces the non-standard form.
+        'image/jpg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    ];
+
+    /**
+     * Get MIME type of uploaded file with security validation
+     *
+     * @param string $file File path to analyze
+     * @return string MIME type
+     * @throws ImageProcessingException If unable to determine type or type is invalid
+     */
+    public static function getMimeType(string $file): string
+    {
+        // Secure MIME type detection with multiple validation layers
+        // Primary method: Use finfo (most reliable)
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo === false) {
+                throw new ImageProcessingException("Unable to initialize file info extension");
+            }
+            // @-suppressed: a missing/unreadable file throws a PHP warning here (matches the
+            // @exif_imagetype()/@mime_content_type() suppression pattern below in
+            // decodeAndProcessImages()) — the false return is already handled explicitly.
+            $mimeType = @finfo_file($finfo, $file);
+            // No finfo_close() — finfo objects are freed automatically (deprecated call as of PHP 8.5).
+            if ($mimeType === false) {
+                throw new ImageProcessingException("Unable to read file for MIME type detection (file may be unreadable or missing)");
+            }
+        } elseif (function_exists('mime_content_type')) {
+            $mimeType = mime_content_type($file);
+            if ($mimeType === false) {
+                throw new ImageProcessingException("Unable to read file for MIME type detection (file may be unreadable or missing)");
+            }
+        } else {
+            throw new ImageProcessingException("Unable to determine file MIME type");
+        }
+
+        // Additional validation: Check if detected MIME type is in our allowlist
+        if (!array_key_exists($mimeType, self::MIME_TO_EXTENSION)) {
+            throw new ImageProcessingException("Invalid file type detected: " . $mimeType);
+        }
+
+        return $mimeType;
+    }
+
+    /**
+     * Get file extension from MIME type
+     *
+     * @param string $mimeType MIME type to convert
+     * @return string File extension
+     * @throws ImageProcessingException If MIME type is not supported
+     */
+    public static function getExtension(string $mimeType): string
+    {
+        if (!isset(self::MIME_TO_EXTENSION[$mimeType])) {
+            throw new ImageProcessingException("Unsupported file type: " . $mimeType);
+        }
+
+        return self::MIME_TO_EXTENSION[$mimeType];
+    }
+
+    /**
+     * Validate file upload security constraints
+     *
+     * @param array $file File upload array from $_FILES
+     * @param int $maxSize Maximum file size in bytes (default 5MB)
+     * @throws ImageProcessingException If validation fails
+     */
+    public static function validateFileUpload(array $file, int $maxSize = 5242880): void // Default 5MB
+    {
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            throw new ImageProcessingException("File upload error: " . $file['error']);
+        }
+
+        if ($file['size'] > $maxSize) {
+            throw new ImageProcessingException("File too large. Maximum size: " . ($maxSize / 1024 / 1024) . "MB");
+        }
+
+        if (!is_uploaded_file($file['tmp_name'])) {
+            throw new ImageProcessingException("Invalid file upload");
+        }
+
+        if ($file['size'] < 100) {
+            throw new ImageProcessingException("File too small - minimum 100 bytes required");
+        }
     }
 
     /**
