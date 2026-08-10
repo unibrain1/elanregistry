@@ -57,7 +57,7 @@ npm run test:debug        # Debug mode
 
 - **cars/services/**: CarValidatorTest.php, CarRepositoryTest.php, CarImageProcessorTest.php
 - **security/**: FileUploadSecurityTest.php, InputValidationTest.php
-- **users/**: VerificationSecurityTest.php, VerificationWorkflowTest.php
+- **users/**: VerificationSecurityTest.php
 - **api/**: ApiResponseTest.php, GetDataTablesFindCarByChassisTest.php
 
 ### Integration Tests (`tests/integration/`)
