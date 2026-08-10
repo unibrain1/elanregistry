@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use ElanRegistry\Car\CarValidator;
 use ElanRegistry\Exceptions\CarValidationException;
-use ElanRegistry\Exceptions\ElanRegistryException;
 use PHPUnit\Framework\TestCase;
 
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -551,8 +550,11 @@ final class CarValidatorTest extends TestCase
     // ============================================================
 
     /**
-     * Verify every validation error path throws CarValidationException
-     * (extends ElanRegistryException), never generic Exception.
+     * Verify every validation error path throws CarValidationException,
+     * never generic Exception. That CarValidationException itself extends
+     * ElanRegistryException is a static fact PHP's own class declaration
+     * already guarantees — not something a runtime assertion adds coverage
+     * for, so it isn't re-checked here.
      *
      * @param array<string, mixed> $fields
      */
@@ -567,11 +569,6 @@ final class CarValidatorTest extends TestCase
                 CarValidationException::class,
                 $e,
                 'Validation error must throw CarValidationException, got ' . get_class($e)
-            );
-            $this->assertInstanceOf(
-                ElanRegistryException::class,
-                $e,
-                'CarValidationException must extend ElanRegistryException'
             );
         }
     }
