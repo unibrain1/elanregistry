@@ -6,30 +6,33 @@
 ## Required Actions After Deployment
 
 [To be filled in as issues are completed — check for:
-- PHPStan baseline regeneration after #1453/#1500 (`composer phpstan:baseline`)
-- UserSpice framework update steps from #1495 (manual update — see issue for post-update TODOs)
-- Database migration from #1502 (`composer migrate` — adds the `idx_logs_logtype_logdate` index on the `logs` table)
 - Fix-script cleanup if any land during this milestone]
 
-- **One-time, before the first `composer migrate` after this release** ([#1553](https://github.com/elan-registry/registry/issues/1553)): manually stamp the new `AddElanregistryBaseline` migration into `phinxlog`, **separately on both the test server database and the production database**, before pushing to that environment. Running the migration for real on either would try to `CREATE TABLE car_models` (and 12 other already-existing tables) and fail — the migration itself checks whether `cars` already exists and refuses to run rather than touching anything, so a missed stamp fails the deploy loudly, it doesn't corrupt the schema. Still, do the stamp first every time, for each environment:
+Do the following, in order, **separately for each environment** (test, then prod):
 
-  1. **Before `git push test <branch>`**, or **before `git push prod main`** — open phpMyAdmin against that environment's database (test server DB, or prod DB — not your local dev DB, which doesn't need this at all).
-  2. Confirm you're on the right database, and that it isn't already stamped:
-     ```sql
-     SELECT DATABASE();
-     SELECT * FROM phinxlog WHERE version = 20260709000000;
-     ```
-     If the second query already returns a row, stop — already stamped, don't insert again.
-  3. Run the stamp:
-     ```sql
-     INSERT INTO phinxlog (version, migration_name, start_time, end_time, breakpoint)
-     VALUES (20260709000000, 'AddElanregistryBaseline', NOW(), NOW(), 0);
-     ```
-  4. Verify: re-run the `SELECT * FROM phinxlog WHERE version = 20260709000000` query — should now return exactly 1 row.
-  5. Now do the push. `composer migrate` will skip `20260709000000` and apply only whatever's genuinely pending on that environment.
-  6. After the push, confirm via the deploy log or `composer migrate:status` on that server that `20260709000000` shows as already-applied and everything else applied cleanly with nothing pending or errored.
+1. [ ] **One-time, before the first `composer migrate` after this release** ([#1553](https://github.com/elan-registry/registry/issues/1553)): manually stamp the new `AddElanregistryBaseline` migration into `phinxlog`. Running the migration for real would try to `CREATE TABLE car_models` (and 12 other already-existing tables) and fail — the migration itself checks whether `cars` already exists and refuses to run rather than touching anything, so a missed stamp fails the deploy loudly, it doesn't corrupt the schema. Still, do the stamp first every time:
+   1. [ ] **Before** `git push test <branch>`, or **before** `git push prod main` — open phpMyAdmin against that environment's database (test server DB, or prod DB — not your local dev DB, which doesn't need this at all).
+   2. [ ] Confirm you're on the right database, and that it isn't already stamped:
+      ```sql
+      SELECT DATABASE();
+      SELECT * FROM phinxlog WHERE version = 20260709000000;
+      ```
+      If the second query already returns a row, stop — already stamped, don't insert again.
+   3. [ ] Run the stamp:
+      ```sql
+      INSERT INTO phinxlog (version, migration_name, start_time, end_time, breakpoint)
+      VALUES (20260709000000, 'AddElanregistryBaseline', NOW(), NOW(), 0);
+      ```
+   4. [ ] Verify: re-run the `SELECT * FROM phinxlog WHERE version = 20260709000000` query — should now return exactly 1 row.
+   5. [ ] Now push to that environment: `git push test <branch>` or `git push prod main`. The post-receive hook runs `composer install` and `composer migrate` automatically — `composer migrate` will skip the now-stamped `20260709000000` and apply only whatever else is genuinely pending.
+   6. [ ] After the push, confirm via the deploy log or `composer migrate:status` on that server that `20260709000000` shows as already-applied and everything else applied cleanly with nothing pending or errored.
 
-  See `docs/development/DEPLOYMENT.md` → "One-Time: Stamping the ElanRegistry Baseline Migration" for the same procedure in context.
+   See `docs/development/DEPLOYMENT.md` → "One-Time: Stamping the ElanRegistry Baseline Migration" for the same procedure in context.
+
+2. [ ] **After the push completes** ([#1495](https://github.com/elan-registry/registry/issues/1495)): confirm the UserSpice framework update took effect on that environment.
+   1. [ ] Log in as admin on that environment.
+   2. [ ] Go to Admin > Check for Updates.
+   3. [ ] Confirm the reported UserSpice version is 6.1.4 or newer.
 
 ## User-Facing Changes
 
