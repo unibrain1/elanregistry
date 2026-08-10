@@ -36,6 +36,12 @@ final class CarTransferRepositoryTest extends TestCase
         $this->assertNull($result);
     }
 
+    public function testFindPendingWithCarByIdReturnsNullForMissingId(): void
+    {
+        $result = $this->repo->findPendingWithCarById(PHP_INT_MAX);
+        $this->assertNull($result);
+    }
+
     public function testHasPendingForCarReturnsFalseForMissingCar(): void
     {
         $result = $this->repo->hasPendingForCar(PHP_INT_MAX, PHP_INT_MAX);

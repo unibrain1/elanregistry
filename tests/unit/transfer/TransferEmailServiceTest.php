@@ -78,6 +78,18 @@ final class TransferEmailServiceTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Constructor validation
+    // -------------------------------------------------------------------------
+
+    public function testConstructorThrowsWhenMailerIsNotCallable(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('TransferEmailService: $mailer must be callable');
+
+        new TransferEmailService($this->createMockDb(0), 123);
+    }
+
+    // -------------------------------------------------------------------------
     // Early-exit (not-found) tests — existing coverage
     // -------------------------------------------------------------------------
 
@@ -170,6 +182,24 @@ final class TransferEmailServiceTest extends TestCase
 
         $this->assertTrue($result);
         $this->assertSame(2, $attempt, 'Mailer must be called once per admin address');
+    }
+
+    public function testSendAdminAlertReturnsFalseWhenAllMailerAttemptsFail(): void
+    {
+        $GLOBALS['mockAdminEmails'] = 'fail1@example.com,fail2@example.com';
+
+        $db      = $this->createFoundMockDb($this->makeTransferRow(), $this->makeCarRow());
+        $attempt = 0;
+        $mailer  = function () use (&$attempt): bool {
+            $attempt++;
+            return false;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+        $result  = $service->sendAdminAlert(1);
+
+        $this->assertFalse($result);
+        $this->assertSame(2, $attempt, 'Mailer must be attempted once per admin address even though all fail');
     }
 
     /**
@@ -294,6 +324,107 @@ final class TransferEmailServiceTest extends TestCase
 
         $this->assertTrue($result);
         $this->assertSame(2, $attempt, 'Mailer must be called for requester and previous owner');
+    }
+
+    // -------------------------------------------------------------------------
+    // Owner-not-found guards — new coverage
+    // -------------------------------------------------------------------------
+
+    /**
+     * Asserts $mockLogEntries contains an entry whose message contains $needle.
+     *
+     * A guard's "not found" message (e.g. "Current owner ID 0 not found") is
+     * distinct from the catch-all Throwable handler's message (e.g. "... error
+     * for request #1 [TypeError] in ..."), which fires with the same false-return/
+     * mailer-not-called observable outcome if the guard is deleted and the null
+     * owner hits a typed parameter downstream. Asserting the guard's specific
+     * message — not just the return value — is what makes these tests actually
+     * detect a deleted guard instead of passing either way.
+     *
+     * @param array<int, array{user_id: int, category: string, message: string}> $logEntries
+     */
+    private function assertLogContains(array $logEntries, string $needle): void
+    {
+        $matches = array_filter($logEntries, fn($e) => str_contains($e['message'], $needle));
+        $this->assertNotEmpty($matches, "Expected a log entry containing \"$needle\", got: " . json_encode($logEntries));
+    }
+
+    public function testSendRequestReturnsFalseWhenCurrentOwnerNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(), $this->makeCarRow(['user_id' => 0]));
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendRequest(1));
+        $this->assertFalse($called, 'Mailer must not be called when the current owner cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Current owner ID 0 not found');
+    }
+
+    public function testSendRequestReturnsFalseWhenRequesterNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(['requested_by_user_id' => 0]), $this->makeCarRow());
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendRequest(1));
+        $this->assertFalse($called, 'Mailer must not be called when the requester cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Requester ID 0 not found');
+    }
+
+    public function testSendAdminAlertReturnsFalseWhenCurrentOwnerNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+        $GLOBALS['mockAdminEmails'] = 'admin@example.com';
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(), $this->makeCarRow(['user_id' => 0]));
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendAdminAlert(1));
+        $this->assertFalse($called, 'Mailer must not be called when the current owner cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Current owner ID 0 not found');
+    }
+
+    public function testSendAdminAlertReturnsFalseWhenRequesterNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+        $GLOBALS['mockAdminEmails'] = 'admin@example.com';
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(['requested_by_user_id' => 0]), $this->makeCarRow());
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendAdminAlert(1));
+        $this->assertFalse($called, 'Mailer must not be called when the requester cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Requester ID 0 not found');
     }
 
     // -------------------------------------------------------------------------
