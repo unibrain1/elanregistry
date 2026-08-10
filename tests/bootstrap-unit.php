@@ -7,10 +7,8 @@ use ElanRegistry\LogCategories;
 /**
  * PHPUnit Bootstrap File for Unit Tests
  *
- * Sets up the testing environment for dependency-free unit tests. Loads a handful
- * of real, database-free UserSpice classes (Config, Session, Token, Input) plus
- * mocks for anything that would require a database (DB, CarModel).
- * No UserSpice framework initialization, no database connection.
+ * Sets up the testing environment with MOCKS ONLY.
+ * No UserSpice framework or database.
  * Use this for: tests/unit/* and tests/regression/*
  *
  * For integration tests, use: tests/bootstrap-integration.php
@@ -48,43 +46,66 @@ if (!isset($_SESSION)) {
     $_SESSION = [];
 }
 
-// The bare global classes the unit suite needs (Config, Session, Token, Input, DB,
-// QueryResult) are never resolvable by Composer, which autoloads only namespaced
-// ElanRegistry\* classes — so this file provides the only declaration the suite ever
-// sees. Order relative to the vendor/autoload.php require below is immaterial.
+// These mocks are plain global classes (Token, Input, DB, QueryResult) plus the
+// namespaced CarModel below. Composer autoloads only namespaced ElanRegistry\*
+// classes, so it can never resolve these bare names — defining them here simply
+// provides the only declaration the unit suite ever sees. Order relative to the
+// vendor/autoload.php require below is immaterial.
 //
 // CarModel is different: it IS namespaced and Composer-resolvable
 // (ElanRegistry\Reference\CarModel, PSR-4 mapped to usersc/classes/Reference/), so its
 // eval'd shadow below must be declared before anything first touches the class — see
 // the note at the eval.
 //
-// Config, Session, Token and Input are the REAL upstream UserSpice classes, required
-// directly from users/classes/: each was verified to touch nothing but superglobals
-// ($_SESSION, $_POST, $_GET, $GLOBALS['config'] — plus $_SERVER in the unused
-// Session::uagent_no_version()) — no database, no users/init.php, no framework
-// bootstrap — so loading them costs nothing and lets tests exercise the actual
-// production behavior (real CSRF crypto, real htmlspecialchars() input sanitization)
-// rather than a passthrough stub that quietly disagreed with production.
+// Why Token and Input are mocked rather than loaded for real: NOTHING under
+// users/classes/ can ever be require_once'd from this bootstrap, because the whole
+// users/ tree is .gitignore'd (`users/**`) — it is a manually installed upstream
+// UserSpice checkout, absent from every CI checkout and from `composer install`.
+// Requiring users/classes/Token.php works on a developer machine and fatals in CI.
+// This constraint is about file availability, not runtime dependencies: Token and
+// Input touch nothing but superglobals and would otherwise be perfectly loadable.
 //
-// DB and CarModel stay mocked below because their real implementations require a live
-// database connection, which unit tests deliberately do not have.
-if (!class_exists('Config')) {
-    require_once $projectRoot . '/users/classes/Config.php';
-}
-if (!class_exists('Session')) {
-    require_once $projectRoot . '/users/classes/Session.php';
-}
+// DB and CarModel are mocked for the separate, additional reason that their real
+// implementations require a live database connection, which unit tests deliberately
+// do not have.
+//
+// Consequence: these mocks are stubs, not production behavior. Real CSRF crypto
+// (hash_equals over the session token) and real htmlspecialchars() input sanitization
+// are verified in tests/integration/TokenAndInputSecurityTest.php, the only tier where
+// users/init.php actually loads the upstream classes. Unit tests here may only assert
+// the stub's own contract.
 if (!class_exists('Token')) {
-    require_once $projectRoot . '/users/classes/Token.php';
-}
-if (!class_exists('Input')) {
-    require_once $projectRoot . '/users/classes/Input.php';
+    class Token {
+        public static function generate(): string {
+            return 'test_csrf_token_' . uniqid();
+        }
+
+        public static function check(mixed $token): bool {
+            if ($token === null || $token === '') {
+                return false;
+            }
+            return strpos($token, 'test_csrf_token_') === 0;
+        }
+    }
 }
 
-// Config::get('session/token_name') reads $GLOBALS['config'], a plain array normally
-// populated by users/init.php. Seed just the key Token::generate()/check() need, using
-// the same value as the real framework (users/init.php:93).
-$GLOBALS['config']['session']['token_name'] = 'token';
+if (!class_exists('Input')) {
+    /**
+     * Stub of the upstream UserSpice Input class.
+     *
+     * Deliberately a raw passthrough: it does NOT apply the real class's
+     * htmlspecialchars() encoding, so no unit test may assert sanitized output.
+     */
+    class Input {
+        public static function get($key, $default = null): mixed {
+            return $_POST[$key] ?? $_GET[$key] ?? $default;
+        }
+
+        public static function exists($method = 'post'): bool {
+            return $method === 'post' ? !empty($_POST) : !empty($_GET);
+        }
+    }
+}
 
 // Define exception classes for testing
 // Exception classes and LogCategories are now real classes loaded via autoloader

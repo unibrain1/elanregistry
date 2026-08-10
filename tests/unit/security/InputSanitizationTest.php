@@ -6,12 +6,16 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test suite for Input::get() sanitization
+ * Test suite for Input::get() value retrieval across endpoint request shapes
  *
- * Exercises the real upstream UserSpice Input class (loaded by tests/bootstrap-unit.php)
- * against the request shapes the application's endpoints handle, documenting both the
- * values callers receive and the htmlspecialchars() sanitization Input::get() applies
- * on the way out.
+ * \Input here is the raw-passthrough stub declared in tests/bootstrap-unit.php, not the
+ * upstream UserSpice class — users/ is .gitignore'd, so nothing under users/classes/ is
+ * loadable in the unit tier. These tests therefore assert only how endpoints read and
+ * coerce request values (keys, integer casts, array shapes), never sanitization.
+ *
+ * Real htmlspecialchars() sanitization and real CSRF crypto are verified in
+ * tests/integration/TokenAndInputSecurityTest.php, where users/init.php loads the
+ * genuine Input and Token classes.
  */
 #[Group('fast')]
 #[Group('unit')]
@@ -24,33 +28,25 @@ class InputSanitizationTest extends TestCase
     /** @var array<string, mixed> */
     private array $originalGet;
 
-    /** @var array<string, mixed> */
-    private array $originalSession;
-
     protected function setUp(): void
     {
         $this->originalPost = $_POST;
         $this->originalGet = $_GET;
-        $this->originalSession = $_SESSION ?? [];
     }
 
     protected function tearDown(): void
     {
         $_POST = $this->originalPost;
         $_GET = $this->originalGet;
-        // Token::generate()/check() write $_SESSION['token'] — restore it so a test
-        // that clears the session token cannot leak into the next test.
-        $_SESSION = $this->originalSession;
     }
 
     /**
-     * Test that the app/api/cars/ endpoints properly sanitize search input
+     * Test that the app/api/cars/ endpoints read DataTables search input as an array
      */
     public function testCarsListEndpointSearchInputSanitization(): void
     {
-        // Mock search data with potential XSS
         $mockSearchData = [
-            'value' => '<script>alert("xss")</script>test'
+            'value' => 'S4 coupe'
         ];
 
         $_POST = [
@@ -61,16 +57,11 @@ class InputSanitizationTest extends TestCase
             'search' => $mockSearchData
         ];
 
-        // Input::get() recurses into arrays and HTML-encodes every leaf value, so the
-        // search term reaches the endpoint already neutralized.
+        // The endpoint receives DataTables' nested search array intact
         $searchData = Input::get('search');
         $this->assertIsArray($searchData);
         $this->assertArrayHasKey('value', $searchData);
-        $this->assertSame(
-            '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;test',
-            $searchData['value']
-        );
-        $this->assertStringNotContainsString('<script>', $searchData['value']);
+        $this->assertSame('S4 coupe', $searchData['value']);
     }
 
     /**
@@ -207,100 +198,7 @@ class InputSanitizationTest extends TestCase
         $this->assertCount(1, $reason);
     }
 
-    /**
-     * Test XSS protection in various inputs
-     *
-     * Input::get() runs htmlspecialchars($value, ENT_QUOTES, 'UTF-8'), so markup in the
-     * request body is already inert by the time a caller sees it.
-     */
-    public function testXSSProtection(): void
-    {
-        $_POST = [
-            'comments' => '<script>alert("xss")</script>Safe comment',
-            'website' => 'javascript:alert("xss")',
-            'color' => '<img src=x onerror=alert("xss")>Red'
-        ];
-
-        $comments = Input::get('comments');
-        $website = Input::get('website');
-        $color = Input::get('color');
-
-        // Angle brackets and quotes come back HTML-encoded, never raw
-        $this->assertStringNotContainsString('<script>', $comments);
-        $this->assertStringNotContainsString('<', $comments);
-        $this->assertSame('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;Safe comment', $comments);
-
-        $this->assertStringNotContainsString('<img', $color);
-        $this->assertSame('&lt;img src=x onerror=alert(&quot;xss&quot;)&gt;Red', $color);
-
-        // htmlspecialchars() has no HTML-special character to encode in a javascript:
-        // URL, so the scheme survives — protocol allowlisting, not encoding, is what
-        // defends this field.
-        $this->assertSame('javascript:alert(&quot;xss&quot;)', $website);
-        $this->assertStringContainsString('javascript:', $website);
-    }
-
-    /**
-     * Test SQL injection protection via Input::get()
-     *
-     * Input::get() is an output-encoder, not a SQL escaper: quotes come back as
-     * &#039; while keywords pass through untouched. Prepared statements and integer
-     * casts are what actually keep these payloads out of a query.
-     */
-    public function testSQLInjectionProtection(): void
-    {
-        $_POST = [
-            'chassis' => "'; DROP TABLE cars; --",
-            'year' => "1970' OR '1'='1",
-            'user_id' => "1; DELETE FROM users; --"
-        ];
-
-        $chassis = Input::get('chassis');
-        $year = Input::get('year');
-        $userId = Input::get('user_id');
-
-        // Single quotes are HTML-encoded; the SQL keywords themselves are unchanged
-        $this->assertSame('&#039;; DROP TABLE cars; --', $chassis);
-        $this->assertStringContainsString('DROP TABLE', $chassis);
-
-        $this->assertSame('1970&#039; OR &#039;1&#039;=&#039;1', $year);
-        $this->assertStringNotContainsString("'", $year);
-
-        // No HTML-special characters here, so this one passes through verbatim
-        $this->assertSame('1; DELETE FROM users; --', $userId);
-        $this->assertStringContainsString('DELETE FROM', $userId);
-
-        // But when cast to integer for user_id:
-        $safeUserId = (int) $userId;
-        $this->assertEquals(1, $safeUserId); // Only the integer part remains
-    }
-
-    /**
-     * Test CSRF token validation works with Input::get()
-     */
-    public function testCSRFTokenValidation(): void
-    {
-        $validToken = Token::generate();
-
-        $_POST = ['csrf' => $validToken];
-        $this->assertTrue(Token::check(Input::get('csrf')));
-
-        // Tampered token — a single hex character changed, so it still passes the
-        // format guard and reaches the comparison, which checks the full token, not
-        // just a prefix or substring.
-        $lastChar = $validToken[strlen($validToken) - 1];
-        $tamperedToken = substr($validToken, 0, -1) . ($lastChar === 'a' ? 'b' : 'a');
-        $_POST = ['csrf' => $tamperedToken];
-        $this->assertFalse(Token::check(Input::get('csrf')));
-
-        // Missing token — rejected by the format guard before the session is consulted
-        $_POST = [];
-        $this->assertFalse(Token::check(Input::get('csrf')));
-
-        // No token in the session at all: a well-formed token clears the format guard
-        // and must still be rejected by Token::check()'s Session::exists() branch.
-        unset($_SESSION['token']);
-        $_POST = ['csrf' => bin2hex(random_bytes(32))];
-        $this->assertFalse(Token::check(Input::get('csrf')));
-    }
+    // XSS encoding, SQL-injection payload encoding, and CSRF token checking used to be
+    // asserted here against a stub that does none of those things. They now live in
+    // tests/integration/TokenAndInputSecurityTest.php, against the real Input and Token.
 }

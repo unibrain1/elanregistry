@@ -42,22 +42,22 @@ Three tiers, each with a distinct purpose and a hard boundary:
   in `tests/README.md`; its removal is tracked separately in #1446. Don't add
   new tests against that mock; test the real class.
 
-  The same rule applies to UserSpice's own bare (non-namespaced) classes:
-  when one has no framework or database dependency — it only touches
-  superglobals (`$_SESSION`/`$_POST`/`$_GET`/`$_SERVER`) or the plain
-  `$GLOBALS['config']` array — `tests/bootstrap-unit.php` `require_once`s the
-  **real** class from `users/classes/` rather than declaring a fake. `Config`,
-  `Session`, `Token` and `Input` load this way (#1554), so unit tests exercise
-  production behavior (real CSRF crypto, real `htmlspecialchars()` input
-  encoding) instead of a passthrough stub that can quietly disagree with it.
-  The test for which side of the line a class falls on is simply whether
-  loading it needs a live database or `users/init.php`: if it does, it stays
-  mocked (`DB`, `CarModel`); if it doesn't, load the real thing.
-  `tests/unit/system/BootstrapRealClassesTest.php` asserts by reflection that
-  those four still resolve to their upstream files. The distinction is invisible
-  at the call site: if one of these classes ever gained a `DB::` dependency and
-  someone "fixed" the resulting failure by re-adding a fake class instead, the
-  CSRF and input-sanitization tests would keep passing while proving nothing.
+  UserSpice's own bare (non-namespaced) classes under `users/classes/` are a
+  different case, and the rule there is absolute: they can **never** be loaded
+  for real in the unit tier, no matter how dependency-free they are. The entire
+  `users/` tree is `.gitignore`'d (`users/**`) — it is a manually installed
+  upstream checkout, absent from every CI checkout and from `composer install`.
+  A `require_once $projectRoot . '/users/classes/Token.php'` in
+  `tests/bootstrap-unit.php` works on a developer machine and fatals in CI with
+  "Failed to open stream: No such file or directory" (#1554). This applies even
+  to `Token`, `Input`, `Config` and `Session`, which touch nothing but
+  superglobals and `$GLOBALS['config']` — the constraint is file availability,
+  not runtime dependencies. So `tests/bootstrap-unit.php` declares raw stubs for
+  `Token` and `Input`, and unit tests may only assert those stubs' own contract,
+  never real CSRF crypto or real `htmlspecialchars()` encoding. Real behavior for
+  these classes is proven in the integration tier, where `users/init.php` loads
+  the genuine framework — see
+  `tests/integration/TokenAndInputSecurityTest.php`.
 
   `tests/unit/uploads/_is_uploaded_file_namespace_overrides.php` relaxes
   `ElanRegistry\Car\is_uploaded_file()` (via PHP's namespace-scoped function
