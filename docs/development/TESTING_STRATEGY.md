@@ -41,6 +41,17 @@ Three tiers, each with a distinct purpose and a hard boundary:
   A `CarModel` mock still exists in `tests/unit/` and is documented as such
   in `tests/README.md`; its removal is tracked separately in #1446. Don't add
   new tests against that mock; test the real class.
+
+  `tests/unit/uploads/_is_uploaded_file_namespace_overrides.php` relaxes
+  `ElanRegistry\Car\is_uploaded_file()` (via PHP's namespace-scoped function
+  resolution) so `CarImageProcessor::validateFileUpload()` is testable
+  without a real HTTP upload. Because PHP has no per-file function scoping,
+  once `FileUploadSecurityTest.php` requires it, the relaxed check is
+  declared for the rest of that PHPUnit process (`processIsolation="false"`).
+  If you add a new test elsewhere that exercises `validateFileUpload()`'s
+  `is_uploaded_file()` branch, be aware a file merely on disk
+  (`file_exists()`) will pass that check too — it isn't isolated to
+  `FileUploadSecurityTest.php`.
 - **Integration (`tests/integration/`)** — real database, real UserSpice
   framework. Every test creates the fixtures it depends on
   (`IntegrationTestCase::createTestUser()` / `createTestCar()`) and cleans
