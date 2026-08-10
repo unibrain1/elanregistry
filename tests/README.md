@@ -287,9 +287,9 @@ final class MyValidatorTest extends TestCase
     public function testValidatesInput(): void
     {
         // Model-combination validation needs a real car_models row — that
-        // check is only meaningful in the integration tier (see the
-        // CarValidatorModelTest example below). Unit tests exercise
-        // everything else validateAndSanitizeFields() does.
+        // check is only meaningful in the integration tier (see
+        // CarValidatorModelTest.php). Unit tests exercise everything else
+        // validateAndSanitizeFields() does.
         $result = $this->validator->validateAndSanitizeFields([
             'chassis' => 'ABC123',
         ], false);

@@ -18,6 +18,9 @@ use PHPUnit\Framework\Attributes\Group;
  * Tests model validation that requires car_models reference data.
  * These tests verify that CarValidator correctly integrates with the
  * CarModel class to validate model combinations against the database.
+ *
+ * Not run by CI (tests.yml runs Unit + Regression only) — proven via
+ * `composer test:integration`/`test:full` before merge instead.
  */
 #[Group('integration')]
 #[Group('reference-data')]
@@ -77,10 +80,12 @@ final class CarValidatorModelTest extends TestCase
         fclose($handle);
 
         // A truncated/corrupted CSV read must fail loudly, not just silently
-        // run fewer test cases — mirrors CarModelsSeed::EXPECTED_ROWS.
+        // run fewer test cases. This 23 must stay in sync with
+        // CarModelsSeed::EXPECTED_ROWS if the reference data set ever changes.
         if (count($cases) !== 23) {
             throw new RuntimeException(
                 'Expected 23 model combinations from ' . $csvPath . ', got ' . count($cases)
+                . ' — if the dataset changed, update this count and CarModelsSeed::EXPECTED_ROWS'
             );
         }
 
