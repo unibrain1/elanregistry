@@ -74,15 +74,10 @@ abstract class IntegrationTestCase extends TestCase
     protected function tearDown(): void
     {
         if ($this->databaseConnected) {
-            // Delete cars first (may depend on foreign key constraints). cars_hist is deleted
-            // AFTER cars, not before — the cars_delete trigger inserts a DELETE-operation history
-            // row when the car row is removed, so deleting cars_hist first just leaves that
-            // trigger-inserted row orphaned forever.
             foreach ($this->createdCarIds as $carId) {
                 try {
                     $this->db->query("DELETE FROM car_transfer_requests WHERE existing_car_id = ?", [$carId]);
-                    $this->db->delete('cars', ['id', '=', $carId]);
-                    $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
+                    $this->deleteCarRows($carId);
                 } catch (RuntimeException $e) {
                     // Don't fail the test over cleanup, but a silent swallow here means the
                     // fixture row survives into the next test run with no trace of why —
@@ -251,18 +246,59 @@ abstract class IntegrationTestCase extends TestCase
         }
 
         try {
-            // cars_hist is deleted AFTER cars, not before — the cars_delete trigger inserts a
-            // DELETE-operation history row when the car row is removed, so deleting cars_hist
-            // first just leaves that trigger-inserted row orphaned forever (same fix as tearDown()).
-            $this->db->delete('cars', ['id', '=', $carId]);
-            $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
+            $this->deleteCarWithHistory($carId);
             // Remove from tracking so tearDown doesn't double-delete
             $this->createdCarIds = array_values(array_diff($this->createdCarIds, [$carId]));
             return true;
+        } catch (\PHPUnit\Framework\AssertionFailedError $e) {
+            // PHPUnit\Framework\Exception extends RuntimeException, so the catch below would
+            // otherwise swallow deleteCarWithHistory()'s self-verification failures and log
+            // them away instead of failing the test — defeating the point of verifying at all.
+            throw $e;
         } catch (RuntimeException $e) {
             fwrite(STDERR, "NOTE: deleteTestCar() failed for car ID {$carId}: {$e->getMessage()}\n");
             return false;
         }
+    }
+
+    /**
+     * Delete a car's `cars` and `cars_hist` rows, in the order required to avoid
+     * orphaning the cars_delete trigger's own history row (#1503, #1551): cars
+     * must go first, then cars_hist.
+     *
+     * @param int $carId The car ID to delete
+     */
+    private function deleteCarRows(int $carId): void
+    {
+        $this->db->delete('cars', ['id', '=', $carId]);
+        $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
+    }
+
+    /**
+     * Delete a car's `cars` and `cars_hist` rows (see deleteCarRows()) and self-verify
+     * both are actually gone afterward. DB::query() never throws on an execute-time
+     * failure (see countMatchingLogs() below), so the verification queries check
+     * error() explicitly — otherwise a failed verification SELECT would return zero
+     * rows and the assertion would pass vacuously, "confirming" a deletion that may
+     * not have happened.
+     *
+     * @param int $carId The car ID to delete
+     */
+    protected function deleteCarWithHistory(int $carId): void
+    {
+        $this->deleteCarRows($carId);
+
+        $carsRemaining = $this->db->query("SELECT id FROM cars WHERE id = ?", [$carId]);
+        if ($carsRemaining->error()) {
+            throw new RuntimeException("Verification query failed for cars row {$carId}: {$carsRemaining->errorString()}");
+        }
+        $this->assertSame(0, $carsRemaining->count(), "cars row {$carId} must be deleted");
+
+        $histRemaining = $this->db->query("SELECT id FROM cars_hist WHERE car_id = ?", [$carId]);
+        if ($histRemaining->error()) {
+            throw new RuntimeException("Verification query failed for cars_hist rows (car {$carId}): {$histRemaining->errorString()}");
+        }
+        $this->assertSame(0, $histRemaining->count(), "cars_hist rows for car {$carId} must be deleted");
     }
 
     /**
