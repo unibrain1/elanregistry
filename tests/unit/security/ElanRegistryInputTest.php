@@ -541,17 +541,17 @@ final class ElanRegistryInputTest extends TestCase
     /**
      * get() delegates to the upstream \Input::get().
      *
-     * The unit bootstrap stubs \Input::get() to return the raw superglobal value
-     * (without HTML-encoding — unlike the real upstream, which applies htmlspecialchars()).
-     * This test verifies that ElanRegistry\Input::get() forwards the call through;
-     * it does not assert encoding behaviour, which is a property of the real upstream.
+     * The unit bootstrap loads the real upstream \Input (users/classes/Input.php), so
+     * the delegation is observable through its htmlspecialchars() encoding: getting an
+     * HTML-encoded value back is proof the call reached upstream rather than being
+     * short-circuited to raw().
      */
     #[Group('fast')]
     public function test_get_delegates_to_upstream_input_get(): void
     {
         $_POST['x'] = "Tom & Jerry's";
         $result = Input::get('x');
-        $this->assertSame("Tom & Jerry's", (string)$result);
+        $this->assertSame('Tom &amp; Jerry&#039;s', (string)$result);
     }
 
     // -------------------------------------------------------------------------

@@ -241,24 +241,6 @@ parameters:
 			path: tests/bootstrap-integration.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertEmpty\(\) with array\{\} will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/integration/CarActionsHistoryAndValidationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 9
-			path: tests/integration/CarActionsHistoryAndValidationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 4
-			path: tests/integration/CarActionsHistoryAndValidationTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 5
@@ -569,12 +551,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: tests/unit/security/ElanRegistryInputTest.php
-
-		-
-			message: '#^Property InputSanitizationTest\:\:\$tempDir is unused\.$#'
-			identifier: property.unused
-			count: 1
-			path: tests/unit/security/InputSanitizationTest.php
 
 		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Resize'' and ElanRegistry\\Resize will always evaluate to true\.$#'

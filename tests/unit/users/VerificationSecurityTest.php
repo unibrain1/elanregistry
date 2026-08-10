@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,14 +13,21 @@ use PHPUnit\Framework\TestCase;
  */
 class VerificationSecurityTest extends TestCase
 {
-    private $originalGet;
-    private $originalServer;
-    
+    /** @var array<string, mixed> */
+    private array $originalGet;
+
+    /** @var array<string, mixed> */
+    private array $originalServer;
+
+    /** @var array<string, mixed> */
+    private array $originalSession;
+
     protected function setUp(): void
     {
         $this->originalGet = $_GET;
         $this->originalServer = $_SERVER;
-        
+        $this->originalSession = $_SESSION ?? [];
+
         // Mock server variables
         $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
         $_SERVER['REQUEST_URI'] = '/app/verify/verify_car.php';
@@ -29,6 +37,9 @@ class VerificationSecurityTest extends TestCase
     {
         $_GET = $this->originalGet;
         $_SERVER = $this->originalServer;
+        // Token::generate()/check() write $_SESSION['token'] — restore it so a test
+        // that clears the session token cannot leak into the next test.
+        $_SESSION = $this->originalSession;
     }
     
     /**
@@ -38,9 +49,23 @@ class VerificationSecurityTest extends TestCase
     {
         $validToken = Token::generate();
         $this->assertTrue(Token::check($validToken));
-        
+
         $invalidToken = 'invalid_token_' . uniqid();
         $this->assertFalse(Token::check($invalidToken));
+
+        // A single-character mutation must be rejected too — proves the comparison
+        // checks the full token, not just a prefix or substring. The substituted
+        // character stays hex so the token still passes the format guard and actually
+        // reaches the comparison.
+        $lastChar = $validToken[strlen($validToken) - 1];
+        $tamperedToken = substr($validToken, 0, -1) . ($lastChar === 'a' ? 'b' : 'a');
+        $this->assertNotSame($validToken, $tamperedToken);
+        $this->assertFalse(Token::check($tamperedToken));
+
+        // No token in the session at all: a well-formed token clears the format guard
+        // and must still be rejected by Token::check()'s Session::exists() branch.
+        unset($_SESSION['token']);
+        $this->assertFalse(Token::check(bin2hex(random_bytes(32))));
     }
     
     /**
@@ -230,7 +255,7 @@ class VerificationSecurityTest extends TestCase
     // These tests document and protect the allowlist contract.
     // =========================================================================
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('validVerificationCodeProvider')]
+    #[DataProvider('validVerificationCodeProvider')]
     public function testMd5AllowlistAcceptsValidCodes(string $code): void
     {
         $this->assertSame(1, preg_match('/^[0-9a-f]{32}$/i', $code),
@@ -249,7 +274,7 @@ class VerificationSecurityTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidVerificationCodeProvider')]
+    #[DataProvider('invalidVerificationCodeProvider')]
     public function testMd5AllowlistRejectsInvalidCodes(string $code): void
     {
         $this->assertSame(0, preg_match('/^[0-9a-f]{32}$/i', $code),
