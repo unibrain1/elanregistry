@@ -53,6 +53,17 @@ tests/
 - `CarValidatorTest.php` - Input validation (model-combination existence is proven in the integration tier — see `CarValidatorModelTest.php`)
 - `FileUploadSecurityTest.php` - Upload security
 
+**Mock/fake audit log:** as of 2026-08-10 (#1556), all 66 files in `tests/unit/`
+have been individually confirmed to exercise real production code, not a
+bootstrap mock/fake standing in for the subject under test.
+Issues #1440, #1441, #1444, #1445, #1446, #1554, and #1566 fixed 14 files
+found by name-based grepping; #1556 read the remaining 52 and found 8 more reimplementation/
+tautology cases, now tracked as #1597–#1604 (targeted at v2.29.2). One
+file (`RobotsTxtPolicyTest.php`) has a different, already-tracked honesty gap
+(#1542 — verifies the repo's `robots.txt`, not the Cloudflare-injected
+as-served version). Before assuming a new `tests/unit/` file is clean by
+default, check whether it predates this audit.
+
 ### Integration Tests (`tests/integration/`)
 
 **Purpose**: Real database operations and workflows
