@@ -46,10 +46,34 @@ if (!isset($_SESSION)) {
     $_SESSION = [];
 }
 
-// These mocks are plain global classes (Token, DB, QueryResult, CarModel, Input).
-// Composer autoloads only namespaced ElanRegistry\* classes, so it can never resolve
-// these bare names — defining them here simply provides the only declaration the unit
-// suite ever sees. Order relative to the vendor/autoload.php require below is immaterial.
+// These mocks are plain global classes (Token, Input, DB, QueryResult) plus the
+// namespaced CarModel below. Composer autoloads only namespaced ElanRegistry\*
+// classes, so it can never resolve these bare names — defining them here simply
+// provides the only declaration the unit suite ever sees. Order relative to the
+// vendor/autoload.php require below is immaterial.
+//
+// CarModel is different: it IS namespaced and Composer-resolvable
+// (ElanRegistry\Reference\CarModel, PSR-4 mapped to usersc/classes/Reference/), so its
+// eval'd shadow below must be declared before anything first touches the class — see
+// the note at the eval.
+//
+// Why Token and Input are mocked rather than loaded for real: NOTHING under
+// users/classes/ can ever be require_once'd from this bootstrap, because the whole
+// users/ tree is .gitignore'd (`users/**`) — it is a manually installed upstream
+// UserSpice checkout, absent from every CI checkout and from `composer install`.
+// Requiring users/classes/Token.php works on a developer machine and fatals in CI.
+// This constraint is about file availability, not runtime dependencies: Token and
+// Input touch nothing but superglobals and would otherwise be perfectly loadable.
+//
+// DB and CarModel are mocked for the separate, additional reason that their real
+// implementations require a live database connection, which unit tests deliberately
+// do not have.
+//
+// Consequence: these mocks are stubs, not production behavior. Real CSRF crypto
+// (hash_equals over the session token) and real htmlspecialchars() input sanitization
+// are verified in tests/integration/TokenAndInputSecurityTest.php, the only tier where
+// users/init.php actually loads the upstream classes. Unit tests here may only assert
+// the stub's own contract.
 if (!class_exists('Token')) {
     class Token {
         public static function generate(): string {
@@ -61,6 +85,24 @@ if (!class_exists('Token')) {
                 return false;
             }
             return strpos($token, 'test_csrf_token_') === 0;
+        }
+    }
+}
+
+if (!class_exists('Input')) {
+    /**
+     * Stub of the upstream UserSpice Input class.
+     *
+     * Deliberately a raw passthrough: it does NOT apply the real class's
+     * htmlspecialchars() encoding, so no unit test may assert sanitized output.
+     */
+    class Input {
+        public static function get($key, $default = null): mixed {
+            return $_POST[$key] ?? $_GET[$key] ?? $default;
+        }
+
+        public static function exists($method = 'post'): bool {
+            return $method === 'post' ? !empty($_POST) : !empty($_GET);
         }
     }
 }
@@ -404,7 +446,10 @@ if (!function_exists('currentUserId')) {
 // ============================================================
 // Mock CarModel Reference Data Class
 // ============================================================
-// CRITICAL: Must be defined BEFORE autoloader to prevent loading real CarModel
+// CRITICAL: Must be defined BEFORE autoloader to prevent loading real CarModel.
+// Unlike the bare classes above, ElanRegistry\Reference\CarModel is PSR-4 mapped in
+// composer.json (usersc/classes/Reference/CarModel.php), so Composer WOULD resolve it —
+// this declaration only wins if it lands first.
 // Provides test data for valid model combinations without requiring database
 
 // Use eval to create the class in the correct namespace
@@ -464,86 +509,12 @@ class CarModel {
 ');
 
 // Load Composer autoloader for all custom classes and exceptions
-// This must come AFTER mock classes are defined so the mocks take precedence
 require_once $projectRoot . '/vendor/autoload.php';
-
-/**
- * Mock user object and authentication system
- */
-if (!isset($user) || !is_object($user)) {
-    class MockUser {
-        /** @var object */
-        private $userData;
-
-        /**
-         * Constructor
-         */
-        public function __construct() {
-            $this->userData = (object) [
-                'id' => '1',
-                'username' => 'testuser',
-                'email' => 'test@example.com',
-                'fname' => 'Test',
-                'lname' => 'User'
-            ];
-        }
-
-        /**
-         * Get user data
-         *
-         * @return object
-         */
-        public function data(): object {
-            return $this->userData;
-        }
-
-        /**
-         * Check if user is logged in
-         *
-         * @return bool
-         */
-        public function isLoggedIn(): bool {
-            return true;
-        }
-    }
-    
-    $user = new MockUser();
-    $GLOBALS['user'] = $user;
-}
 
 // Mock securePage function - only for unit tests
 if (!function_exists('securePage')) {
     function securePage($page): bool {
         return true; // Always allow access in tests
-    }
-}
-
-// Mock Input class if not available
-if (!class_exists('Input')) {
-    class Input {
-        private static $mockData = [];
-        
-        public static function get($key, $default = null): mixed {
-            if (!empty(self::$mockData)) {
-                return self::$mockData[$key] ?? $default;
-            }
-            return $_POST[$key] ?? $_GET[$key] ?? $default;
-        }
-        
-        public static function exists($method = 'post'): bool {
-            if (!empty(self::$mockData)) {
-                return !empty(self::$mockData);
-            }
-            return $method === 'post' ? !empty($_POST) : !empty($_GET);
-        }
-        
-        public static function setMockData($data): void {
-            self::$mockData = $data;
-        }
-        
-        public static function clearMockData(): void {
-            self::$mockData = [];
-        }
     }
 }
 
@@ -611,10 +582,14 @@ if (!function_exists('isRegistryAdmin')) {
      * Signature must match the real isRegistryAdmin() (usersc/includes/custom_functions.php)
      * — the optional, nullable $userId is required here too, otherwise PHPStan resolves
      * every isRegistryAdmin() call project-wide against this narrower stub once tests/ is
-     * in its scan path. The null case falls back to currentUserId(), mirroring the real
-     * function's "no argument means current user" behavior — the old stricter `int
-     * $userId` signature made a no-argument call a loud ArgumentCountError; silently
-     * resolving null to "not admin" here instead would trade that for a quiet wrong answer.
+     * in its scan path.
+     *
+     * The no-argument path delegates to currentUserId(), which in the unit tier always
+     * THROWS RuntimeException('No user is currently logged in'): since MockUser was
+     * removed in #1554 nothing here sets an ambient $user, deliberately. A caller that
+     * needs a bool must therefore either pass an explicit $userId or set the
+     * $mockIsRegistryAdmin global. Throwing loudly is the intent — silently resolving a
+     * missing user to "not admin" would be a quiet wrong answer.
      * dbInt() normalizes the string-ID case too (both real call sites pass $user->data()->id,
      * which is a string) — a bare `=== 1` would silently return false for '1' under strict
      * comparison, the same quiet-wrong-answer trap the null case was fixed to avoid.

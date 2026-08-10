@@ -42,6 +42,27 @@ Three tiers, each with a distinct purpose and a hard boundary:
   in `tests/README.md`; its removal is tracked separately in #1446. Don't add
   new tests against that mock; test the real class.
 
+  UserSpice's own bare (non-namespaced) classes under `users/classes/` are a
+  different case, and the rule there is absolute: they can **never** be loaded
+  for real in the unit tier, no matter how dependency-free they are. The entire
+  `users/` tree is `.gitignore`'d (`users/**`) — it is a manually installed
+  upstream checkout, absent from every CI checkout and from `composer install`.
+  A `require_once $projectRoot . '/users/classes/Token.php'` in
+  `tests/bootstrap-unit.php` works on a developer machine and fatals in CI with
+  "Failed to open stream: No such file or directory" (#1554). This applies even
+  to `Token`, `Input`, `Config` and `Session`, which touch nothing but
+  superglobals and `$GLOBALS['config']` — the constraint is file availability,
+  not runtime dependencies. So `tests/bootstrap-unit.php` declares raw stubs for
+  `Token` and `Input`, and unit tests may only assert those stubs' own contract,
+  never real CSRF crypto or real `htmlspecialchars()` encoding. Real behavior for
+  these classes is proven in the integration tier, where `users/init.php` loads
+  the genuine framework — see
+  `tests/integration/TokenAndInputSecurityTest.php`. That coverage is
+  developer-local, not CI-enforced: `tests.yml` never runs
+  `phpunit-integration.xml` (unit and regression only), so this proof runs via
+  `composer test:integration`/`test:full` before merge, not automatically on
+  every push (#1591).
+
   `tests/unit/uploads/_is_uploaded_file_namespace_overrides.php` relaxes
   `ElanRegistry\Car\is_uploaded_file()` (via PHP's namespace-scoped function
   resolution) so `CarImageProcessor::validateFileUpload()` is testable

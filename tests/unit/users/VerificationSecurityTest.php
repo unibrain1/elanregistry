@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,33 +13,42 @@ use PHPUnit\Framework\TestCase;
  */
 class VerificationSecurityTest extends TestCase
 {
-    private $originalGet;
-    private $originalServer;
-    
+    /** @var array<string, mixed> */
+    private array $originalGet;
+
+    /** @var array<string, mixed> */
+    private array $originalServer;
+
     protected function setUp(): void
     {
         $this->originalGet = $_GET;
         $this->originalServer = $_SERVER;
-        
+
         // Mock server variables
         $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
         $_SERVER['REQUEST_URI'] = '/app/verify/verify_car.php';
     }
-    
+
     protected function tearDown(): void
     {
         $_GET = $this->originalGet;
         $_SERVER = $this->originalServer;
     }
-    
+
     /**
-     * Test that CSRF token validation works correctly
+     * Test the unit-tier Token stub's accept/reject contract.
+     *
+     * \Token here is the stub declared in tests/bootstrap-unit.php, not the upstream
+     * UserSpice class (users/ is .gitignore'd and unavailable to the unit tier), so
+     * this asserts only that a generated token is accepted and an unrelated one is
+     * rejected. Real CSRF crypto is covered by
+     * tests/integration/TokenAndInputSecurityTest.php.
      */
     public function testCSRFTokenValidation(): void
     {
         $validToken = Token::generate();
         $this->assertTrue(Token::check($validToken));
-        
+
         $invalidToken = 'invalid_token_' . uniqid();
         $this->assertFalse(Token::check($invalidToken));
     }
@@ -159,7 +169,6 @@ class VerificationSecurityTest extends TestCase
         // Generate multiple tokens using uniqid (similar to Token::generate concept)
         for ($i = 0; $i < 10; $i++) {
             $token = 'token_' . uniqid() . '_' . $i;
-            $this->assertNotEmpty($token);
             $this->assertNotContains($token, $tokens);
             $tokens[] = $token;
         }
@@ -185,9 +194,6 @@ class VerificationSecurityTest extends TestCase
         $this->assertIsString($category);
         $this->assertIsString($message);
         $this->assertStringContainsString('CSRF', $message);
-        
-        // Test logging would work if logger function exists
-        $this->assertTrue(true); // Always pass since we're testing the concept
     }
     
     /**
@@ -230,7 +236,7 @@ class VerificationSecurityTest extends TestCase
     // These tests document and protect the allowlist contract.
     // =========================================================================
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('validVerificationCodeProvider')]
+    #[DataProvider('validVerificationCodeProvider')]
     public function testMd5AllowlistAcceptsValidCodes(string $code): void
     {
         $this->assertSame(1, preg_match('/^[0-9a-f]{32}$/i', $code),
@@ -249,7 +255,7 @@ class VerificationSecurityTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidVerificationCodeProvider')]
+    #[DataProvider('invalidVerificationCodeProvider')]
     public function testMd5AllowlistRejectsInvalidCodes(string $code): void
     {
         $this->assertSame(0, preg_match('/^[0-9a-f]{32}$/i', $code),

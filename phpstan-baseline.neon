@@ -241,24 +241,6 @@ parameters:
 			path: tests/bootstrap-integration.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertEmpty\(\) with array\{\} will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/integration/CarActionsHistoryAndValidationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 9
-			path: tests/integration/CarActionsHistoryAndValidationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 4
-			path: tests/integration/CarActionsHistoryAndValidationTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 5
@@ -565,18 +547,6 @@ parameters:
 			path: tests/unit/location/LocationServiceUserAgentTest.php
 
 		-
-			message: '#^Parameter \#2 \$trim of static method ElanRegistry\\Input\:\:raw\(\) expects bool, string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: tests/unit/security/ElanRegistryInputTest.php
-
-		-
-			message: '#^Property InputSanitizationTest\:\:\$tempDir is unused\.$#'
-			identifier: property.unused
-			count: 1
-			path: tests/unit/security/InputSanitizationTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Resize'' and ElanRegistry\\Resize will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 2
@@ -593,18 +563,6 @@ parameters:
 			identifier: property.onlyWritten
 			count: 1
 			path: tests/unit/uploads/ImageOrientationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotEmpty\(\) with non\-falsy\-string will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/users/VerificationSecurityTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/users/VerificationSecurityTest.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>website" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'

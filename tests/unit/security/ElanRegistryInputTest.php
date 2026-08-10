@@ -542,9 +542,11 @@ final class ElanRegistryInputTest extends TestCase
      * get() delegates to the upstream \Input::get().
      *
      * The unit bootstrap stubs \Input::get() to return the raw superglobal value
-     * (without HTML-encoding — unlike the real upstream, which applies htmlspecialchars()).
+     * (without HTML-encoding — unlike the real upstream, which applies htmlspecialchars();
+     * users/ is .gitignore'd, so the real class cannot be loaded in the unit tier).
      * This test verifies that ElanRegistry\Input::get() forwards the call through;
-     * it does not assert encoding behaviour, which is a property of the real upstream.
+     * it does not assert encoding behaviour, which is a property of the real upstream
+     * and is covered by tests/integration/TokenAndInputSecurityTest.php.
      */
     #[Group('fast')]
     public function test_get_delegates_to_upstream_input_get(): void
@@ -569,6 +571,7 @@ final class ElanRegistryInputTest extends TestCase
     {
         $_POST['x'] = '  hello  ';
         $this->expectException(\TypeError::class);
+        // @phpstan-ignore argument.type (intentional type violation; asserts strict_types=1 throws TypeError at runtime for a non-bool second argument)
         Input::raw('x', 'fallback');
     }
 }

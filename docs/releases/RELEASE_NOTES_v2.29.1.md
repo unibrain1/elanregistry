@@ -81,6 +81,7 @@
 - [#1502](https://github.com/elan-registry/registry/issues/1502) — fix: BackupManager silent data-loss on backup dump + fake-healthy maintenance badge
 - [#1503](https://github.com/elan-registry/registry/issues/1503) — test: make the integration test harness honest
 - [#1553](https://github.com/elan-registry/registry/issues/1553) — chore: derive ElanRegistry-only baseline migration (diff vs. stock UserSpice) and implement composer migrate + seed:run provisioning
+- [#1554](https://github.com/elan-registry/registry/issues/1554) — test: retire mock Token/Input/MockUser classes in tests/bootstrap-unit.php
 - [#1555](https://github.com/elan-registry/registry/issues/1555) — chore: add tests/ to phpstan.neon coverage
 - [#1558](https://github.com/elan-registry/registry/issues/1558) — docs: write TESTING_STRATEGY.md documenting testing tier architecture and UserSpice DB conventions
 - [#1560](https://github.com/elan-registry/registry/issues/1560) — chore: fix pre-commit's known-broken/broken group naming mismatch; delete stale test:api/test:workflow composer scripts
