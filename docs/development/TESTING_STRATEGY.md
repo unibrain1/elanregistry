@@ -38,9 +38,10 @@ Three tiers, each with a distinct purpose and a hard boundary:
   `ElanRegistry\DatabaseInterface` for these classes to type-hint instead of
   `DB`) would let the shell disappear for real — tracked in #1585.
 
-  A `CarModel` mock still exists in `tests/unit/` and is documented as such
-  in `tests/README.md`; its removal is tracked separately in #1446. Don't add
-  new tests against that mock; test the real class.
+  Model-combination existence can't be proven in the unit tier — the shared
+  `DB` mock has no `car_models` branch, so `CarModel::exists()` always returns
+  `false` there (#1446). Assert it in
+  `tests/integration/cars/services/CarValidatorModelTest.php` instead.
 
   UserSpice's own bare (non-namespaced) classes under `users/classes/` are a
   different case, and the rule there is absolute: they can **never** be loaded
