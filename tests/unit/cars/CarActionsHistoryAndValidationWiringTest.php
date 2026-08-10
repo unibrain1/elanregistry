@@ -530,10 +530,21 @@ final class CarActionsHistoryAndValidationWiringTest extends TestCase
             get_class_methods(ApiResponse::class),
             static function (string $method): bool {
                 $reflection = new \ReflectionMethod(ApiResponse::class, $method);
+                $returnType = $reflection->getReturnType();
 
-                return $reflection->isStatic()
-                    && $reflection->getReturnType() instanceof \ReflectionNamedType
-                    && $reflection->getReturnType()->getName() === ApiResponse::class;
+                if (!$reflection->isStatic() || !$returnType instanceof \ReflectionNamedType) {
+                    return false;
+                }
+
+                // getName() on a `self`/`static` return type is not guaranteed to resolve
+                // to the declaring class name across PHP versions/builds — resolve it
+                // explicitly instead of relying on that behavior.
+                $typeName = $returnType->getName();
+                if ($typeName === 'self' || $typeName === 'static') {
+                    $typeName = $reflection->getDeclaringClass()->getName();
+                }
+
+                return $typeName === ApiResponse::class;
             }
         );
 
