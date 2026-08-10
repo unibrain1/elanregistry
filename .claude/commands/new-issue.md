@@ -54,7 +54,13 @@ Launch the **senior-product-manager** agent with:
 
 Ask the PM agent to produce:
 
-1. A draft issue title (concise, actionable)
+1. A draft issue title (concise, actionable), prefixed with the scoped
+   Conventional-Commits-style type that matches this issue's deliverable
+   (`fix:`, `feat:`, `test:`, `chore:`, `docs:`, `refactor:`, `tech-debt:`,
+   `security:`, `seo:`) — see CODING_STANDARDS.md "Issue & PR Title
+   Conventions". Never `bug:` here: this workflow always fully scopes the
+   issue (acceptance criteria + technical notes) before creating it, so by
+   the time it's created it has graduated past the unscoped `bug:` stage.
 2. A draft description with:
    - **Problem statement**: What's wrong or what's needed
    - **Proposed solution**: High-level approach
@@ -204,3 +210,6 @@ Would you like to:
 - **User has final say** — present recommendations but let the user decide
 - **Include complexity estimate** — architect should always estimate S/M/L/XL
 - **Use project labels** — check existing labels before suggesting new ones
+- **Title uses a scoped preamble, never bare `bug:`** — `fix:`/`feat:`/`test:`/
+  etc. per CODING_STANDARDS.md "Issue & PR Title Conventions"; this workflow's
+  issues are always fully scoped before creation

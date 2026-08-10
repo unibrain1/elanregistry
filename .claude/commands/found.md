@@ -66,10 +66,15 @@ No new issue needed. Add a "Found in passing" item to the plan and PR body.
 
 #### Fix in current milestone
 
+Prefix `CONCISE_TITLE` with `bug:` (or the closest matching type if this
+isn't actually a defect — e.g. `security:`) — this issue has no acceptance
+criteria yet, so it hasn't earned a `fix:` preamble. See CODING_STANDARDS.md
+"Issue & PR Title Conventions".
+
 ```bash
 gh issue create \
   --repo elan-registry/registry \
-  --title "CONCISE_TITLE" \
+  --title "bug: CONCISE_TITLE" \
   --body "Pre-existing issue found while working on #CURRENT_ISSUE.\n\nDESCRIPTION" \
   --label "bug,triage" \
   --milestone "CURRENT_MILESTONE_TITLE"
@@ -79,10 +84,14 @@ gh issue create \
 
 #### Defer
 
+Prefix `CONCISE_TITLE` the same way — `bug:` for a genuine defect, or the
+closest matching type (`tech-debt:`, `chore:`, `docs:`) for cosmetic/dead-code/
+internal-inconsistency findings that aren't defects.
+
 ```bash
 gh issue create \
   --repo elan-registry/registry \
-  --title "CONCISE_TITLE" \
+  --title "TYPE: CONCISE_TITLE" \
   --body "Pre-existing issue found while working on #CURRENT_ISSUE.\n\nDESCRIPTION" \
   --label "triage"
 ```
