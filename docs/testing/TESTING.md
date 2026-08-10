@@ -140,7 +140,8 @@ Tests that require `car_models` data:
 - `tests/integration/Reference/CarModelTest.php` - Complete CarModel class testing
 - `tests/integration/cars/services/CarValidatorModelTest.php` - Model validation with real database
 
-Unit tests use mock CarModel class (no database required).
+Unit tests never validate model-combination existence — that check needs a
+real `car_models` row and is proven only in the integration tier above.
 
 ## Configuration
 
@@ -151,7 +152,7 @@ Unit tests use mock CarModel class (no database required).
 
 ### PHPUnit Config Files
 
-- `phpunit-unit.xml` - Unit test configuration (uses mock CarModel)
+- `phpunit-unit.xml` - Unit test configuration (mocks only, no database)
 - `phpunit-integration.xml` - Integration test configuration (uses real database)
 
 ## Troubleshooting

@@ -43,7 +43,6 @@ tests/
 
 **Characteristics:**
 
-- Mock CarModel class for model validation
 - Mock DB class for database operations
 - No UserSpice framework loaded
 - Ideal for TDD and rapid feedback
@@ -51,7 +50,7 @@ tests/
 **Example test suites:**
 
 - `CarRepositoryTest.php` - Car database repository methods (real class, mocked DB boundary)
-- `CarValidatorTest.php` - Input validation (with mock CarModel)
+- `CarValidatorTest.php` - Input validation (model-combination existence is proven in the integration tier — see `CarValidatorModelTest.php`)
 - `FileUploadSecurityTest.php` - Upload security
 
 ### Integration Tests (`tests/integration/`)
@@ -287,12 +286,15 @@ final class MyValidatorTest extends TestCase
 
     public function testValidatesInput(): void
     {
-        // Uses mock CarModel automatically
+        // Model-combination validation needs a real car_models row — that
+        // check is only meaningful in the integration tier (see the
+        // CarValidatorModelTest example below). Unit tests exercise
+        // everything else validateAndSanitizeFields() does.
         $result = $this->validator->validateAndSanitizeFields([
-            'model' => 'S4|FHC|36', // Valid in mock
+            'chassis' => 'ABC123',
         ], false);
 
-        $this->assertArrayHasKey('model', $result);
+        $this->assertArrayHasKey('chassis', $result);
     }
 }
 ```
@@ -349,15 +351,6 @@ here.
 **Problem**: Unit test is marked `@group integration` but in `tests/unit/`
 
 **Solution**: Move to `tests/integration/` or remove database dependency and use mocks.
-
-### Mock CarModel Doesn't Match Real Data
-
-**Problem**: Unit test fails because mock doesn't have all valid model combinations.
-
-**Solution**: Either:
-
-1. Add the model to mock in `bootstrap-unit.php`
-2. Move test to integration suite if real data is required
 
 ## See Also
 

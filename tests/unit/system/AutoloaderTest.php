@@ -126,9 +126,9 @@ class AutoloaderTest extends TestCase
     /**
      * Test that ElanRegistry\Reference\CarModel is available to the application.
      *
-     * Note: bootstrap-unit.php pre-loads CarModel via an eval mock before the
-     * autoloader registers, so class_exists() here confirms availability, not
-     * PSR-4 path resolution.
+     * Unlike Token/Input/DB, CarModel is not mocked in bootstrap-unit.php
+     * (removed #1446) — it's PSR-4 mapped and loads for real via Composer, so
+     * this genuinely confirms autoloader path resolution.
      */
     public function testReferenceClassIsAvailable(): void
     {

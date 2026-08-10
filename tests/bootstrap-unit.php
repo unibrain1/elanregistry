@@ -46,16 +46,18 @@ if (!isset($_SESSION)) {
     $_SESSION = [];
 }
 
-// These mocks are plain global classes (Token, Input, DB, QueryResult) plus the
-// namespaced CarModel below. Composer autoloads only namespaced ElanRegistry\*
-// classes, so it can never resolve these bare names — defining them here simply
-// provides the only declaration the unit suite ever sees. Order relative to the
-// vendor/autoload.php require below is immaterial.
+// These mocks are plain global classes (Token, Input, DB, QueryResult). Composer
+// autoloads only namespaced ElanRegistry\* classes, so it can never resolve these
+// bare names — defining them here simply provides the only declaration the unit
+// suite ever sees. Order relative to the vendor/autoload.php require below is
+// immaterial.
 //
-// CarModel is different: it IS namespaced and Composer-resolvable
-// (ElanRegistry\Reference\CarModel, PSR-4 mapped to usersc/classes/Reference/), so its
-// eval'd shadow below must be declared before anything first touches the class — see
-// the note at the eval.
+// ElanRegistry\Reference\CarModel is NOT mocked here (removed #1446) — it's
+// PSR-4 mapped, so it autoloads for real and its DB::getInstance() call
+// resolves against the shared DB mock below, which has no car_models branch —
+// so CarModel::exists() always returns false in this tier. Don't add a unit
+// test asserting a model combination validates; that needs a real car_models
+// row and belongs in CarValidatorModelTest.php (integration tier, #1446).
 //
 // Why Token and Input are mocked rather than loaded for real: NOTHING under
 // users/classes/ can ever be require_once'd from this bootstrap, because the whole
@@ -65,9 +67,8 @@ if (!isset($_SESSION)) {
 // This constraint is about file availability, not runtime dependencies: Token and
 // Input touch nothing but superglobals and would otherwise be perfectly loadable.
 //
-// DB and CarModel are mocked for the separate, additional reason that their real
-// implementations require a live database connection, which unit tests deliberately
-// do not have.
+// DB is mocked for the separate, additional reason that its real implementation
+// requires a live database connection, which unit tests deliberately do not have.
 //
 // Consequence: these mocks are stubs, not production behavior. Real CSRF crypto
 // (hash_equals over the session token) and real htmlspecialchars() input sanitization
@@ -442,71 +443,6 @@ if (!function_exists('currentUserId')) {
         return (int) $user->data()->id;
     }
 }
-
-// ============================================================
-// Mock CarModel Reference Data Class
-// ============================================================
-// CRITICAL: Must be defined BEFORE autoloader to prevent loading real CarModel.
-// Unlike the bare classes above, ElanRegistry\Reference\CarModel is PSR-4 mapped in
-// composer.json (usersc/classes/Reference/CarModel.php), so Composer WOULD resolve it —
-// this declaration only wins if it lands first.
-// Provides test data for valid model combinations without requiring database
-
-// Use eval to create the class in the correct namespace
-// This is a special case for unit testing - allows us to mock a namespaced class
-eval('
-namespace ElanRegistry\Reference;
-
-/**
- * Mock CarModel class for unit tests
- * Returns valid test data for known model combinations
- */
-class CarModel {
-    /**
-     * Valid model combinations for testing
-     * @var array<string, bool>
-     */
-    private static array $validModels = [
-        "S4|FHC|36" => true,
-        "S4|DHC|45" => true,
-        "Sprint|FHC|36" => true,
-        "Sprint|DHC|45" => true,
-        "S3|FHC|36" => true,
-        "S3|DHC|45" => true,
-        "+2|FHC|50" => true,
-        "+2S|FHC|50" => true,
-        "+2S/130|FHC|50" => true,
-    ];
-
-    /**
-     * Check if a model combination exists
-     */
-    public function exists(string $series, string $variant, string $typeCode): bool {
-        $series = trim($series);
-        $variant = trim($variant);
-        $typeCode = trim($typeCode);
-
-        $modelValue = "{$series}|{$variant}|{$typeCode}";
-        return isset(self::$validModels[$modelValue]);
-    }
-
-    /**
-     * Get model by composite value
-     */
-    public function byValue(string $value): ?object {
-        if (isset(self::$validModels[$value])) {
-            $parts = explode("|", $value);
-            return (object)[
-                "model_value" => $value,
-                "series_normalized" => $parts[0],
-                "variant" => $parts[1],
-                "type_code" => $parts[2],
-            ];
-        }
-        return null;
-    }
-}
-');
 
 // Load Composer autoloader for all custom classes and exceptions
 require_once $projectRoot . '/vendor/autoload.php';

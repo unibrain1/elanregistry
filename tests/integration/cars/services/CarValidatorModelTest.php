@@ -7,7 +7,9 @@ namespace Tests\Integration\Cars\Services;
 use PHPUnit\Framework\TestCase;
 use ElanRegistry\Car\CarValidator;
 use ElanRegistry\Exceptions\CarValidationException;
+use RuntimeException;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -30,98 +32,87 @@ final class CarValidatorModelTest extends TestCase
 
     /**
      * @test
-     * Model validation accepts valid model combinations
+     * Every model combination in the reference-data CSV validates. The
+     * provider reads the same file CarModelsSeed seeds car_models from, so
+     * it can't drift from the database (#1446).
      */
-    public function testValidateModelAcceptsValidCombination(): void
-    {
+    #[DataProvider('allReferenceModelCombinationsProvider')]
+    public function testValidateModelAcceptsEveryReferenceCombination(
+        string $series,
+        string $variant,
+        string $typeCode
+    ): void {
         $data = [
-            'model' => 'S4|FHC|36',
+            'model' => "{$series}|{$variant}|{$typeCode}",
         ];
 
         $result = $this->validator->validateAndSanitizeFields($data, false);
 
         $this->assertArrayHasKey('model', $result);
-        $this->assertEquals('S4|FHC|36', $result['model']);
+        $this->assertEquals("{$series}|{$variant}|{$typeCode}", $result['model']);
     }
 
     /**
-     * @test
-     * Model validation accepts Sprint FHC
+     * @return array<string, array{0: string, 1: string, 2: string}> Keyed by
+     *   model_value; each value is [series, variant, type_code].
      */
-    public function testValidateModelAcceptsSprintFHC(): void
+    public static function allReferenceModelCombinationsProvider(): array
     {
-        $data = [
-            'model' => 'Sprint|FHC|36',
-        ];
+        $csvPath = dirname(__DIR__, 4) . '/database/seeds/data/car_models.csv';
+        $handle = fopen($csvPath, 'r');
+        if ($handle === false) {
+            throw new RuntimeException("Could not read reference-data CSV at {$csvPath}");
+        }
 
-        $result = $this->validator->validateAndSanitizeFields($data, false);
+        $header = fgetcsv($handle, 0, ',', '"', '\\');
+        $cases = [];
+        while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+            $record = array_combine($header, $row);
+            $cases[$record['model_value']] = [
+                $record['series'],
+                $record['variant'],
+                $record['type_code'],
+            ];
+        }
+        fclose($handle);
 
-        $this->assertArrayHasKey('model', $result);
-        $this->assertEquals('Sprint|FHC|36', $result['model']);
+        // A truncated/corrupted CSV read must fail loudly, not just silently
+        // run fewer test cases — mirrors CarModelsSeed::EXPECTED_ROWS.
+        if (count($cases) !== 23) {
+            throw new RuntimeException(
+                'Expected 23 model combinations from ' . $csvPath . ', got ' . count($cases)
+            );
+        }
+
+        return $cases;
     }
 
     /**
      * @test
-     * Model validation accepts Sprint DHC
+     * Model validation rejects invalid combinations — each case isolates a
+     * single mismatched field against two otherwise-real ones, so a
+     * regression that stops checking just one column (series, variant, or
+     * type_code) would still fail here.
      */
-    public function testValidateModelAcceptsSprintDHC(): void
-    {
-        $data = [
-            'model' => 'Sprint|DHC|45',
-        ];
-
-        $result = $this->validator->validateAndSanitizeFields($data, false);
-
-        $this->assertArrayHasKey('model', $result);
-        $this->assertEquals('Sprint|DHC|45', $result['model']);
-    }
-
-    /**
-     * @test
-     * Model validation accepts S4 DHC (Drophead)
-     */
-    public function testValidateModelAcceptsS4DHC(): void
-    {
-        $data = [
-            'model' => 'S4|DHC|45',
-        ];
-
-        $result = $this->validator->validateAndSanitizeFields($data, false);
-
-        $this->assertArrayHasKey('model', $result);
-        $this->assertEquals('S4|DHC|45', $result['model']);
-    }
-
-    /**
-     * @test
-     * Model validation accepts Plus 2 models
-     */
-    public function testValidateModelAcceptsPlus2(): void
-    {
-        $data = [
-            'model' => '+2|FHC|50',
-        ];
-
-        $result = $this->validator->validateAndSanitizeFields($data, false);
-
-        $this->assertArrayHasKey('model', $result);
-        $this->assertEquals('+2|FHC|50', $result['model']);
-    }
-
-    /**
-     * @test
-     * Model validation rejects invalid combinations
-     */
-    public function testValidateModelRejectsInvalidCombination(): void
+    #[DataProvider('invalidCombinationProvider')]
+    public function testValidateModelRejectsInvalidCombination(string $model): void
     {
         $this->expectException(CarValidationException::class);
         $this->expectExceptionMessage('is not a valid Lotus Elan model');
 
-        $data = [
-            'model' => 'S4|Roadster|99', // Invalid: S4 Roadster with type 99
-        ];
+        $this->validator->validateAndSanitizeFields(['model' => $model], false);
+    }
 
-        $this->validator->validateAndSanitizeFields($data, false);
+    /** @return array<string, array{0: string}> */
+    public static function invalidCombinationProvider(): array
+    {
+        return [
+            'all three fields wrong' => ['S4|Roadster|99'],
+            // Real pairing is S4|FHC|36 — 45 belongs to S4|DHC, not S4|FHC.
+            'type_code wrong for series+variant' => ['S4|FHC|45'],
+            // FHC|36 is a real pairing (S3/S4), but S1 never had an FHC variant.
+            'series wrong for variant+type_code' => ['S1|FHC|36'],
+        ];
     }
 
     /**
