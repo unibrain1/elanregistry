@@ -93,3 +93,4 @@ Do the following, in order, **separately for each environment** (test, then prod
 - [#1556](https://github.com/elan-registry/registry/issues/1556) — test: audit remaining unit test files for undetected mock/fake usage
 - [#1551](https://github.com/elan-registry/registry/issues/1551) — test: cars_hist DELETE-order leak in TransferRequestConstraintTest and CarsYearSmallintMigrationTest
 - [#1542](https://github.com/elan-registry/registry/issues/1542) — test: RobotsTxtPolicyTest verifies repo robots.txt, not the as-served file with Cloudflare's injection
+- [#1604](https://github.com/elan-registry/registry/issues/1604) — test: VerificationWorkflowTest tests a wholly fictional class — zero coupling to production code
