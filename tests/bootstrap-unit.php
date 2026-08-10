@@ -547,25 +547,6 @@ if (!class_exists('Input')) {
     }
 }
 
-// Mock functions for user deletion testing - only for unit tests
-if (!function_exists('deleteUsers')) {
-    /**
-     * Mock deleteUsers function for testing
-     */
-    function deleteUsers($users): int {
-        global $mockDeletedUsers, $db;
-        $mockDeletedUsers = $users;
-
-        // Simulate calling after_user_deletion.php for each user
-        foreach ($users as $id) {
-            // Simulate the cleanup script logic
-            mockUserDeletionCleanup($id);
-        }
-
-        return count($users);
-    }
-}
-
 // Mock getSettings function - only for unit tests
 if (!function_exists('getSettings')) {
     /**
@@ -649,29 +630,6 @@ if (!function_exists('isRegistryAdmin')) {
 
         // Default: user ID 1 is admin
         return dbInt($userId ?? currentUserId()) === 1;
-    }
-}
-
-/**
- * Mock user deletion cleanup process
- */
-function mockUserDeletionCleanup($id): void {
-    global $mockUsers, $mockCars;
-
-    $noOwnerUsers = array_values(array_filter($mockUsers ?? [], fn($u) => $u->username === 'noowner'));
-    if (count($noOwnerUsers) > 0) {
-        $noOwnerUserId = $noOwnerUsers[0]->id;
-
-        $userCars = array_values(array_filter($mockCars ?? [], fn($c) => $c->user_id === $id));
-        $carCount = count($userCars);
-
-        foreach ($userCars as $car) {
-            logger($id, LogCategories::LOG_CATEGORY_CAR_ACTIONS, "User deletion: car ID {$car->id} reassigned from user $id to noowner (ID: $noOwnerUserId)");
-        }
-
-        logger($id, LogCategories::LOG_CATEGORY_USER_DELETION, "Complete cleanup: reassigned $carCount cars to noowner user (ID: $noOwnerUserId)");
-    } else {
-        logger($id, LogCategories::LOG_CATEGORY_USER_DELETION, 'Fallback cleanup: noowner user not found, set cars to NULL');
     }
 }
 

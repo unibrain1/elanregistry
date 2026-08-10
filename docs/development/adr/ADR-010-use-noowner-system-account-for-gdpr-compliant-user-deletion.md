@@ -10,9 +10,10 @@ Retroactive -- documented 2026-02-25
 
 ## Update (2026-08, #1553)
 
-Two of this ADR's P2 items are now resolved; the rest of the document below
-describes the mechanism as it existed before this update and is kept for
-historical context:
+Several items from this ADR have since changed (resolutions, an architectural
+removal, and behavior added after this ADR was written); the rest of the
+document below describes the mechanism as it existed before this update and
+is kept for historical context:
 
 - **"No migration script creates noowner"** -- resolved. `database/seeds/NoownerSeed.php`
   creates the account on any provisioned environment, with `password = NULL`
@@ -24,6 +25,21 @@ historical context:
 - **Hard-coded ID 83 in the admin UI** -- still open, still real, tracked as
   #1562. The correct file is `app/admin/assets/admin-core.js`; every reference
   to `manage-consolidated.js` below is outdated.
+- **"No transactional guarantees"** -- resolved (commit `36749ffe`, #609/#950;
+  the transfer-request expiry below was later folded into the same
+  transaction by `5158e02b`). The hook now wraps the profile delete,
+  transfer-request expiry, and car reassignment in a single `CarRepository`
+  transaction (`beginTransaction()`/`commit()`/`rollback()` in
+  `after_user_deletion.php`), rolling back all three on any failure. The
+  "P1: No transaction wrapping" row in Known Issues below and the "No
+  transactional guarantees" / "Delete-then-reinsert on car_user"
+  Negative-consequences bullets are stale.
+- **Transfer-request expiry** -- added (commit `5158e02b`), not present when
+  this ADR was documented. In the same transaction as steps 3 and 6 below,
+  the hook also expires any `car_transfer_requests` row the deleted user
+  initiated (`status IN ('pending', 'approved')` -> `'expired'`), preventing
+  a dangling request that points at a deleted requester. Covered by
+  `tests/integration/UserDeletionReassignmentTest.php`.
 
 ## Context
 
@@ -227,6 +243,14 @@ Create a unique placeholder user per deletion (e.g., `username = 'deleted_12345'
 
 ## References
 
+> Most links below use a relative path baseline from when this ADR lived at
+> `docs/adr/`, not its current `docs/development/adr/` home, and some target
+> files have since moved or been removed entirely (`docs/faq/`, `FIX/`, and
+> `manage-consolidated.js` no longer exist — see the Update block above for
+> the latter). Only the "Tests" row has been corrected as part of #1445;
+> repairing the rest needs per-row investigation of where each file went, out
+> of scope here.
+
 | Item | File |
 | --- | --- |
 | Deletion hook script | [/usersc/scripts/after_user_deletion.php](../../usersc/scripts/after_user_deletion.php) |
@@ -237,7 +261,7 @@ Create a unique placeholder user per deletion (e.g., `username = 'deleted_12345'
 | LogCategories constant | [/usersc/classes/LogCategories.php](../../usersc/classes/LogCategories.php) |
 | Owner class | [/usersc/classes/Owner.php](../../usersc/classes/Owner.php) |
 | Database documentation | [/docs/development/DATABASE.md](../development/DATABASE.md) |
-| Unit tests | [/tests/unit/users/UserDeletionCleanupTest.php](../../tests/unit/users/UserDeletionCleanupTest.php) |
+| Tests | [/tests/integration/UserDeletionReassignmentTest.php](../../../tests/integration/UserDeletionReassignmentTest.php) |
 | Denormalization rationale | [ADR-002](ADR-002-denormalized-cars-table-cached-owner-data.md) |
 | Audit trail triggers | [ADR-003](ADR-003-database-audit-trails-triggers-history-tables.md) |
 | Car transfer workflow | [ADR-008](ADR-008-implement-self-service-car-ownership-transfer-workflow.md) |
