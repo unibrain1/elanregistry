@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/IntegrationTestCase.php';
-
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Real CSRF and input-sanitization behavior of the upstream UserSpice Token/Input classes.
@@ -18,10 +17,24 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * tests/bootstrap-integration.php loads the full framework via users/init.php, so the
  * classes exercised here are the genuine ones the application runs against in production.
+ *
+ * Deliberately extends plain TestCase, not IntegrationTestCase: this suite's coverage is
+ * the whole point of #1554 (CSRF crypto, real htmlspecialchars() sanitization), and neither
+ * Token nor Input touches the database — gating them behind
+ * IntegrationTestCase::requireDatabase() would be a false dependency, silently skipping
+ * this coverage whenever the unrelated DB connectivity probe fails for any reason.
+ * phpunit-integration.xml's testsuite is scoped by directory (tests/integration), not by
+ * base class, so this still runs under tests/bootstrap-integration.php and still gets the
+ * genuine upstream classes regardless of which class it extends.
+ *
+ * Note: .github/workflows/tests.yml never runs phpunit-integration.xml at all (unit and
+ * regression only) — this coverage is enforced by `composer test:integration`/`test:full`
+ * before merge, not by CI. That's a pre-existing, separately-tracked gap (#1591), not
+ * something this file's base class can fix.
  */
 #[Group('integration')]
 #[Group('security')]
-final class TokenAndInputSecurityTest extends IntegrationTestCase
+final class TokenAndInputSecurityTest extends TestCase
 {
     /** @var array<string, mixed> */
     private array $originalPost;
@@ -35,10 +48,7 @@ final class TokenAndInputSecurityTest extends IntegrationTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->requireDatabase();
 
-        // IntegrationTestCase manages database fixtures, not superglobals, so this test
-        // saves and restores the request/session state it manipulates itself.
         $this->originalPost = $_POST;
         $this->originalGet = $_GET;
         $this->originalSession = $_SESSION ?? [];

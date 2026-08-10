@@ -57,7 +57,11 @@ Three tiers, each with a distinct purpose and a hard boundary:
   never real CSRF crypto or real `htmlspecialchars()` encoding. Real behavior for
   these classes is proven in the integration tier, where `users/init.php` loads
   the genuine framework — see
-  `tests/integration/TokenAndInputSecurityTest.php`.
+  `tests/integration/TokenAndInputSecurityTest.php`. That coverage is
+  developer-local, not CI-enforced: `tests.yml` never runs
+  `phpunit-integration.xml` (unit and regression only), so this proof runs via
+  `composer test:integration`/`test:full` before merge, not automatically on
+  every push (#1591).
 
   `tests/unit/uploads/_is_uploaded_file_namespace_overrides.php` relaxes
   `ElanRegistry\Car\is_uploaded_file()` (via PHP's namespace-scoped function
