@@ -259,4 +259,30 @@ final class CarAdministrationServiceTest extends TestCase
         $this->expectException(CarDatabaseException::class);
         $this->service->merge($targetCarData, 999, 'Test merge', 1, $repo);
     }
+
+    /**
+     * merge() succeeds end-to-end: source car found, history transferred, source
+     * car deleted, audit trail inserted, transaction commits. Success-path
+     * counterpart to the four failure-path tests above.
+     */
+    public function testMergeSucceeds(): void
+    {
+        $targetCarData = (object) ['id' => 1, 'chassis' => 'TARGET01'];
+        $sourceData = (object) ['id' => 999, 'chassis' => 'SOURCE01'];
+        $db = $this->createMock(DB::class);
+        $this->configureTransaction($db, expectCommit: true);
+        $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturn($sourceData);
+        // Must actually assert the audit-trail insert happens — a loose ->method('insert')
+        // stub would leave this test green even if merge() stopped calling insertHistory().
+        $db->expects($this->once())->method('insert')->with('cars_hist', $this->anything())->willReturn(true);
+        $repo = new CarRepository($db);
+
+        // merge()'s return type is literal `true` (throws on any failure), so no
+        // assertion is needed on the return value itself — the mock's beginTransaction/
+        // commit expectations above (verified via PHPUnit's mock-expectation checks after
+        // the test method completes) are what this test proves.
+        $this->service->merge($targetCarData, 999, 'Test merge', 1, $repo);
+    }
 }
