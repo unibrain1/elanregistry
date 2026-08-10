@@ -7,37 +7,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 
-/**
- * Test double for \User.
- *
- * The real users/classes/User.php is not loaded in the unit-test environment
- * (its constructor calls the live DB::getInstance() singleton and is not
- * mockable via constructor injection), and it is not part of this project's
- * PSR-4 autoload map, so \User does not exist here unless something defines
- * it. That makes a plain stand-in class named `User` — implementing only the
- * two methods RegistrationRecoveryNotifier::notifyIfAccountExists() calls,
- * exists() and data() — the simplest and most robust option: it satisfies the
- * \User type hint directly with no reflection or subclassing tricks needed.
- */
-if (!class_exists('User')) {
-    class User {
-        private bool $_exists;
-        private object $_data;
-
-        public function __construct(bool $exists = false, ?object $data = null) {
-            $this->_exists = $exists;
-            $this->_data = $data ?? new \stdClass();
-        }
-
-        public function exists(): bool {
-            return $this->_exists;
-        }
-
-        public function data(): object {
-            return $this->_data;
-        }
-    }
-}
+// Test double for \User — kept in its own file, excluded from PHPStan's scan
+// path (see phpstan.neon and the file's own docblock), so it doesn't leak
+// its narrow 2-method surface into PHPStan's understanding of \User
+// project-wide (#1566).
+require_once __DIR__ . '/_User_test_double.php';
 
 /**
  * Unit tests for RegistrationRecoveryNotifier (issue #1406).

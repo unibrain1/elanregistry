@@ -73,6 +73,19 @@ Three tiers, each with a distinct purpose and a hard boundary:
   `is_uploaded_file()` branch, be aware a file merely on disk
   (`file_exists()`) will pass that check too — it isn't isolated to
   `FileUploadSecurityTest.php`.
+
+  When a test needs a bare global-namespace double for a real UserSpice class
+  (not a namespaced project class) to satisfy a type hint the production code
+  can't be changed to relax, declare it in its own `_`-prefixed file and add
+  that file to `phpstan.neon`'s `excludePaths`, rather than inline in the
+  test class — e.g. `tests/unit/auth/_User_test_double.php` standing in for
+  `\User`. PHP has no per-file scoping for global classes: once `tests/`
+  entered PHPStan's scan path
+  (#1555), an inline double becomes *the* definition PHPStan uses for that
+  class everywhere in the codebase, not just within the test that declares it
+  (#1566). Excluding the file keeps the class genuinely unanalyzable to
+  PHPStan instead, which the project's existing `ignoreErrors` patterns for
+  UserSpice runtime classes already account for.
 - **Integration (`tests/integration/`)** — real database, real UserSpice
   framework. Every test creates the fixtures it depends on
   (`IntegrationTestCase::createTestUser()` / `createTestCar()`) and cleans
