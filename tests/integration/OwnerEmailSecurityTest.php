@@ -32,7 +32,7 @@ final class OwnerEmailSecurityTest extends IntegrationTestCase
      * H2 regression anchor: forged from_user_id in POST is ignored.
      *
      * The endpoint derives $fromUserId = (int) $user->data()->id
-     * (send-owner-email.php:63), never from POST input. This test confirms
+     * (send-owner-email.php:67), never from POST input. This test confirms
      * that even when an attacker injects from_user_id into POST, the
      * derivation still returns the real session user.
      */
@@ -41,32 +41,21 @@ final class OwnerEmailSecurityTest extends IntegrationTestCase
         $realSenderId = $this->createTestUser();
         $forgedTargetId = $this->createTestUser();
 
-        global $user;
-        $originalUser = $user;
-
-        $realSender = new User();
-        $realSender->find($realSenderId);
-
-        $reflection = new ReflectionClass($realSender);
-        $prop = $reflection->getProperty('_isLoggedIn');
-        $prop->setValue($realSender, true);
-
-        $user = $realSender;
-        $GLOBALS['user'] = $realSender;
+        $this->loginAsTestUser($realSenderId);
 
         try {
             // Inject the forged value inside try{} so finally always cleans it up
             $_POST['from_user_id'] = (string) $forgedTargetId;
 
-            // Replicate the endpoint's sender derivation (send-owner-email.php:63)
-            $fromUserId = (int) $user->data()->id;
+            // Replicate the endpoint's sender derivation (send-owner-email.php:67) — read
+            // the global session, exactly as production does, not a local helper return value.
+            $fromUserId = (int) $GLOBALS['user']->data()->id;
 
             $this->assertEquals($realSenderId, $fromUserId);
             $this->assertNotEquals((int) $_POST['from_user_id'], $fromUserId);
         } finally {
             unset($_POST['from_user_id']);
-            $user = $originalUser;
-            $GLOBALS['user'] = $originalUser;
+            $this->restoreGlobalUser();
         }
     }
 
@@ -77,27 +66,16 @@ final class OwnerEmailSecurityTest extends IntegrationTestCase
     {
         $userId = $this->createTestUser();
 
-        global $user;
-        $originalUser = $user;
-
-        $sessionUser = new User();
-        $sessionUser->find($userId);
-
-        $reflection = new ReflectionClass($sessionUser);
-        $prop = $reflection->getProperty('_isLoggedIn');
-        $prop->setValue($sessionUser, true);
-
-        $user = $sessionUser;
-        $GLOBALS['user'] = $sessionUser;
+        $this->loginAsTestUser($userId);
 
         try {
-            // Replicate the endpoint's sender derivation (send-owner-email.php:63)
-            $fromUserId = (int) $user->data()->id;
+            // Replicate the endpoint's sender derivation (send-owner-email.php:67) — read
+            // the global session, exactly as production does, not a local helper return value.
+            $fromUserId = (int) $GLOBALS['user']->data()->id;
 
             $this->assertEquals($userId, $fromUserId);
         } finally {
-            $user = $originalUser;
-            $GLOBALS['user'] = $originalUser;
+            $this->restoreGlobalUser();
         }
     }
 

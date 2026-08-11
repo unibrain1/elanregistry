@@ -117,6 +117,56 @@ test:regression` test. A new mock-compatible regression test belongs in
 `#[Group('regression')]` attribute alone on a test living elsewhere will
 **not** be picked up by `composer test:regression`.
 
+### Authenticated Sessions in Integration Tests
+
+Code under test that calls `currentUserId()`, reads `global $user`, or checks
+permissions needs an authenticated session. `IntegrationTestCase` provides the
+only supported way to create one:
+
+- `loginAsTestUser(int $userId): User` — marks a real `users` row (usually one
+  from `createTestUser()`) as the ambient logged-in session, setting both
+  `$GLOBALS['user']` and the `global $user` alias, and returns the `User`
+  instance.
+- `restoreGlobalUser(): void` — restores whatever session was ambient before
+  the first `loginAsTestUser()` call of the current test. Idempotent.
+
+Two usage patterns:
+
+- **Whole class needs a session** — call `$this->loginAsTestUser($userId);` in
+  `setUp()` and do nothing else. `IntegrationTestCase::tearDown()` calls
+  `restoreGlobalUser()` automatically, so the fake session can't leak into the
+  next test class.
+- **Only specific test methods need a session** — leave `setUp()`
+  unauthenticated, call `$this->loginAsTestUser($userId)` inline in the methods
+  that need it, and call `$this->restoreGlobalUser();` in a `finally` block so
+  the session ends with that method rather than at `tearDown()`.
+
+**If your test class overrides `tearDown()`, it must call `parent::tearDown()`
+unconditionally** — wrap its own cleanup in
+`try { ...own cleanup... } finally { parent::tearDown(); }`. The automatic
+restore is the *first* statement of `IntegrationTestCase::tearDown()` precisely
+so a later failure can't skip it, but that guarantee silently evaporates if a
+subclass's own cleanup throws before reaching `parent::tearDown()`. Nothing
+fails loudly when this happens; the fake session just leaks into the next test
+class. See `tests/integration/database/CarsYearSmallintMigrationTest.php` for
+the pattern.
+
+Do **not** hand-roll the reflection-based login bypass (`new User()` → `find()`
+→ set `_isLoggedIn` → assign `$GLOBALS['user']`) in a test again. Duplicating it
+is what left authenticated sessions leaking between test classes (#1572); the
+helper is the single place that idiom is allowed to live.
+
+**Out of scope — the inverse idiom.** Temporarily *removing* `$GLOBALS['user']`
+mid-test to verify "no ambient session" behaviour (rather than authenticating) is
+deliberately **not** covered by these helpers, and remains hand-rolled in
+`CarDeletionTest.php`, `CarMergeTest.php`, and `CarTransferTest.php` (one test
+method each). That is a known, intentional boundary, not an oversight —
+`loginAsTestUser()`/`restoreGlobalUser()` are session *creation* helpers, and
+folding an "unauthenticate" mode into them would complicate the snapshot
+bookkeeping for three call sites. If a fourth appears, extract a separate
+helper for that narrower need rather than re-duplicating the idiom or
+overloading these two.
+
 ## UserSpice `DB` Class Conventions
 
 UserSpice ships no test suite and no testing conventions of its own — the

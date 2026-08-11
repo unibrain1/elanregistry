@@ -34,17 +34,7 @@ final class CarTransferTest extends IntegrationTestCase
         $this->targetUserId = $this->createTestUser();
 
         // Set up authenticated user context for transfer operations
-        global $user;
-        $user = new User();
-        $user->find($this->testUserId);
-
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
+        $this->loginAsTestUser($this->testUserId);
 
         $this->db = DB::getInstance();
 
@@ -73,10 +63,15 @@ final class CarTransferTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        if ($this->databaseConnected && $this->targetUserId) {
-            $this->db->query("DELETE FROM profiles WHERE user_id = ?", [$this->targetUserId]);
+        try {
+            if ($this->databaseConnected && $this->targetUserId) {
+                $this->db->query("DELETE FROM profiles WHERE user_id = ?", [$this->targetUserId]);
+            }
+        } finally {
+            // Run even if the profile cleanup above throws, so the base class's own
+            // fixture cleanup — and its restoreGlobalUser() call — is never skipped.
+            parent::tearDown();
         }
-        parent::tearDown();
     }
 
     /**

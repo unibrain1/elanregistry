@@ -42,6 +42,12 @@ abstract class IntegrationTestCase extends TestCase
     /** @var int[] User IDs created during this test, cleaned up in tearDown */
     private array $createdUserIds = [];
 
+    /** @var User|null Snapshot of $GLOBALS['user'] from the first loginAsTestUser() call of a test. */
+    private ?User $savedGlobalUser = null;
+
+    /** Whether $savedGlobalUser is awaiting restoration (disambiguates "nothing saved" from "saved null"). */
+    private bool $globalUserRestorePending = false;
+
     /**
      * Set up test environment
      * Initializes database connection
@@ -73,6 +79,8 @@ abstract class IntegrationTestCase extends TestCase
      */
     protected function tearDown(): void
     {
+        $this->restoreGlobalUser();
+
         if ($this->databaseConnected) {
             foreach ($this->createdCarIds as $carId) {
                 try {
@@ -110,6 +118,78 @@ abstract class IntegrationTestCase extends TestCase
         if (!$this->databaseConnected) {
             $this->markTestSkipped('Database connection not available for integration testing');
         }
+    }
+
+    /**
+     * Authenticate a test user as the ambient session for the current test.
+     *
+     * UserSpice's User class has no public API to mark an instance logged-in without a
+     * real HTTP request/session round-trip, so this bypasses login() by setting the
+     * private $_isLoggedIn flag directly via reflection. setAccessible() is intentionally
+     * omitted on the ReflectionProperty call below — it has been a no-op since PHP 8.1.
+     *
+     * Sets $GLOBALS['user'] (the `global $user` alias inside this method binds the same
+     * storage slot, so both reads observe the authenticated session). The previous
+     * $GLOBALS['user'] is snapshotted on first use only, so calling this more than once
+     * in a test still restores the value ambient before *this test's* first call.
+     *
+     * IntegrationTestCase::tearDown() restores automatically; call restoreGlobalUser()
+     * directly if a test must not leak the fake session past a single test method.
+     *
+     * @param int $userId A user ID already persisted to `users` (e.g. via createTestUser()).
+     * @return User The authenticated instance, already the ambient session.
+     */
+    protected function loginAsTestUser(int $userId): User
+    {
+        $loggedInUser = new User();
+        if (!$loggedInUser->find($userId)) {
+            throw new RuntimeException("loginAsTestUser(): no users row with id {$userId}");
+        }
+
+        $reflection = new ReflectionClass($loggedInUser);
+        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
+        $isLoggedInProperty->setValue($loggedInUser, true);
+
+        if (!$this->globalUserRestorePending) {
+            $this->savedGlobalUser = $GLOBALS['user'] ?? null;
+            $this->globalUserRestorePending = true;
+        }
+
+        global $user;
+        $user = $loggedInUser;
+        $GLOBALS['user'] = $loggedInUser;
+
+        return $loggedInUser;
+    }
+
+    /**
+     * Restore $GLOBALS['user'] (and the `global $user` alias) to whatever was ambient
+     * before the first loginAsTestUser() call of this test, or unset both if nothing was
+     * ambient. Idempotent — safe to call when no loginAsTestUser() call is pending, so
+     * setUp()-only callers (auto-restored by tearDown()) and inline mid-test-method
+     * callers (explicit finally-block call, whose later tearDown() invocation becomes a
+     * harmless no-op) both work correctly.
+     */
+    protected function restoreGlobalUser(): void
+    {
+        if (!$this->globalUserRestorePending) {
+            return;
+        }
+
+        global $user;
+        if ($this->savedGlobalUser !== null) {
+            $user = $this->savedGlobalUser;
+            $GLOBALS['user'] = $this->savedGlobalUser;
+        } else {
+            // Defensive, not dead: tests/bootstrap-integration.php seeds a non-null
+            // $GLOBALS['user'] once per process, so in practice the snapshot is never
+            // null — unless an earlier test unset the global itself.
+            unset($GLOBALS['user']);
+            unset($user);
+        }
+
+        $this->savedGlobalUser = null;
+        $this->globalUserRestorePending = false;
     }
 
     /**

@@ -96,3 +96,4 @@ Do the following, in order, **separately for each environment** (test, then prod
 - [#1604](https://github.com/elan-registry/registry/issues/1604) — test: VerificationWorkflowTest tests a wholly fictional class — zero coupling to production code
 - [#1609](https://github.com/elan-registry/registry/issues/1609) — test: VerificationSecurityTest has tautological tests asserting local data against itself
 - [#1603](https://github.com/elan-registry/registry/issues/1603) — test: LocationServiceResponseTest only exercises ApiResponse literals, never the location-search/reverse endpoints
+- [#1572](https://github.com/elan-registry/registry/issues/1572) — test: extract shared authenticated-session helper for integration tests, migrating 10 files off the duplicated login idiom

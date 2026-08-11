@@ -39,17 +39,7 @@ final class ManageConsolidatedDeletionTest extends IntegrationTestCase
         $this->testUserId = $this->createTestUser();
 
         // Set up authenticated user context required by Car::delete()
-        global $user;
-        $user = new User();
-        $user->find($this->testUserId);
-
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
+        $this->loginAsTestUser($this->testUserId);
 
         try {
             $this->testCarId = $this->createTestCar($this->testUserId, [
