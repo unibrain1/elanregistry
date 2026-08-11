@@ -2,6 +2,24 @@
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');
 
+// Extracts a real, valid CSRF token for the current session from the
+// already-rendered <input name="csrf"> on usersc/user_settings.php — the
+// same idiom as getCsrfFromEditPage() in length-validation.spec.js. Unlike
+// the hardcoded literals used elsewhere in this file (which can only ever
+// reach a 403), this lets a request pass the CSRF check and reach real
+// validation logic. Returns null (rather than throwing) if the page
+// redirects to login, so callers can test.skip() consistently with the
+// rest of the suite's auth-failure handling.
+async function getCsrfFromSettingsPage(page) {
+  await page.goto('usersc/user_settings.php', { waitUntil: 'domcontentloaded' });
+  const url = page.url();
+  if (url.includes('login')) {
+    return null;
+  }
+  const token = await page.locator('input[name="csrf"]').first().getAttribute('value');
+  return token || null;
+}
+
 test.describe('Registry-Specific AJAX Endpoints', () => {
   test.beforeEach(async ({ page }) => {
     // Most AJAX endpoints require authentication.
@@ -361,5 +379,67 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     expect(response.status()).toBe(403);
     const jsonResponse = await response.json();
     expect(jsonResponse).toHaveProperty('success', false);
+  });
+
+  test('location search endpoint enforces method, CSRF, and validation checks', async ({ page }) => {
+    // Method check runs before the CSRF/validation checks
+    const methodResponse = await page.request.get('app/api/shared/location-search.php');
+    expect(methodResponse.status()).toBe(405);
+    expect(await methodResponse.json()).toHaveProperty('success', false);
+
+    // CSRF check runs before validation. A well-formed-but-wrong 64-hex-char
+    // token exercises Token::check()'s hash_equals() comparison, not just
+    // its length/format guard.
+    const csrfResponse = await page.request.post('app/api/shared/location-search.php', {
+      form: { query: 'London', csrf: 'a'.repeat(64) }
+    });
+    expect(csrfResponse.status()).toBe(403);
+    expect(await csrfResponse.json()).toHaveProperty('success', false);
+
+    // With a real token, a too-short query reaches LocationServiceException
+    // handling without calling LocationService (no live network dependency,
+    // deterministic).
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+    const validationResponse = await page.request.post('app/api/shared/location-search.php', {
+      form: { query: 'a', csrf }
+    });
+    expect(validationResponse.status()).toBe(400);
+    const validationJson = await validationResponse.json();
+    expect(validationJson).toHaveProperty('success', false);
+    expect(validationJson.message).toContain('at least 2 characters');
+  });
+
+  test('location reverse geocoding endpoint enforces method, CSRF, and validation checks', async ({ page }) => {
+    // Method check runs before the CSRF/validation checks
+    const methodResponse = await page.request.get('app/api/shared/location-reverse.php');
+    expect(methodResponse.status()).toBe(405);
+    expect(await methodResponse.json()).toHaveProperty('success', false);
+
+    // CSRF check runs before validation. A well-formed-but-wrong 64-hex-char
+    // token exercises Token::check()'s hash_equals() comparison, not just
+    // its length/format guard.
+    const csrfResponse = await page.request.post('app/api/shared/location-reverse.php', {
+      form: { lat: '51.5', lon: '-0.1', csrf: 'a'.repeat(64) }
+    });
+    expect(csrfResponse.status()).toBe(403);
+    expect(await csrfResponse.json()).toHaveProperty('success', false);
+
+    // With a real token, out-of-range coordinates reach
+    // LocationService::reverseGeocode()'s validateCoordinates() rejection
+    // before any rate-limit check or network call — deterministic. (Missing
+    // lat/lon is NOT used here: Input::get() returns '' rather than null for
+    // an absent key, so location-reverse.php's own `$lat === null` guard
+    // never fires and a missing-param request would fall through to a live
+    // Nominatim lookup for 0,0 — see #1624.)
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+    const validationResponse = await page.request.post('app/api/shared/location-reverse.php', {
+      form: { lat: '999', lon: '999', csrf }
+    });
+    expect(validationResponse.status()).toBe(400);
+    const validationJson = await validationResponse.json();
+    expect(validationJson).toHaveProperty('success', false);
+    expect(validationJson.message).toContain('Invalid coordinates');
   });
 });
