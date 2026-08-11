@@ -496,6 +496,49 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     }
 
     /**
+     * Test create() leaves the Car instance holding the persisted record's data
+     *
+     * create() re-reads the row via find() after insert, so data() is the round-tripped
+     * database record — asserting every submitted business field on it verifies the values
+     * were actually stored, not merely that a row appeared.
+     */
+    #[Group('integration')]
+    public function testCreateCarReturnsPersistedCarDetails(): void
+    {
+        $carData = [
+            'token' => Token::generate(),
+            'user_id' => $this->testUserId,
+            'year' => '1969',
+            'model' => 'S4|FHC|36',
+            'series' => 'S4',
+            'variant' => 'FHC',
+            'type' => '36',
+            'chassis' => 'RTN' . substr(uniqid(), -9),  // Keep within 15 char limit
+            'color' => 'Persisted Green',
+            'engine' => 'ENG' . substr(uniqid(), -9),   // Keep within 15 char limit
+        ];
+
+        $car = new Car();
+        $result = $car->create($carData);
+
+        $this->assertTrue($result);
+
+        $created = $car->data();
+        $this->trackCarId((int) $created->id);
+
+        $this->assertGreaterThan(0, (int) $created->id, 'Created car must have a database ID');
+        $this->assertSame($this->testUserId, (int) $created->user_id, 'Created car must belong to the submitting owner');
+        $this->assertSame((int) $carData['year'], (int) $created->year);
+        $this->assertSame($carData['model'], $created->model);
+        $this->assertSame($carData['series'], $created->series);
+        $this->assertSame($carData['variant'], $created->variant);
+        $this->assertSame($carData['type'], $created->type);
+        $this->assertSame($carData['chassis'], $created->chassis);
+        $this->assertSame($carData['color'], $created->color);
+        $this->assertSame($carData['engine'], $created->engine);
+    }
+
+    /**
      * Test create() with an empty fields array throws CarCreationException
      */
     #[Group('integration')]
