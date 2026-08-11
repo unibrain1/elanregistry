@@ -411,25 +411,22 @@ if (!class_exists('QueryResult')) {
     }
 }
 
-// Load type helper functions (dbInt, currentUserId)
-// Defined here directly since custom_functions.php requires server_globals.php
-// which depends on the Server class and full framework initialization
+// Load type helper functions (dbInt, currentUserId).
+// custom_functions.php itself requires server_globals.php, which depends on
+// the Server class and full framework initialization, so it can't be loaded
+// standalone in the unit tier — these are stand-ins for the global function
+// names. dbInt() delegates to ElanRegistry\TypeHelpers::toInt() (#1599), the
+// same class the real dbInt() in custom_functions.php delegates to, so the
+// conversion logic itself can never drift between tiers; currentUserId()
+// below is still a hand-written duplicate (session-coupled — deliberately
+// not extracted, see TypeHelpersTest.php's docblock and #1599). Definition
+// order relative to the autoloader require below is immaterial here too —
+// PHP resolves \ElanRegistry\TypeHelpers when the function body *runs*, not
+// when it's defined, and this stub is never called before the require.
 if (!function_exists('dbInt')) {
     function dbInt(mixed $value, string $property = 'id'): int
     {
-        if (is_object($value)) {
-            if (!isset($value->$property)) {
-                throw new InvalidArgumentException("Property '$property' does not exist on object");
-            }
-            $value = $value->$property;
-        }
-        if ($value === null || $value === '') {
-            throw new InvalidArgumentException("Cannot convert empty value to int (property: $property)");
-        }
-        if (!is_numeric($value)) {
-            throw new InvalidArgumentException("Cannot convert non-numeric value to int (property: $property): $value");
-        }
-        return (int) $value;
+        return \ElanRegistry\TypeHelpers::toInt($value, $property);
     }
 }
 

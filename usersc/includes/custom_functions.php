@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use ElanRegistry\ApiResponse;
 use ElanRegistry\LogCategories;
+use ElanRegistry\TypeHelpers;
 
 /*
 UserSpice 4
@@ -156,22 +157,7 @@ function getFeedbackEmail(): string {
  */
 function dbInt(mixed $value, string $property = 'id'): int
 {
-    if (is_object($value)) {
-        if (!isset($value->$property)) {
-            throw new InvalidArgumentException("Property '$property' does not exist on object");
-        }
-        $value = $value->$property;
-    }
-
-    if ($value === null || $value === '') {
-        throw new InvalidArgumentException("Cannot convert empty value to int (property: $property)");
-    }
-
-    if (!is_numeric($value)) {
-        throw new InvalidArgumentException("Cannot convert non-numeric value to int (property: $property): $value");
-    }
-
-    return (int) $value;
+    return TypeHelpers::toInt($value, $property);
 }
 
 /**
