@@ -241,18 +241,6 @@ parameters:
 			path: tests/bootstrap-integration.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 5
-			path: tests/integration/CarActionsTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 3
-			path: tests/integration/CarActionsTest.php
-
-		-
 			message: '#^Parameter \#2 \$columns of method CarDataTablesTest\:\:buildDataTablesRequest\(\) expects list\<array\<string, string\>\>, array\{array\{data\: ''color'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''''\}\}, array\{data\: ''series'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''S4''\}\}\} given\.$#'
 			identifier: argument.type
 			count: 1

@@ -251,6 +251,36 @@ final class CarImageLifecycleTest extends IntegrationTestCase
     }
 
     /**
+     * removeImage() with a filename that isn't in the car's image list reports
+     * failure by return value rather than by exception, and must not touch the
+     * stored list — a miss is a no-op, not a partial write.
+     */
+    #[Group('fast')]
+    public function testRemoveImageReturnsFalseWhenFilenameNotInList(): void
+    {
+        $filename = $this->uploadOneTestImage();
+        $imageJson = $this->processor->encodeImages([$filename]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $carData = $this->repo->findById($this->testCarId);
+        $this->assertIsObject($carData);
+
+        $this->assertFalse(
+            $this->processor->removeImage($carData, 'this-filename-was-never-uploaded.jpg'),
+            'Removing a filename that is not in the list must return false, not throw'
+        );
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+        $this->assertSame($imageJson, $row->image, 'A no-op removal must leave the stored image list untouched');
+        $this->assertSame($imageJson, $carData->image, 'A no-op removal must leave the in-memory car object untouched');
+    }
+
+    /**
      * Replicate uploadImages()'s real primitives: secure filename, base file on
      * disk, then one GD resize per configured thumbnail size.
      *
