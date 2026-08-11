@@ -183,9 +183,10 @@ abstract class IntegrationTestCase extends TestCase
         } else {
             // Defensive, not dead: tests/bootstrap-integration.php seeds a non-null
             // $GLOBALS['user'] once per process, so in practice the snapshot is never
-            // null — unless an earlier test unset the global itself.
+            // null — unless an earlier test unset the global itself. No unset($user)
+            // here: unsetting a global-bound local never unsets the actual superglobal,
+            // so it would just be a no-op.
             unset($GLOBALS['user']);
-            unset($user);
         }
 
         $this->savedGlobalUser = null;
