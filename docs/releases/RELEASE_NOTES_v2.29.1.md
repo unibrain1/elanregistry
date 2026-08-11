@@ -98,3 +98,4 @@ Do the following, in order, **separately for each environment** (test, then prod
 - [#1603](https://github.com/elan-registry/registry/issues/1603) — test: LocationServiceResponseTest only exercises ApiResponse literals, never the location-search/reverse endpoints
 - [#1572](https://github.com/elan-registry/registry/issues/1572) — test: extract shared authenticated-session helper for integration tests, migrating 10 files off the duplicated login idiom
 - [#1573](https://github.com/elan-registry/registry/issues/1573) — test: CarActionsTest.php's 10 tests are tautologies — deleted the file, moved 2 real gaps to CarDatabaseOperationsTest.php/CarImageLifecycleTest.php, and 1 to a new save.php action-routing wiring test
+- [#1597](https://github.com/elan-registry/registry/issues/1597) — test: AdminContactSanitizationTest reimplements CR/LF-strip regex from process-admin-contact.php — added a source-inspection guard against the real production regex
