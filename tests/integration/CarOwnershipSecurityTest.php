@@ -68,19 +68,6 @@ final class CarOwnershipSecurityTest extends IntegrationTestCase
         $nonOwnerUserId = $this->createTestUser();
         $carId = $this->createTestCar($ownerUserId);
 
-        global $user;
-        $originalUser = $user;
-
-        $nonOwner = new User();
-        $nonOwner->find($nonOwnerUserId);
-
-        $reflection = new ReflectionClass($nonOwner);
-        $prop = $reflection->getProperty('_isLoggedIn');
-        $prop->setValue($nonOwner, true);
-
-        $user = $nonOwner;
-        $GLOBALS['user'] = $nonOwner;
-
         // hasPerm() reads the $master_account global, which may be null when
         // users/init.php aborts early in the integration test bootstrap.
         global $master_account;
@@ -88,16 +75,20 @@ final class CarOwnershipSecurityTest extends IntegrationTestCase
         $master_account = $master_account ?? [];
 
         try {
+            // Login happens inside try so a throw during login can never
+            // skip the finally's restoreGlobalUser() and leak the fake session.
+            $this->loginAsTestUser($nonOwnerUserId);
+
             $car = new Car($carId);
 
-            $isNotOwner = ((int) $user->data()->id !== (int) $car->data()->user_id);
+            // Read the global session, exactly as the production guard does.
+            $isNotOwner = ((int) $GLOBALS['user']->data()->id !== (int) $car->data()->user_id);
             $isNotAdmin = !hasPerm([2, 3]);
 
             $this->assertTrue($isNotOwner && $isNotAdmin, 'Guard must block non-owner');
         } finally {
             $master_account = $masterAccountBackup;
-            $user = $originalUser;
-            $GLOBALS['user'] = $originalUser;
+            $this->restoreGlobalUser();
         }
     }
 
@@ -109,28 +100,19 @@ final class CarOwnershipSecurityTest extends IntegrationTestCase
         $ownerUserId = $this->createTestUser();
         $carId = $this->createTestCar($ownerUserId);
 
-        global $user;
-        $originalUser = $user;
-
-        $owner = new User();
-        $owner->find($ownerUserId);
-
-        $reflection = new ReflectionClass($owner);
-        $prop = $reflection->getProperty('_isLoggedIn');
-        $prop->setValue($owner, true);
-
-        $user = $owner;
-        $GLOBALS['user'] = $owner;
-
         try {
+            // Login happens inside try so a throw during login can never
+            // skip the finally's restoreGlobalUser() and leak the fake session.
+            $this->loginAsTestUser($ownerUserId);
+
             $car = new Car($carId);
 
-            $isNotOwner = ((int) $user->data()->id !== (int) $car->data()->user_id);
+            // Read the global session, exactly as the production guard does.
+            $isNotOwner = ((int) $GLOBALS['user']->data()->id !== (int) $car->data()->user_id);
 
             $this->assertFalse($isNotOwner, 'Guard must allow the owner through');
         } finally {
-            $user = $originalUser;
-            $GLOBALS['user'] = $originalUser;
+            $this->restoreGlobalUser();
         }
     }
 }

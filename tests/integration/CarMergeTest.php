@@ -32,17 +32,7 @@ final class CarMergeTest extends IntegrationTestCase
         $this->testUserId = $this->createTestUser();
 
         // Set up authenticated user context for merge operations
-        global $user;
-        $user = new User();
-        $user->find($this->testUserId);
-
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
+        $this->loginAsTestUser($this->testUserId);
 
         // Create unique test cars for this test
         try {

@@ -36,17 +36,7 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         $this->testUserId = $this->createTestUser();
 
         // Set up authenticated user context for tests
-        global $user;
-        $user = new User();
-        $user->find($this->testUserId);
-
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
+        $this->loginAsTestUser($this->testUserId);
 
         // Create unique test car for this test
         try {
@@ -56,11 +46,6 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         } catch (RuntimeException $e) {
             $this->markTestSkipped('Could not create test car: ' . $e->getMessage());
         }
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
     }
 
     /**

@@ -55,15 +55,7 @@ final class CarsYearSmallintMigrationTest extends IntegrationTestCase
         $this->testUserId = $this->createTestUser();
 
         // Mirror the authenticated-user context required by Car::update() / Car::delete().
-        global $user;
-        $user = new User();
-        $user->find($this->testUserId);
-
-        $reflection     = new ReflectionClass($user);
-        $isLoggedInProp = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProp->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
+        $this->loginAsTestUser($this->testUserId);
 
         $this->localCarIds = [];
     }
