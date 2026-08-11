@@ -419,10 +419,10 @@ if (!class_exists('QueryResult')) {
 // same class the real dbInt() in custom_functions.php delegates to, so the
 // conversion logic itself can never drift between tiers; currentUserId()
 // below is still a hand-written duplicate (session-coupled — deliberately
-// not extracted, see TypeHelpersTest.php's docblock and #1599).
-// Partial exception to the "order is immaterial" note above: dbInt()'s
-// delegation only resolves correctly because nothing calls it before the
-// autoloader require later in this file.
+// not extracted, see TypeHelpersTest.php's docblock and #1599). Definition
+// order relative to the autoloader require below is immaterial here too —
+// PHP resolves \ElanRegistry\TypeHelpers when the function body *runs*, not
+// when it's defined, and this stub is never called before the require.
 if (!function_exists('dbInt')) {
     function dbInt(mixed $value, string $property = 'id'): int
     {
