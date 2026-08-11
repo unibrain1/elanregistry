@@ -29,13 +29,20 @@ use PHPUnit\Framework\TestCase;
  *   - VERSION file with surrounding whitespace (trim applied)
  *
  * Source code inspection tests verify that config.php wires up the resolver
- * correctly (the one thing that can't be verified behaviorally, since
- * config.php itself still can't be loaded standalone in this tier), plus one
- * AssetVersionResolver branch that's hard to trigger portably in PHPUnit.
- * These inspection tests guard only the exact substrings asserted — a
- * maintainer must keep the assertions tied to the literal statement being
- * verified (e.g. the full `define(...)` call, not just its parts appearing
+ * correctly — the one thing that can't be verified behaviorally, since
+ * config.php itself still can't be loaded standalone in this tier. These
+ * inspection tests guard only the exact substrings asserted — a maintainer
+ * must keep the assertions tied to the literal statement being verified
+ * (e.g. the full `define(...)` call, not just its parts appearing
  * independently anywhere in the file), or the guard becomes hollow.
+ *
+ * The file_get_contents()-fails branch (error_log() + 'dev' fallback) is
+ * exercised behaviorally via a custom stream wrapper (AvrUnreadableStream,
+ * declared below this class) rather than a real filesystem path — a
+ * directory or permission-denied file doesn't reliably make
+ * file_get_contents() return false across platforms/PHP versions (verified:
+ * a directory returns '' on this PHP version, not false), so no real path
+ * can portably drive that branch.
  *
  * @issue 1126
  * @issue 1598
@@ -176,29 +183,14 @@ class AssetVersionTest extends TestCase
     // -------------------------------------------------------------------
 
     /**
-     * config.php must define ASSET_VERSION. Removing or renaming the constant
-     * would silently break all asset URL cache-busting.
-     */
-    public function test_configPhp_definesAssetVersionConstant(): void
-    {
-        $configFile = dirname(__DIR__, 3) . '/usersc/includes/config.php';
-
-        $this->assertFileExists($configFile, 'config.php must exist at usersc/includes/config.php');
-
-        $content = (string) file_get_contents($configFile);
-
-        $this->assertStringContainsString(
-            "define('ASSET_VERSION'",
-            $content,
-            "config.php must define the ASSET_VERSION constant"
-        );
-    }
-
-    /**
      * config.php must define ASSET_VERSION directly from
      * AssetVersionResolver::resolve() rather than reimplementing the
-     * resolution logic inline. This is the one part of the contract that
-     * can't be verified behaviorally, since config.php itself still can't be
+     * resolution logic inline. Also covers config.php defining the
+     * ASSET_VERSION constant at all — a config.php that dropped the
+     * define() (or renamed the constant) would fail this same assertion,
+     * so a separate "defines the constant" test would be strictly weaker
+     * and redundant with this one. This is the one part of the contract
+     * that can't be verified behaviorally, since config.php itself still can't be
      * loaded standalone in the unit tier (see class docblock). The resolution
      * logic itself (file_exists/trim/allow-list/'dev' fallback) is covered
      * directly by the behavioral tests above, which call
@@ -228,6 +220,14 @@ class AssetVersionTest extends TestCase
      * it resolves to the project root on every environment. $abs_us_root alone
      * has no trailing slash, so omitting $us_url_root produces a broken path
      * (e.g. /var/www/htmlVERSION) and the constant always falls back to 'dev'.
+     *
+     * Asserts the exact concatenation statement rather than checking
+     * '$abs_us_root', '$us_url_root', and "'VERSION'" as three independent
+     * substrings — independent checks would still pass even if this line
+     * were deleted or rewritten, since $abs_us_root/$us_url_root are also
+     * used to build other constants earlier in the file and 'VERSION' could
+     * appear in a comment (the same hollow-guard failure mode the sibling
+     * inspection tests in this class guard against).
      */
     public function test_configPhp_buildsVersionFilePathFromAbsUsRootAndUsUrlRoot(): void
     {
@@ -235,19 +235,9 @@ class AssetVersionTest extends TestCase
         $content = (string) file_get_contents($configFile);
 
         $this->assertStringContainsString(
-            '$abs_us_root',
+            "\$_versionFile = \$abs_us_root . \$us_url_root . 'VERSION';",
             $content,
-            "ASSET_VERSION path must use \$abs_us_root"
-        );
-        $this->assertStringContainsString(
-            '$us_url_root',
-            $content,
-            "ASSET_VERSION path must include \$us_url_root as the directory separator between document root and 'VERSION'"
-        );
-        $this->assertStringContainsString(
-            "'VERSION'",
-            $content,
-            "config.php must reference the 'VERSION' filename"
+            "config.php must build the VERSION file path from \$abs_us_root . \$us_url_root . 'VERSION'"
         );
     }
 
@@ -328,28 +318,45 @@ class AssetVersionTest extends TestCase
     }
 
     /**
-     * AssetVersionResolver must log a warning via error_log() when
-     * file_get_contents() fails for an existing VERSION file. Silently
-     * falling back to 'dev' in that case would make deploy-hook failures
-     * invisible in server logs. This branch can't be triggered behaviorally
-     * in a portable unit test without risking a PHPUnit-converted-warning
-     * failure, so it's covered via source inspection instead.
+     * Drives resolve() through the file_get_contents() === false branch for
+     * real, using a stream wrapper whose stream_open() always refuses —
+     * file_exists() (backed by url_stat()) reports the path exists, but
+     * file_get_contents() genuinely returns false, unlike a directory path
+     * (which returns '' on this platform/PHP version, taking the *success*
+     * branch with empty content instead — verified directly; an earlier
+     * version of this test used a directory and was consequently hollow).
+     * Redirects error_log()'s destination via ini_set() so the real log
+     * side effect can be asserted, not just inspected as source text — this
+     * also catches the error_log() call being relocated to the wrong branch,
+     * which no string-inspection assertion can detect (proven by mutation:
+     * moving the call to the success branch left every literal-string
+     * assertion intact but fails this test's log-content assertion).
      */
-    public function test_assetVersionResolver_logsErrorWhenFileGetContentsFails(): void
+    public function test_assetVersionResolver_fileGetContentsFails_logsErrorAndReturnsDev(): void
     {
-        $resolverFile = dirname(__DIR__, 3) . '/usersc/classes/AssetVersionResolver.php';
-        $content = (string) file_get_contents($resolverFile);
+        if (!in_array('avrfail', stream_get_wrappers(), true)) {
+            stream_wrapper_register('avrfail', AvrUnreadableStream::class);
+        }
 
-        $this->assertStringContainsString(
-            'error_log(',
-            $content,
-            "AssetVersionResolver must call error_log() to make VERSION read failures visible in server logs"
-        );
-        $this->assertStringContainsString(
-            'ASSET_VERSION: file_get_contents',
-            $content,
-            "AssetVersionResolver error_log() message must identify the ASSET_VERSION context for diagnosability"
-        );
+        $logFile = sys_get_temp_dir() . '/AssetVersionTest_errorlog_' . uniqid() . '.log';
+        $previousErrorLog = ini_set('error_log', $logFile);
+
+        try {
+            $result = @AssetVersionResolver::resolve('avrfail://VERSION');
+
+            $this->assertSame('dev', $result);
+            $this->assertStringContainsString(
+                '[ElanRegistry] ASSET_VERSION: file_get_contents() failed for avrfail://VERSION',
+                (string) @file_get_contents($logFile),
+                "AssetVersionResolver must error_log() the ASSET_VERSION read failure so deploy-hook failures are visible in server logs"
+            );
+        } finally {
+            ini_set('error_log', $previousErrorLog);
+            stream_wrapper_unregister('avrfail');
+            if (file_exists($logFile)) {
+                unlink($logFile);
+            }
+        }
     }
 
     /**
@@ -364,5 +371,31 @@ class AssetVersionTest extends TestCase
         exec("php -l " . escapeshellarg($configFile), $output, $returnCode);
 
         $this->assertSame(0, $returnCode, 'config.php must pass PHP syntax check (php -l)');
+    }
+}
+
+/**
+ * Stream wrapper backing the 'avrfail://' protocol used by
+ * AssetVersionTest::test_assetVersionResolver_fileGetContentsFails_logsErrorAndReturnsDev().
+ * url_stat() reports the path exists (so file_exists() is true) but
+ * stream_open() always refuses (so file_get_contents() genuinely returns
+ * false) — the one combination a real filesystem path can't portably
+ * produce, which is why this test doesn't use a directory or a
+ * permission-denied file.
+ */
+final class AvrUnreadableStream
+{
+    /** @var resource|null */
+    public $context;
+
+    public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+    {
+        return false;
+    }
+
+    /** @return array<int|string, int> */
+    public function url_stat(string $path, int $flags): array
+    {
+        return ['mode' => 0100000, 'size' => 0];
     }
 }

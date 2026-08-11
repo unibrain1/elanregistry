@@ -15,6 +15,10 @@ namespace ElanRegistry;
  * VERSION file is tampered with; falling back to 'dev' covers absent,
  * empty, or invalid content (expected in dev/CI).
  *
+ * Uses error_log() rather than the project's logger() convention: this
+ * method runs from config.php during early bootstrap, before the DB
+ * connection logger() depends on is available.
+ *
  * @issue 1126
  * @issue 1598
  */
