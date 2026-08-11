@@ -59,11 +59,11 @@ final class CarImageLifecycleTest extends IntegrationTestCase
 
         // image => '' (not NULL) so the first CAS write's expectedJson baseline matches:
         // MySQL's `WHERE image = ''` never matches a NULL column.
-        try {
-            $this->testCarId = $this->createTestCar($this->testUserId, ['image' => '']);
-        } catch (RuntimeException $e) {
-            $this->markTestSkipped('Could not create test car: ' . $e->getMessage());
-        }
+        //
+        // No try/catch around this: requireDatabase() above already confirmed the DB is
+        // reachable, so a RuntimeException here means a real fixture/schema regression,
+        // not an environment issue — it must fail the test, not skip it silently.
+        $this->testCarId = $this->createTestCar($this->testUserId, ['image' => '']);
 
         // random_bytes(), not uniqid(): the directory name must not be guessable by
         // another local process racing to pre-create it as a symlink.
@@ -176,10 +176,12 @@ final class CarImageLifecycleTest extends IntegrationTestCase
         $this->assertSame(0, $remaining->count(), 'cars row must be gone after delete()');
 
         // Untracking skips tearDown's cleanup for this car, so the cars_hist row the
-        // DELETE trigger just wrote has to be removed here instead.
+        // DELETE trigger just wrote has to be removed here instead. Fails loudly, same
+        // as the `cars` verification above — untracking removes the only other
+        // safety net for this row, so a failure here can't be allowed to pass silently.
         $histCleanup = $this->db->query('DELETE FROM cars_hist WHERE car_id = ?', [$this->testCarId]);
         if ($histCleanup->error()) {
-            fwrite(STDERR, "NOTE: failed to clean up cars_hist for car {$this->testCarId}: {$histCleanup->errorString()}\n");
+            $this->fail("Failed to clean up cars_hist for car {$this->testCarId}: " . $histCleanup->errorString());
         }
         $this->untrackCarId($this->testCarId);
 
@@ -237,7 +239,9 @@ final class CarImageLifecycleTest extends IntegrationTestCase
         if ($stored->error()) {
             $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
         }
-        $this->assertSame('', $stored->first()->image, 'Removing the only image must leave the empty-list sentinel');
+        $row = $stored->first();
+        $this->assertIsObject($row);
+        $this->assertSame('', $row->image, 'Removing the only image must leave the empty-list sentinel');
 
         // KNOWN GAP: CarImageProcessor::removeImage() only updates the DB — it never
         // unlinks the file it just dropped from the JSON list. Same underlying bug as
@@ -346,14 +350,16 @@ final class CarImageLifecycleTest extends IntegrationTestCase
         $files = array_diff(scandir($dir) ?: [], ['.', '..']);
         foreach ($files as $file) {
             $path = $dir . '/' . $file;
-            if (is_link($path)) {
-                unlink($path);
-            } elseif (is_dir($path)) {
-                $this->recursiveRemoveDirectory($path);
+            if (is_link($path) || !is_dir($path)) {
+                if (!unlink($path)) {
+                    fwrite(STDERR, "NOTE: tearDown() failed to unlink {$path}\n");
+                }
             } else {
-                unlink($path);
+                $this->recursiveRemoveDirectory($path);
             }
         }
-        rmdir($dir);
+        if (!rmdir($dir)) {
+            fwrite(STDERR, "NOTE: tearDown() failed to remove directory {$dir}\n");
+        }
     }
 }

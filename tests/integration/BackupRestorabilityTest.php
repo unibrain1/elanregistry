@@ -27,7 +27,16 @@ if (!defined('BACKUP_BASE_DIR')) {
 }
 
 /**
- * Integration tests proving a BackupManager dump is actually restorable.
+ * Integration tests proving a BackupManager dump is well-formed, executable SQL
+ * that round-trips real data byte-for-byte through addslashes() escaping.
+ *
+ * Nothing in this codebase currently calls UserSpice's importSQL() (or any other
+ * restore mechanism) against a BackupManager dump — there is no production
+ * restore path today. What this proves is that the dump itself is faithful and
+ * mechanically replayable (real DROP/CREATE/INSERT, real MySQL parsing, real
+ * row-for-row parity), which is the prerequisite for any restore mechanism to
+ * work, not a guarantee that the specific mechanism an admin would reach for
+ * (importSQL(), the mysql CLI, etc.) already handles it correctly.
  *
  * The existing unit tests only assert that a dump file is written and looks like SQL.
  * These tests execute the dump for real and compare the restored rows against an
@@ -80,12 +89,14 @@ final class BackupRestorabilityTest extends IntegrationTestCase
 
         $this->testUserId = $this->createTestUser();
 
-        // Values chosen to exercise generateTableDump()'s addslashes() escaping.
-        // Single-line only: the dump has no statement delimiter beyond the trailing
-        // semicolon, so an embedded newline would split one INSERT across lines.
+        // Values chosen to exercise generateTableDump()'s addslashes() escaping,
+        // including an embedded newline + mid-value semicolon in `comments` —
+        // exactly the case executeSqlStatements()'s quote-aware parser exists to
+        // handle correctly (a naive "line ends in ;" split would truncate this
+        // value mid-INSERT).
         $this->testCarId = $this->createTestCar($this->testUserId, [
             'color'    => "O'Brien Green",
-            'comments' => "Round-trip fixture: apostrophe ' backslash \\ quote \" percent %",
+            'comments' => "Round-trip fixture: apostrophe ' backslash \\ quote \" percent %\nline two; still one value\nline three",
         ]);
 
         $this->backupManager = new BackupManager($this->db, $this->backupBaseDir, $this->testUserId);
@@ -97,7 +108,7 @@ final class BackupRestorabilityTest extends IntegrationTestCase
         if ($this->isDatabaseConnected()) {
             foreach ($this->scratchTables as $scratchTable) {
                 // Identifiers cannot be bound as parameters; these names are built from a
-                // hardcoded prefix plus uniqid(), never from external input.
+                // hardcoded prefix plus random_bytes(), never from external input.
                 $this->db->query("DROP TABLE IF EXISTS `{$scratchTable}`");
                 if ($this->db->error()) {
                     // Never let cleanup mask the original failure, but a silent swallow would
@@ -139,8 +150,9 @@ final class BackupRestorabilityTest extends IntegrationTestCase
         $this->assertGreaterThan(0, filesize($backupPath));
 
         // The dump contains the whole users table (password hashes included).
-        // BackupManager writes it 0644 by default; tighten it for the remainder of
-        // this test's lifetime, same reasoning as the 0700 backupBaseDir above.
+        // BackupManager writes it via file_put_contents() with no explicit chmod, so it
+        // lands at the OS umask default (typically 0644) — tighten it explicitly for the
+        // remainder of this test's lifetime, same reasoning as the 0700 backupBaseDir above.
         chmod($backupPath, 0600);
 
         $integrity = $this->backupManager->verifyBackupIntegrity($backupPath);
@@ -172,8 +184,11 @@ final class BackupRestorabilityTest extends IntegrationTestCase
         );
         $this->assertIsString($rewritten, 'Table-name rewrite regex failed');
         // At minimum, DROP + CREATE for each table must have matched; INSERT count varies
-        // with fixture row count. A count of 0 means the rewrite silently no-op'd, which
-        // would otherwise mean the next step executes DROP/CREATE against the live tables.
+        // with fixture row count. This is a fail-fast, precisely-diagnosable check — the
+        // separate whitelist guard in executeSqlStatements() is what actually prevents a
+        // silent no-op rewrite from reaching the live tables; this assertion exists so a
+        // regression is caught right here, with a clear message, rather than surfacing
+        // later as a less obvious failure inside statement execution.
         $this->assertGreaterThanOrEqual(
             4,
             $rewriteCount,
@@ -188,10 +203,12 @@ final class BackupRestorabilityTest extends IntegrationTestCase
         $this->assertNotEmpty($restoredUser, "Fixture user {$this->testUserId} was not restored into {$usersScratch}");
         $this->assertNotEmpty($restoredCar, "Fixture car {$this->testCarId} was not restored into {$carsScratch}");
 
-        // Full-row equality: addslashes() escaping could corrupt a single field while the
-        // rest still match, so a subset comparison would miss it.
-        $this->assertEquals($userSnapshot, $restoredUser, 'Restored user row differs from the pre-backup snapshot');
-        $this->assertEquals($carSnapshot, $restoredCar, 'Restored car row differs from the pre-backup snapshot');
+        // Full-row, type-strict equality: addslashes() escaping could corrupt a single
+        // field while the rest still match, so a subset comparison would miss it, and
+        // assertSame (not assertEquals) means a numeric-string mismatch like '1e3' vs
+        // '1000' fails instead of comparing equal.
+        $this->assertSame($userSnapshot, $restoredUser, 'Restored user row differs from the pre-backup snapshot');
+        $this->assertSame($carSnapshot, $restoredCar, 'Restored car row differs from the pre-backup snapshot');
 
         // Self-consistency only: the live tables can receive concurrent writes from other
         // tests, so the dump's own claimed row count is the only valid comparison.
@@ -234,11 +251,15 @@ final class BackupRestorabilityTest extends IntegrationTestCase
     /**
      * Execute a dump's statements one at a time against the real database.
      *
-     * Mirrors importSqlFile()'s accumulate-until-semicolon parsing, but reads from an
-     * in-memory string and checks error() after every statement. DB::query() never throws
-     * on an execute failure, and importSqlFile() only returns a bare false, so this
-     * reports the exact statement that failed instead of leaving a half-restored table
-     * to be diagnosed from a downstream assertion.
+     * Mirrors the accumulate-until-semicolon parsing UserSpice's own importSQL()
+     * helper uses (users/helpers/us_helpers.php), but reads from an in-memory
+     * string, tracks single-quote state so a `;` inside an addslashes()-escaped
+     * row value doesn't falsely end a statement (importSQL() has this same bug —
+     * it isn't reused here specifically to avoid inheriting it), and checks
+     * error() after every statement — importSQL() returns void and reports
+     * nothing on failure, so this method exists to surface exactly which
+     * statement failed instead of leaving a half-restored table to be
+     * diagnosed from a downstream assertion.
      *
      * Structural safety net: refuses to run any DROP/CREATE/INSERT statement that doesn't
      * target one of $this->scratchTables, regardless of what the caller's rewrite produced.
@@ -252,43 +273,88 @@ final class BackupRestorabilityTest extends IntegrationTestCase
     private function executeSqlStatements(string $sql): void
     {
         $statement = '';
+        $inString = false;
 
         foreach (preg_split('/\R/', $sql) ?: [] as $line) {
             $trimmed = trim($line);
 
-            // Blank lines and comments are skipped only between statements — a multi-line
-            // CREATE TABLE body must be accumulated exactly as written.
-            if ($statement === '' && ($trimmed === '' || str_starts_with($trimmed, '--'))) {
+            // Blank lines and comments are skipped only between statements (never mid-string) —
+            // a multi-line CREATE TABLE body, or a row value containing an embedded newline,
+            // must be accumulated exactly as written.
+            if ($statement === '' && !$inString && ($trimmed === '' || str_starts_with($trimmed, '--'))) {
                 continue;
             }
 
             $statement .= $line . "\n";
+            $inString = $this->stringStateAfterLine($line, $inString);
 
-            if (!str_ends_with($trimmed, ';')) {
+            // A `;` inside an open string (e.g. "...;\n" embedded in a comments field)
+            // must not end the statement — only a `;` outside any string literal does.
+            if ($inString || !str_ends_with($trimmed, ';')) {
                 continue;
             }
 
-            if (
-                preg_match('/^(?:DROP TABLE(?: IF EXISTS)?|CREATE TABLE|INSERT INTO) `([^`]+)`/', $statement, $matches)
-                && !in_array($matches[1], $this->scratchTables, true)
-            ) {
-                $this->fail(
-                    "Refusing to execute a restore statement targeting non-scratch table `{$matches[1]}` "
-                    . '— the table-name rewrite must have missed this statement.'
-                );
-            }
-
-            $this->db->query($statement);
-            if ($this->db->error()) {
-                // Truncated: the statement can be a full row (password hash, email, etc.
-                // for `users`) and this message is written to CI logs.
-                $preview = substr(preg_replace('/\s+/', ' ', $statement) ?? $statement, 0, 120);
-                $this->fail(
-                    "Restore statement failed: {$this->db->errorString()}\nStatement (truncated): {$preview}…"
-                );
-            }
-
+            $this->executeOneStatement($statement);
             $statement = '';
+        }
+
+        $this->assertSame('', trim($statement), 'Dump ended with an incomplete statement (no closing semicolon)');
+    }
+
+    /**
+     * Track whether $line leaves the parser inside an open single-quoted string,
+     * given the state before this line. addslashes() escapes both `'` and `\`
+     * with a leading backslash, so a quote preceded by an odd run of backslashes
+     * is escaped and doesn't toggle string state.
+     *
+     * @param string $line Raw dump line (no trailing newline)
+     * @param bool $inString Whether a string literal was already open before $line
+     * @return bool Whether a string literal is open after $line
+     */
+    private function stringStateAfterLine(string $line, bool $inString): bool
+    {
+        $backslashRun = 0;
+
+        foreach (str_split($line) as $char) {
+            if ($char === '\\') {
+                $backslashRun++;
+                continue;
+            }
+            if ($char === "'" && $backslashRun % 2 === 0) {
+                $inString = !$inString;
+            }
+            $backslashRun = 0;
+        }
+
+        return $inString;
+    }
+
+    /**
+     * Whitelist-check and execute one complete SQL statement.
+     *
+     * @param string $statement A single statement, including its trailing `;`
+     * @return void
+     */
+    private function executeOneStatement(string $statement): void
+    {
+        if (
+            preg_match('/^(?:DROP TABLE(?: IF EXISTS)?|CREATE TABLE|INSERT INTO) `([^`]+)`/', $statement, $matches)
+            && !in_array($matches[1], $this->scratchTables, true)
+        ) {
+            $this->fail(
+                "Refusing to execute a restore statement targeting non-scratch table `{$matches[1]}` "
+                . '— the table-name rewrite must have missed this statement.'
+            );
+        }
+
+        $this->db->query($statement);
+        if ($this->db->error()) {
+            // Truncated: the statement can be a full row (password hash, email, etc.
+            // for `users`) and this message is written to CI logs.
+            $preview = substr(preg_replace('/\s+/', ' ', $statement) ?? $statement, 0, 120);
+            $this->fail(
+                "Restore statement failed: {$this->db->errorString()}\nStatement (truncated): {$preview}…"
+            );
         }
     }
 
@@ -341,14 +407,16 @@ final class BackupRestorabilityTest extends IntegrationTestCase
         $files = array_diff(scandir($dir) ?: [], ['.', '..']);
         foreach ($files as $file) {
             $path = $dir . '/' . $file;
-            if (is_link($path)) {
-                unlink($path);
-            } elseif (is_dir($path)) {
-                $this->recursiveRemoveDirectory($path);
+            if (is_link($path) || !is_dir($path)) {
+                if (!unlink($path)) {
+                    fwrite(STDERR, "NOTE: tearDown() failed to unlink {$path}\n");
+                }
             } else {
-                unlink($path);
+                $this->recursiveRemoveDirectory($path);
             }
         }
-        rmdir($dir);
+        if (!rmdir($dir)) {
+            fwrite(STDERR, "NOTE: tearDown() failed to remove directory {$dir}\n");
+        }
     }
 }
