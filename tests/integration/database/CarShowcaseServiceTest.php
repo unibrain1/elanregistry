@@ -16,9 +16,12 @@ use PHPUnit\Framework\Attributes\Group;
  * - Every item in the pool carries the expected scalar fields
  * - The `is_new` property is present and typed as bool on every item
  *
- * Requires a live database connection. Tests are skipped gracefully when
- * the connection is unavailable or when the database contains no eligible
- * cars (cars with a non-empty, valid JSON `image` column).
+ * Requires a live database connection (tests are skipped gracefully when
+ * unavailable). Every other precondition — at least one image-eligible car,
+ * a controlled top-5-by-recency ordering — is established by the tests
+ * themselves via createShowcaseEligibleCar() / neutralizeAmbientCarTimestamps(),
+ * not assumed from ambient database state; a test is responsible for the data
+ * it needs, not for skipping when the database doesn't happen to already have it.
  */
 #[Group('integration')]
 final class CarShowcaseServiceTest extends IntegrationTestCase
@@ -27,6 +30,68 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
     {
         parent::setUp();
         $this->requireDatabase();
+    }
+
+    /**
+     * Create a fixture car with a minimal valid image payload, so it's eligible
+     * for buildShowcasePool()'s IMAGE_CONDITION. Cleaned up by tearDown() like
+     * any other createTestCar() row.
+     *
+     * @return int The created car's id
+     */
+    private function createShowcaseEligibleCar(): int
+    {
+        $userId = $this->createTestUser();
+        $carId = $this->createTestCar($userId);
+
+        $imageJson = json_encode([[
+            'path' => '/userimages/cars/test-showcase-fixture-' . $carId . '.jpg',
+            'name' => 'test-showcase-fixture-' . $carId . '.jpg',
+        ]]);
+        $this->db->query('UPDATE cars SET image = ? WHERE id = ?', [$imageJson, $carId]);
+
+        return $carId;
+    }
+
+    /**
+     * Temporarily push every existing car's ctime far into the past, so this
+     * test's own fixtures deterministically dominate getNewCarIds()'s global
+     * top-5 floor regardless of what other tests (or a prior run's leaked
+     * fixtures) may have left in the shared schema. Must always be paired with
+     * restoreAmbientCarTimestamps() in a finally block — this is a temporary
+     * probe of shared state, never a permanent mutation of another test's data.
+     *
+     * @return array<int, string> Map of car id => original ctime, for restoration
+     */
+    private function neutralizeAmbientCarTimestamps(): array
+    {
+        $this->db->query('SELECT id, ctime FROM cars');
+        $snapshot = [];
+        foreach ($this->db->results() as $row) {
+            $snapshot[(int) $row->id] = $row->ctime;
+        }
+
+        if ($snapshot !== []) {
+            $this->db->query(
+                'UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 3650 DAY) WHERE id IN (' .
+                implode(',', array_keys($snapshot)) . ')'
+            );
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * Restore ctimes captured by neutralizeAmbientCarTimestamps().
+     *
+     * @param array<int, string> $snapshot Map of car id => original ctime
+     * @return void
+     */
+    private function restoreAmbientCarTimestamps(array $snapshot): void
+    {
+        foreach ($snapshot as $id => $ctime) {
+            $this->db->query('UPDATE cars SET ctime = ? WHERE id = ?', [$ctime, $id]);
+        }
     }
 
     /**
@@ -54,12 +119,11 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      */
     public function testBuildShowcasePoolItemsHaveIsNewProperty(): void
     {
+        $this->createShowcaseEligibleCar();
+
         $pool = CarShowcaseService::buildShowcasePool($this->db);
 
-        if (empty($pool)) {
-            $this->markTestSkipped('No cars with images in test database — is_new check skipped.');
-        }
-
+        $this->assertNotEmpty($pool, 'Pool must be non-empty once at least one image-eligible car exists');
         foreach ($pool as $car) {
             $this->assertObjectHasProperty('is_new', $car);
             $this->assertIsBool($car->is_new);
@@ -71,12 +135,11 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      */
     public function testBuildShowcasePoolItemsHaveRequiredFields(): void
     {
+        $this->createShowcaseEligibleCar();
+
         $pool = CarShowcaseService::buildShowcasePool($this->db);
 
-        if (empty($pool)) {
-            $this->markTestSkipped('No cars with images in test database — required-fields check skipped.');
-        }
-
+        $this->assertNotEmpty($pool, 'Pool must be non-empty once at least one image-eligible car exists');
         $car = $pool[0];
         $this->assertObjectHasProperty('id', $car);
         $this->assertObjectHasProperty('year', $car);
@@ -220,44 +283,41 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      * A car outside the 90-day window but among the top-5 most-recently-added
      * must still be included — the floor guarantee fires.
      *
-     * Requires a database with no cars added within the last 91 days (other than
-     * fixture cars), so the fixture cars occupy the global top-5 positions. Skips
-     * on populated databases where production cars hold those slots.
+     * Neutralizes ambient cars' ctime for the test's duration (restored in
+     * finally) so this test's own fixtures deterministically occupy the global
+     * top-5 positions, regardless of what other tests or a prior run's leaked
+     * fixtures may have left in the shared schema.
      */
     public function testGetNewCarIdsFloorIncludesOldCarInTopFive(): void
     {
-        $this->db->query('SELECT COUNT(*) AS cnt FROM cars WHERE ctime > DATE_SUB(NOW(), INTERVAL 91 DAY)');
-        $recentCount = (int) ($this->db->results()[0]->cnt ?? 0);
-        if ($recentCount > 0) {
-            $this->markTestSkipped(
-                "Floor-inclusion test requires zero pre-existing cars with ctime within 91 days; " .
-                "found {$recentCount}. Run against an empty test database."
+        $ambientSnapshot = $this->neutralizeAmbientCarTimestamps();
+        try {
+            $userId = $this->createTestUser();
+            $carIds = [];
+            for ($i = 0; $i < 6; $i++) {
+                $carIds[] = $this->createTestCar($userId);
+            }
+
+            $this->db->query(
+                'UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id IN (' .
+                implode(',', array_map('intval', $carIds)) . ')'
             );
+
+            sort($carIds);
+            // 6 cars, equal ctimes — top-5 by id DESC = the 5 highest IDs (indices 1–5).
+            // The second-lowest ID is at position 5 of 6 and must be included via the floor.
+            $fifthNewestId = $carIds[1];
+
+            $ids = CarShowcaseService::getNewCarIds($this->db);
+
+            $this->assertContains(
+                $fifthNewestId,
+                $ids,
+                'Car at position 5 of 6 by id DESC must be included via the floor guarantee even when older than 90 days'
+            );
+        } finally {
+            $this->restoreAmbientCarTimestamps($ambientSnapshot);
         }
-
-        $userId = $this->createTestUser();
-        $carIds = [];
-        for ($i = 0; $i < 6; $i++) {
-            $carIds[] = $this->createTestCar($userId);
-        }
-
-        $this->db->query(
-            'UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id IN (' .
-            implode(',', array_map('intval', $carIds)) . ')'
-        );
-
-        sort($carIds);
-        // 6 cars, equal ctimes — top-5 by id DESC = the 5 highest IDs (indices 1–5).
-        // The second-lowest ID is at position 5 of 6 and must be included via the floor.
-        $fifthNewestId = $carIds[1];
-
-        $ids = CarShowcaseService::getNewCarIds($this->db);
-
-        $this->assertContains(
-            $fifthNewestId,
-            $ids,
-            'Car at position 5 of 6 by id DESC must be included via the floor guarantee even when older than 90 days'
-        );
     }
 
     /**
@@ -266,45 +326,41 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      * Six cars with identical ctimes 91 days ago: the 5 with highest IDs must be
      * included (floor) and the lowest-ID car must be excluded (position 6 of 6).
      *
-     * Requires an empty test database for the same reason as the floor-inclusion
-     * test above — production cars with recent ctimes would occupy the top-5.
+     * Neutralizes ambient cars' ctime for the same reason as the floor-inclusion
+     * test above — restored in finally.
      */
     public function testGetNewCarIdsTieBrokenByIdDesc(): void
     {
-        $this->db->query('SELECT COUNT(*) AS cnt FROM cars WHERE ctime > DATE_SUB(NOW(), INTERVAL 91 DAY)');
-        $recentCount = (int) ($this->db->results()[0]->cnt ?? 0);
-        if ($recentCount > 0) {
-            $this->markTestSkipped(
-                "Tie-breaking test requires zero pre-existing cars with ctime within 91 days; " .
-                "found {$recentCount}. Run against an empty test database."
+        $ambientSnapshot = $this->neutralizeAmbientCarTimestamps();
+        try {
+            $userId = $this->createTestUser();
+            $carIds = [];
+            for ($i = 0; $i < 6; $i++) {
+                $carIds[] = $this->createTestCar($userId);
+            }
+
+            // Identical ctime for all six — tie-breaking is purely by id DESC.
+            $this->db->query(
+                "UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id IN (" .
+                implode(',', array_map('intval', $carIds)) . ')'
             );
-        }
 
-        $userId = $this->createTestUser();
-        $carIds = [];
-        for ($i = 0; $i < 6; $i++) {
-            $carIds[] = $this->createTestCar($userId);
-        }
+            sort($carIds);
+            $lowestId   = $carIds[0];                 // Position 6 of 6 by id DESC — must be excluded
+            $topFiveIds = array_slice($carIds, 1);    // Positions 1–5 by id DESC — must be included
 
-        // Identical ctime for all six — tie-breaking is purely by id DESC.
-        $this->db->query(
-            "UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id IN (" .
-            implode(',', array_map('intval', $carIds)) . ')'
-        );
+            $ids = CarShowcaseService::getNewCarIds($this->db);
 
-        sort($carIds);
-        $lowestId   = $carIds[0];                 // Position 6 of 6 by id DESC — must be excluded
-        $topFiveIds = array_slice($carIds, 1);    // Positions 1–5 by id DESC — must be included
-
-        $ids = CarShowcaseService::getNewCarIds($this->db);
-
-        $this->assertNotContains(
-            $lowestId,
-            $ids,
-            'Car with the lowest id must be excluded (position 6 of 6) when all six share the same ctime'
-        );
-        foreach ($topFiveIds as $id) {
-            $this->assertContains($id, $ids, "Car id={$id} (top-5 by id DESC) must be included via the floor guarantee");
+            $this->assertNotContains(
+                $lowestId,
+                $ids,
+                'Car with the lowest id must be excluded (position 6 of 6) when all six share the same ctime'
+            );
+            foreach ($topFiveIds as $id) {
+                $this->assertContains($id, $ids, "Car id={$id} (top-5 by id DESC) must be included via the floor guarantee");
+            }
+        } finally {
+            $this->restoreAmbientCarTimestamps($ambientSnapshot);
         }
     }
 }
