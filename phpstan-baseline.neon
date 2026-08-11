@@ -271,12 +271,6 @@ parameters:
 			path: tests/integration/CarDataTablesTest.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 7
-			path: tests/integration/CarTransferTest.php
-
-		-
 			message: '#^Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects class\-string\<Server\>\|Server, string given\.$#'
 			identifier: argument.type
 			count: 1
