@@ -16,9 +16,12 @@ use PHPUnit\Framework\Attributes\Group;
  * - Every item in the pool carries the expected scalar fields
  * - The `is_new` property is present and typed as bool on every item
  *
- * Requires a live database connection. Tests are skipped gracefully when
- * the connection is unavailable or when the database contains no eligible
- * cars (cars with a non-empty, valid JSON `image` column).
+ * Requires a live database connection (tests are skipped gracefully when
+ * unavailable). Every other precondition — at least one image-eligible car,
+ * a controlled top-5-by-recency ordering — is established by the tests
+ * themselves via createShowcaseEligibleCar() / clearAmbientCars(), not assumed
+ * from ambient database state; a test is responsible for the data it needs,
+ * not for skipping when the database doesn't happen to already have it.
  */
 #[Group('integration')]
 final class CarShowcaseServiceTest extends IntegrationTestCase
@@ -27,6 +30,83 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
     {
         parent::setUp();
         $this->requireDatabase();
+    }
+
+    /**
+     * Create a fixture car with a minimal valid image payload, so it's eligible
+     * for buildShowcasePool()'s IMAGE_CONDITION. Cleaned up by tearDown() like
+     * any other createTestCar() row.
+     *
+     * `cars.image` is a JSON array of bare filenames (CLAUDE.md) — not an array
+     * of {path,name} objects, which IMAGE_CONDITION's JSON_VALID()/JSON_LENGTH()
+     * checks would accept but no production code ever writes.
+     *
+     * @return int The created car's id
+     */
+    private function createShowcaseEligibleCar(): int
+    {
+        $userId = $this->createTestUser();
+        $carId = $this->createTestCar($userId);
+
+        $imageJson = json_encode(['img_' . bin2hex(random_bytes(16)) . '.jpg']);
+        $update = $this->db->query('UPDATE cars SET image = ? WHERE id = ?', [$imageJson, $carId]);
+        if ($update->error()) {
+            $this->fail("Failed to set fixture image for car {$carId}: " . $update->errorString());
+        }
+
+        return $carId;
+    }
+
+    /**
+     * Delete any pre-existing `cars` rows (and their car_transfer_requests /
+     * cars_hist rows) before establishing this test's own fixtures.
+     *
+     * getNewCarIds() ranks the WHOLE cars table with no per-test scoping, so
+     * proving floor/tie-break behavior deterministically requires a known
+     * starting point. Any row present here is, by construction of this schema
+     * (never seeded with cars, never production data — see
+     * tests/bootstrap-integration.php's hard guard against the dev database),
+     * leaked debris from an earlier test run whose own cleanup didn't complete
+     * (e.g. a killed process) — safe and correct to delete outright rather than
+     * mutate-and-restore: deleting genuine debris has no "original state" to
+     * preserve, unlike an earlier version of this helper that temporarily
+     * backdated ambient ctimes and tried to restore them, which left `mtime`
+     * permanently rewritten (ON UPDATE CURRENT_TIMESTAMP) and orphaned
+     * cars_hist audit rows behind on every run.
+     *
+     * @return void
+     */
+    private function clearAmbientCars(): void
+    {
+        $result = $this->db->query('SELECT id FROM cars');
+        if ($result->error()) {
+            $this->fail('Failed to query ambient cars: ' . $result->errorString());
+        }
+
+        $ids = array_map(fn($row) => (int) $row->id, $result->results());
+        if ($ids === []) {
+            return;
+        }
+        $idList = implode(',', $ids);
+
+        $delTransfers = $this->db->query("DELETE FROM car_transfer_requests WHERE existing_car_id IN ({$idList})");
+        if ($delTransfers->error()) {
+            $this->fail('Failed to delete ambient car_transfer_requests rows: ' . $delTransfers->errorString());
+        }
+
+        $delCars = $this->db->query("DELETE FROM cars WHERE id IN ({$idList})");
+        if ($delCars->error()) {
+            $this->fail('Failed to delete ambient cars: ' . $delCars->errorString());
+        }
+
+        // The cars_delete trigger just wrote fresh audit rows for the deletions
+        // above, on top of whatever history the leaked rows already had — clean
+        // up both in one pass, after the cars delete (not before), so the
+        // trigger-written rows are included.
+        $delHist = $this->db->query("DELETE FROM cars_hist WHERE car_id IN ({$idList})");
+        if ($delHist->error()) {
+            $this->fail('Failed to delete ambient cars_hist rows: ' . $delHist->errorString());
+        }
     }
 
     /**
@@ -54,12 +134,11 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      */
     public function testBuildShowcasePoolItemsHaveIsNewProperty(): void
     {
+        $this->createShowcaseEligibleCar();
+
         $pool = CarShowcaseService::buildShowcasePool($this->db);
 
-        if (empty($pool)) {
-            $this->markTestSkipped('No cars with images in test database — is_new check skipped.');
-        }
-
+        $this->assertNotEmpty($pool, 'Pool must be non-empty once at least one image-eligible car exists');
         foreach ($pool as $car) {
             $this->assertObjectHasProperty('is_new', $car);
             $this->assertIsBool($car->is_new);
@@ -71,12 +150,11 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      */
     public function testBuildShowcasePoolItemsHaveRequiredFields(): void
     {
+        $this->createShowcaseEligibleCar();
+
         $pool = CarShowcaseService::buildShowcasePool($this->db);
 
-        if (empty($pool)) {
-            $this->markTestSkipped('No cars with images in test database — required-fields check skipped.');
-        }
-
+        $this->assertNotEmpty($pool, 'Pool must be non-empty once at least one image-eligible car exists');
         $car = $pool[0];
         $this->assertObjectHasProperty('id', $car);
         $this->assertObjectHasProperty('year', $car);
@@ -97,18 +175,16 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
     {
         $userId = $this->createTestUser();
 
-        // Minimal valid JSON image array that passes the SQL image conditions
-        $imageJson = json_encode([[
-            'path' => '/userimages/cars/test-showcase-fixture.jpg',
-            'name' => 'test-showcase-fixture.jpg',
-        ]]);
+        // cars.image is a JSON array of bare filenames (CLAUDE.md) — one shared
+        // filename is fine here since the test only cares about pool cap/uniqueness.
+        $imageJson = json_encode(['img_test_showcase_fixture.jpg']);
 
         for ($i = 0; $i < 13; $i++) {
             $carId = $this->createTestCar($userId);
-            $this->db->query(
-                'UPDATE cars SET image = ? WHERE id = ?',
-                [$imageJson, $carId]
-            );
+            $update = $this->db->query('UPDATE cars SET image = ? WHERE id = ?', [$imageJson, $carId]);
+            if ($update->error()) {
+                $this->fail("Failed to set fixture image for car {$carId}: " . $update->errorString());
+            }
         }
 
         $pool = CarShowcaseService::buildShowcasePool($this->db);
@@ -129,15 +205,15 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
     {
         $userId = $this->createTestUser();
 
-        $imageJson = json_encode([[
-            'path' => '/userimages/cars/test-is-new.jpg',
-            'name' => 'test-is-new.jpg',
-        ]]);
+        $imageJson = json_encode(['img_test_is_new.jpg']);
 
         $fixtureIds = [];
         for ($i = 0; $i < 13; $i++) {
             $carId = $this->createTestCar($userId);
-            $this->db->query('UPDATE cars SET image = ? WHERE id = ?', [$imageJson, $carId]);
+            $update = $this->db->query('UPDATE cars SET image = ? WHERE id = ?', [$imageJson, $carId]);
+            if ($update->error()) {
+                $this->fail("Failed to set fixture image for car {$carId}: " . $update->errorString());
+            }
             $fixtureIds[] = $carId;
         }
 
@@ -205,7 +281,10 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
         }
 
         $carId = $this->createTestCar($userId);
-        $this->db->query('UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id = ?', [$carId]);
+        $backdate = $this->db->query('UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id = ?', [$carId]);
+        if ($backdate->error()) {
+            $this->fail("Failed to backdate fixture car {$carId}: " . $backdate->errorString());
+        }
 
         $ids = CarShowcaseService::getNewCarIds($this->db);
 
@@ -220,20 +299,13 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      * A car outside the 90-day window but among the top-5 most-recently-added
      * must still be included — the floor guarantee fires.
      *
-     * Requires a database with no cars added within the last 91 days (other than
-     * fixture cars), so the fixture cars occupy the global top-5 positions. Skips
-     * on populated databases where production cars hold those slots.
+     * Deletes ambient cars first (see clearAmbientCars()) so this test's own
+     * fixtures deterministically occupy the global top-5 positions, regardless
+     * of what a prior run's leaked fixtures may have left in the shared schema.
      */
     public function testGetNewCarIdsFloorIncludesOldCarInTopFive(): void
     {
-        $this->db->query('SELECT COUNT(*) AS cnt FROM cars WHERE ctime > DATE_SUB(NOW(), INTERVAL 91 DAY)');
-        $recentCount = (int) ($this->db->results()[0]->cnt ?? 0);
-        if ($recentCount > 0) {
-            $this->markTestSkipped(
-                "Floor-inclusion test requires zero pre-existing cars with ctime within 91 days; " .
-                "found {$recentCount}. Run against an empty test database."
-            );
-        }
+        $this->clearAmbientCars();
 
         $userId = $this->createTestUser();
         $carIds = [];
@@ -241,10 +313,13 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
             $carIds[] = $this->createTestCar($userId);
         }
 
-        $this->db->query(
+        $backdate = $this->db->query(
             'UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id IN (' .
             implode(',', array_map('intval', $carIds)) . ')'
         );
+        if ($backdate->error()) {
+            $this->fail('Failed to backdate fixture cars: ' . $backdate->errorString());
+        }
 
         sort($carIds);
         // 6 cars, equal ctimes — top-5 by id DESC = the 5 highest IDs (indices 1–5).
@@ -266,19 +341,12 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      * Six cars with identical ctimes 91 days ago: the 5 with highest IDs must be
      * included (floor) and the lowest-ID car must be excluded (position 6 of 6).
      *
-     * Requires an empty test database for the same reason as the floor-inclusion
-     * test above — production cars with recent ctimes would occupy the top-5.
+     * Deletes ambient cars first for the same reason as the floor-inclusion
+     * test above.
      */
     public function testGetNewCarIdsTieBrokenByIdDesc(): void
     {
-        $this->db->query('SELECT COUNT(*) AS cnt FROM cars WHERE ctime > DATE_SUB(NOW(), INTERVAL 91 DAY)');
-        $recentCount = (int) ($this->db->results()[0]->cnt ?? 0);
-        if ($recentCount > 0) {
-            $this->markTestSkipped(
-                "Tie-breaking test requires zero pre-existing cars with ctime within 91 days; " .
-                "found {$recentCount}. Run against an empty test database."
-            );
-        }
+        $this->clearAmbientCars();
 
         $userId = $this->createTestUser();
         $carIds = [];
@@ -287,10 +355,13 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
         }
 
         // Identical ctime for all six — tie-breaking is purely by id DESC.
-        $this->db->query(
+        $backdate = $this->db->query(
             "UPDATE cars SET ctime = DATE_SUB(NOW(), INTERVAL 91 DAY) WHERE id IN (" .
             implode(',', array_map('intval', $carIds)) . ')'
         );
+        if ($backdate->error()) {
+            $this->fail('Failed to backdate fixture cars: ' . $backdate->errorString());
+        }
 
         sort($carIds);
         $lowestId   = $carIds[0];                 // Position 6 of 6 by id DESC — must be excluded
