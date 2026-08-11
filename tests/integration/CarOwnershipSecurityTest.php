@@ -68,8 +68,6 @@ final class CarOwnershipSecurityTest extends IntegrationTestCase
         $nonOwnerUserId = $this->createTestUser();
         $carId = $this->createTestCar($ownerUserId);
 
-        $this->loginAsTestUser($nonOwnerUserId);
-
         // hasPerm() reads the $master_account global, which may be null when
         // users/init.php aborts early in the integration test bootstrap.
         global $master_account;
@@ -77,6 +75,10 @@ final class CarOwnershipSecurityTest extends IntegrationTestCase
         $master_account = $master_account ?? [];
 
         try {
+            // Login happens inside try so a throw during login can never
+            // skip the finally's restoreGlobalUser() and leak the fake session.
+            $this->loginAsTestUser($nonOwnerUserId);
+
             $car = new Car($carId);
 
             // Read the global session, exactly as the production guard does.
@@ -98,9 +100,11 @@ final class CarOwnershipSecurityTest extends IntegrationTestCase
         $ownerUserId = $this->createTestUser();
         $carId = $this->createTestCar($ownerUserId);
 
-        $this->loginAsTestUser($ownerUserId);
-
         try {
+            // Login happens inside try so a throw during login can never
+            // skip the finally's restoreGlobalUser() and leak the fake session.
+            $this->loginAsTestUser($ownerUserId);
+
             $car = new Car($carId);
 
             // Read the global session, exactly as the production guard does.

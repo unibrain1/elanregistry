@@ -41,9 +41,11 @@ final class OwnerEmailSecurityTest extends IntegrationTestCase
         $realSenderId = $this->createTestUser();
         $forgedTargetId = $this->createTestUser();
 
-        $this->loginAsTestUser($realSenderId);
-
         try {
+            // Login happens inside try so a throw during login can never skip the
+            // finally's restoreGlobalUser() and leak the fake session.
+            $this->loginAsTestUser($realSenderId);
+
             // Inject the forged value inside try{} so finally always cleans it up
             $_POST['from_user_id'] = (string) $forgedTargetId;
 
@@ -66,9 +68,11 @@ final class OwnerEmailSecurityTest extends IntegrationTestCase
     {
         $userId = $this->createTestUser();
 
-        $this->loginAsTestUser($userId);
-
         try {
+            // Login happens inside try so a throw during login can never skip the
+            // finally's restoreGlobalUser() and leak the fake session.
+            $this->loginAsTestUser($userId);
+
             // Replicate the endpoint's sender derivation (send-owner-email.php:67) — read
             // the global session, exactly as production does, not a local helper return value.
             $fromUserId = (int) $GLOBALS['user']->data()->id;

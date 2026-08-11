@@ -137,9 +137,12 @@ Two usage patterns:
   `restoreGlobalUser()` automatically, so the fake session can't leak into the
   next test class.
 - **Only specific test methods need a session** — leave `setUp()`
-  unauthenticated, call `$this->loginAsTestUser($userId)` inline in the methods
-  that need it, and call `$this->restoreGlobalUser();` in a `finally` block so
-  the session ends with that method rather than at `tearDown()`.
+  unauthenticated. In the methods that need it, start a `try` block and call
+  `$this->loginAsTestUser($userId)` as its first statement, then call
+  `$this->restoreGlobalUser();` in a `finally` block so the session ends with
+  that method rather than at `tearDown()`. Login must be the first statement
+  inside `try` — not before it — so a throw during login can't skip the
+  `finally` and leak the fake session.
 
 **If your test class overrides `tearDown()`, it must call `parent::tearDown()`
 unconditionally** — wrap its own cleanup in
