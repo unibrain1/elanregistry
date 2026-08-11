@@ -30,10 +30,61 @@ use PHPUnit\Framework\Attributes\Group;
  * These tests pin the exact string-derivation contract from send-owner-email.php
  * lines 113-116 so that any future change to $toName or $fromName construction
  * is caught immediately without requiring an end-to-end email send.
+ *
+ * The behavioral tests below validate a mirrored copy of the derivation
+ * expressions in isolation, covering input/output edge cases (CR, LF, tabs,
+ * clean values, null, lname-exclusion). Those behavioral tests are backed by
+ * a source-inspection guard (see the source-inspection guard section below)
+ * that reads the real send-owner-email.php source and asserts the exact
+ * derivation is unchanged, so a production regression would be caught even
+ * though the file itself cannot be executed directly in a unit test (it
+ * requires full framework bootstrap).
  */
 #[Group('fast')]
 final class EmailHeaderSanitizationTest extends TestCase
 {
+    private const SEND_OWNER_EMAIL_FILE = 'app/api/contact/send-owner-email.php';
+
+    /**
+     * Mirrors the pattern in send-owner-email.php — kept as one constant so
+     * the mirror in the behavioral tests and the source-inspection guard
+     * below can't drift apart.
+     */
+    private const HEADER_STRIP_PATTERN = '/[\r\n\t]/';
+
+    private string $rootDir = '';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->rootDir = dirname(__DIR__, 3);
+    }
+
+    private function readSendOwnerEmailSource(): string
+    {
+        $filePath = $this->rootDir . '/' . self::SEND_OWNER_EMAIL_FILE;
+        $this->assertFileExists($filePath, 'send-owner-email.php must exist (#1600)');
+
+        return (string) file_get_contents($filePath);
+    }
+
+    /**
+     * Extracts the single line assigning $varName (e.g. 'toEmail') from the
+     * send-owner-email.php source, failing the test if it's missing or
+     * duplicated. Centralizes the lookup so the four testProduction* field
+     * checks below can't drift apart.
+     */
+    private function extractAssignmentLine(string $content, string $varName): string
+    {
+        $this->assertSame(
+            1,
+            preg_match_all('/^\s*\$' . $varName . '\s*=.*?;/m', $content, $matches),
+            "send-owner-email.php must contain exactly one \$$varName assignment (#1600)"
+        );
+
+        return $matches[0][0];
+    }
+
     // ------------------------------------------------------------------
     // $fromName — derived from $fromData->fname with CR/LF stripping
     // Replicates send-owner-email.php:116
@@ -304,5 +355,114 @@ final class EmailHeaderSanitizationTest extends TestCase
         // Confirm surnames are absent from the name fields
         $this->assertStringNotContainsString('Jones', $toName);
         $this->assertStringNotContainsString('Smith', $fromName);
+    }
+
+    // -------------------------------------------------------------------------
+    // #1600 — source-inspection guard against the real send-owner-email.php
+    // -------------------------------------------------------------------------
+
+    /**
+     * Pins $toEmail = preg_replace('/[\r\n\t]/', '', $toData->email); in the
+     * real send-owner-email.php source (line 113).
+     */
+    public function testProductionToEmail_StripsCrLfTabFromEmail(): void
+    {
+        $line = $this->extractAssignmentLine($this->readSendOwnerEmailSource(), 'toEmail');
+
+        $this->assertStringContainsString("preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''", $line);
+        $this->assertStringContainsString('$toData->email', $line);
+    }
+
+    /**
+     * Pins $toName = (string)($toData->fname ?? ''); in the real
+     * send-owner-email.php source (line 114) — and confirms it is NOT
+     * stripped or lname-derived. $toName flows into the HTML template
+     * greeting only (XSS-safe via htmlspecialchars() at render), not into
+     * any header, so this asymmetry with the other three fields is
+     * intentional.
+     */
+    public function testProductionToName_IsFnameOnly_NoLnameNoStripping(): void
+    {
+        $line = $this->extractAssignmentLine($this->readSendOwnerEmailSource(), 'toName');
+
+        $this->assertStringContainsString("(string)(\$toData->fname ?? '')", $line);
+        $this->assertStringNotContainsString(
+            'lname',
+            $line,
+            '$toName must derive from fname only — including lname would leak the recipient surname (#1322)'
+        );
+        $this->assertStringNotContainsString(
+            'preg_replace',
+            $line,
+            '$toName is intentionally unstripped — it is template-display-only (htmlspecialchars() at render), ' .
+            'not header-bound; adding preg_replace here would be an unnecessary behavior change'
+        );
+    }
+
+    /**
+     * Pins $fromEmail = preg_replace('/[\r\n\t]/', '', $fromData->email); in
+     * the real send-owner-email.php source (line 115).
+     */
+    public function testProductionFromEmail_StripsCrLfTabFromEmail(): void
+    {
+        $line = $this->extractAssignmentLine($this->readSendOwnerEmailSource(), 'fromEmail');
+
+        $this->assertStringContainsString("preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''", $line);
+        $this->assertStringContainsString('$fromData->email', $line);
+    }
+
+    /**
+     * Pins $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+     * in the real send-owner-email.php source (line 116) — and confirms
+     * lname is not included. This is the direct regression guard for the
+     * original #1322 bug, where the surname leaked into reply-to headers
+     * via addReplyTo().
+     */
+    public function testProductionFromName_StripsCrLfTabFromFname_NoLname(): void
+    {
+        $line = $this->extractAssignmentLine($this->readSendOwnerEmailSource(), 'fromName');
+
+        $this->assertStringContainsString("preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''", $line);
+        $this->assertStringContainsString("(string)(\$fromData->fname ?? '')", $line);
+        $this->assertStringNotContainsString(
+            'lname',
+            $line,
+            '$fromName must derive from fname only — including lname would reintroduce the #1322 header-injection bug'
+        );
+    }
+
+    /**
+     * This is a review gate, not proof every header-bound value is
+     * sanitized: it only catches an existing call site being silently
+     * dropped or duplicated within the $toEmail/$toName/$fromEmail/$fromName
+     * derivation block. A newly added, unsanitized header-bound value would
+     * leave the count unchanged and this test green — it must be caught by
+     * review, not by this count.
+     *
+     * The count is scoped to the derivation block (not the whole file)
+     * because send-owner-email.php applies the same strip pattern elsewhere
+     * for unrelated purposes (e.g. sanitizing $action and log output), which
+     * would otherwise inflate the count and make this guard meaningless.
+     */
+    public function testProductionHeaderStripPatternAppliesExactlyThreeTimes(): void
+    {
+        $content = $this->readSendOwnerEmailSource();
+
+        $this->assertSame(
+            1,
+            preg_match('/\$toEmail\s*=.*?\$fromName\s*=.*?;/s', $content, $matches),
+            'send-owner-email.php must contain the $toEmail..$fromName derivation block (#1600)'
+        );
+        $derivationBlock = $matches[0];
+
+        $stripCount = substr_count($derivationBlock, "preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''");
+        $this->assertSame(
+            3,
+            $stripCount,
+            'send-owner-email.php should apply the header-char sanitization pattern exactly 3 times ' .
+            'within the toEmail/toName/fromEmail/fromName derivation block (toEmail, fromEmail, fromName ' .
+            '— deliberately NOT toName) — update this count deliberately when adding or removing a ' .
+            'sanitized call site (#1600)'
+        );
     }
 }
