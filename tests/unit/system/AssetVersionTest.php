@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\AssetVersionResolver;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -13,9 +14,13 @@ use PHPUnit\Framework\TestCase;
  * usersc/includes/config.php. PHP constants cannot be redefined between tests
  * in the same process, and config.php is not loaded by bootstrap-unit.php
  * (it requires $abs_us_root and redefines backup constants already set by
- * the bootstrap). Therefore these tests target the resolution logic directly
- * via resolveAssetVersion(), a private helper that replicates the exact
- * ternary expression from config.php.
+ * the bootstrap). To keep the resolution logic itself unit-testable despite
+ * that constraint, it lives in ElanRegistry\AssetVersionResolver::resolve()
+ * (#1598) — a pure, PSR-4-autoloaded function that takes no dependency on
+ * $abs_us_root/$us_url_root or any BACKUP_* constant, so it loads standalone
+ * in the unit tier. config.php calls it and wraps the result in define().
+ * The behavioral tests below call AssetVersionResolver::resolve() directly,
+ * so they exercise the exact same code path production runs — no drift risk.
  *
  * Four required scenarios are covered:
  *   - VERSION file present with a clean version string
@@ -23,45 +28,22 @@ use PHPUnit\Framework\TestCase;
  *   - VERSION file with invalid content — allow-list rejects it (fallback to 'dev')
  *   - VERSION file with surrounding whitespace (trim applied)
  *
- * Source code inspection tests verify that config.php implements the contract
- * correctly so the tests serve as executable documentation of the requirement.
- *
- * MAINTENANCE NOTE: When the resolution expression in config.php is modified,
- * update resolveAssetVersion() to match or the scenario tests will exercise
- * stale logic. The source-inspection tests guard only token presence, not
- * full expression equivalence.
+ * Source code inspection tests verify that config.php wires up the resolver
+ * correctly (the one thing that can't be verified behaviorally, since
+ * config.php itself still can't be loaded standalone in this tier), plus one
+ * AssetVersionResolver branch that's hard to trigger portably in PHPUnit.
+ * These inspection tests guard only the exact substrings asserted — a
+ * maintainer must keep the assertions tied to the literal statement being
+ * verified (e.g. the full `define(...)` call, not just its parts appearing
+ * independently anywhere in the file), or the guard becomes hollow.
  *
  * @issue 1126
+ * @issue 1598
  */
 #[Group('system')]
 #[Group('asset-version')]
 class AssetVersionTest extends TestCase
 {
-    /**
-     * Replicates the exact resolution logic from usersc/includes/config.php:
-     *
-     *   if (file_exists($versionFilePath)) {
-     *       $contents = file_get_contents($versionFilePath);
-     *       $raw = ($contents !== false) ? trim($contents) : '';
-     *   } else { $raw = ''; }
-     *   return (preg_match('/^[a-zA-Z0-9.\-]+$/', $raw) === 1) ? $raw : 'dev';
-     *
-     * Testing this helper against all scenarios verifies the logic without
-     * loading config.php multiple times (which would cause a constant-
-     * redefinition fatal because backup constants are already defined by
-     * bootstrap-unit.php). error_log() side effects are intentionally omitted.
-     */
-    private static function resolveAssetVersion(string $versionFilePath): string
-    {
-        if (file_exists($versionFilePath)) {
-            $contents = file_get_contents($versionFilePath);
-            $raw = ($contents !== false) ? trim($contents) : '';
-        } else {
-            $raw = '';
-        }
-        return (preg_match('/^[a-zA-Z0-9.\-]+$/', $raw) === 1) ? $raw : 'dev';
-    }
-
     /**
      * Writes content to a unique temporary file and returns the path.
      * Callers must unlink the file when done (use try/finally).
@@ -77,12 +59,12 @@ class AssetVersionTest extends TestCase
     // Scenario 1: VERSION file present — version string returned as-is
     // -------------------------------------------------------------------
 
-    public function test_resolveAssetVersion_versionFilePresent_returnsVersionString(): void
+    public function test_assetVersionResolver_versionFilePresent_returnsVersionString(): void
     {
         $path = $this->writeTempVersionFile('v2.25.7');
 
         try {
-            $this->assertSame('v2.25.7', self::resolveAssetVersion($path));
+            $this->assertSame('v2.25.7', AssetVersionResolver::resolve($path));
         } finally {
             unlink($path);
         }
@@ -92,25 +74,42 @@ class AssetVersionTest extends TestCase
     // Scenario 2: VERSION file absent — fallback to 'dev'
     // -------------------------------------------------------------------
 
-    public function test_resolveAssetVersion_versionFileAbsent_returnsDev(): void
+    public function test_assetVersionResolver_versionFileAbsent_returnsDev(): void
     {
         // Construct a path guaranteed not to exist.
         $path = sys_get_temp_dir() . '/AssetVersionTest_absent_' . uniqid() . '_VERSION';
         $this->assertFileDoesNotExist($path, 'Precondition: temp path must not exist');
 
-        $this->assertSame('dev', self::resolveAssetVersion($path));
+        $this->assertSame('dev', AssetVersionResolver::resolve($path));
     }
 
     // -------------------------------------------------------------------
     // Scenario 3: VERSION file with invalid content — allow-list rejects it
     // -------------------------------------------------------------------
 
-    public function test_resolveAssetVersion_versionFileWithInvalidContent_returnsDev(): void
+    public function test_assetVersionResolver_versionFileWithInvalidContent_returnsDev(): void
     {
         $path = $this->writeTempVersionFile('<script>alert(1)</script>');
 
         try {
-            $this->assertSame('dev', self::resolveAssetVersion($path));
+            $this->assertSame('dev', AssetVersionResolver::resolve($path));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    /**
+     * Internal whitespace (e.g. a second line appended by a botched deploy
+     * script) survives trim() — since trim() only strips the ends — and must
+     * still be rejected by the allow-list regex. Distinct from Scenario 4
+     * below, which covers whitespace trim() *does* fully remove.
+     */
+    public function test_assetVersionResolver_versionFileWithInternalWhitespace_returnsDev(): void
+    {
+        $path = $this->writeTempVersionFile("v2.25.7\nleftover-line");
+
+        try {
+            $this->assertSame('dev', AssetVersionResolver::resolve($path));
         } finally {
             unlink($path);
         }
@@ -120,12 +119,12 @@ class AssetVersionTest extends TestCase
     // Scenario 4: VERSION file with surrounding whitespace — trim applied
     // -------------------------------------------------------------------
 
-    public function test_resolveAssetVersion_versionFileWithLeadingAndTrailingWhitespace_returnsTrimmedString(): void
+    public function test_assetVersionResolver_versionFileWithLeadingAndTrailingWhitespace_returnsTrimmedString(): void
     {
         $path = $this->writeTempVersionFile("  v2.25.7\n");
 
         try {
-            $this->assertSame('v2.25.7', self::resolveAssetVersion($path));
+            $this->assertSame('v2.25.7', AssetVersionResolver::resolve($path));
         } finally {
             unlink($path);
         }
@@ -159,14 +158,14 @@ class AssetVersionTest extends TestCase
      * deploy hook on this project.
      */
     #[DataProvider('whitespaceVariants')]
-    public function test_resolveAssetVersion_stripsVariousWhitespacePatterns(
+    public function test_assetVersionResolver_stripsVariousWhitespacePatterns(
         string $fileContent,
         string $expected
     ): void {
         $path = $this->writeTempVersionFile($fileContent);
 
         try {
-            $this->assertSame($expected, self::resolveAssetVersion($path));
+            $this->assertSame($expected, AssetVersionResolver::resolve($path));
         } finally {
             unlink($path);
         }
@@ -196,39 +195,31 @@ class AssetVersionTest extends TestCase
     }
 
     /**
-     * The resolution expression must use file_exists(), file_get_contents(),
-     * trim(), an allow-list regex, and the 'dev' fallback — all parts are
-     * required for the feature to work correctly and safely.
+     * config.php must define ASSET_VERSION directly from
+     * AssetVersionResolver::resolve() rather than reimplementing the
+     * resolution logic inline. This is the one part of the contract that
+     * can't be verified behaviorally, since config.php itself still can't be
+     * loaded standalone in the unit tier (see class docblock). The resolution
+     * logic itself (file_exists/trim/allow-list/'dev' fallback) is covered
+     * directly by the behavioral tests above, which call
+     * AssetVersionResolver::resolve() for real.
+     *
+     * Asserts the combined `define('ASSET_VERSION', AssetVersionResolver::resolve(`
+     * statement rather than checking `define('ASSET_VERSION'` and
+     * `AssetVersionResolver::resolve(` as two independent substrings —
+     * independent checks would both still pass against a config.php that
+     * regressed to `define('ASSET_VERSION', 'dev');` with the resolver call
+     * left dangling elsewhere in the file.
      */
-    public function test_configPhp_resolutionExpressionUsesFileExistsTrimAllowListAndDevFallback(): void
+    public function test_configPhp_callsAssetVersionResolver(): void
     {
         $configFile = dirname(__DIR__, 3) . '/usersc/includes/config.php';
         $content = (string) file_get_contents($configFile);
 
         $this->assertStringContainsString(
-            'file_exists',
+            "define('ASSET_VERSION', AssetVersionResolver::resolve(",
             $content,
-            "config.php must use file_exists() to check for the VERSION file"
-        );
-        $this->assertStringContainsString(
-            'file_get_contents',
-            $content,
-            "config.php must use file_get_contents() to read the VERSION file"
-        );
-        $this->assertStringContainsString(
-            'trim(',
-            $content,
-            "config.php must apply trim() to strip whitespace from the VERSION file contents"
-        );
-        $this->assertStringContainsString(
-            'preg_match',
-            $content,
-            "config.php must validate VERSION content against an allow-list regex"
-        );
-        $this->assertStringContainsString(
-            "'dev'",
-            $content,
-            "config.php must fall back to 'dev' when the VERSION file is absent, empty, or invalid"
+            "config.php must define ASSET_VERSION directly from AssetVersionResolver::resolve()"
         );
     }
 
@@ -261,8 +252,12 @@ class AssetVersionTest extends TestCase
     }
 
     /**
-     * All helper variables ($_versionFile, $_rawVersion) must be unset after use
-     * to avoid leaking intermediate variables into the global scope.
+     * The $_versionFile helper variable must be unset after use to avoid
+     * leaking it into the global scope. Asserts the exact `unset($_versionFile)`
+     * statement rather than checking '$_versionFile' and 'unset(' as two
+     * independent substrings — independent checks would both still pass if
+     * the unset() call were deleted entirely, since '$_versionFile' also
+     * appears in the variable's own assignment earlier in the file.
      */
     public function test_configPhp_unsetsHelperVariablesAfterUse(): void
     {
@@ -270,19 +265,9 @@ class AssetVersionTest extends TestCase
         $content = (string) file_get_contents($configFile);
 
         $this->assertStringContainsString(
-            '$_versionFile',
+            'unset($_versionFile)',
             $content,
-            "config.php must reference \$_versionFile for VERSION path construction"
-        );
-        $this->assertStringContainsString(
-            'unset(',
-            $content,
-            "config.php must unset helper variables after use to prevent global-scope leakage"
-        );
-        $this->assertStringContainsString(
-            '$_rawVersion',
-            $content,
-            "config.php must unset \$_rawVersion to prevent global-scope leakage"
+            "config.php must unset \$_versionFile to prevent global-scope leakage"
         );
     }
 
@@ -291,12 +276,12 @@ class AssetVersionTest extends TestCase
      * must fall back to 'dev'. The '+' quantifier in the allow-list regex
      * requires at least one character, so an empty trimmed string is rejected.
      */
-    public function test_resolveAssetVersion_emptyVersionFile_returnsDev(): void
+    public function test_assetVersionResolver_emptyVersionFile_returnsDev(): void
     {
         $path = $this->writeTempVersionFile('');
 
         try {
-            $this->assertSame('dev', self::resolveAssetVersion($path));
+            $this->assertSame('dev', AssetVersionResolver::resolve($path));
         } finally {
             unlink($path);
         }
@@ -343,24 +328,27 @@ class AssetVersionTest extends TestCase
     }
 
     /**
-     * config.php must log a warning via error_log() when file_get_contents()
-     * fails for an existing VERSION file. Silently falling back to 'dev' in
-     * that case would make deploy-hook failures invisible in server logs.
+     * AssetVersionResolver must log a warning via error_log() when
+     * file_get_contents() fails for an existing VERSION file. Silently
+     * falling back to 'dev' in that case would make deploy-hook failures
+     * invisible in server logs. This branch can't be triggered behaviorally
+     * in a portable unit test without risking a PHPUnit-converted-warning
+     * failure, so it's covered via source inspection instead.
      */
-    public function test_configPhp_logsErrorWhenFileGetContentsFails(): void
+    public function test_assetVersionResolver_logsErrorWhenFileGetContentsFails(): void
     {
-        $configFile = dirname(__DIR__, 3) . '/usersc/includes/config.php';
-        $content = (string) file_get_contents($configFile);
+        $resolverFile = dirname(__DIR__, 3) . '/usersc/classes/AssetVersionResolver.php';
+        $content = (string) file_get_contents($resolverFile);
 
         $this->assertStringContainsString(
             'error_log(',
             $content,
-            "config.php must call error_log() to make VERSION read failures visible in server logs"
+            "AssetVersionResolver must call error_log() to make VERSION read failures visible in server logs"
         );
         $this->assertStringContainsString(
             'ASSET_VERSION: file_get_contents',
             $content,
-            "config.php error_log() message must identify the ASSET_VERSION context for diagnosability"
+            "AssetVersionResolver error_log() message must identify the ASSET_VERSION context for diagnosability"
         );
     }
 
