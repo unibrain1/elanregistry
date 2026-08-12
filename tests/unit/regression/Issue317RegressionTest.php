@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -15,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  * This test ensures that the test infrastructure implemented in #317
  * continues to work correctly in future code changes.
  */
+#[Group('regression')]
 final class Issue317RegressionTest extends TestCase
 {
     /**
@@ -22,26 +24,29 @@ final class Issue317RegressionTest extends TestCase
      */
     public function testTestDirectoryStructureExists(): void
     {
-        $testDir = dirname(__DIR__);
+        $testDir = dirname(__DIR__, 2);
 
         // Verify main test directories exist
         $this->assertDirectoryExists($testDir . '/unit', 'Unit test directory should exist');
         $this->assertDirectoryExists($testDir . '/integration', 'Integration test directory should exist');
-        $this->assertDirectoryExists($testDir . '/regression', 'Regression test directory should exist');
         $this->assertDirectoryExists($testDir . '/playwright', 'Playwright test directory should exist');
     }
 
     /**
-     * Test that the regression test template exists
+     * Test that regression tests exist as a recognizable group under
+     * tests/unit/regression/.
      */
-    public function testRegressionTestTemplateExists(): void
+    public function testRegressionTestsDirectoryExists(): void
     {
-        $templateFile = __DIR__ . '/RegressionTestTemplate.php';
-        $this->assertFileExists($templateFile, 'Regression test template should exist');
+        $regressionDir = dirname(__DIR__) . '/regression';
+        $this->assertDirectoryExists($regressionDir, 'tests/unit/regression/ should exist');
 
-        $content = file_get_contents($templateFile);
-        $this->assertStringContainsString('RegressionTestTemplate', $content);
-        $this->assertStringContainsString('{ISSUE_NUMBER}', $content);
+        $regressionTests = glob($regressionDir . '/*.php');
+        $this->assertGreaterThanOrEqual(
+            2,
+            count($regressionTests),
+            'tests/unit/regression/ should contain at least 2 regression test files'
+        );
     }
 
     /**
@@ -49,7 +54,7 @@ final class Issue317RegressionTest extends TestCase
      */
     public function testTestFilesAreOrganized(): void
     {
-        $testDir = dirname(__DIR__);
+        $testDir = dirname(__DIR__, 2);
 
         // Check that unit tests directory has test files (recursive — tests live in subdirectories)
         $unitFiles = [];
@@ -67,8 +72,8 @@ final class Issue317RegressionTest extends TestCase
         $integrationTests = glob($testDir . '/integration/*.php');
         $this->assertGreaterThan(0, count($integrationTests), 'Integration tests directory should contain test files');
 
-        // Check that regression tests directory has this file
-        $regressionTests = glob($testDir . '/regression/*.php');
+        // Check that the regression tests directory has test files
+        $regressionTests = glob($testDir . '/unit/regression/*.php');
         $this->assertGreaterThan(1, count($regressionTests), 'Regression tests directory should contain test files');
     }
 
@@ -77,13 +82,12 @@ final class Issue317RegressionTest extends TestCase
      */
     public function testPhpUnitConfigurationIncludesMainSuites(): void
     {
-        $phpunitXml = dirname(__DIR__, 2) . '/phpunit.xml';
+        $phpunitXml = dirname(__DIR__, 3) . '/phpunit.xml';
         $this->assertFileExists($phpunitXml, 'PHPUnit configuration should exist');
 
         $content = file_get_contents($phpunitXml);
         $this->assertStringContainsString('testsuite name="Unit"', $content);
         $this->assertStringContainsString('testsuite name="Integration"', $content);
-        $this->assertStringContainsString('testsuite name="Regression"', $content);
     }
 
     /**
@@ -91,7 +95,7 @@ final class Issue317RegressionTest extends TestCase
      */
     public function testComposerScriptsExist(): void
     {
-        $composerJson = dirname(__DIR__, 2) . '/composer.json';
+        $composerJson = dirname(__DIR__, 3) . '/composer.json';
         $this->assertFileExists($composerJson, 'Composer configuration should exist');
 
         $content = file_get_contents($composerJson);
@@ -108,7 +112,7 @@ final class Issue317RegressionTest extends TestCase
      */
     public function testNpmScriptsExist(): void
     {
-        $packageJson = dirname(__DIR__, 2) . '/package.json';
+        $packageJson = dirname(__DIR__, 3) . '/package.json';
         $this->assertFileExists($packageJson, 'Package.json should exist');
 
         $content = file_get_contents($packageJson);

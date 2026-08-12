@@ -233,8 +233,20 @@ class CodingStandardsChecker
 
         foreach ($iterator as $file) {
             if ($file->isFile() && $file->getExtension() === 'php') {
-                // Fast early-skip for vendor, third-party, and test code
                 $path = $file->getPathname();
+
+                // Regression tests get their own structural check (issue
+                // linking, naming, base class) even though tests/ is
+                // otherwise excluded below — production coding standards
+                // (strict_types, PHPDoc, CSRF, etc.) intentionally don't
+                // apply to test code, but this structural check is specific
+                // to tests/unit/regression/ and would otherwise never run.
+                if (strpos($path, '/tests/unit/regression/') !== false) {
+                    $this->checkRegressionTestFile($path);
+                    continue;
+                }
+
+                // Fast early-skip for vendor, third-party, and test code
                 if (strpos($path, '/vendor/') !== false ||
                     strpos($path, '/node_modules/') !== false ||
                     strpos($path, '/scripts/fix/_ARCHIVE/') !== false ||
@@ -391,9 +403,6 @@ class CodingStandardsChecker
         // Architecture checks (code quality)
         $this->checkExceptionHandling($filePath, $content);
 
-        // Regression test validation (traceability)
-        $this->checkRegressionTestStructure($filePath, $content, $lines);
-
         // =================================================================
         // TIER 2: WARNING CHECKS (Advisory - contextual issues)
         // Only run in strict mode or verbose mode to reduce noise
@@ -408,6 +417,37 @@ class CodingStandardsChecker
         // - checkCachingOpportunities() - Too contextual
         // - checkErrorHandling() for json/file ops - Not always needed
         // - checkPHPDocCompleteness() - Types already enforce this
+
+        echo ".";
+        if ($this->filesChecked % 50 === 0) {
+            echo " $this->filesChecked\n";
+        }
+    }
+
+    /**
+     * Check a tests/unit/regression/ file for structural conventions
+     * (issue linking, naming, base class) — the only check that applies to
+     * regression tests. They're otherwise exempt from the production
+     * coding-standard checks in checkFile(), same as the rest of tests/.
+     *
+     * @param string $filePath Path to the regression test file
+     * @return void
+     */
+    private function checkRegressionTestFile(string $filePath): void
+    {
+        $content = file_get_contents($filePath);
+
+        if ($content === false) {
+            $this->errors[] = "$filePath: unreadable, could not be checked";
+            return;
+        }
+
+        $this->filesChecked++;
+
+        $content = $this->truncateAtHaltCompiler($content);
+        $lines = explode("\n", $content);
+
+        $this->checkRegressionTestStructure($filePath, $content, $lines);
 
         echo ".";
         if ($this->filesChecked % 50 === 0) {
@@ -726,8 +766,8 @@ class CodingStandardsChecker
      */
     private function checkRegressionTestStructure(string $filePath, string $content, array $lines): void
     {
-        // Only check files in tests/regression/ directory
-        if (strpos($filePath, 'tests/regression/') === false) {
+        // Only check files in tests/unit/regression/ directory
+        if (strpos($filePath, 'tests/unit/regression/') === false) {
             return;
         }
 
@@ -738,41 +778,69 @@ class CodingStandardsChecker
 
         $filename = basename($filePath, '.php');
 
-        // Check filename pattern: Issue{Number}RegressionTest
-        if (!preg_match('/^Issue(\d+)RegressionTest$/', $filename, $matches)) {
-            $this->errors[] = "$filePath: Regression test filename must follow pattern Issue{Number}RegressionTest.php";
+        // Skip infrastructure files that live alongside tests but are not
+        // test classes themselves (mirrors the equivalent skip in
+        // .githooks/pre-commit's own regression validation step).
+        if ($filename === 'RegressionTestCase' || $filename === 'RegressionTestTemplate') {
             return;
         }
 
-        $issueNumber = $matches[1];
+        // Check filename pattern: Issue{Number}RegressionTest (numbered) or
+        // a descriptive {Name}RegressionTest (e.g. EncodeAtOutputRegressionTest)
+        $isNumbered = (bool) preg_match('/^Issue(\d+)RegressionTest$/', $filename, $matches);
+        $isDescriptive = !$isNumbered && (bool) preg_match('/^[A-Z][A-Za-z0-9]*RegressionTest$/', $filename);
 
-        // Check for required annotations
-        if (!preg_match('/@issue\s+' . preg_quote($issueNumber, '/') . '\b/', $content)) {
-            $this->errors[] = "$filePath: Missing @issue annotation. Add: @issue $issueNumber";
+        if (!$isNumbered && !$isDescriptive) {
+            $this->errors[] = "$filePath: Regression test filename must follow pattern Issue{Number}RegressionTest.php or {DescriptiveName}RegressionTest.php";
+            return;
         }
 
-        if (!preg_match('/@link\s+.*github\.com.*issues\/' . preg_quote($issueNumber, '/') . '\b/', $content)) {
-            $this->errors[] = "$filePath: Missing @link annotation. Add: @link https://github.com/unibrain1/elanregistry/issues/$issueNumber";
+        if ($isNumbered) {
+            $issueNumber = $matches[1];
+
+            // Check for required annotations
+            if (!preg_match('/@issue\s+' . preg_quote($issueNumber, '/') . '\b/', $content)) {
+                $this->errors[] = "$filePath: Missing @issue annotation. Add: @issue $issueNumber";
+            }
+
+            if (!preg_match('/@link\s+.*github\.com.*issues\/' . preg_quote($issueNumber, '/') . '\b/', $content)) {
+                $this->errors[] = "$filePath: Missing @link annotation. Add: @link https://github.com/unibrain1/elanregistry/issues/$issueNumber";
+            }
+
+            // Check for class name consistency
+            if (!preg_match('/class\s+Issue' . preg_quote($issueNumber, '/') . 'RegressionTest/', $content)) {
+                $this->errors[] = "$filePath: Class name must match filename: Issue{$issueNumber}RegressionTest";
+            }
+
+            // Check for test method naming pattern (warning only)
+            if (!preg_match('/testIssue' . preg_quote($issueNumber, '/') . '_/', $content)) {
+                $this->warnings[] = "$filePath: Consider using test method pattern: testIssue{$issueNumber}_SpecificBehavior()";
+            }
+
+            // Check for issue description in PHPDoc
+            if (!preg_match('/\*\s*(Description|GitHub Issue):\s*.*\b' . preg_quote($issueNumber, '/') . '\b/', $content)) {
+                $this->warnings[] = "$filePath: Consider adding issue description in PHPDoc comment";
+            }
+        } else {
+            // Descriptive-name branch: annotations must exist but aren't tied to a
+            // specific captured issue number.
+            if (!preg_match('/@issue\s+\d+/', $content)) {
+                $this->errors[] = "$filePath: Missing @issue annotation. Add: @issue {NUMBER}";
+            }
+
+            if (!preg_match('/@link\s+.*github\.com.*issues\/\d+/', $content)) {
+                $this->errors[] = "$filePath: Missing @link annotation. Add: @link https://github.com/elan-registry/registry/issues/{NUMBER}";
+            }
+
+            // Check for class name consistency
+            if (!preg_match('/class\s+' . preg_quote($filename, '/') . '\b/', $content)) {
+                $this->errors[] = "$filePath: Class name must match filename: $filename";
+            }
         }
 
-        // Check for class name consistency
-        if (!preg_match('/class\s+Issue' . preg_quote($issueNumber, '/') . 'RegressionTest/', $content)) {
-            $this->errors[] = "$filePath: Class name must match filename: Issue{$issueNumber}RegressionTest";
-        }
-
-        // Check for test method naming pattern (warning only)
-        if (!preg_match('/testIssue' . preg_quote($issueNumber, '/') . '_/', $content)) {
-            $this->warnings[] = "$filePath: Consider using test method pattern: testIssue{$issueNumber}_SpecificBehavior()";
-        }
-
-        // Check for issue description in PHPDoc
-        if (!preg_match('/\*\s*(Description|GitHub Issue):\s*.*\b' . preg_quote($issueNumber, '/') . '\b/', $content)) {
-            $this->warnings[] = "$filePath: Consider adding issue description in PHPDoc comment";
-        }
-
-        // Check that test extends TestCase
-        if (!preg_match('/extends\s+TestCase/', $content)) {
-            $this->errors[] = "$filePath: Regression test must extend PHPUnit\\Framework\\TestCase";
+        // Check that test extends TestCase or RegressionTestCase
+        if (!preg_match('/extends\s+(TestCase|RegressionTestCase)\b/', $content)) {
+            $this->errors[] = "$filePath: Regression test must extend PHPUnit\\Framework\\TestCase or RegressionTestCase";
         }
 
         // Check for proper namespace/use statements

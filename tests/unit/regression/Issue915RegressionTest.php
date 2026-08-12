@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use PHPUnit\Framework\TestCase;
  * Fix: Added 'chassis_override' to $validCarFields in Car.php and added
  * case 'chassis_override': to the switch statement in CarValidator.php.
  */
+#[Group('regression')]
 final class Issue915RegressionTest extends TestCase
 {
     /** @var string Absolute path to the project root */
@@ -30,8 +32,8 @@ final class Issue915RegressionTest extends TestCase
 
     protected function setUp(): void
     {
-        // tests/regression/ is two levels below the project root
-        $this->projectRoot = dirname(__DIR__, 2);
+        // tests/unit/regression/ is three levels below the project root
+        $this->projectRoot = dirname(__DIR__, 3);
     }
 
     /**

@@ -9,7 +9,7 @@ use ElanRegistry\LogCategories;
  *
  * Sets up the testing environment with MOCKS ONLY.
  * No UserSpice framework or database.
- * Use this for: tests/unit/* and tests/regression/*
+ * Use this for: tests/unit/* (including tests/unit/regression/*)
  *
  * For integration tests, use: tests/bootstrap-integration.php
  */
@@ -543,4 +543,4 @@ if (!function_exists('isRegistryAdmin')) {
 
 // RegressionTestCase is not in the PSR-4 autoloaded path, so it must be
 // explicitly required before PHPUnit loads test classes that extend it.
-require_once __DIR__ . '/regression/RegressionTestCase.php';
+require_once __DIR__ . '/unit/regression/RegressionTestCase.php';

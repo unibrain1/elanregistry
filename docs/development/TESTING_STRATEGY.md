@@ -103,19 +103,19 @@ Three tiers, each with a distinct purpose and a hard boundary:
   coverage of business logic — browser tests are expensive and should stay
   narrow.
 
-`tests/regression/` is **not** a fourth tier in the unit/integration/E2E
+`tests/unit/regression/` is **not** a fourth tier in the unit/integration/E2E
 sense — it's orthogonal in intent, tracking "was this specific bug fixed"
-rather than a class or flow. But mechanically it runs entirely under the
-unit bootstrap: `phpunit-unit.xml` scopes the `Regression` testsuite to the
-`tests/regression/` directory (directory-based, not a `#[Group]` tag), and
-that directory loads via `tests/bootstrap-unit.php` — mocks only, no
-database, same as `tests/unit/`. A regression test that needs a real
-database has to live in `tests/integration/` instead; it isn't a `composer
-test:regression` test. A new mock-compatible regression test belongs in
-`tests/regression/` (copy
-`RegressionTestTemplate.php`, see `tests/regression/README.md`) — a
-`#[Group('regression')]` attribute alone on a test living elsewhere will
-**not** be picked up by `composer test:regression`.
+rather than a class or flow. Since #1559 it's not a separate directory tier
+either: regression tests live in `tests/unit/regression/` and run under the
+same `tests/bootstrap-unit.php` as the rest of `tests/unit/` — mocks only,
+no database. What distinguishes a regression test is the
+`#[Group('regression')]` attribute plus the `Issue{N}RegressionTest.php` (or
+a descriptive `{Name}RegressionTest.php` for cross-cutting concerns) naming
+convention — not directory placement. `composer test:regression` now
+group-filters the `Unit` testsuite (`--testsuite=Unit --group regression`
+against `phpunit-unit.xml`). A regression test that needs a real database
+still has to live in `tests/integration/` instead; it isn't a `composer
+test:regression` test.
 
 ### Authenticated Sessions in Integration Tests
 

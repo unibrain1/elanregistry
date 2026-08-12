@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -26,6 +27,7 @@ use PHPUnit\Framework\TestCase;
  * @link https://github.com/unibrain1/elanregistry/issues/1055
  * @category regression
  */
+#[Group('regression')]
 final class Issue1055RegressionTest extends TestCase
 {
     // ----------------------------------------------------------------

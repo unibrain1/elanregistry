@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -25,6 +26,7 @@ use PHPUnit\Framework\TestCase;
  * Added a DB-error guard that logs LOG_CATEGORY_DATABASE_ERROR before the ownership
  * comparison to prevent DB failures from being misclassified as IDOR attempts.
  */
+#[Group('regression')]
 final class Issue1014RegressionTest extends TestCase
 {
     /** @var string Absolute path to the project root */
@@ -35,8 +37,8 @@ final class Issue1014RegressionTest extends TestCase
 
     protected function setUp(): void
     {
-        // tests/regression/ is two levels below the project root
-        $this->projectRoot = dirname(__DIR__, 2);
+        // tests/unit/regression/ is three levels below the project root
+        $this->projectRoot = dirname(__DIR__, 3);
         $this->targetFile  = $this->projectRoot . '/app/api/contact/send-owner-email.php';
     }
 

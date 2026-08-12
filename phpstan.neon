@@ -58,9 +58,6 @@ parameters:
         # Excluded because its placeholder code generates errors that can never be fixed;
         # keeping it out of scope prevents those errors from entering the baseline.
         - app/admin/scripts/fix/_TEMPLATE_Fix-Script.php
-        # Not valid PHP — placeholder template syntax for copy-pasting new regression
-        # tests, same treatment as the fix-script template above.
-        - tests/regression/RegressionTestTemplate.php
         # Test double for \User (#1566). Excluded so PHPStan never adopts its narrow
         # 2-method surface as the definition of \User project-wide — see the file's
         # own docblock for the full leak mechanism this prevents.

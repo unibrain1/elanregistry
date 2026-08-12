@@ -96,12 +96,35 @@ HTTPS fetch of `https://test.elanregistry.org/robots.txt` (picked up by
 `composer test:medium`, which runs only `tests/integration/database`), and it
 skips cleanly rather than failing when the network or that host is unreachable.
 
-### Regression Tests (`tests/regression/`)
+### Regression Tests (`tests/unit/regression/`)
 
-**Purpose**: Legacy test suite for backward compatibility
-**Speed**: Variable
+**Purpose**: Pin specific bug fixes so they cannot silently regress
+**Speed**: Fast (same as `tests/unit/`)
 **Database**: Mock
 **Run**: `composer test:regression`
+
+Regression tests are ordinary unit tests — they load via the same
+`tests/bootstrap-unit.php` mocks as the rest of `tests/unit/`, and live under
+`tests/unit/regression/` rather than a separate top-level directory. What
+distinguishes them is the `#[Group('regression')]` attribute, which
+`composer test:regression` filters on (`--testsuite=Unit --group regression`
+against `phpunit-unit.xml`).
+
+To add a new one, copy an existing file in `tests/unit/regression/` as a
+model — there is no template file anymore. Include these PHPDoc annotations
+and the group attribute:
+
+- `@issue {NUMBER}` — the GitHub issue number the test pins
+- `@link https://github.com/elan-registry/registry/issues/{NUMBER}`
+- `@category` — a short category (e.g. `security`, `regression`, `infrastructure`)
+- `#[Group('regression')]` on the class, immediately above the class
+  declaration
+
+Name the file `Issue{NUMBER}RegressionTest.php` when it pins a single issue,
+or a descriptive `{Name}RegressionTest.php` (e.g.
+`EncodeAtOutputRegressionTest.php`) when it covers a cross-cutting concern
+that doesn't map to one issue number. A regression test that needs a real
+database belongs in `tests/integration/` instead.
 
 ### Browser Tests (`tests/playwright/`)
 
@@ -287,6 +310,19 @@ aren't tracked).
   developer with a full local UserSpice install gets real verification when running the full suite.
 - `/finish-milestone`'s known-broken check does **not** apply to this group — there's nothing to
   resolve or report on, it's a standing, intentional environment split.
+
+## The `regression` Group Exclusion in `test:quick:ci` — Keeping the Two CI Steps Disjoint
+
+A third `--exclude-group` tag exists in `test:quick:ci`, but for a different reason than either
+group above: `regression`. Since `tests/unit/regression/` is a subdirectory of `tests/unit/`,
+`test:quick:ci`'s `Unit` testsuite would otherwise run every regression test a second time —
+`.github/workflows/tests.yml`'s dedicated "Run regression tests" step (`composer
+test:regression:ci`) already covers them via `--group regression`. Excluding the group from
+`test:quick:ci` keeps the two CI steps disjoint, the same way `tests/regression/` and `tests/unit/`
+were disjoint directories before #1559 collapsed them together. `composer test:quick` (no `:ci`
+suffix, the local/dev command) does **not** exclude this group — locally, one full run of
+`tests/unit/` is expected to include everything under it, and running the regression subset
+redundantly costs a developer nothing the way a second CI job would.
 
 ## Writing New Tests
 
