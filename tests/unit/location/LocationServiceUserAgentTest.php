@@ -97,7 +97,8 @@ final class LocationServiceUserAgentTest extends TestCase
     public function testResolveVersionReturnsTrimmedContentForRealFile(): void
     {
         $path = sys_get_temp_dir() . '/LocationServiceUserAgentTest_valid_' . uniqid() . '_VERSION';
-        file_put_contents($path, " v9.9.9 \n");
+        $written = file_put_contents($path, " v9.9.9 \n");
+        $this->assertNotFalse($written, 'Precondition: failed to write temp VERSION file at ' . $path);
 
         try {
             $resolved = $this->resolveVersion->invoke(null, $path);
