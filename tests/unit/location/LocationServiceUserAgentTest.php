@@ -128,7 +128,6 @@ final class LocationServiceUserAgentTest extends TestCase
         // After the first call the static property must be a non-null string
         $cached = $this->cachedVersion->getValue(null);
         $this->assertIsString($cached);
-        $this->assertNotNull($cached);
     }
 
     public function testEmptyVersionFallsBackToUnknown(): void
