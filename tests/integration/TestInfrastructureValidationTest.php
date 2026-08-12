@@ -18,7 +18,6 @@ final class TestInfrastructureValidationTest extends IntegrationTestCase
     public function testPhpVersion(): void
     {
         $version = PHP_VERSION;
-        $this->assertNotEmpty($version);
         $this->assertStringStartsWith('8.', $version, 'Should be running PHP 8.x');
     }
 
