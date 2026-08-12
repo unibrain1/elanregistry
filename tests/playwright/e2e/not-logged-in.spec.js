@@ -696,9 +696,17 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
     expect(page.url()).not.toContain('login.php');
 
     // Regression guard: the pre-fix redirect used an invalid `subdir` value,
-    // which pdf-viewer.php rejected with this exact error text (#1409).
+    // which pdf-viewer.php rejected with this exact error text (#1409). Also
+    // checked against the extension-allowlist error text for the same reason
+    // as the sibling test below (#1473): pdf-viewer.php's doc traversal guard
+    // and extension allowlist both render their error branch under a 200, so
+    // status alone can't tell a real render apart from broken doc validation.
+    // (A positive assertion that the iframe actually renders the correct
+    // document is tracked in #1648, blocked on working around Cloudflare
+    // Turnstile's injected iframe.)
     const bodyText = await page.locator('body').innerText();
     expect(bodyText).not.toContain('Invalid document path.');
+    expect(bodyText).not.toContain('Invalid document type');
   });
 });
 
