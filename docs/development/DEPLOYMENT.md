@@ -146,10 +146,12 @@ before merge, not by GitHub blocking the merge button itself (see issue #1437).
   and `composer test:regression:ci`) — mocked, no database or network required
 - **When it runs**: On every PR (open/synchronize) and on push to `main`
   (`.github/workflows/tests.yml`)
-- **Scope**: `tests/unit/` (including `tests/unit/regression/`), excluding any test tagged
-  `#[Group('known-broken')]` (see `tests/README.md`'s "CI vs. Local Test Runs" section) — the
-  local `composer test:quick` command runs the same suite without that exclusion, so developers
-  always see the full picture locally
+- **Scope**: `tests/unit/`, excluding any test tagged `#[Group('known-broken')]` (see
+  `tests/README.md`'s "CI vs. Local Test Runs" section) — the local `composer test:quick` command
+  runs the same suite without that exclusion, so developers always see the full picture locally.
+  The `Unit` step also excludes `#[Group('regression')]` (`tests/unit/regression/`), which the
+  separate "Run regression tests" step below covers instead — see `tests/README.md`'s "The
+  `regression` Group Exclusion" section for why the two steps stay disjoint
 - **Pass criteria**: All included tests pass
 - **Failure impact**: Not (yet) a GitHub-required status check — merge isn't blocked at the
   platform level. Enforcement instead relies on `/finish-issue`'s CI-status gate, which polls

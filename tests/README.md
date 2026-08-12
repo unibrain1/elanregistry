@@ -311,6 +311,19 @@ aren't tracked).
 - `/finish-milestone`'s known-broken check does **not** apply to this group — there's nothing to
   resolve or report on, it's a standing, intentional environment split.
 
+## The `regression` Group Exclusion in `test:quick:ci` — Keeping the Two CI Steps Disjoint
+
+A third `--exclude-group` tag exists in `test:quick:ci`, but for a different reason than either
+group above: `regression`. Since `tests/unit/regression/` is a subdirectory of `tests/unit/`,
+`test:quick:ci`'s `Unit` testsuite would otherwise run every regression test a second time —
+`.github/workflows/tests.yml`'s dedicated "Run regression tests" step (`composer
+test:regression:ci`) already covers them via `--group regression`. Excluding the group from
+`test:quick:ci` keeps the two CI steps disjoint, the same way `tests/regression/` and `tests/unit/`
+were disjoint directories before #1559 collapsed them together. `composer test:quick` (no `:ci`
+suffix, the local/dev command) does **not** exclude this group — locally, one full run of
+`tests/unit/` is expected to include everything under it, and running the regression subset
+redundantly costs a developer nothing the way a second CI job would.
+
 ## Writing New Tests
 
 ### Unit Test Example
