@@ -5,9 +5,6 @@
 
 ## Required Actions After Deployment
 
-[To be filled in as issues are completed — check for:
-- Fix-script cleanup if any land during this milestone]
-
 Do the following, in order, **separately for each environment** (test, then prod):
 
 1. [ ] **One-time, before the first `composer migrate` after this release** ([#1553](https://github.com/elan-registry/registry/issues/1553)): manually stamp the new `AddElanregistryBaseline` migration into `phinxlog`. Running the migration for real would try to `CREATE TABLE car_models` (and 12 other already-existing tables) and fail — the migration itself checks whether `cars` already exists and refuses to run rather than touching anything, so a missed stamp fails the deploy loudly, it doesn't corrupt the schema. Still, do the stamp first every time:
