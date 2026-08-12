@@ -22,6 +22,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * process-admin-contact.php source and asserts the exact sanitization is
  * present, so a regression in production would be caught even though the
  * file itself cannot be executed in a unit test.
+ *
+ * The #661 behavioral tests below exercise PHP's own filter_var() semantics
+ * directly and are similarly backed by a source-inspection guard tying them
+ * to the real target_email validation call site.
  */
 class AdminContactSanitizationTest extends TestCase
 {
@@ -53,7 +57,7 @@ class AdminContactSanitizationTest extends TestCase
     private function readProcessAdminContactSource(): string
     {
         $filePath = $this->rootDir . '/' . self::PROCESS_ADMIN_CONTACT_FILE;
-        $this->assertFileExists($filePath, 'process-admin-contact.php must exist (#660)');
+        $this->assertFileExists($filePath, 'process-admin-contact.php must exist (#660, #661)');
 
         return (string) file_get_contents($filePath);
     }
@@ -188,5 +192,52 @@ class AdminContactSanitizationTest extends TestCase
     {
         $result = filter_var('', FILTER_VALIDATE_EMAIL);
         $this->assertFalse($result);
+    }
+
+    // -------------------------------------------------------------------------
+    // #661 — source-inspection guards against the real process-admin-contact.php
+    // -------------------------------------------------------------------------
+
+    /**
+     * Joins the filter_var check and its throw with [\s\S]*? (tolerant of the
+     * newline between them) rather than pinning the full statement, mirroring
+     * the #660 guard above: a harmless reformat of either line shouldn't break
+     * this guard; only a change to the check itself, its target, or dropping
+     * the rejection should.
+     */
+    public function testProductionValidatesTargetEmailFormat(): void
+    {
+        $content = $this->readProcessAdminContactSource();
+
+        $pattern = '/if\s*\(\s*!\s*filter_var\s*\(\s*\$targetEmail\s*,\s*FILTER_VALIDATE_EMAIL\s*\)\s*\)' .
+            '[\s\S]*?throw\s+new\s+AdminContactException\s*\(\s*[\'"]Invalid target email address format[\'"]\s*\)/';
+
+        $this->assertSame(
+            1,
+            preg_match($pattern, $content),
+            'process-admin-contact.php must validate target_email with filter_var(..., FILTER_VALIDATE_EMAIL) ' .
+            'and reject it via AdminContactException (#661)'
+        );
+    }
+
+    /**
+     * Companion to testProductionValidatesTargetEmailFormat(): target_email
+     * validation has two distinct branches (empty-check, then format-check),
+     * each with its own rejection message — this guards the empty-check
+     * branch so a dropped or reworded check there is caught too, not just
+     * the format check.
+     */
+    public function testProductionRejectsEmptyTargetEmail(): void
+    {
+        $content = $this->readProcessAdminContactSource();
+
+        $pattern = '/if\s*\(\s*empty\s*\(\s*\$targetEmail\s*\)\s*\)' .
+            '[\s\S]*?throw\s+new\s+AdminContactException\s*\(\s*[\'"]Target email not provided for multiple users[\'"]\s*\)/';
+
+        $this->assertSame(
+            1,
+            preg_match($pattern, $content),
+            'process-admin-contact.php must reject an empty target_email via AdminContactException (#661)'
+        );
     }
 }
