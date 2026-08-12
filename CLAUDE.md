@@ -69,9 +69,9 @@ all other Cloudflare features work normally.
 - `/usersc/` - UserSpice customizations (templates, plugins, overrides)
 - `/usersc/classes/` - Custom application classes (PSR-4: `ElanRegistry\` →
   `usersc/classes/`, `ElanRegistry\Exceptions\` → `usersc/classes/Exceptions/`)
-- `/tests/` - PHPUnit and Playwright tests: `unit/` (mocked, no DB),
-  `integration/` (real DB), `regression/`, `playwright/` (browser),
-  `manual/`, `fixtures/`
+- `/tests/` - PHPUnit and Playwright tests: `unit/` (mocked, no DB, includes
+  `unit/regression/` — tagged `#[Group('regression')]`, not a separate tier),
+  `integration/` (real DB), `playwright/` (browser), `manual/`, `fixtures/`
 
 **Key Integration Points:**
 
@@ -153,6 +153,7 @@ composer migrate                # Apply pending migrations
 composer migrate:status         # Show pending and applied migrations
 composer migrate:dry-run        # Preview pending migrations without applying
 composer migrate:rollback       # Roll back the most recent migration
+composer seed:run               # Populate reference/config data after migrate (see database/seeds/README.md)
 
 # Build (minify first-party JS/CSS — run after editing source files)
 npm run build                   # Minify app/assets/js/, app/assets/css/, app/admin/assets/
