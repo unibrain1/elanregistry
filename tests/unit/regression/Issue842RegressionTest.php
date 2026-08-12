@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ElanRegistry\Input;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Regression test for Issue #842: user and profile text fields double-encoded on save
@@ -31,6 +32,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * the unencoded scalar value. htmlspecialchars() is applied only at the output
  * (display) layer, where it belongs.
  */
+#[Group('regression')]
 final class Issue842RegressionTest extends RegressionTestCase
 {
     /**
@@ -84,8 +86,6 @@ final class Issue842RegressionTest extends RegressionTestCase
         $result = Input::raw($field);
 
         $this->assertSame('0', $result, "Input::raw('{$field}') must return \"0\" unchanged");
-        $this->assertNotNull($result, '"0" must not be treated as absent');
-        $this->assertNotSame('', $result, "\"0\" must pass the !== \"\" guard in update" . ucfirst($field) . "()");
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ElanRegistry\Input;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Regression test for Issue #838: owner comments double-encoded on save
@@ -25,6 +26,7 @@ use ElanRegistry\Input;
  * unencoded scalar value. htmlspecialchars() is applied only at the output
  * (display) layer, where it belongs.
  */
+#[Group('regression')]
 final class Issue838RegressionTest extends RegressionTestCase
 {
     /**
@@ -66,8 +68,6 @@ final class Issue838RegressionTest extends RegressionTestCase
         $result = Input::raw('comments');
 
         $this->assertSame('0', $result, 'Input::raw() must return "0" unchanged');
-        $this->assertNotNull($result, '"0" must not be treated as absent');
-        $this->assertNotSame('', $result, '"0" must pass the !== "" guard in updateComments()');
     }
 
     /**

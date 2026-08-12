@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ElanRegistry\Input;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Cross-field regression suite for the encode-at-output reform (v2.23.0)
@@ -32,6 +33,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * returns the unencoded scalar value. htmlspecialchars() is applied only at the
  * output layer.
  */
+#[Group('regression')]
 final class EncodeAtOutputRegressionTest extends RegressionTestCase
 {
     /** @var list<string> All text fields covered by the encode-at-output reform */

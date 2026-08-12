@@ -24,13 +24,13 @@ set -e
 echo "🔍 Running pre-commit quality checks..."
 
 # Get list of staged files by type
-STAGED_PHP_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.php$' || true)
-STAGED_MD_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | grep -v '^\.claude/agents/' | grep -v '^docs/releases/' || true)
-STAGED_JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.js$' | grep -v '\.min\.js$' || true)
-STAGED_REGRESSION_TESTS=$(git diff --cached --name-only --diff-filter=ACM | grep '^tests/regression/.*\.php$' || true)
+STAGED_PHP_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.php$' || true)
+STAGED_MD_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.md$' | grep -v '^\.claude/agents/' | grep -v '^docs/releases/' || true)
+STAGED_JS_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.js$' | grep -v '\.min\.js$' || true)
+STAGED_REGRESSION_TESTS=$(git diff --cached --name-only --diff-filter=ACMR | grep '^tests/unit/regression/.*\.php$' || true)
 
 # Check if any critical files are modified (tests, core classes, etc.)
-CRITICAL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(php|json)$|phpunit\.xml' || true)
+CRITICAL_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(php|json)$|phpunit\.xml' || true)
 
 if [ -z "$STAGED_PHP_FILES" ] && [ -z "$STAGED_MD_FILES" ] && [ -z "$STAGED_JS_FILES" ] && [ -z "$CRITICAL_FILES" ] && [ -z "$STAGED_REGRESSION_TESTS" ]; then
     echo "✅ No relevant files staged, skipping quality checks"
@@ -148,7 +148,7 @@ if [ -n "$STAGED_REGRESSION_TESTS" ]; then
 
     if [ $REGRESSION_ERRORS -gt 0 ]; then
         echo ""
-        echo "❌ COMMIT BLOCKED: Fix issues above. Use template: tests/regression/RegressionTestTemplate.php"
+        echo "❌ COMMIT BLOCKED: Fix issues above. See an existing test in tests/unit/regression/ as a model."
         exit 1
     else
         echo "✅ Passed"
@@ -226,7 +226,7 @@ else
 fi
 
 # Step 7: Minify first-party JS/CSS if source files changed
-STAGED_FIRST_PARTY=$(git diff --cached --name-only --diff-filter=ACM | \
+STAGED_FIRST_PARTY=$(git diff --cached --name-only --diff-filter=ACMR | \
   grep -E '^app/assets/(js|css)/[^/]+\.(js|css)$|^app/admin/assets/[^/]+\.(js|css)$' | \
   grep -v '\.min\.' || true)
 

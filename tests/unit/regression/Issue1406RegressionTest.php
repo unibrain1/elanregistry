@@ -35,7 +35,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('fast')]
 final class Issue1406RegressionTest extends RegressionTestCase
 {
-    private const JOIN_PHP_PATH = __DIR__ . '/../../usersc/join.php';
+    private const JOIN_PHP_PATH = __DIR__ . '/../../../usersc/join.php';
 
     /**
      * The registration-failure branch in usersc/join.php must show exactly

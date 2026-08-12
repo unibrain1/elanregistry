@@ -45,7 +45,7 @@ final class TestInfrastructureValidationTest extends IntegrationTestCase
 
         $this->assertDirectoryExists($testsDir . '/unit');
         $this->assertDirectoryExists($testsDir . '/integration');
-        $this->assertDirectoryExists($testsDir . '/regression');
+        $this->assertDirectoryExists($testsDir . '/unit/regression');
         $this->assertDirectoryExists($testsDir . '/playwright');
     }
 

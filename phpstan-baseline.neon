@@ -295,42 +295,6 @@ parameters:
 			path: tests/integration/reference/CarModelTest.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ''0'' and ''"0" must not be…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/regression/Issue838RegressionTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotSame\(\) with arguments '''', ''0'' and ''"0" must pass the \!…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/regression/Issue838RegressionTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ''0'' and ''"0" must not be…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/regression/Issue841RegressionTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotSame\(\) with arguments '''', ''0'' and non\-falsy\-string will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/regression/Issue841RegressionTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ''0'' and ''"0" must not be…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/regression/Issue842RegressionTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotSame\(\) with arguments '''', ''0'' and non\-falsy\-string will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/regression/Issue842RegressionTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Admin\\\\BackupManager'' and ElanRegistry\\Admin\\BackupManager will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 1
