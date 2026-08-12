@@ -15,6 +15,7 @@ use ElanRegistry\Input;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 use ElanRegistry\Resize;
+use ElanRegistry\UploadPathGuard;
 
 /**
  * save.php - Car management endpoint
@@ -708,18 +709,10 @@ function uploadImages(array &$cardetails, array &$errors): void
         $filePath = $targetFilePath . $carId . '/';
     }
 
-    // Ensure the path is within expected directory structure. Both realpath()
-    // calls must succeed. dirname() strips the trailing slash from $filePath
-    // and walks up, so for a direct child like /userimages/123/ it resolves to
-    // /userimages — equal to $realTargetPath. Equality is therefore valid; only
-    // sibling prefixes (e.g. /userimages-other) must be rejected.
-    $realTargetPath = realpath($targetFilePath);
-    $realFilePath = realpath(dirname($filePath));
-    $canonicalTarget = $realTargetPath !== false ? rtrim($realTargetPath, DIRECTORY_SEPARATOR) : false;
-
-    if ($realTargetPath === false || $realFilePath === false
-        || ($realFilePath !== $canonicalTarget
-            && !str_starts_with($realFilePath, $canonicalTarget . DIRECTORY_SEPARATOR))) {
+    // Ensure the upload destination resolves inside the configured upload
+    // directory — a path that resolves elsewhere (traversal, or a sibling
+    // directory sharing the same prefix) must never be written to.
+    if (!UploadPathGuard::isWithinTarget($targetFilePath, $filePath)) {
         logger($user->data()->id, LogCategories::LOG_CATEGORY_FILE_ERROR,
             'uploadImages: path guard failed — realpath() returned false or traversal detected'
             . ' (targetFilePath=' . htmlspecialchars($targetFilePath, ENT_QUOTES, 'UTF-8')
