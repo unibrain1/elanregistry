@@ -54,8 +54,6 @@ Do the following, in order, **separately for each environment** (test, then prod
 
 ## Issues Resolved
 
-- [#1267](https://github.com/elan-registry/registry/issues/1267) — docs: rewrite wiki Registry Installation guide to document the actual install flow
-- [#1283](https://github.com/elan-registry/registry/issues/1283) — refactor: extract shared transfer test fixture helper into TransferIntegrationTestCase base class
 - [#1422](https://github.com/elan-registry/registry/issues/1422) — test: CarTransferRepository DB-error paths and findPendingWithCarById() have no unit tests
 - [#1423](https://github.com/elan-registry/registry/issues/1423) — test: LogCategoriesUsageTest not extended for 3 admin files migrated in v2.28.0; CarTransferTest uses base Exception
 - [#1440](https://github.com/elan-registry/registry/issues/1440) — test: retire mock Car class — CarCoreTest/CarCrudTest test scaffolding, not the real class

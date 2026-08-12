@@ -62,6 +62,19 @@ jQuery UI) continue to be loaded from their existing self-hosted locations in
 | flatpickr CSS | 4.6.13 | `usersc/css/flatpickr.min.css` |
 | MapLibre GL JS | 4.7.1 | `usersc/js/maplibre-gl.min.js` + `usersc/css/maplibre-gl.css` (replaces Google Maps, v2.22.0) |
 
+> **Dependabot version drift note (v2.29.1):** `package.json` pins
+> `datatables.net-bs5` at `^3.0.1` (bumped from `2.3.8` by a Dependabot PR),
+> but the table above still accurately reflects the vendored/served bundle at
+> `dt-2.3.8` — `scripts/build.js` never reads or re-generates the DataTables
+> bundle from `node_modules`, so the version bump is inert at runtime today.
+> `package.json`'s pinned version and this table can drift like this because
+> nothing enforces them staying in sync; a future re-vendor of DataTables
+> from `node_modules` will jump straight from 2.x to 3.x (a major version)
+> unless this is caught first. Update this table's DataTables row alongside
+> the next intentional re-vendor.
+
+<!-- -->
+
 > **VersaTiles style note:** `usersc/js/versatiles-colorful.json` is a
 > generated build artifact produced from the
 > [`@versatiles/style`](https://www.npmjs.com/package/@versatiles/style)
