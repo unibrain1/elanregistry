@@ -106,6 +106,17 @@ final class AddElanregistryBaseline extends AbstractMigration
      * could run first instead and silently narrow already-correct utf8mb4
      * columns toward utf8mb3 on a live database. Make the invariant explicit
      * rather than relying on which private method happens to run first.
+     *
+     * `cars` existing is ambiguous by itself: it's true both for a genuine
+     * dev/prod environment (predates Phinx, needs a manual stamp) AND for a
+     * fresh environment where this migration's own DDL failed part-way through
+     * a prior run — `up()` cannot be transactional (see the class docblock), so
+     * `createRegistryTables()`'s tables (including `cars`) persist even if a
+     * later step in the same run then fails. Stamping phinxlog in the second
+     * case would mark a partially-converted schema as fully baselined. There
+     * is no single reliable signal that distinguishes the two across every
+     * possible failure point in `up()`, so the message below gives the
+     * operator a concrete way to tell them apart instead of guessing.
      */
     private function refusePreExistingEnvironment(): void
     {
@@ -115,10 +126,16 @@ final class AddElanregistryBaseline extends AbstractMigration
         );
         if ((int) ($preExisting['cnt'] ?? 0) > 0) {
             throw new RuntimeException(
-                'AddElanregistryBaseline: `cars` already exists on this environment — it predates '
-                . 'Phinx and must not run this migration. Stamp phinxlog manually instead '
-                . '(see docs/development/DEPLOYMENT.md, "One-Time: Stamping the ElanRegistry '
-                . 'Baseline Migration").'
+                'AddElanregistryBaseline: `cars` already exists on this environment. This means one '
+                . 'of two things: (1) this is a genuine dev/prod environment that predates Phinx — if '
+                . 'so, stamp phinxlog manually instead of running this migration (see '
+                . 'docs/development/DEPLOYMENT.md, "One-Time: Stamping the ElanRegistry Baseline '
+                . 'Migration"); or (2) a PRIOR run of this exact migration failed part-way through — '
+                . 'DDL cannot be rolled back, so `cars` and other tables it created can persist even '
+                . 'though the run as a whole did not complete or get recorded in phinxlog. If you did '
+                . 'not already have a converted UserSpice install before running `composer migrate` '
+                . 'today, this is case (2): do NOT stamp phinxlog — drop the schema and re-run '
+                . 'scripts/provision-schema.sh instead.'
             );
         }
     }

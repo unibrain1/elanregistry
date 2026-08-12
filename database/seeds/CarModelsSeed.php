@@ -60,22 +60,44 @@ final class CarModelsSeed extends AbstractSeed
         $bindings         = array_merge(...$rows);
 
         // INSERT IGNORE keeps this idempotent against the model_value and
-        // series/variant/type_code unique keys without a pre-check per row —
-        // but it also downgrades a truncation or invalid-value error to a
-        // warning, so a CSV row exceeding a column's length would silently
-        // load short. The count assertion below catches that: it must reach
-        // EXPECTED_ROWS, not just be non-zero.
+        // series/variant/type_code unique keys without a pre-check per row.
+        // It also downgrades a truncation or invalid-value error on an
+        // *inserted* row to a warning — the row count assertion below does
+        // NOT catch that case, since a truncated value still inserts and
+        // still counts. The warning-count check right after this is what
+        // catches a silently-shortened/coerced value; the row count only
+        // catches a row dropped outright by a duplicate-key collision.
         $this->execute(
             "INSERT IGNORE INTO `car_models` ({$columns}) VALUES {$placeholders}",
             $bindings
         );
+
+        // MySQL error 1062 (ER_DUP_ENTRY) is the expected, harmless warning on
+        // every idempotent re-run — every row already present raises one.
+        // Excluding it here is what makes re-running this seed safe; any other
+        // warning code (truncation, out-of-range, invalid value, etc.) is real.
+        $warnings = array_filter(
+            $this->fetchAll('SHOW WARNINGS'),
+            static fn(array $warning): bool => (int) $warning['Code'] !== 1062
+        );
+        if ($warnings !== []) {
+            $details = array_map(
+                static fn(array $warning): string => $warning['Level'] . ' ' . $warning['Code'] . ': ' . $warning['Message'],
+                $warnings
+            );
+            throw new RuntimeException(
+                'CarModelsSeed: INSERT IGNORE raised ' . count($warnings) . ' unexpected warning(s) — ' .
+                'a row was likely truncated, coerced, or dropped and would otherwise load silently ' .
+                'wrong: ' . implode(' | ', $details)
+            );
+        }
 
         $count = (int) $this->fetchRow('SELECT COUNT(*) AS n FROM `car_models`')['n'];
         if ($count < self::EXPECTED_ROWS) {
             throw new RuntimeException(
                 'CarModelsSeed: expected at least ' . self::EXPECTED_ROWS . ' rows in `car_models` ' .
                 "after seeding, found {$count}. INSERT IGNORE may have silently dropped a row " .
-                '(truncation, duplicate key) — investigate before running integration tests.'
+                '(duplicate key) — investigate before running integration tests.'
             );
         }
     }

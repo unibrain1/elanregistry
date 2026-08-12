@@ -93,7 +93,7 @@ final class ElanFactoryInfoSeed extends AbstractSeed
         $rows    = $this->readCsv();
         $columns = '`' . implode('`, `', self::COLUMNS) . '`';
 
-        foreach (array_chunk($rows, self::BATCH_SIZE) as $chunk) {
+        foreach (array_chunk($rows, self::BATCH_SIZE) as $batchNumber => $chunk) {
             $rowPlaceholders = '(' . implode(', ', array_fill(0, count(self::COLUMNS), '?')) . ')';
             $placeholders    = implode(', ', array_fill(0, count($chunk), $rowPlaceholders));
             $bindings        = array_merge(...$chunk);
@@ -102,6 +102,29 @@ final class ElanFactoryInfoSeed extends AbstractSeed
                 "INSERT IGNORE INTO `elan_factory_info` ({$columns}) VALUES {$placeholders}",
                 $bindings
             );
+
+            // INSERT IGNORE downgrades a truncation or invalid-value error on an
+            // *inserted* row to a warning rather than blocking it — a row with an
+            // over-length value still inserts, silently shortened. The final row-
+            // count check below only catches a row dropped outright by a duplicate
+            // primary key; this catches the truncation case the count check can't.
+            // MySQL error 1062 (ER_DUP_ENTRY) is excluded — it's the expected,
+            // harmless warning on every idempotent re-run of an already-loaded batch.
+            $warnings = array_filter(
+                $this->fetchAll('SHOW WARNINGS'),
+                static fn(array $warning): bool => (int) $warning['Code'] !== 1062
+            );
+            if ($warnings !== []) {
+                $details = array_map(
+                    static fn(array $warning): string => $warning['Level'] . ' ' . $warning['Code'] . ': ' . $warning['Message'],
+                    $warnings
+                );
+                throw new RuntimeException(
+                    'ElanFactoryInfoSeed: INSERT IGNORE raised ' . count($warnings) . ' unexpected warning(s) ' .
+                    'in batch ' . ($batchNumber + 1) . ' — a row was likely truncated, coerced, or dropped ' .
+                    'and would otherwise load silently wrong: ' . implode(' | ', $details)
+                );
+            }
         }
 
         $loaded = (int) $this->fetchRow('SELECT COUNT(*) AS n FROM `elan_factory_info`')['n'];
