@@ -15,10 +15,18 @@ use PHPUnit\Framework\Attributes\Group;
  * the file is absent or empty.
  *
  * getUserAgent() is private + static, so it is exercised via Reflection.
+ * The fallback logic itself lives in the path-parameterized
+ * resolveVersion() helper (#1602), which is also invoked directly via
+ * Reflection so tests can drive the absent/empty-file branches with real
+ * temporary files instead of seeding $cachedVersion — mirrors the
+ * path-parameterized extraction technique used by
+ * AssetVersionResolver::resolve() (#1598); the fallback semantics differ
+ * ('unknown' vs. 'dev', no allow-list regex).
  * $cachedVersion is also reset via Reflection between tests to prevent
  * static-state pollution.
  *
  * @issue 1070
+ * @issue 1602
  * @link https://github.com/unibrain1/elanregistry/issues/1070
  * @see usersc/classes/LocationService.php
  */
@@ -29,15 +37,17 @@ final class LocationServiceUserAgentTest extends TestCase
 {
     private \ReflectionClass $ref;
     private \ReflectionMethod $getUserAgent;
+    private \ReflectionMethod $resolveVersion;
     private \ReflectionProperty $cachedVersion;
     private LocationService $service;
 
     protected function setUp(): void
     {
-        $this->service       = new LocationService();
-        $this->ref           = new \ReflectionClass(LocationService::class);
-        $this->getUserAgent  = $this->ref->getMethod('getUserAgent');
-        $this->cachedVersion = $this->ref->getProperty('cachedVersion');
+        $this->service        = new LocationService();
+        $this->ref            = new \ReflectionClass(LocationService::class);
+        $this->getUserAgent   = $this->ref->getMethod('getUserAgent');
+        $this->resolveVersion = $this->ref->getMethod('resolveVersion');
+        $this->cachedVersion  = $this->ref->getProperty('cachedVersion');
         // Reset static cache before every test
         $this->cachedVersion->setValue(null, null);
     }
@@ -51,6 +61,22 @@ final class LocationServiceUserAgentTest extends TestCase
     private function invokeGetUserAgent(): string
     {
         return (string) $this->getUserAgent->invoke($this->service);
+    }
+
+    /**
+     * Drives resolveVersion() with $path, asserts it falls back to 'unknown',
+     * seeds the cache with that result, and asserts the formatted
+     * User-Agent string.
+     */
+    private function assertResolveVersionFallsBackToUnknown(string $path): void
+    {
+        $resolved = $this->resolveVersion->invoke(null, $path);
+        $this->assertSame('unknown', $resolved);
+
+        $this->cachedVersion->setValue(null, $resolved);
+        $ua = $this->invokeGetUserAgent();
+
+        $this->assertSame('ElanRegistry/unknown (https://elanregistry.org)', $ua);
     }
 
     public function testUserAgentContainsVersionFromFile(): void
@@ -68,20 +94,28 @@ final class LocationServiceUserAgentTest extends TestCase
         $this->assertStringContainsString('(https://elanregistry.org)', $ua);
     }
 
+    public function testResolveVersionReturnsTrimmedContentForRealFile(): void
+    {
+        $path = sys_get_temp_dir() . '/LocationServiceUserAgentTest_valid_' . uniqid() . '_VERSION';
+        file_put_contents($path, " v9.9.9 \n");
+
+        try {
+            $resolved = $this->resolveVersion->invoke(null, $path);
+        } finally {
+            unlink($path);
+        }
+
+        $this->assertSame('v9.9.9', $resolved);
+    }
+
     public function testUserAgentFallsBackToUnknownWhenVersionFileIsAbsent(): void
     {
-        // Point the class at a non-existent file by temporarily replacing
-        // $cachedVersion after clearing it, then patching via a stub method
-        // that returns the result of the private logic with a fake path.
-        // Since the method builds the path via __DIR__, we override via the
-        // static cache directly: set it to null, then call with the real
-        // file read but from a path that doesn't exist — not trivially possible
-        // without modifying the source. Instead, test via the cache: if
-        // cachedVersion is 'unknown', the output must reflect it.
-        $this->cachedVersion->setValue(null, 'unknown');
-        $ua = $this->invokeGetUserAgent();
+        // Construct a path guaranteed not to exist and drive resolveVersion()
+        // with it directly — exercises the real is_readable()/fallback logic.
+        $absentPath = sys_get_temp_dir() . '/LocationServiceUserAgentTest_absent_' . uniqid() . '_VERSION';
+        $this->assertFileDoesNotExist($absentPath, 'Precondition: temp path must not exist');
 
-        $this->assertSame('ElanRegistry/unknown (https://elanregistry.org)', $ua);
+        $this->assertResolveVersionFallsBackToUnknown($absentPath);
     }
 
     public function testStaticCachePreventsDuplicateFileReads(): void
@@ -99,17 +133,33 @@ final class LocationServiceUserAgentTest extends TestCase
 
     public function testEmptyVersionFallsBackToUnknown(): void
     {
-        // Simulate an empty VERSION file result via the cache property
-        $this->cachedVersion->setValue(null, null);
-        // We can't directly inject an empty file without modifying the source.
-        // Test the guard logic: if cachedVersion resolves to empty from file,
-        // it must store 'unknown'. Verify by seeding the cache as if the
-        // file-read path had stored the empty fallback.
-        $this->cachedVersion->setValue(null, 'unknown');
-        $ua = $this->invokeGetUserAgent();
+        // Write a real empty VERSION file and drive resolveVersion() with it
+        // directly — exercises the real trim()/!== '' fallback logic.
+        $path = sys_get_temp_dir() . '/LocationServiceUserAgentTest_empty_' . uniqid() . '_VERSION';
+        $written = file_put_contents($path, '');
+        $this->assertNotFalse($written, 'Precondition: failed to write empty temp VERSION file at ' . $path);
 
-        $this->assertSame('ElanRegistry/unknown (https://elanregistry.org)', $ua);
-        $this->assertStringNotContainsString('ElanRegistry/ (', $ua);
+        try {
+            $this->assertResolveVersionFallsBackToUnknown($path);
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function testWhitespaceOnlyVersionFallsBackToUnknown(): void
+    {
+        // Whitespace-only content is non-empty raw bytes that trim() must
+        // reduce to '' before the !== '' fallback check fires — distinct
+        // from testEmptyVersionFallsBackToUnknown(), where trim('') is a no-op.
+        $path = sys_get_temp_dir() . '/LocationServiceUserAgentTest_whitespace_' . uniqid() . '_VERSION';
+        $written = file_put_contents($path, "  \n\t  \n");
+        $this->assertNotFalse($written, 'Precondition: failed to write whitespace-only temp VERSION file at ' . $path);
+
+        try {
+            $this->assertResolveVersionFallsBackToUnknown($path);
+        } finally {
+            unlink($path);
+        }
     }
 
     /**
