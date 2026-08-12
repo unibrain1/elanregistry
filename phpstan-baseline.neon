@@ -517,12 +517,6 @@ parameters:
 			path: tests/unit/location/LocationServiceCacheTest.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with string will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/location/LocationServiceUserAgentTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Resize'' and ElanRegistry\\Resize will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 2
