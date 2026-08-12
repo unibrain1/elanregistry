@@ -36,10 +36,6 @@ Do the following, in order, **separately for each environment** (test, then prod
 
 ## User-Facing Changes
 
-### Bug Fixes
-
-- **Car field clearing** ([#1448](https://github.com/elan-registry/registry/issues/1448)): Clearing an optional field (color, comments, website, engine, sold date) while editing a car now actually saves as empty instead of silently keeping the old value.
-
 ### Improvements
 
 - **Public API privacy** ([#1501](https://github.com/elan-registry/registry/issues/1501)): Owner coordinates and internal user IDs are no longer exposed in public car-history and DataTables API responses.
@@ -50,7 +46,6 @@ Do the following, in order, **separately for each environment** (test, then prod
 
 - **Backup data-loss detection** ([#1502](https://github.com/elan-registry/registry/issues/1502)): The backup routine no longer reports "Healthy" when a table dump silently loses its data — failures now surface for real.
 - **Admin User Manager XSS** ([#1499](https://github.com/elan-registry/registry/issues/1499)): Closed a stored-XSS vector in the admin User Manager's email column.
-- **Editor-role permission hardening** ([#1450](https://github.com/elan-registry/registry/issues/1450)): Closed an admin-account-takeover path via editor-role owner-email edits and unrestricted car deletion/merge.
 
 ### Improvements
 
@@ -64,7 +59,6 @@ Do the following, in order, **separately for each environment** (test, then prod
 
 - [#1267](https://github.com/elan-registry/registry/issues/1267) — docs: rewrite wiki Registry Installation guide to document the actual install flow
 - [#1283](https://github.com/elan-registry/registry/issues/1283) — refactor: extract shared transfer test fixture helper into TransferIntegrationTestCase base class
-- [#1348](https://github.com/elan-registry/registry/issues/1348) — refactor: align usersc/classes/ directory structure — CarView into Car/, OwnerView into Owner/, admin/ casing
 - [#1422](https://github.com/elan-registry/registry/issues/1422) — test: CarTransferRepository DB-error paths and findPendingWithCarById() have no unit tests
 - [#1423](https://github.com/elan-registry/registry/issues/1423) — test: LogCategoriesUsageTest not extended for 3 admin files migrated in v2.28.0; CarTransferTest uses base Exception
 - [#1440](https://github.com/elan-registry/registry/issues/1440) — test: retire mock Car class — CarCoreTest/CarCrudTest test scaffolding, not the real class
@@ -72,8 +66,6 @@ Do the following, in order, **separately for each environment** (test, then prod
 - [#1444](https://github.com/elan-registry/registry/issues/1444) — test: retire upload/security helper reimplementations in unit bootstrap — tests validate mocks, not production
 - [#1445](https://github.com/elan-registry/registry/issues/1445) — test: UserDeletionCleanupTest exercises a mock cleanup hook, not the real after_user_deletion path
 - [#1446](https://github.com/elan-registry/registry/issues/1446) — test: CarValidator unit tests validate against mock CarModel, not real reference data
-- [#1448](https://github.com/elan-registry/registry/issues/1448) — fix: Car::update() array_filter prevents clearing color/comments/website/engine/sold-date
-- [#1450](https://github.com/elan-registry/registry/issues/1450) — security: editor role can edit any owner's email (admin-takeover vector) and delete/merge cars
 - [#1453](https://github.com/elan-registry/registry/issues/1453) — fix: scope PHPStan global ignoreErrors so new project code isn't exempt from typing checks
 - [#1454](https://github.com/elan-registry/registry/issues/1454) — test: add integration coverage for image lifecycle and backup restorability
 - [#1467](https://github.com/elan-registry/registry/issues/1467) — test: mock DB query result triggers PHP warning in CarDataTablesServiceTest
@@ -106,4 +98,5 @@ Do the following, in order, **separately for each environment** (test, then prod
 - [#1601](https://github.com/elan-registry/registry/issues/1601) — test: UploadPathGuardTest reimplements the path-traversal guard from save.php — extracted to UploadPathGuard::isWithinTarget() so tests exercise the real function
 - [#1628](https://github.com/elan-registry/registry/issues/1628) — test: LogCategoriesUsageTest didn't cover most app/admin/ files with logger()/withLogging() calls — extended ADMIN_ENDPOINT_FILES from 3 to 22 files
 - [#1633](https://github.com/elan-registry/registry/issues/1633) — test: AdminContactSanitizationTest #661 target_email tests were tautological, asserting PHP's own filter_var() — added a source-inspection guard against the real process-admin-contact.php validation
+- [#1537](https://github.com/elan-registry/registry/issues/1537) — fix: test.elanregistry.org is crawlable and indexed — resolved via Cloudflare "Managed robots.txt" toggle (no code change; the edge was injecting an `Allow: /` block that tied against the intended `Disallow: /` group)
 - [#1559](https://github.com/elan-registry/registry/issues/1559) — test: relocate tests/regression/ into tests/unit/regression/ tagged #[Group('regression')] — collapsed the standalone directory/testsuite tier, keeping a single source of truth for the regression-test structural check that pre-commit and CI enforce
