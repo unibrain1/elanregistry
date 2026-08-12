@@ -41,14 +41,37 @@ class LogCategoriesUsageTest extends TestCase
     ];
 
     /**
-     * Owner/user-administration PHP files that should use LogCategories constants
-     * for all logging category parameters. (Some other app/admin/includes/ files
-     * are grouped under CAR_ENDPOINT_FILES instead, by domain rather than path.)
+     * app/admin/ PHP files that call logger()/withLogging() (excluding
+     * scripts/fix/_ARCHIVE/, which is dead code excluded from tooling
+     * elsewhere too, see phpstan.neon) — must use LogCategories constants for
+     * the category parameter. Hand-maintained: add new admin files here when
+     * they introduce logger()/withLogging() calls. (Some app/admin/includes/
+     * files are grouped under CAR_ENDPOINT_FILES instead, by domain rather
+     * than path.)
      */
     private const ADMIN_ENDPOINT_FILES = [
+        'app/admin/includes/fix-script-core.php',
+        'app/admin/includes/load-owner-info.php',
+        'app/admin/includes/load-owner-profile.php',
+        'app/admin/includes/process-admin-contact.php',
         'app/admin/includes/process-owner-search.php',
+        'app/admin/includes/process-owner-sync-location.php',
         'app/admin/includes/process-owner-update.php',
         'app/admin/includes/process-user-details.php',
+        'app/admin/includes/system/backup-operations.php',
+        'app/admin/includes/tab-account_cleanup.php',
+        'app/admin/includes/tab-car_mgmt.php',
+        'app/admin/includes/tab-health.php',
+        'app/admin/includes/tab-maintenance.php',
+        'app/admin/includes/tab-owner_mgmt.php',
+        'app/admin/includes/tab-settings.php',
+        'app/admin/index.php',
+        'app/admin/maintenance.php',
+        'app/admin/scripts/fix/_TEMPLATE_Fix-Script.php',
+        'app/admin/scripts/maintenance/21-Fix-Page-Permissions.php',
+        'app/admin/scripts/maintenance/24-Regenerate-Optimized-Thumbnails.php',
+        'app/admin/verify/send_email.php',
+        'app/admin/verify/verify_car.php',
     ];
 
     private string $rootDir;
@@ -535,7 +558,7 @@ class LogCategoriesUsageTest extends TestCase
         // Match withLogging calls that use string literals for the category parameter
         // Pattern: ->withLogging(anything, 'SomeString', anything)
         // The category is the second argument after the user ID
-        $pattern = '/->withLogging\s*\([^,]+,\s*[\'"][A-Za-z]+[\'"]/';
+        $pattern = '/->withLogging\s*\([^,]+,\s*[\'"][^\'"]+[\'"]/';
 
         $matches = [];
         preg_match_all($pattern, $content, $matches);
@@ -563,7 +586,7 @@ class LogCategoriesUsageTest extends TestCase
 
         // Match logger() calls that use string literals for the category parameter
         // Pattern: logger(anything, 'SomeString', anything)
-        $pattern = '/\blogger\s*\([^,]+,\s*[\'"][A-Za-z]+[\'"]/';
+        $pattern = '/\blogger\s*\([^,]+,\s*[\'"][^\'"]+[\'"]/';
 
         $matches = [];
         preg_match_all($pattern, $content, $matches);
