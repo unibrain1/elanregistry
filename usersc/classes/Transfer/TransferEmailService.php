@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Transfer;
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\EmailTemplate;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
@@ -21,12 +22,12 @@ use Throwable;
 class TransferEmailService
 {
     /**
-     * @param object $db Database instance
+     * @param DatabaseInterface $db Database instance
      * @param mixed $mailer Email sender callable — signature: (string $to, string $subject, string $body): bool
      * @throws \InvalidArgumentException if $mailer is not callable
      */
     public function __construct(
-        private object $db,
+        private DatabaseInterface $db,
         private mixed $mailer,
     ) {
         if (!is_callable($this->mailer)) {

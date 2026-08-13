@@ -56,20 +56,6 @@ class DbAdapter implements DatabaseInterface
     }
 
     /**
-     * Mirrors `get()`: the wrapped `\DB::delete()` delegates to `action()`, which
-     * returns the `\DB` instance on success or the literal `false` on failure.
-     *
-     * @param array<mixed>|int $where
-     */
-    public function delete(string $table, array|int $where): self|false
-    {
-        if ($this->db->delete($table, $where) === false) {
-            return false;
-        }
-        return $this;
-    }
-
-    /**
      * @param array<string, mixed> $fields
      */
     public function insert(string $table, array $fields = [], bool $update = false): bool
@@ -84,6 +70,20 @@ class DbAdapter implements DatabaseInterface
     public function update(string $table, array|int $id, array $fields): bool
     {
         return $this->db->update($table, $id, $fields);
+    }
+
+    /**
+     * Mirrors `get()`: the wrapped `\DB::delete()` delegates to `action()`, which
+     * returns the `\DB` instance on success or the literal `false` on failure.
+     *
+     * @param array<mixed>|int $where
+     */
+    public function delete(string $table, array|int $where): self|false
+    {
+        if ($this->db->delete($table, $where) === false) {
+            return false;
+        }
+        return $this;
     }
 
     /**
