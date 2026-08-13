@@ -91,13 +91,13 @@ class TransferEmailService
             }
             ['transferData' => $transferData, 'carData' => $carData, 'carInfo' => $carInfo] = $ctx;
 
-            $currentOwner = (new Owner(dbInt($carData, 'user_id')))->data();
+            $currentOwner = (new Owner(dbInt($carData, 'user_id'), $this->db))->data();
             if (!$currentOwner) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer request notification failed: Current owner ID {$carData->user_id} not found");
                 return false;
             }
 
-            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id')))->data();
+            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id'), $this->db))->data();
             if (!$requester) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer request notification failed: Requester ID {$transferData->requested_by_user_id} not found");
                 return false;
@@ -154,13 +154,13 @@ class TransferEmailService
             }
             ['transferData' => $transferData, 'carData' => $carData, 'carInfo' => $carInfo] = $ctx;
 
-            $currentOwner = (new Owner(dbInt($carData, 'user_id')))->data();
+            $currentOwner = (new Owner(dbInt($carData, 'user_id'), $this->db))->data();
             if (!$currentOwner) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer admin alert failed: Current owner ID {$carData->user_id} not found");
                 return false;
             }
 
-            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id')))->data();
+            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id'), $this->db))->data();
             if (!$requester) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer admin alert failed: Requester ID {$transferData->requested_by_user_id} not found");
                 return false;
@@ -230,7 +230,7 @@ class TransferEmailService
             }
             ['transferData' => $transferData, 'carData' => $carData, 'carInfo' => $carInfo] = $ctx;
 
-            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id')))->data();
+            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id'), $this->db))->data();
             if (!$requester) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer response notification failed: Requester ID {$transferData->requested_by_user_id} not found");
                 return false;
@@ -299,7 +299,7 @@ class TransferEmailService
                 return false;
             }
             $lookupId = ($isApproved && $previousOwnerId > 0) ? $previousOwnerId : dbInt($carData, 'user_id');
-            $previousOwner = (new Owner($lookupId))->data();
+            $previousOwner = (new Owner($lookupId, $this->db))->data();
 
             if (!$previousOwner) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer previous owner notification failed: User ID $lookupId not found");

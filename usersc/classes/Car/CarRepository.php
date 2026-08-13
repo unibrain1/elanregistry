@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Car;
 
-use DB;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\LogCategories;
@@ -40,21 +40,26 @@ class CarRepository
 
     private bool $transactionOwner = false;
 
-    public function __construct(private DB $db) {}
+    public function __construct(private DatabaseInterface $db) {}
 
     /**
      * Find a car by ID
      *
      * @param int $carId Car ID
      * @return object|null Car data object or null if not found
+     * @throws CarDatabaseException If the query fails
      */
     public function findById(int $carId): ?object
     {
         $data = $this->db->get('cars', ['id', '=', $carId]);
+        if ($data === false) {
+            throw new CarDatabaseException("Failed to look up car $carId");
+        }
         if ($data->count() === 0) {
             return null;
         }
-        return $data->first();
+        $result = $data->first();
+        return is_object($result) ? $result : null;
     }
 
     /**

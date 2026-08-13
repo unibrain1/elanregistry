@@ -562,11 +562,45 @@ if ($result['valid']) {
 
 ## Support Classes
 
+### DatabaseInterface / DbAdapter
+
+**Location**: `usersc/classes/DatabaseInterface.php`, `usersc/classes/Database/DbAdapter.php`
+
+`DatabaseInterface` is a narrow interface (`query`, `get`, `insert`, `update`,
+`delete`, `error`, `errorString`, `errorInfo`, `count`, `first`, `results`,
+`lastId`, `beginTransaction`, `commit`, `rollBack`, `inTransaction`) covering
+exactly the methods application classes call on a database collaborator. Its
+signatures document the *real* runtime behavior of UserSpice's `\DB` class —
+`query()`/`get()` always return the instance for chaining (never throw; check
+`error()`), `first()`/`results()` return `[]` on no rows (never `null`) — not
+`\DB`'s untyped declarations.
+
+`DbAdapter implements DatabaseInterface`, wrapping a real `\DB` instance with
+1:1 delegation. `\DB` itself is upstream UserSpice code and is never modified
+or subclassed to implement the interface directly.
+
+**Obtaining an instance**: call the global `dbi(): DatabaseInterface` helper
+(`usersc/includes/custom_functions.php`), a per-request memoized `DbAdapter`
+around `\DB::getInstance()`. The ambient page-scope `$db` global is
+deliberately **never** wrapped — it stays a real `\DB` so upstream UserSpice
+code that type-hints `\DB` directly (e.g. `DataTableRequest`) keeps working.
+Application classes that need `DatabaseInterface` (`CarRepository`,
+`CarTransferRepository`, `StatisticsDataService`, `CarDataTablesService`,
+`RegistrationRecoveryNotifier`, `BackupManager`, and `Car`/`CarModel`/`Owner`'s
+optional constructor overrides) are constructed with `dbi()`, not `$db`.
+
+**Testing**: unit tests build a `DatabaseInterface` double directly —
+`createMock`/`createStub(DatabaseInterface::class)`, or a
+`tests/Support/FakeDatabase.php` subclass for tests needing mutable tracked
+state. There is no shared global mock; see
+[TESTING_STRATEGY.md](TESTING_STRATEGY.md).
+
 ### BackupManager
 
-**Location**: `/app/admin/includes/classes/BackupManager.php`
+**Location**: `usersc/classes/admin/BackupManager.php`
 
 Database backup management with retention policies, schema operation integration, and environment-aware cleanup. Throws `BackupException` on failures.
+Constructor takes a `DatabaseInterface` (see above) — construct with `dbi()`.
 
 **See [BACKUP_SYSTEM.md](BACKUP_SYSTEM.md)** for complete API reference, usage examples, and retention policies.
 

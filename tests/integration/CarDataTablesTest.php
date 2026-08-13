@@ -18,14 +18,10 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('integration')]
 final class CarDataTablesTest extends IntegrationTestCase
 {
-    protected $db;
-
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireDatabase();
-
-        $this->db = DB::getInstance();
     }
 
     protected function tearDown(): void

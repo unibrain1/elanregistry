@@ -2,14 +2,16 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
+
 /**
  * Return unverified (email_verified=0) accounts with no car associations older than $days.
  *
- * @param DB  $db   UserSpice DB instance
- * @param int $days Minimum age in days; caller must pass ≥30
+ * @param DatabaseInterface $db   UserSpice DB instance
+ * @param int               $days Minimum age in days; caller must pass ≥30
  * @return array<object> Matching user rows, ordered by join_date ASC
  */
-function findUnverifiedOwnerlessAccounts(DB $db, int $days): array
+function findUnverifiedOwnerlessAccounts(DatabaseInterface $db, int $days): array
 {
     return $db->query(
         "SELECT u.id, u.email, u.fname, u.lname, u.join_date,
@@ -35,11 +37,11 @@ function findUnverifiedOwnerlessAccounts(DB $db, int $days): array
  * Return verified (email_verified=1) accounts with no car associations whose last_login
  * is older than $days (or never logged in).
  *
- * @param DB  $db   UserSpice DB instance
- * @param int $days Inactivity threshold in days; caller must pass ≥1
+ * @param DatabaseInterface $db   UserSpice DB instance
+ * @param int               $days Inactivity threshold in days; caller must pass ≥1
  * @return array<object> Matching user rows, ordered by last_login ASC, join_date ASC
  */
-function findVerifiedOwnerlessAccounts(DB $db, int $days): array
+function findVerifiedOwnerlessAccounts(DatabaseInterface $db, int $days): array
 {
     return $db->query(
         "SELECT u.id, u.email, u.fname, u.lname, u.join_date,
@@ -68,12 +70,12 @@ function findVerifiedOwnerlessAccounts(DB $db, int $days): array
 /**
  * Snapshot a set of user accounts into deleted_accounts_archive before deletion.
  *
- * @param DB     $db            UserSpice DB instance
- * @param int[]  $userIds       IDs to archive
- * @param int    $deletedBy     Admin user ID performing the deletion
- * @param string $deletionType  'unverified' or 'verified'
+ * @param DatabaseInterface $db            UserSpice DB instance
+ * @param int[]             $userIds       IDs to archive
+ * @param int               $deletedBy     Admin user ID performing the deletion
+ * @param string            $deletionType  'unverified' or 'verified'
  */
-function archiveAccounts(DB $db, array $userIds, int $deletedBy, string $deletionType): void
+function archiveAccounts(DatabaseInterface $db, array $userIds, int $deletedBy, string $deletionType): void
 {
     if (empty($userIds)) {
         return;
@@ -143,13 +145,13 @@ function archiveAccounts(DB $db, array $userIds, int $deletedBy, string $deletio
  *
  * Returns the new user ID on success, or throws on failure.
  *
- * @param DB  $db         UserSpice DB instance
- * @param int $archiveId  Row ID in deleted_accounts_archive
- * @param int $restoredBy Admin user ID performing the restore
+ * @param DatabaseInterface $db         UserSpice DB instance
+ * @param int               $archiveId  Row ID in deleted_accounts_archive
+ * @param int               $restoredBy Admin user ID performing the restore
  *
  * @throws RuntimeException if the archive row is not found, already restored, or any write fails
  */
-function restoreArchivedAccount(DB $db, int $archiveId, int $restoredBy): int
+function restoreArchivedAccount(DatabaseInterface $db, int $archiveId, int $restoredBy): int
 {
     $row = $db->query(
         "SELECT * FROM deleted_accounts_archive WHERE id = ? AND restored_at IS NULL LIMIT 1",
@@ -244,10 +246,10 @@ function restoreArchivedAccount(DB $db, int $archiveId, int $restoredBy): int
 /**
  * Return all archive rows for the DataTables endpoint.
  *
- * @param DB $db UserSpice DB instance
+ * @param DatabaseInterface $db UserSpice DB instance
  * @return array<object> All deleted_accounts_archive rows, ordered by deleted_at DESC
  */
-function findArchivedAccounts(DB $db): array
+function findArchivedAccounts(DatabaseInterface $db): array
 {
     return $db->query(
         "SELECT a.id, a.original_user_id, a.email, a.fname, a.lname,

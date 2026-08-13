@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace ElanRegistry;
 
-use DB;
 use Exception;
 use ElanRegistry\Car\CarRepository;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\OwnerCreationException;
 use ElanRegistry\Exceptions\OwnerSearchException;
 use ElanRegistry\Exceptions\OwnerUpdateException;
@@ -32,7 +32,7 @@ class Owner
         'country' => 'Country',
     ];
 
-    private ?object $_db = null;
+    private ?DatabaseInterface $_db = null;
     private ?object $_data = null;
     private ?array $_carsOwned = null;
     private string $userTableName = 'users';
@@ -42,11 +42,11 @@ class Owner
      * Instantiates the Owner object.
      *
      * @param int|null $id Optional User ID. If given, the owner information will be populated.
-     * @param object|null $db Optional DB instance for testing. If not provided, uses DB::getInstance().
+     * @param DatabaseInterface|null $db Optional database instance for testing. Defaults to the shared dbi() handle.
      */
-    public function __construct(?int $id = null, ?object $db = null)
+    public function __construct(?int $id = null, ?DatabaseInterface $db = null)
     {
-        $this->_db = $db ?? DB::getInstance();
+        $this->_db = $db ?? dbi();
 
         if ($id) {
             $this->find($id);

@@ -133,7 +133,7 @@ try {
     if (class_exists('DB')) {
         // Reset the DB singleton cache to force reconnection with corrected config
         // The DB class caches the PDO connection, so we need to clear it to force a new one
-        $reflectionClass = new ReflectionClass('DB');
+        $reflectionClass = new ReflectionClass(DB::class);
         $instanceProperty = $reflectionClass->getProperty('_instance');
         $instanceProperty->setValue(null, null); // static property: first arg is object (null), second is new value
         fwrite(STDERR, "NOTE: Reset DB singleton cache for reinitialization\n");

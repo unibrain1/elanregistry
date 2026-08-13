@@ -24,7 +24,7 @@ if (!securePage($php_self)) {
 }
 
 ['series' => $filterSeries, 'types' => $filterTypes, 'variants' => $filterVariants]
-    = (new CarRepository($db))->getFilterOptions();
+    = (new CarRepository(dbi()))->getFilterOptions();
 
 /**
  * Render a row of filter pills for a single DataTables column.

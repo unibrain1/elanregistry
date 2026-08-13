@@ -21,12 +21,20 @@ if ($carID <= 0) {
     Redirect::to('/');
 }
 
-$carResults = $db->findById($carID, 'cars')->results();
+$carQuery = $db->get('cars', ['id', '=', $carID]);
+if ($carQuery === false) {
+    Redirect::to('/');
+}
+$carResults = $carQuery->results();
 if (empty($carResults)) {
     Redirect::to('/');
 }
 
-$ownerResults = $db->findById((int) $carResults[0]->user_id, 'users')->results();
+$ownerQuery = $db->get('users', ['id', '=', (int) $carResults[0]->user_id]);
+if ($ownerQuery === false) {
+    Redirect::to('/');
+}
+$ownerResults = $ownerQuery->results();
 if (empty($ownerResults)) {
     Redirect::to('/');
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Transfer\CarTransferRepository;
 use ElanRegistry\Transfer\TransferStatus;
@@ -11,13 +12,14 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * Tests for CarTransferRepository.
  *
- * Mixes two DB doubles: the happy-path/not-found tests run against the shared
- * bootstrap-unit.php mock (query() always returns count=0, insert() returns
- * true, lastId() returns 1) — SQL correctness (column names, WHERE clauses,
- * JOINs) is NOT verified there. The "Database error paths" tests below inject
- * a per-test createMock(DB::class) double whose error() returns true, proving
- * each method fails closed with CarDatabaseException. Real-DB behavioral
- * coverage lives in tests/integration/transfer/CarTransferRepositoryIntegrationTest.php.
+ * Mixes two DatabaseInterface doubles: the happy-path/not-found tests run
+ * against the healthy-but-empty stub from makeEmptyResultDb() (query() reports
+ * no rows, insert() returns true, lastId() returns 1) — SQL correctness
+ * (column names, WHERE clauses, JOINs) is NOT verified there. The "Database
+ * error paths" tests below inject a per-test double whose error() returns
+ * true, proving each method fails closed with CarDatabaseException. Real-DB
+ * behavioral coverage lives in
+ * tests/integration/transfer/CarTransferRepositoryIntegrationTest.php.
  */
 #[Group('fast')]
 #[Group('transfer')]
@@ -27,7 +29,30 @@ final class CarTransferRepositoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->repo = new CarTransferRepository(DB::getInstance());
+        $this->repo = new CarTransferRepository($this->makeEmptyResultDb());
+    }
+
+    /**
+     * A database double standing in for a healthy connection with no matching
+     * rows: query() returns the double itself (the real \DB contract — query()
+     * always returns $this for chaining), error() is false, and the result
+     * accessors report an empty result set. first() returns [] rather than
+     * null, matching the real \DB::first() contract.
+     *
+     * @return \PHPUnit\Framework\MockObject\Stub&DatabaseInterface
+     */
+    private function makeEmptyResultDb(): object
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(0);
+        $db->method('first')->willReturn([]);
+        $db->method('results')->willReturn([]);
+        $db->method('insert')->willReturn(true);
+        $db->method('lastId')->willReturn(1);
+
+        return $db;
     }
 
     public function testFindPendingByIdReturnsNullForMissingId(): void
@@ -112,18 +137,16 @@ final class CarTransferRepositoryTest extends TestCase
     // =========================================================================
     // Database error paths (issue #1441)
     //
-    // The bootstrap mock DB always reports error() = false, so these guards were
-    // unreachable from the shared singleton. Each test injects a per-test DB
-    // double whose error() returns true, proving the repository fails closed with
-    // a CarDatabaseException rather than returning a healthy-looking empty result.
+    // The healthy stub above always reports error() = false, so these guards were
+    // unreachable from it. Each test injects a per-test DB double whose error()
+    // returns true, proving the repository fails closed with a
+    // CarDatabaseException rather than returning a healthy-looking empty result.
     // =========================================================================
 
-    /** @return \PHPUnit\Framework\MockObject\MockObject&DB */
+    /** @return \PHPUnit\Framework\MockObject\MockObject&DatabaseInterface */
     private function makeDbMock(): object
     {
-        return $this->getMockBuilder(DB::class)
-            ->onlyMethods(['query', 'error', 'errorString', 'count', 'first', 'insert', 'lastId'])
-            ->getMock();
+        return $this->createMock(DatabaseInterface::class);
     }
 
     /**
@@ -134,7 +157,7 @@ final class CarTransferRepositoryTest extends TestCase
     private function assertThrowsOnDatabaseError(callable $action): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(true);
         $db->method('errorString')->willReturn('Connection lost');
 

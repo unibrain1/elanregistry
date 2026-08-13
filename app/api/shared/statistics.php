@@ -59,7 +59,7 @@ try {
             ->withLogging($userId, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'Statistics API: Database connection not available')
             ->send();
     }
-    $dataService = new StatisticsDataService($db);
+    $dataService = new StatisticsDataService(dbi());
 
     switch ($tab) {
         case 'geographic':

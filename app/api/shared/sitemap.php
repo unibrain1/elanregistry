@@ -17,7 +17,7 @@ use ElanRegistry\SitemapService;
 require_once '../../../users/init.php';
 
 try {
-    $service = new SitemapService(new CarRepository($db));
+    $service = new SitemapService(new CarRepository(dbi()));
     $xml = $service->buildXml($current_origin);
 
     header('Content-Type: application/xml; charset=UTF-8');

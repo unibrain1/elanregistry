@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Transfer;
 
-use DB;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\LogCategories;
 
@@ -20,7 +20,7 @@ use ElanRegistry\LogCategories;
  */
 class CarTransferRepository
 {
-    public function __construct(private DB $db) {}
+    public function __construct(private DatabaseInterface $db) {}
 
     /**
      * Find a transfer request by ID.
@@ -173,7 +173,8 @@ class CarTransferRepository
             logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'CarTransferRepository::countPending failed: ' . $this->db->errorString());
             throw new CarDatabaseException('Database error counting pending transfer requests');
         }
-        return $result->count() > 0 ? (int) $result->first()->count : 0;
+        $row = $result->count() > 0 ? $result->first() : null;
+        return is_object($row) ? (int) $row->count : 0;
     }
 
     /**

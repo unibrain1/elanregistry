@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 use ElanRegistry\OwnerView;
@@ -106,10 +107,10 @@ if (isset($_GET['owner_id']) && is_numeric($_GET['owner_id'])) {
 /**
  * Get owner quality reports for display in owner management interface
  *
- * @param DB $db Database connection instance
+ * @param DatabaseInterface $db Database connection instance
  * @return array Array of quality report data with counts and details
  */
-function getOwnerQualityReports(DB $db): array {
+function getOwnerQualityReports(DatabaseInterface $db): array {
     $reports = [];
 
     try {
@@ -178,11 +179,11 @@ function getOwnerQualityReports(DB $db): array {
 /**
  * Get detailed information for all owners with a duplicate email
  *
- * @param DB $db Database connection
+ * @param DatabaseInterface $db Database connection
  * @param string $email The duplicate email address
  * @return array Array of owner objects with profile and car count data
  */
-function getDuplicateEmailDetails(DB $db, string $email): array {
+function getDuplicateEmailDetails(DatabaseInterface $db, string $email): array {
     $ownersQ = $db->query("
         SELECT
             u.id, u.fname, u.lname, u.email, u.join_date, u.last_login,
@@ -246,7 +247,7 @@ function getDuplicateEmailDetails(DB $db, string $email): array {
     return $owners;
 }
 
-$dataQualityReports = getOwnerQualityReports($db);
+$dataQualityReports = getOwnerQualityReports(dbi());
 
 $totalOwners = $systemStatus['total_users'] ?? 0;
 $qualityIssues = 0;
@@ -362,7 +363,7 @@ $ownerQualityIcon  = match (true) {
                                                     $groupIndex++;
 
                                                     // Get detailed owner information for this email
-                                                    $owners = getDuplicateEmailDetails($db, $duplicate->email);
+                                                    $owners = getDuplicateEmailDetails(dbi(), $duplicate->email);
 
                                                     // Create comparison data for highlighting differences
                                                     $ownerFields = ['fname', 'lname', 'city', 'state', 'country'];

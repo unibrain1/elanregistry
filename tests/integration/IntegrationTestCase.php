@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\Database\DbAdapter;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -59,13 +60,19 @@ abstract class IntegrationTestCase extends TestCase
         $this->createdCarIds = [];
         $this->createdUserIds = [];
 
-        // Get real DB instance (loaded by bootstrap-integration.php)
+        // Get real DB instance (loaded by bootstrap-integration.php), wrapped in the
+        // DbAdapter so it satisfies the DatabaseInterface type hints that production
+        // collaborators (CarRepository, StatisticsDataService, the account-cleanup
+        // helpers, ...) now declare. The adapter delegates 1:1 to the wrapped \DB, so
+        // tests still exercise genuine database behaviour.
         try {
-            $this->db = DB::getInstance();
+            $this->db = new DbAdapter(DB::getInstance());
 
-            // Verify database connection with simple query
+            // Verify database connection with simple query. The adapter always returns
+            // itself from query() (a failed statement is reported by error(), never by a
+            // null return), so a usable connection is one that actually yields the row.
             $result = $this->db->query("SELECT 1");
-            if ($result !== null && $result->count() > 0) {
+            if (!$result->error() && $result->count() > 0) {
                 $this->databaseConnected = true;
             }
         } catch (RuntimeException $e) {

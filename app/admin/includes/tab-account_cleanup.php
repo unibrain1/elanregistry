@@ -36,7 +36,7 @@ if ($method === 'POST' && isset($_POST['ac_action'])) {
             $acFlashError = 'Invalid archive record.';
         } else {
             try {
-                $newUserId = restoreArchivedAccount($db, $archiveId, $currentUserId);
+                $newUserId = restoreArchivedAccount(dbi(), $archiveId, $currentUserId);
                 logger(
                     $currentUserId,
                     LogCategories::LOG_CATEGORY_USER_DELETION,
@@ -74,15 +74,15 @@ if ($method === 'POST' && isset($_POST['ac_action'])) {
             $acFlashError = 'No accounts selected for deletion.';
         } else {
             $eligible    = $isVerified
-                ? findVerifiedOwnerlessAccounts($db, $postVThreshold)
-                : findUnverifiedOwnerlessAccounts($db, $postThreshold);
+                ? findVerifiedOwnerlessAccounts(dbi(), $postVThreshold)
+                : findUnverifiedOwnerlessAccounts(dbi(), $postThreshold);
 
             // CRITICAL-2: Abort if the re-query itself failed silently (UserSpice swallows DB errors)
-            if ($db->error()) {
+            if (dbi()->error()) {
                 logger(
                     $currentUserId,
                     LogCategories::LOG_CATEGORY_USER_DELETION,
-                    'Account cleanup eligibility re-query failed — deletion aborted: ' . $db->errorString()
+                    'Account cleanup eligibility re-query failed — deletion aborted: ' . dbi()->errorString()
                 );
                 $acFlashError = 'Could not verify account eligibility. Deletion aborted. Please try again.';
             } else {
@@ -94,7 +94,7 @@ if ($method === 'POST' && isset($_POST['ac_action'])) {
 
             // Archive before permanent deletion — abort if archive fails
             try {
-                archiveAccounts($db, $toDelete, $currentUserId, $isVerified ? 'verified' : 'unverified');
+                archiveAccounts(dbi(), $toDelete, $currentUserId, $isVerified ? 'verified' : 'unverified');
             } catch (\Throwable $e) {
                 logger(
                     $currentUserId,
@@ -110,15 +110,15 @@ if ($method === 'POST' && isset($_POST['ac_action'])) {
                 // CRITICAL-1: Re-query AFTER deletion so we log only accounts actually removed.
                 // deleteUsers() returns an iteration count, not a success count — log from confirmed state.
                 $acPostAccounts = $isVerified
-                    ? findVerifiedOwnerlessAccounts($db, $postVThreshold)
-                    : findUnverifiedOwnerlessAccounts($db, $postThreshold);
-                if ($db->error()) {
+                    ? findVerifiedOwnerlessAccounts(dbi(), $postVThreshold)
+                    : findUnverifiedOwnerlessAccounts(dbi(), $postThreshold);
+                if (dbi()->error()) {
                     // Post-deletion re-query failed — deletions ran but confirmation is uncertain.
                     // Log a warning; report all submitted IDs so the admin knows to verify manually.
                     logger(
                         $currentUserId,
                         LogCategories::LOG_CATEGORY_USER_DELETION,
-                        'Post-deletion re-query failed — audit log may be incomplete: ' . $db->errorString()
+                        'Post-deletion re-query failed — audit log may be incomplete: ' . dbi()->errorString()
                     );
                     $confirmedIds = $toDelete;
                 } else {

@@ -96,12 +96,12 @@ $systemStatus = [
 ];
 
 try {
-    $systemStatus = getAdminSystemStatus($db) + [
+    $systemStatus = getAdminSystemStatus(dbi()) + [
         'pending_transfers' => 0,
         'quality_issues'    => 0,
     ];
 
-    $systemStatus['pending_transfers'] = (new CarTransferRepository($db))->countPending();
+    $systemStatus['pending_transfers'] = (new CarTransferRepository(dbi()))->countPending();
 
     // Calculate quality issues separated by type using basic counts
     $carIssues = 0;

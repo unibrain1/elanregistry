@@ -29,9 +29,9 @@ $threshold = (int) ($_GET['threshold'] ?? 30);
 
 if ($type === 'unverified') {
     $threshold = max(30, $threshold);
-    $accounts  = findUnverifiedOwnerlessAccounts($db, $threshold);
-    if ($db->error()) {
-        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: unverified query failed — ' . $db->errorString());
+    $accounts  = findUnverifiedOwnerlessAccounts(dbi(), $threshold);
+    if (dbi()->error()) {
+        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: unverified query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
         exit;
     }
@@ -49,9 +49,9 @@ if ($type === 'unverified') {
     }, $accounts);
 } elseif ($type === 'verified') {
     $threshold = max(1, $threshold);
-    $accounts  = findVerifiedOwnerlessAccounts($db, $threshold);
-    if ($db->error()) {
-        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: verified query failed — ' . $db->errorString());
+    $accounts  = findVerifiedOwnerlessAccounts(dbi(), $threshold);
+    if (dbi()->error()) {
+        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: verified query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
         exit;
     }
@@ -70,9 +70,9 @@ if ($type === 'unverified') {
         ];
     }, $accounts);
 } elseif ($type === 'archive') {
-    $accounts = findArchivedAccounts($db);
-    if ($db->error()) {
-        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: archive query failed — ' . $db->errorString());
+    $accounts = findArchivedAccounts(dbi());
+    if (dbi()->error()) {
+        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: archive query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
         exit;
     }

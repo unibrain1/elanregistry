@@ -20,7 +20,7 @@ use ElanRegistry\LogCategories;
  * covers profiles/cars cleanup only — not the user row deletion itself.
  */
 
-$repo = new \ElanRegistry\Car\CarRepository($db);
+$repo = new \ElanRegistry\Car\CarRepository(dbi());
 $id = (int) $id;
 
 /**

@@ -49,7 +49,7 @@ try {
     // Initialize BackupManager with global configuration constant
     $backupDir = $abs_us_root . $us_url_root . BACKUP_BASE_DIR;
     // Cast user ID to int for strict type safety across different PHP/database configurations
-    $backupManager = new BackupManager($db, $backupDir, (int)$user->data()->id);
+    $backupManager = new BackupManager(dbi(), $backupDir, (int)$user->data()->id);
 
     switch ($action) {
         case 'create_manual_backup':

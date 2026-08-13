@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ElanRegistry\Car\CarAdministrationService;
 use ElanRegistry\Car\CarRepository;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
@@ -15,8 +16,8 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * Unit tests for CarAdministrationService service class
  *
- * These tests exercise the REAL CarRepository against a mocked DB. Mocking the
- * framework boundary (DB) is the project convention; mocking our own
+ * These tests exercise the REAL CarRepository against a DatabaseInterface double.
+ * Mocking the framework boundary (the database) is the project convention; mocking our own
  * CarRepository would hide real repository behaviour such as the
  * CarNotFoundException thrown on 0-row deletes.
  *
@@ -31,7 +32,7 @@ final class CarAdministrationServiceTest extends TestCase
     protected function setUp(): void
     {
         $this->service = new CarAdministrationService();
-        $this->repo = new CarRepository($this->createStub(DB::class));
+        $this->repo = new CarRepository($this->createStub(DatabaseInterface::class));
     }
 
     /**
@@ -44,6 +45,11 @@ final class CarAdministrationServiceTest extends TestCase
      * flag true; whichever of commit()/rollBack() actually runs flips it back false —
      * matching CarRepository's real transactionOwner bookkeeping exactly, regardless
      * of how many times inTransaction() happens to be called.
+     *
+     * The callbacks return true because DatabaseInterface declares beginTransaction(),
+     * commit() and rollBack() as `bool` (the real PDO-backed methods return true on
+     * success); a void callback would make the double return null and fail its own
+     * return type.
      */
     private function configureTransaction(MockObject $db, bool $expectCommit): void
     {
@@ -52,24 +58,60 @@ final class CarAdministrationServiceTest extends TestCase
             return $inTransaction;
         });
         $db->expects($this->once())->method('beginTransaction')
-            ->willReturnCallback(function () use (&$inTransaction): void {
+            ->willReturnCallback(function () use (&$inTransaction): bool {
                 $inTransaction = true;
+                return true;
             });
         $db->expects($expectCommit ? $this->once() : $this->never())->method('commit')
-            ->willReturnCallback(function () use (&$inTransaction): void {
+            ->willReturnCallback(function () use (&$inTransaction): bool {
                 $inTransaction = false;
+                return true;
             });
         $db->expects($expectCommit ? $this->never() : $this->once())->method('rollBack')
-            ->willReturnCallback(function () use (&$inTransaction): void {
+            ->willReturnCallback(function () use (&$inTransaction): bool {
                 $inTransaction = false;
+                return true;
             });
+    }
+
+    /**
+     * Build the DatabaseInterface double that transfer() hands to Owner.
+     *
+     * Owner::find() runs a single `users LEFT JOIN profiles WHERE u.id = ?`
+     * query and reads count()/first() back off the same instance, so the stub
+     * mirrors that: query() returns itself, one row is found, and first()
+     * returns a complete user row.
+     */
+    private function createOwnerDb(int $userId = 1): DatabaseInterface
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturn((object) [
+            'id'        => $userId,
+            'email'     => 'test@example.com',
+            'fname'     => 'Test',
+            'lname'     => 'User',
+            'join_date' => '2024-01-01 00:00:00',
+            'city'      => 'Test City',
+            'state'     => 'TS',
+            'country'   => 'US',
+            'lat'       => null,
+            'lon'       => null,
+            'website'   => '',
+        ]);
+        return $db;
     }
 
     public function testDeleteSucceedsWithValidData(): void
     {
         $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: true);
+        // query() returns the database object itself for chaining; the result of the
+        // DELETE is read back off the same double via error()/count().
+        $db->method('query')->willReturn($db);
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(1); // deleteCar(): count()>0 -> true, no CarNotFoundException
         $repo = new CarRepository($db);
@@ -96,17 +138,16 @@ final class CarAdministrationServiceTest extends TestCase
 
         $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
 
-        $this->service->transfer($carData, 0, 'Test transfer reason', 'NEWOWNER', 1, $this->repo);
+        $this->service->transfer($carData, 0, 'Test transfer reason', 'NEWOWNER', 1, $this->repo, $this->createOwnerDb());
     }
 
     public function testTransferSucceeds(): void
     {
-        // userId=1 triggers (new Owner(1))->data() internally inside CarAdministrationService::transfer().
-        // Owner DOES accept DB via constructor injection, but transfer() constructs it without passing
-        // one, so it falls back to the SHARED DB::getInstance() singleton — a separate object from $db
-        // below, unaffected by it. Do not try to make $db cover Owner.
+        // transfer() looks the target owner up via (new Owner($newUserId, $db))->data(),
+        // using the DatabaseInterface passed as its last argument. A dedicated owner
+        // double keeps that lookup separate from $db's repository expectations below.
         $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: true);
         $db->method('update')->willReturn(true);  // CarRepository::updateCar() -> $this->db->update(...)
         $db->method('insert')->willReturn(true);  // CarRepository::insertHistory() -> $this->db->insert(...)
@@ -115,32 +156,32 @@ final class CarAdministrationServiceTest extends TestCase
         // transfer()'s return type is literal `true` (throws on any failure), so no
         // assertion is needed on the return value itself — the mock's beginTransaction/
         // commit expectations above (verified in tearDown) are what this test proves.
-        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo);
+        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo, $this->createOwnerDb());
     }
 
     public function testTransferThrowsCarDatabaseExceptionWhenUpdateFails(): void
     {
         $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
         $db->method('update')->willReturn(false); // updateCar() fails
         $repo = new CarRepository($db);
 
         $this->expectException(CarDatabaseException::class);
-        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo);
+        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo, $this->createOwnerDb());
     }
 
     public function testTransferThrowsCarDatabaseExceptionWhenInsertHistoryFails(): void
     {
         $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
         $db->method('update')->willReturn(true);  // updateCar() succeeds
         $db->method('insert')->willReturn(false); // insertHistory() fails
         $repo = new CarRepository($db);
 
         $this->expectException(CarDatabaseException::class);
-        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo);
+        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo, $this->createOwnerDb());
     }
 
     // =========================================================================
@@ -156,8 +197,9 @@ final class CarAdministrationServiceTest extends TestCase
     {
         // deleteCar(): error()=false, count()=0 -> throws CarNotFoundException (real CarRepository behavior)
         $carData = (object) ['id' => 999, 'chassis' => 'GHOST01'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
+        $db->method('query')->willReturn($db); // query() returns the database object itself
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(0);
         $repo = new CarRepository($db);
@@ -175,8 +217,9 @@ final class CarAdministrationServiceTest extends TestCase
     {
         // deleteCar(): error()=true -> returns false BEFORE checking count (real CarRepository behavior)
         $carData = (object) ['id' => 999, 'chassis' => 'GHOST02'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
+        $db->method('query')->willReturn($db); // query() returns the database object itself
         $db->method('error')->willReturn(true);
         $repo = new CarRepository($db);
 
@@ -193,8 +236,9 @@ final class CarAdministrationServiceTest extends TestCase
     {
         // findByIdForUpdate(999): error()=false, count()=0 -> returns null -> merge() throws CarNotFoundException itself
         $targetCarData = (object) ['id' => 1, 'chassis' => 'TARGET01'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
+        $db->method('query')->willReturn($db); // query() returns the database object itself
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(0);
         $repo = new CarRepository($db);
@@ -213,8 +257,9 @@ final class CarAdministrationServiceTest extends TestCase
         // 2nd by transferHistory (must be true = failure, since transferHistory returns !error()).
         $targetCarData = (object) ['id' => 1, 'chassis' => 'TARGET01'];
         $sourceData = (object) ['id' => 999, 'chassis' => 'SOURCE01'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
+        $db->method('query')->willReturn($db); // query() returns the database object itself
         $db->method('error')->willReturnOnConsecutiveCalls(false, true);
         $db->method('count')->willReturn(1);
         $db->method('first')->willReturn($sourceData);
@@ -230,8 +275,9 @@ final class CarAdministrationServiceTest extends TestCase
         // deleteCar(true=fails, returns false before checking count). count() only used by findByIdForUpdate.
         $targetCarData = (object) ['id' => 1, 'chassis' => 'TARGET01'];
         $sourceData = (object) ['id' => 999, 'chassis' => 'SOURCE01'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
+        $db->method('query')->willReturn($db); // query() returns the database object itself
         $db->method('error')->willReturnOnConsecutiveCalls(false, false, true);
         $db->method('count')->willReturn(1);
         $db->method('first')->willReturn($sourceData);
@@ -248,8 +294,9 @@ final class CarAdministrationServiceTest extends TestCase
         // insert() (insertHistory) fails.
         $targetCarData = (object) ['id' => 1, 'chassis' => 'TARGET01'];
         $sourceData = (object) ['id' => 999, 'chassis' => 'SOURCE01'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: false);
+        $db->method('query')->willReturn($db); // query() returns the database object itself
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(1);
         $db->method('first')->willReturn($sourceData);
@@ -269,8 +316,9 @@ final class CarAdministrationServiceTest extends TestCase
     {
         $targetCarData = (object) ['id' => 1, 'chassis' => 'TARGET01'];
         $sourceData = (object) ['id' => 999, 'chassis' => 'SOURCE01'];
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
         $this->configureTransaction($db, expectCommit: true);
+        $db->method('query')->willReturn($db); // query() returns the database object itself
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(1);
         $db->method('first')->willReturn($sourceData);

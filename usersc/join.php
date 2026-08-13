@@ -344,7 +344,7 @@ if (Input::existsPost()) {
                 // through to a username-column lookup and could overwrite an unrelated
                 // username-matched user's vericode.
                 $fuser = new \User($email, 'forceEmail');
-                $notifier = new \ElanRegistry\RegistrationRecoveryNotifier(\DB::getInstance());
+                $notifier = new \ElanRegistry\RegistrationRecoveryNotifier(dbi());
                 $notifier->notifyIfAccountExists($fuser, $email, $settings);
 
                 // Record the attempt so the per-email rate limit actually accumulates —

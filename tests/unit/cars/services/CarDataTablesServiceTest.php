@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ElanRegistry\Car\CarDataTablesService;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarValidationException;
 use PHPUnit\Framework\TestCase;
 
@@ -19,7 +20,9 @@ final class CarDataTablesServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->service = new CarDataTablesService();
+        // Column validation and the request-validation guards run before any query,
+        // so an unconfigured double is enough for those tests.
+        $this->service = new CarDataTablesService($this->createStub(DatabaseInterface::class));
     }
 
     /**
@@ -122,7 +125,7 @@ final class CarDataTablesServiceTest extends TestCase
         $this->expectException(CarValidationException::class);
 
         $request = ['draw' => 1, 'start' => 0, 'length' => 10];
-        $this->service->getDataTablesData($request, 'invalid_table', DB::getInstance());
+        $this->service->getDataTablesData($request, 'invalid_table');
     }
 
     // ============================================================
@@ -152,7 +155,7 @@ final class CarDataTablesServiceTest extends TestCase
         $this->expectException(CarValidationException::class);
 
         $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
-        $this->service->getDataTablesData($request, 'cars', DB::getInstance());
+        $this->service->getDataTablesData($request, 'cars');
     }
 
     // ============================================================
@@ -174,16 +177,19 @@ final class CarDataTablesServiceTest extends TestCase
     #[DataProvider('validPaginationProvider')]
     public function testGetDataTablesDataAcceptsValidPagination(int $start, int $length): void
     {
-        $db = $this->createStub(DB::class);
         // getDataTablesData() calls query() twice when search/columns are empty: COUNT(*), then the data SELECT.
-        $db->method('query')->willReturnOnConsecutiveCalls(
-            new QueryResult([(object) ['count' => 5]]),
-            new QueryResult([])
-        );
+        // query() always returns the database instance itself; the simulated result set is
+        // expressed through first()/results() on the same double.
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturn((object) ['count' => 5]);
+        $db->method('results')->willReturn([]);
         $db->method('error')->willReturn(false);
 
+        $service = new CarDataTablesService($db);
+
         $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
-        $result = $this->service->getDataTablesData($request, 'cars', $db);
+        $result = $service->getDataTablesData($request, 'cars');
 
         $this->assertSame(1, $result['draw']);
         $this->assertSame(5, $result['recordsTotal']);

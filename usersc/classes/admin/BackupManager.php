@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Admin;
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\BackupException;
 use ElanRegistry\LogCategories;
 
@@ -16,7 +17,7 @@ use ElanRegistry\LogCategories;
  */
 
 class BackupManager {
-    private object $db;
+    private DatabaseInterface $db;
     private \Closure $logger;
     private string $backupBaseDir;
 
@@ -26,12 +27,12 @@ class BackupManager {
      *
      * Note: PHP does not allow return type declarations on constructors per language specification
      *
-     * @param object $database Database connection object
+     * @param DatabaseInterface $database Database connection (obtain via `dbi()`)
      * @param string $backupDirectory Base directory for backups
      * @param int|null $userId User ID for logging (optional)
      */
     // phpcs:disable PSR2.Methods.MethodDeclaration.MissingReturnType
-    public function __construct(object $database, string $backupDirectory, ?int $userId = null) {
+    public function __construct(DatabaseInterface $database, string $backupDirectory, ?int $userId = null) {
         // phpcs:enable PSR2.Methods.MethodDeclaration.MissingReturnType
         $this->db = $database;
         $this->backupBaseDir = rtrim($backupDirectory, '/') . '/';
@@ -629,7 +630,17 @@ class BackupManager {
                 throw new BackupException("Failed to read structure for table {$tableName}: " . $this->db->errorString());
             }
 
-            $createStatement = $createResult->first()->{'Create Table'};
+            // SHOW CREATE TABLE either errors (handled above) or returns exactly one
+            // row, so an empty result here means the table disappeared between the
+            // error check and the fetch. `first()` returns `[]` for no rows, and
+            // `[]->{'Create Table'}` would evaluate to null and write a dump with a
+            // bare `;` where the CREATE statement belongs — abort instead.
+            $createRow = $createResult->first();
+            if (!is_object($createRow)) {
+                throw new BackupException("No structure returned for table {$tableName} — it may have been dropped mid-backup");
+            }
+
+            $createStatement = $createRow->{'Create Table'};
 
             // Get table data
             // A failed SELECT reports count() === 0 exactly like an empty table, so the
@@ -648,7 +659,9 @@ class BackupManager {
 
                 foreach ($dataResult->results() as $row) {
                     $values = [];
-                    foreach ($row as $columnName => $value) {
+                    // Rows are fetched with PDO::FETCH_OBJ, so the column values are the
+                    // row object's public properties.
+                    foreach (get_object_vars($row) as $value) {
                         if (is_null($value)) {
                             $values[] = 'NULL';
                         } else {
