@@ -16,6 +16,13 @@ includes:
 parameters:
     level: 5
 
+    # Explicit, stable path so CI can cache PHPStan's result cache across runs
+    # (actions/cache in .github/workflows/static-analysis.yml) instead of
+    # paying for a cold full-repo analysis on every PR. PHPStan invalidates
+    # cache entries per-file by content hash, so a stale/mismatched cache
+    # restore is harmless — worst case is a cache miss, not a wrong result.
+    tmpDir: .phpstan-cache
+
     paths:
         # Application
         - app

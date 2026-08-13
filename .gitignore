@@ -40,6 +40,7 @@ usersc/vericode_secret.php
 ########################################
 .php_cs.cache
 .phpunit.cache
+.phpstan-cache/
 .scannerwork/*
 error_log
 
