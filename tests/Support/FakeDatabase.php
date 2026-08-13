@@ -129,11 +129,16 @@ class FakeDatabase implements DatabaseInterface
     }
 
     /**
-     * @return array<int, mixed> Always the PDO "no error" triple
+     * @return array<int, mixed> Always the real \DB "no error" triple — the literal
+     *                           integer 0, not the PDO '00000' SQLSTATE string. \DB::query()
+     *                           resets $_errorInfo to [0, null, null] at the start of every
+     *                           call and only overwrites it with the real PDO triple on
+     *                           failure, so '00000' is never actually observed (see
+     *                           tests/integration/DbAdapterContractTest.php).
      */
     public function errorInfo(): array
     {
-        return ['00000', null, null];
+        return [0, null, null];
     }
 
     /**
