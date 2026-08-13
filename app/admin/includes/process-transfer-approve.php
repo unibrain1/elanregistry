@@ -34,8 +34,8 @@ if ($transferId <= 0) {
         ->send();
 }
 
-$db = DB::getInstance();
-$repo = new CarTransferRepository(dbi());
+$db = dbi();
+$repo = new CarTransferRepository($db);
 
 try {
     // Fetch transfer request with car details
@@ -91,7 +91,7 @@ try {
 
     // Send approval notification email with error handling
     try {
-        $emailService = new TransferEmailService(dbi(), 'email');
+        $emailService = new TransferEmailService($db, 'email');
         $notificationSent = $emailService->sendResponse(
             $transferId,
             true,
