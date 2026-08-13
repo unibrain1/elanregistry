@@ -50,7 +50,7 @@ final class TransferRequestConstraintTest extends IntegrationTestCase
 
     /**
      * Insert a minimal car_transfer_requests row for a given car and user.
-     * Mirrors the pattern in TransferRequestTest::createTransferRequest().
+     * Mirrors the pattern in TransferIntegrationTestCase::createTransferRequest().
      *
      * @param int   $carId      The existing_car_id value
      * @param int   $userId     Used for both requested_by_user_id and created_by

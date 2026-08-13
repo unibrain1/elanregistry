@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../IntegrationTestCase.php';
+require_once __DIR__ . '/TransferIntegrationTestCase.php';
 
 use PHPUnit\Framework\Attributes\Group;
 
@@ -18,106 +18,8 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[Group('integration')]
 #[Group('transfer')]
-final class TransferRequestTest extends IntegrationTestCase
+final class TransferRequestTest extends TransferIntegrationTestCase
 {
-    /** @var int[] Transfer request IDs to clean up in tearDown */
-    private array $createdTransferIds = [];
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->requireDatabase();
-    }
-
-    protected function tearDown(): void
-    {
-        foreach ($this->createdTransferIds as $id) {
-            try {
-                $this->db->query("DELETE FROM car_transfer_requests WHERE id = ?", [$id]);
-            } catch (\Throwable $e) {
-                // Ignore cleanup errors
-            }
-        }
-        $this->createdTransferIds = [];
-        parent::tearDown();
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    /**
-     * Insert a car_transfer_requests row replicating the endpoint's INSERT.
-     * Tracked for tearDown cleanup. Returns the new transfer request ID.
-     */
-    private function createTransferRequest(int $carId, int $requesterId, array $overrides = []): int
-    {
-        $defaults = [
-            'existing_car_id'       => $carId,
-            'requested_by_user_id'  => $requesterId,
-            'security_token'        => bin2hex(random_bytes(32)),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'S4|SE|FHC',
-            'submitted_series'      => 'S4',
-            'submitted_variant'     => 'SE',
-            'submitted_year'        => '1973',
-            'submitted_type'        => 'FHC',
-            'submitted_chassis'     => 'TEST001',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'ENG001',
-            'submitted_comments'    => 'Test transfer request',
-            'submitted_email'       => 'requester@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'Requester',
-            'submitted_city'        => 'Portland',
-            'submitted_state'       => 'Oregon',
-            'submitted_country'     => 'United States',
-            'created_by'            => $requesterId,
-        ];
-
-        $row = array_merge($defaults, $overrides);
-
-        $this->db->query(
-            'INSERT INTO car_transfer_requests (
-                existing_car_id, requested_by_user_id, security_token, expires_at,
-                submitted_model, submitted_series, submitted_variant, submitted_year, submitted_type,
-                submitted_chassis, submitted_color, submitted_engine, submitted_comments,
-                submitted_email, submitted_fname, submitted_lname, submitted_city, submitted_state, submitted_country,
-                created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [
-                $row['existing_car_id'],
-                $row['requested_by_user_id'],
-                $row['security_token'],
-                $row['expires_at'],
-                $row['submitted_model'],
-                $row['submitted_series'],
-                $row['submitted_variant'],
-                $row['submitted_year'],
-                $row['submitted_type'],
-                $row['submitted_chassis'],
-                $row['submitted_color'],
-                $row['submitted_engine'],
-                $row['submitted_comments'],
-                $row['submitted_email'],
-                $row['submitted_fname'],
-                $row['submitted_lname'],
-                $row['submitted_city'],
-                $row['submitted_state'],
-                $row['submitted_country'],
-                $row['created_by'],
-            ]
-        );
-
-        $id = (int) $this->db->lastId();
-        if ($id <= 0) {
-            throw new \RuntimeException("createTransferRequest: INSERT failed");
-        }
-
-        $this->createdTransferIds[] = $id;
-        return $id;
-    }
-
     // =========================================================================
     // Tests
     // =========================================================================

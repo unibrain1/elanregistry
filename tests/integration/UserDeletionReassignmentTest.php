@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/IntegrationTestCase.php';
+require_once __DIR__ . '/transfer/TransferIntegrationTestCase.php';
 
 use ElanRegistry\LogCategories;
 use PHPUnit\Framework\Attributes\Group;
@@ -19,9 +19,13 @@ use PHPUnit\Framework\Attributes\Group;
  * This test closes the gap that allowed the #1279 race condition to reach
  * production: the previous FK test exercised the constraint in isolation
  * (bypassing the hook), so the hook was never tested end-to-end.
+ *
+ * Extends TransferIntegrationTestCase (not IntegrationTestCase directly) solely
+ * to reuse its createTransferRequest() fixture helper for the pending-transfer-
+ * expiry assertions below — this file is otherwise unrelated to transfer tests.
  */
 #[Group('integration')]
-final class UserDeletionReassignmentTest extends IntegrationTestCase
+final class UserDeletionReassignmentTest extends TransferIntegrationTestCase
 {
     /**
      * @var int[] user_ids of profile rows this test inserted directly (bypassing
@@ -37,7 +41,6 @@ final class UserDeletionReassignmentTest extends IntegrationTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->requireDatabase();
 
         // after_user_deletion.php requires an authenticated session (currentUserId()
         // throws RuntimeException otherwise) — see the ASSUMPTION comment in
@@ -57,7 +60,12 @@ final class UserDeletionReassignmentTest extends IntegrationTestCase
             // (that's what the test asserts), so this is normally a 0-row no-op. It only
             // matters if an assertion failed partway through and left a row behind.
             foreach ($this->createdProfileUserIds as $userId) {
-                $this->db->query('DELETE FROM profiles WHERE user_id = ?', [$userId]);
+                // DB::query() never throws on execute-time failure — check error() explicitly
+                // so a failed cleanup DELETE doesn't silently leave a row in the test schema.
+                $result = $this->db->query('DELETE FROM profiles WHERE user_id = ?', [$userId]);
+                if ($result->error()) {
+                    fwrite(STDERR, "NOTE: tearDown() cleanup failed for profile user_id {$userId}: {$result->errorString()}\n");
+                }
             }
         } finally {
             // Run even if the profile cleanup above throws, so the base class's own
@@ -103,10 +111,13 @@ final class UserDeletionReassignmentTest extends IntegrationTestCase
         // Transfer request the deleted user initiated for someone else's car — the hook
         // must expire it (not leave it pointing at a now-deleted requester). existing_car_id
         // has no FK to cars.id (see #1547), so any car ID would satisfy the schema; this
-        // test reuses one of its own tracked cars instead so IntegrationTestCase's
-        // tearDown() (which deletes car_transfer_requests by existing_car_id) cleans this
-        // row up automatically rather than leaking it into the persistent test schema.
-        $transferRequestId = $this->insertTransferRequest($carIds[0], $userId);
+        // test reuses one of its own tracked cars for readability. Cleanup is automatic:
+        // createTransferRequest() (inherited from TransferIntegrationTestCase) tracks the
+        // returned ID and deletes it directly by ID in tearDown().
+        $transferRequestId = $this->createTransferRequest($carIds[0], $userId, [
+            'status'            => 'pending',
+            'submitted_chassis' => 'T' . substr(uniqid(), -10),
+        ]);
 
         // An unrelated user's pending transfer request — must survive the hook untouched.
         // Without this, a regression that widened the hook's WHERE clause (e.g. dropping
@@ -114,7 +125,10 @@ final class UserDeletionReassignmentTest extends IntegrationTestCase
         // the schema and nothing here would catch it.
         $otherUserId = $this->createTestUser();
         $otherCarId = $this->createTestCar($otherUserId);
-        $otherTransferRequestId = $this->insertTransferRequest($otherCarId, $otherUserId);
+        $otherTransferRequestId = $this->createTransferRequest($otherCarId, $otherUserId, [
+            'status'            => 'pending',
+            'submitted_chassis' => 'T' . substr(uniqid(), -10),
+        ]);
 
         // Simulate deleteUsers() having removed the user row.
         // With fk_cars_user_id gone, this does NOT touch cars.user_id.
@@ -238,34 +252,6 @@ final class UserDeletionReassignmentTest extends IntegrationTestCase
         $row = $this->db->query('SELECT COUNT(*) AS cnt FROM profiles WHERE user_id = ?', [$userId])->first();
 
         return (int) $row->cnt;
-    }
-
-    /**
-     * Insert a pending car_transfer_requests row and return its ID. Explicitly supplies
-     * every NOT NULL column with no default (the six submitted_* fields, plus
-     * existing_car_id, requested_by_user_id, security_token, created_by) rather than
-     * relying on the DB class's sql_mode='' connection setting to silently tolerate
-     * missing them.
-     */
-    private function insertTransferRequest(int $carId, int $userId): int
-    {
-        $inserted = $this->db->insert('car_transfer_requests', [
-            'existing_car_id'      => $carId,
-            'requested_by_user_id' => $userId,
-            'created_by'           => $userId,
-            'security_token'       => bin2hex(random_bytes(16)),
-            'status'               => 'pending',
-            'expires_at'           => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'      => 'Elan',
-            'submitted_series'     => 'S4',
-            'submitted_variant'    => 'SE',
-            'submitted_year'       => '1973',
-            'submitted_type'       => 'FHC',
-            'submitted_chassis'    => 'T' . substr(uniqid(), -10),
-        ]);
-        $this->assertTrue((bool) $inserted, 'Test fixture: car_transfer_requests insert must succeed');
-
-        return (int) $this->db->lastId();
     }
 
     /**

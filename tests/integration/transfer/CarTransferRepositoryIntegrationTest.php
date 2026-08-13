@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../IntegrationTestCase.php';
+require_once __DIR__ . '/TransferIntegrationTestCase.php';
 
-use ElanRegistry\Transfer\CarTransferRepository;
 use ElanRegistry\Transfer\TransferStatus;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -17,68 +16,8 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[Group('integration')]
 #[Group('transfer')]
-final class CarTransferRepositoryIntegrationTest extends IntegrationTestCase
+final class CarTransferRepositoryIntegrationTest extends TransferIntegrationTestCase
 {
-    private CarTransferRepository $repo;
-
-    /** @var int[] Transfer request IDs to delete in tearDown */
-    private array $createdTransferIds = [];
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->requireDatabase();
-        $this->repo = new CarTransferRepository($this->db);
-    }
-
-    protected function tearDown(): void
-    {
-        foreach ($this->createdTransferIds as $id) {
-            try {
-                $this->db->query("DELETE FROM car_transfer_requests WHERE id = ?", [$id]);
-            } catch (\Throwable) {
-                // Ignore cleanup errors
-            }
-        }
-        $this->createdTransferIds = [];
-        parent::tearDown();
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    private function createTransferRequest(int $carId, int $requesterId, array $overrides = []): int
-    {
-        $defaults = [
-            'existing_car_id'      => $carId,
-            'requested_by_user_id' => $requesterId,
-            'security_token'       => bin2hex(random_bytes(32)),
-            'expires_at'           => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'      => 'S4|SE|FHC',
-            'submitted_series'     => 'S4',
-            'submitted_variant'    => 'SE',
-            'submitted_year'       => '1973',
-            'submitted_type'       => 'FHC',
-            'submitted_chassis'    => 'INTTEST001',
-            'submitted_color'      => 'Red',
-            'submitted_engine'     => 'ENG001',
-            'submitted_comments'   => 'Integration test request',
-            'submitted_email'      => 'requester@example.com',
-            'submitted_fname'      => 'Test',
-            'submitted_lname'      => 'Requester',
-            'submitted_city'       => 'Portland',
-            'submitted_state'      => 'Oregon',
-            'submitted_country'    => 'United States',
-            'created_by'           => $requesterId,
-        ];
-
-        $id = $this->repo->create(array_merge($defaults, $overrides));
-        $this->assertGreaterThan(0, $id, 'Precondition: CarTransferRepository::create() must return a positive ID');
-        $this->createdTransferIds[] = $id;
-        return $id;
-    }
-
     // =========================================================================
     // Tests
     // =========================================================================
