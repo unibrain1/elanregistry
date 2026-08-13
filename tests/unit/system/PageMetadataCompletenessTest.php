@@ -115,7 +115,6 @@ class PageMetadataCompletenessTest extends TestCase
         'app/owner/contact/owner.php',
         'app/owner/privacy.php',
         'docs/guides/car-transfer-faq.php',
-        'docs/pdf-viewer.php',
         'docs/stories/brian_walton/index.php',
         'docs/stories/SGO_2F/index.php',
         'docs/stories/type26register.php',

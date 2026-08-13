@@ -58,8 +58,33 @@ final class SitemapServiceTest extends TestCase
         $this->assertNotFalse($sitemap);
         $sitemap->registerXPathNamespace('s', 'http://www.sitemaps.org/schemas/sitemap/0.9');
         $urls = $sitemap->xpath('//s:url');
-        // 6 static pages + 0 cars in this scenario
-        $this->assertCount(6, $urls);
+        // 15 static pages + 0 cars in this scenario
+        $this->assertCount(15, $urls);
+    }
+
+    public function testBuildXmlIncludesAllReferencePdfAssetUrls(): void
+    {
+        $service = $this->makeService();
+        $xml     = $service->buildXml(self::BASE_URL);
+
+        $pdfPaths = [
+            '/docs/reference/assets/Elan_26_36_Workshop_Manual.pdf',
+            '/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf',
+            '/docs/reference/assets/2016%20Jan%20Elan%20Engine%20Types.pdf',
+            '/docs/reference/assets/2019_Jan_The_Elan_Super_Safety.pdf',
+            '/docs/reference/assets/All%20Elan%20and%20Elan%20Plus%202%20Paint%20Codes.pdf',
+            '/docs/reference/assets/Engine%20number%20breakdown%20%28Miles%20Wilkins%29.pdf',
+            '/docs/reference/assets/2014%20Jul%20Elan%20Gearknobs.pdf',
+            '/docs/reference/assets/2014%20Oct%20Elan%20and%20Plus%202%20Steering%20Wheels.pdf',
+            '/docs/reference/assets/Lotus%20Elan%20Plus%202%20serial%20numbers.pdf',
+        ];
+
+        foreach ($pdfPaths as $path) {
+            $this->assertStringContainsString(
+                '<loc>' . self::BASE_URL . $path . '</loc>',
+                $xml,
+            );
+        }
     }
 
     public function testBuildXmlIncludesOneUrlPerCar(): void
@@ -87,8 +112,8 @@ final class SitemapServiceTest extends TestCase
         $this->assertNotFalse($sitemap);
         $sitemap->registerXPathNamespace('s', 'http://www.sitemaps.org/schemas/sitemap/0.9');
         $urls = $sitemap->xpath('//s:url');
-        // 6 static pages + 3 cars
-        $this->assertCount(9, $urls);
+        // 15 static pages + 3 cars
+        $this->assertCount(18, $urls);
     }
 
     public function testBuildXmlExcludesFactoryAndPrivacyPages(): void
@@ -113,7 +138,7 @@ final class SitemapServiceTest extends TestCase
         $sitemap->registerXPathNamespace('s', 'http://www.sitemaps.org/schemas/sitemap/0.9');
         $urls = $sitemap->xpath('//s:url');
 
-        $this->assertCount(6, $urls);
+        $this->assertCount(15, $urls);
         $this->assertStringNotContainsString('details.php?car_id=', $xml);
     }
 
