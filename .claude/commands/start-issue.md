@@ -410,30 +410,39 @@ Once the user has explicitly approved the plan, execute using agents strategical
    - Relevant test suites (verify the test agent's tests pass)
    - Pre-commit hooks run PHPStan and phpcs on staged files — these catch type and lint errors
 
-5. **Run `/security-review`**: Launch the security-reviewer agent via the
-   Agent tool with `subagent_type: "security-reviewer"` to audit all changed
-   files. Provide the agent with the full diff of changes. Address any
-   Critical or High severity findings before proceeding.
+5. **Run security and architecture review in parallel.** Both agents read the
+   same diff independently — launch them together in a single message with
+   multiple Agent tool calls, not one after the other:
 
-6. **Launch senior-architect agent** for final review of the completed changes.
-   Provide the diff of all changes and ask for comprehensive code review:
+   - **`/security-review`** (`subagent_type: "security-reviewer"`, when
+     forms/SQL/auth were touched): audit all changed files against the full
+     diff. Address any Critical or High severity findings before proceeding.
 
-   - **Security verification**: CSRF tokens, prepared statements, input validation, XSS prevention
-   - **Database verification**: Schema consistency, trigger execution, audit trail logging
-   - **Code quality**: PHP 8+ types, readability, maintainability
-   - **Standards adherence**: CODING_STANDARDS.md, error handling patterns, project conventions
-   - **Test coverage**: Are tests comprehensive? Do they cover security and edge cases?
-   - **Documentation**: Are docs complete and accurate?
+   - **senior-architect** (`subagent_type: "senior-architect"`, **Large tier
+     only**): final architecture review of the completed diff —
 
-   **Model by tier:** For Large issues pass `model: "opus"` to the architect
-   agent — cross-cutting changes benefit from deeper reasoning. For Small and
-   Medium issues omit `model` (agent inherits its Sonnet default).
+     - **Security verification**: CSRF tokens, prepared statements, input validation, XSS prevention
+     - **Database verification**: Schema consistency, trigger execution, audit trail logging
+     - **Code quality**: PHP 8+ types, readability, maintainability
+     - **Standards adherence**: CODING_STANDARDS.md, error handling patterns, project conventions
+     - **Test coverage**: Are tests comprehensive? Do they cover security and edge cases?
+     - **Documentation**: Are docs complete and accurate?
 
-7. Address any issues raised by the security review or architect review. If
+     Pass `model: "opus"` — cross-cutting changes benefit from deeper reasoning.
+
+     **Small/Medium issues skip this call.** `/review-pr`'s code-reviewer and
+     silent-failure-hunter agents already cover CLAUDE.md standards,
+     correctness, and silent-failure patterns for those tiers, and CI's
+     `pr-to-milestone-review` backstop covers what's left if `/review-pr`
+     wasn't run before push. A third full-diff read here adds cost, not
+     coverage, for Small/Medium. Reserve the architect pass for Large issues,
+     where the deeper reasoning genuinely finds things the other layers don't.
+
+6. Address any issues raised by the security review or architect review. If
    fixes are needed, launch software-developer agents again for the
    corrections.
 
-8. **Hand off to the developer workflow.** Do NOT commit, push, or create PRs.
+7. **Hand off to the developer workflow.** Do NOT commit, push, or create PRs.
    **STOP HERE and wait for the user's explicit instruction before proceeding.**
    Present a summary with the next steps and ask the user which step to run:
 
@@ -521,6 +530,9 @@ the version from the milestone branch name (e.g., `milestone/v2.17.0` ->
 - **Verify UserSpice integration** (Step 7.1) - do not duplicate framework functionality
 - **Assess database and security impacts** (Step 7.2) - identify schema changes and security requirements upfront
 - **No pre-implementation architect call** - architect reviews code after implementation, not plans
+- **Post-implementation architect review is Large-tier only** - Step 10 skips
+  the senior-architect pass for Small/Medium issues; `/review-pr`'s agents and
+  CI's `pr-to-milestone-review` backstop already cover that ground for those tiers
 - **Only invoke agents that are needed** - match agents to the issue type; skip docs agent for internal refactoring, skip test agent for docs-only changes
 - **Scale agents up** - separate test agents for PHPUnit vs Playwright when both are needed
 - **Run independent agents in parallel** - when agents don't depend on each

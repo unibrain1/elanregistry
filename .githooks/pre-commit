@@ -15,8 +15,8 @@
 #      checkRegressionTestStructure() in scripts/check-coding-standards.php,
 #      the single source of truth for that check as of #1559)
 #   2. Markdown Linting (formatting)
-#   3. Unit Tests (if critical files changed)
-#   4. PHPStan Static Analysis (if PHP files changed)
+#   3. Unit Tests (if critical files changed) — runs concurrently with #4
+#   4. PHPStan Static Analysis (if PHP files changed) — runs concurrently with #3
 #   5. JavaScript Linting (if JS files changed and ESLint available)
 #   6. Minify first-party JS/CSS (if source files changed and Node available)
 #
@@ -100,43 +100,77 @@ else
     echo "⏭️  No markdown files staged"
 fi
 
-# Step 3: Run fast unit tests (if critical files changed)
+# Steps 3 & 4: Unit Tests and PHPStan — independent checks (neither depends
+# on the other's output), so run them concurrently instead of back-to-back.
+# Same full scope as before for each; this only saves wall-clock.
 echo ""
-echo "🧪 Step 3: Unit Tests"
+echo "🧪 Step 3 / 🔬 Step 4: Unit Tests + PHPStan Static Analysis (parallel)"
+
+RUN_TESTS=false
+RUN_PHPSTAN=false
+TEST_OUT="$TEMP_DIR/.unit-test-output.log"
+PHPSTAN_OUT="$TEMP_DIR/.phpstan-output.log"
+
 if [ -n "$CRITICAL_FILES" ]; then
     if [ ! -f "composer.json" ] || [ ! -d "vendor" ]; then
-        echo "⚠️  Skipping: composer dependencies not installed"
+        echo "⚠️  Step 3: Skipping — composer dependencies not installed"
     else
-        if vendor/bin/phpunit --testsuite=Unit --exclude-group known-broken 2>&1; then
-            echo "✅ Passed"
-        else
-            echo ""
-            echo "❌ COMMIT BLOCKED: Fix failing tests. Run 'composer test:quick' to verify."
-            exit 1
-        fi
+        RUN_TESTS=true
+        vendor/bin/phpunit --testsuite=Unit --exclude-group known-broken > "$TEST_OUT" 2>&1 &
+        TEST_PID=$!
     fi
 else
-    echo "⏭️  No critical files changed"
+    echo "⏭️  Step 3: No critical files changed"
 fi
 
-# Step 4: Run PHPStan static analysis (if PHP files changed)
-echo ""
-echo "🔬 Step 4: PHPStan Static Analysis"
 if [ -n "$STAGED_PHP_FILES" ]; then
-    if [ -f "vendor/bin/phpstan" ]; then
-        if vendor/bin/phpstan analyse --no-progress --memory-limit=512M 2>&1; then
-            echo "✅ Passed"
-        else
-            echo ""
-            echo "❌ COMMIT BLOCKED: Fix PHPStan errors above."
-            echo "   Bypass (not recommended): git commit --no-verify"
-            exit 1
-        fi
+    if [ ! -f "vendor/bin/phpstan" ]; then
+        echo "⚠️  Step 4: Skipping — phpstan not installed (composer require --dev phpstan/phpstan)"
     else
-        echo "⚠️  Skipping: phpstan not installed (composer require --dev phpstan/phpstan)"
+        RUN_PHPSTAN=true
+        vendor/bin/phpstan analyse --no-progress --memory-limit=512M > "$PHPSTAN_OUT" 2>&1 &
+        PHPSTAN_PID=$!
     fi
 else
-    echo "⏭️  No PHP files staged"
+    echo "⏭️  Step 4: No PHP files staged"
+fi
+
+TEST_STATUS=0
+PHPSTAN_STATUS=0
+[ "$RUN_TESTS" = true ] && { wait "$TEST_PID" || TEST_STATUS=$?; }
+[ "$RUN_PHPSTAN" = true ] && { wait "$PHPSTAN_PID" || PHPSTAN_STATUS=$?; }
+
+FAILED=false
+
+if [ "$RUN_TESTS" = true ]; then
+    echo ""
+    echo "🧪 Step 3: Unit Tests"
+    cat "$TEST_OUT"
+    if [ "$TEST_STATUS" -eq 0 ]; then
+        echo "✅ Passed"
+    else
+        echo "❌ Failed. Run 'composer test:quick' to verify."
+        FAILED=true
+    fi
+fi
+
+if [ "$RUN_PHPSTAN" = true ]; then
+    echo ""
+    echo "🔬 Step 4: PHPStan Static Analysis"
+    cat "$PHPSTAN_OUT"
+    if [ "$PHPSTAN_STATUS" -eq 0 ]; then
+        echo "✅ Passed"
+    else
+        echo "❌ Failed — fix the PHPStan errors above."
+        FAILED=true
+    fi
+fi
+
+if [ "$FAILED" = true ]; then
+    echo ""
+    echo "❌ COMMIT BLOCKED: Fix the issues above, stage fixes, and try again."
+    echo "   Bypass (not recommended): git commit --no-verify"
+    exit 1
 fi
 
 # Step 5: Run ESLint on staged JS files (if available)

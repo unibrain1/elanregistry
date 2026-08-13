@@ -85,6 +85,17 @@ jobs:
       - name: Install dependencies
         run: composer install --no-progress --prefer-dist --optimize-autoloader
 
+      # PHPStan invalidates cache entries per-file by content hash, so a
+      # cache restored from an older commit is still safe to reuse — it just
+      # skips re-analyzing files that haven't changed since. A miss (new
+      # cache key) costs nothing beyond a normal cold run.
+      - name: Cache PHPStan result cache
+        uses: actions/cache@v6
+        with:
+          path: .phpstan-cache
+          key: ${{ runner.os }}-phpstan-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-phpstan-
+
       - name: Run PHPStan (full repo — level 5, baselined)
         run: vendor/bin/phpstan analyse --error-format=github --no-progress --memory-limit=512M
 

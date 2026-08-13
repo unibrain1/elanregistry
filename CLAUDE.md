@@ -227,6 +227,32 @@ Pre-existing baseline errors are tracked debt — clear them for files you touch
 `reportUnmatchedIgnoredErrors: true` ensures CI rejects stale entries once fixed.
 See `docs/development/CODING_STANDARDS.md` — PHPStan Baseline Hygiene.
 
+### Review Layer Map
+
+Each mechanical check and review agent owns a distinct concern. **Before
+adding a new full-diff review step to any workflow command or agent, check
+this table first** — a new step that re-covers an existing layer adds cost,
+not coverage. (Background: several review layers were found stacking
+identical checks on the same PR; see the workflow-efficiency plan that
+prompted this section.)
+
+| Layer | Owns |
+| --- | --- |
+| PHPStan | Type errors, static analysis (level 5, baselined) |
+| `check-coding-standards.php` | Security patterns, type hints, PHPDoc presence, regression-test issue-linking |
+| ESLint | JavaScript style and static checks |
+| CodeQL / Semgrep | Known vulnerability patterns (SQL concatenation, XSS sinks, etc.) |
+| `security-reviewer` agent | Exhaustive OWASP/CSRF/SQLi/XSS/input-validation sweep |
+| `code-reviewer` agent | CLAUDE.md / CODING_STANDARDS.md conformance and obvious bugs, breadth over the whole diff |
+| `silent-failure-hunter` agent | Error-handling and fallback correctness (catch specificity, logging context) |
+| `senior-architect` agent | Architecture fit, design tradeoffs, GDPR — Large-tier issues only (see `start-issue.md`) |
+| `pr-test-analyzer` agent | Test-coverage adequacy judgment |
+| `comment-analyzer` agent | Comment/PHPDoc accuracy and long-term maintainability |
+| CI `pr-to-milestone-review` (Sonnet backstop) | Catches what static tools can't, assuming `/review-pr` already ran locally — not a full re-review |
+
+Each agent's own file documents its "Scope of Overlap with Other Review
+Agents" in more detail — see `.claude/agents/*.md`.
+
 ### Playwright Test Maintenance
 
 When adding, moving, removing, or renaming any page, update tests **in the same PR**:

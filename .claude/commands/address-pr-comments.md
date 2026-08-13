@@ -108,16 +108,31 @@ run sequentially.
 
 After each fix, verify the change looks correct before moving on.
 
-## Step 5.5: Local review on full branch diff (before committing)
+## Step 5.5: Local review on full branch diff (before committing) — gated
 
-Before committing fixes, run a local code review against the **full accumulated
-branch diff** — the same view CI uses. This catches cross-commit issues
+This step is expensive (full-file reads of every changed file) and only
+worth it once fixes have accumulated enough to plausibly interact. Run it
+only if **at least one** threshold is met:
+
+- 2 or more Blocking items were fixed in Step 5, or
+- 3 or more commits have accumulated on this branch since it diverged from
+  the base branch:
+
+  ```bash
+  BASE=$(gh pr view <pr-number> --repo elan-registry/registry --json baseRefName --jq .baseRefName)
+  git rev-list --count $(git merge-base HEAD origin/$BASE)..HEAD
+  ```
+
+**If neither threshold is met** (e.g. a single one-line fix from Step 5),
+skip straight to Step 6. Step 5's per-fix agent review plus CI's
+`pr-to-milestone-review` backstop already cover a change this small — a full
+branch re-review here would be a third read of the same tiny diff.
+
+**If a threshold is met**, run the full review: get the full accumulated
+branch diff — the same view CI uses — since this catches cross-commit issues
 (dead code, broken call interactions, unreachable paths) that per-fix diffs miss.
 
-Get the base branch from the PR's `baseRefName` (e.g. `milestone/v2.27.0`):
-
 ```bash
-BASE=$(gh pr view <pr-number> --repo elan-registry/registry --json baseRefName --jq .baseRefName)
 git diff $(git merge-base HEAD origin/$BASE)..HEAD
 ```
 

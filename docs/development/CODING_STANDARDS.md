@@ -192,6 +192,11 @@ composer phpstan:baseline
 error but leave its baseline entry, CI fails. The only safe path is to fix the
 error and regenerate.
 
+Note: pre-commit (`.githooks/pre-commit`) already runs a full-repo
+`phpstan analyse` on every commit that stages a PHP file — the single-file
+command above is for your tighter inner dev loop while actively fixing a
+file, not a substitute for what the hook does at commit time.
+
 The goal is to reduce the baseline over time. Target: below 100 entries → upgrade
 to level 8 (nullable property/method access checks).
 

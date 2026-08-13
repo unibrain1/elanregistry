@@ -42,7 +42,8 @@ Focus on:
   when they contain files that call `securePage()`** — pure API endpoints and
   action handlers without `securePage()` (e.g. `app/action/`, `app/api/`) are
   intentionally omitted
-- Use `getUserWithProfile($userId)` for combined user+profile data
+- Use `(new Owner($userId))->data()` for combined user+profile data access
+  (`getUserWithProfile()` was removed in v2.26.2)
 
 **Bug Detection**
 Logic errors, null handling, race conditions, resource leaks, wrong SQL
@@ -61,6 +62,21 @@ their findings.** Skip reports about things static tools would have caught:
 generic type-hint absence, unused imports, obvious SQL concatenation that
 static tools already flag. Focus on things static tools can't see: intent,
 design, architectural fit, project-specific conventions.
+
+## Scope of Overlap with Other Review Agents
+
+This agent owns breadth — CLAUDE.md / CODING_STANDARDS.md conformance and
+obvious bugs, across the whole diff. It is not the specialist for these, and
+should flag but not exhaustively re-derive their findings:
+
+- **security-reviewer** owns the systematic OWASP/CSRF/SQLi/XSS/input-
+  validation sweep. Note an obvious security issue if you see one; leave the
+  full audit to that agent.
+- **silent-failure-hunter** owns the detailed error-handling audit (catch
+  specificity, logging context, fallback justification).
+- **senior-architect** owns architecture-fit and design-tradeoff judgment
+  (Large-tier issues only — see `.claude/commands/start-issue.md`).
+- **pr-test-analyzer** owns test-coverage-adequacy judgment, not this agent.
 
 ## Confidence Scoring
 

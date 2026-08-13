@@ -208,6 +208,18 @@ all take the release notes' existing content as ground truth.
 If no discrepancies are found, note that in the summary and continue — this
 step doesn't need to slow down a milestone where nothing moved.
 
+### Steps 6–8: Independent doc checks — run the assessment phase in parallel
+
+Steps 6, 7, and 8 below are three independent "does this need updating"
+assessments — none depends on another's output, and each touches a disjoint
+set of files (release notes, `wiki/`, `CLAUDE.md`). Launch their read/assess
+phases together (a single message with multiple Explore/Task calls: gather
+the `git diff --name-only main...milestone/$ARGUMENTS` file list once and
+hand it to all three, read the release notes file, review CLAUDE.md against
+the changes), rather than working through them one at a time. Apply the
+resulting edits/commits after — commit order between them doesn't matter
+since they touch different files.
+
 ### Step 6: Finalize release notes at `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`
 
 - Read the file and verify all issues are marked as resolved (no "WIP:"

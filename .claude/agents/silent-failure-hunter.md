@@ -65,6 +65,16 @@ For every handler, answer:
   but verify)
 - Retry loops that exhaust without telling the user
 
+## Scope of Overlap with Other Review Agents
+
+- If a swallowed error also has security implications (e.g. it hides an auth
+  failure, or a broad catch masks a CSRF/validation bypass), flag it — but
+  the systematic OWASP sweep belongs to **security-reviewer**, not this
+  agent.
+- General style/type-hint/PHPDoc issues unrelated to error handling are
+  **code-reviewer**'s scope, not this agent's — stay focused on error and
+  fallback correctness.
+
 ## Output Format
 
 For each issue:
