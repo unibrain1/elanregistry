@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../IntegrationTestCase.php';
+require_once __DIR__ . '/TransferIntegrationTestCase.php';
 
 use ElanRegistry\Transfer\TransferStatus;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Integration tests for car transfer workflow
@@ -18,53 +19,21 @@ use ElanRegistry\Transfer\TransferStatus;
  *
  * Requires database connection and real tables.
  */
-class CarTransferWorkflowTest extends IntegrationTestCase
+#[Group('integration')]
+#[Group('transfer')]
+final class CarTransferWorkflowTest extends TransferIntegrationTestCase
 {
     private $testCarId;
     private $testUserId;
     private $currentOwnerId;
 
-    /** @var int[] Transfer request IDs to clean up in tearDown */
-    private array $createdTransferIds = [];
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->requireDatabase();
 
         $this->currentOwnerId = $this->createTestUser();
         $this->testCarId = $this->createTestCar($this->currentOwnerId);
         $this->testUserId = $this->createTestUser(); // distinct transfer-target user
-    }
-
-    protected function tearDown(): void
-    {
-        foreach ($this->createdTransferIds as $id) {
-            try {
-                $this->db->query("DELETE FROM car_transfer_requests WHERE id = ?", [$id]);
-            } catch (\Throwable $e) {
-                // Ignore cleanup errors
-            }
-        }
-        $this->createdTransferIds = [];
-        parent::tearDown();
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    /**
-     * Insert a transfer request row and track the ID for tearDown cleanup.
-     */
-    private function insertTransferRequest(array $fields): int
-    {
-        $this->db->insert('car_transfer_requests', $fields);
-        $id = (int) $this->db->lastId();
-        if ($id > 0) {
-            $this->createdTransferIds[] = $id;
-        }
-        return $id;
     }
 
     // =========================================================================
@@ -90,9 +59,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
         $securityToken = hash('sha256', $this->testCarId . $this->testUserId . time() . rand());
         $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
 
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => $securityToken,
             'expires_at'            => $expiresAt,
             'submitted_model'       => 'Test Model',
@@ -107,10 +74,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_email'       => 'test@example.com',
             'submitted_fname'       => 'Test',
             'submitted_lname'       => 'User',
-            'created_by'            => $this->testUserId,
         ]);
-
-        $this->assertGreaterThan(0, $requestId, "Transfer request should be created successfully");
 
         $request = $this->db->query(
             "SELECT id, status FROM car_transfer_requests WHERE id = ?",
@@ -132,9 +96,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
 
         $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
 
-        $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
             'expires_at'            => $expiresAt,
             'submitted_model'       => 'Test Model',
@@ -152,7 +114,6 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_city'        => 'Test City',
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
-            'created_by'            => $this->testUserId,
         ]);
 
         $result = $this->db->query(
@@ -177,9 +138,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -197,7 +156,6 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_city'        => 'Test City',
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
-            'created_by'            => $this->testUserId,
         ]);
 
         $result = $this->db->update('car_transfer_requests', $requestId, [
@@ -225,9 +183,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             $this->markTestSkipped('Database not available');
         }
 
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', 'test-' . time()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -246,7 +202,6 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
             'status'                => 'denied',
-            'created_by'            => $this->testUserId,
         ]);
 
         $result = $this->db->query(
@@ -273,9 +228,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
         $carBefore = $this->db->query("SELECT user_id FROM cars WHERE id = ?", [$this->testCarId])->first();
         $ownerBefore = $carBefore->user_id;
 
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -293,7 +246,6 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_city'        => 'Test City',
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
-            'created_by'            => $this->testUserId,
         ]);
 
         $result = $this->db->update('car_transfer_requests', $requestId, [
@@ -351,9 +303,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -371,10 +321,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_city'        => 'Test City',
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
-            'created_by'            => $this->testUserId,
         ]);
-
-        $this->assertGreaterThan(0, $requestId, 'Precondition: transfer request must be created');
 
         // First admin claims the request atomically.
         // AND status = 'pending' is the TOCTOU gate: only a pending row matches.
@@ -419,9 +366,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
 
         // Insert the request already in 'completed' state to simulate a row that
         // has already been approved by another admin.
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -442,16 +387,12 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'status'                => 'completed',
             'completed_date'        => date('Y-m-d H:i:s'),
             'admin_notes'           => 'First admin',
-            'created_by'            => $this->testUserId,
         ]);
-
-        $this->assertGreaterThan(0, $requestId, 'Precondition: request must be inserted');
 
         // A second admin attempting to approve the same request calls updateStatus().
         // Because the WHERE clause includes AND status = 'pending', no row matches,
         // and the method returns false — the correct TOCTOU signal.
-        $repo   = new \ElanRegistry\Transfer\CarTransferRepository($this->db);
-        $result = $repo->updateStatus($requestId, TransferStatus::Completed, 'Second admin');
+        $result = $this->repo->updateStatus($requestId, TransferStatus::Completed, 'Second admin');
 
         $this->assertFalse($result, 'updateStatus() must return false when the row is already in a terminal status (TOCTOU gate)');
     }
@@ -469,9 +410,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -489,16 +428,13 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_city'        => 'Test City',
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
-            'created_by'            => $this->testUserId,
         ]);
-
-        $repo = new \ElanRegistry\Transfer\CarTransferRepository($this->db);
 
         // Simulate the outer transaction that process-transfer-approve.php begins.
         $this->db->beginTransaction();
 
         // Step 1: claim the request (TOCTOU gate succeeds).
-        $claimed = $repo->updateStatus($requestId, TransferStatus::Completed, 'Admin claim');
+        $claimed = $this->repo->updateStatus($requestId, TransferStatus::Completed, 'Admin claim');
         $this->assertTrue($claimed, 'Precondition: initial claim must succeed');
 
         // Step 2: simulate a failed car transfer by rolling back the outer transaction
@@ -525,9 +461,7 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->insertTransferRequest([
-            'existing_car_id'       => $this->testCarId,
-            'requested_by_user_id'  => $this->testUserId,
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
             'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
             'submitted_model'       => 'Test Model',
@@ -546,7 +480,6 @@ class CarTransferWorkflowTest extends IntegrationTestCase
             'submitted_state'       => 'Test State',
             'submitted_country'     => 'Test Country',
             'status'                => 'completed',
-            'created_by'            => $this->testUserId,
         ]);
 
         $result = $this->db->query(
