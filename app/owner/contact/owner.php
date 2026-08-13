@@ -7,6 +7,7 @@
  * @author Elan Registry Admin
  * @copyright 2025
  */
+use ElanRegistry\LogCategories;
 use ElanRegistry\OwnerView;
 
 require_once '../../../users/init.php';
@@ -23,6 +24,7 @@ if ($carID <= 0) {
 
 $carQuery = $db->get('cars', ['id', '=', $carID]);
 if ($carQuery === false) {
+    logger($user->data()->id ?? 0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, "contact/owner.php: DB error looking up car_id=$carID");
     Redirect::to('/');
 }
 $carResults = $carQuery->results();
@@ -32,6 +34,7 @@ if (empty($carResults)) {
 
 $ownerQuery = $db->get('users', ['id', '=', (int) $carResults[0]->user_id]);
 if ($ownerQuery === false) {
+    logger($user->data()->id ?? 0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, "contact/owner.php: DB error looking up owner for car_id=$carID");
     Redirect::to('/');
 }
 $ownerResults = $ownerQuery->results();

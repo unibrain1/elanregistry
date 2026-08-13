@@ -391,7 +391,11 @@ As of v2.29.1, backup failures are handled strictly to prevent silent data loss:
 **Single Table Dump Failure**: When `createSchemaBackup()` or `createManualBackup()`
 encounters a genuine database query error (not a missing table), that single table's
 dump failure now aborts the **entire backup operation**. No backup file is written at
-all. The failure is logged with category `BackupFailed` for later inspection.
+all. The failure is logged with category `BackupFailed` for later inspection. The same
+abort-the-whole-backup behavior also covers a table that is dropped mid-backup — the
+narrow race between `generateTableDump()`'s `SHOW CREATE TABLE` succeeding and its
+result row actually being fetched — rather than silently writing a dump with a missing
+`CREATE TABLE` statement.
 
 **Custom Script Integration**: If you call `createSchemaBackup()` or
 `createManualBackup()` from a custom script or maintenance tool, you must wrap the call
