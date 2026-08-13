@@ -19,6 +19,10 @@ use PHPUnit\Framework\Attributes\Group;
  * This test closes the gap that allowed the #1279 race condition to reach
  * production: the previous FK test exercised the constraint in isolation
  * (bypassing the hook), so the hook was never tested end-to-end.
+ *
+ * Extends TransferIntegrationTestCase (not IntegrationTestCase directly) solely
+ * to reuse its createTransferRequest() fixture helper for the pending-transfer-
+ * expiry assertions below — this file is otherwise unrelated to transfer tests.
  */
 #[Group('integration')]
 final class UserDeletionReassignmentTest extends TransferIntegrationTestCase
