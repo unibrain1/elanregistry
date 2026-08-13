@@ -32,7 +32,7 @@ class Owner
         'country' => 'Country',
     ];
 
-    private ?DatabaseInterface $_db = null;
+    private DatabaseInterface $_db;
     private ?object $_data = null;
     private ?array $_carsOwned = null;
     private string $userTableName = 'users';

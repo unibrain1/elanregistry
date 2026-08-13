@@ -33,7 +33,8 @@ final class OwnerProfileTest extends TestCase
     protected function setUp(): void
     {
         // A DatabaseInterface double is required: Owner's constructor otherwise
-        // falls back to DB::getInstance(), which the unit tier has no class for.
+        // falls back to dbi(), which is undefined in the unit tier (custom_functions.php
+        // — where dbi() lives — is never loaded there).
         // A stub, not a mock — the tests sharing this instance exercise pure
         // scoring/completeness logic over reflection-injected data and never
         // reach the database.

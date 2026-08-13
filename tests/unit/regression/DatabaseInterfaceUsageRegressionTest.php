@@ -85,6 +85,19 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
     private const RAW_DB_SINGLETON_ASSIGNMENT = '/\$db\s*=\s*\\\\?DB::getInstance\s*\(/';
 
     /**
+     * Class declarations that would reintroduce the shared global mock shell #1585
+     * deleted. A class constant (not a local array in the test method) so the
+     * positive-control test below can assert against the exact same patterns the
+     * scan uses, rather than a separately-typed copy that could silently drift.
+     *
+     * @var list<string>
+     */
+    private const BANNED_TEST_DECLARATIONS = [
+        '/\bclass\s+DB\b/',
+        '/\bclass\s+QueryResult\b/',
+    ];
+
+    /**
      * Production directories that must never type a collaborator as concrete `\DB`.
      *
      * @var list<string>
@@ -130,11 +143,6 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
      */
     public function testTestSuiteDeclaresNoGlobalDbMockShell(): void
     {
-        $bannedDeclarations = [
-            '/\bclass\s+DB\b/',
-            '/\bclass\s+QueryResult\b/',
-        ];
-
         $violations = [];
 
         foreach ($this->getTestPhpFiles() as $file) {
@@ -144,7 +152,7 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
                 continue;
             }
 
-            foreach ($bannedDeclarations as $pattern) {
+            foreach (self::BANNED_TEST_DECLARATIONS as $pattern) {
                 if (preg_match($pattern, $content) === 1) {
                     $violations[] = $this->relativePath($file);
                     break;
@@ -165,9 +173,14 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
      * methods (`findById()`, `deleteById()`, `cell()`, `tableExists()`, …), and a
      * call to one of them on an interface-typed collaborator parses fine, passes
      * PHPStan's baseline, and only fatals at runtime when the collaborator really
-     * is a `DatabaseInterface` instance. That is precisely the bug #1585 found in
-     * `app/owner/contact/owner.php` (`$db->findById(...)`), so it gets its own
-     * guardrail.
+     * is a `DatabaseInterface` instance. #1585 found exactly this bug class in
+     * `app/owner/contact/owner.php` (a call to a `\DB`-only method), which this
+     * guardrail exists to catch for interface-typed receivers going forward. That
+     * specific file is not itself covered: its `$db` is the ambient page-scope
+     * global, which stays a real `\DB` and never imports `DatabaseInterface`, so
+     * it falls outside every pattern this test checks — see the scoping note
+     * below and `getProductionPhpFiles()`'s docblock. The fix there was a direct
+     * code change (the file now calls `\DB::get()`, which real `\DB` has).
      *
      * The canonical method list comes from reflection on the interface, never a
      * hardcoded copy, so adding a method to `DatabaseInterface` automatically
@@ -238,6 +251,55 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
     }
 
     /**
+     * Positive control for the three scans above: each regex must actually match a
+     * known-bad sample, not just fail to match the (currently clean) codebase. Without
+     * this, a regex that silently stops matching anything — a typo'd escape, an
+     * accidentally-anchored pattern — would make every `assertEmpty($violations)` above
+     * pass forever having found nothing to look at.
+     */
+    public function testGuardrailPatternsDetectKnownViolations(): void
+    {
+        $this->assertSame(
+            1,
+            preg_match(self::CONCRETE_DB_TYPEHINT, 'private DB $db;'),
+            'CONCRETE_DB_TYPEHINT must match a bare concrete \\DB type-hint'
+        );
+        $this->assertSame(
+            1,
+            preg_match(self::CONCRETE_DB_TYPEHINT, 'public function __construct(?DB $db) {}'),
+            'CONCRETE_DB_TYPEHINT must match a nullable concrete \\DB type-hint'
+        );
+
+        $this->assertSame(
+            1,
+            preg_match(self::BANNED_TEST_DECLARATIONS[0], 'class DB { public function query() {} }'),
+            'BANNED_TEST_DECLARATIONS[0] must match a re-declared global DB class'
+        );
+        $this->assertSame(
+            1,
+            preg_match(self::BANNED_TEST_DECLARATIONS[1], 'class QueryResult {}'),
+            'BANNED_TEST_DECLARATIONS[1] must match a re-declared global QueryResult class'
+        );
+
+        $this->assertSame(
+            ['dbi()->query(', 'query'],
+            (function (): array {
+                preg_match(self::INTERFACE_RECEIVER_CALL, 'dbi()->query($sql);', $matches);
+                return $matches;
+            })(),
+            'INTERFACE_RECEIVER_CALL must match and capture a dbi()->method() call'
+        );
+        $this->assertSame(
+            ['$db->deleteById(', 'deleteById'],
+            (function (): array {
+                preg_match(self::AMBIENT_DB_CALL, '$db->deleteById($id);', $matches);
+                return $matches;
+            })(),
+            'AMBIENT_DB_CALL must match and capture a bare $db->method() call'
+        );
+    }
+
+    /**
      * All production PHP files subject to the concrete-`\DB` ban.
      *
      * Excluded by design:
@@ -278,6 +340,11 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
             }
         }
 
+        // Tripwire: every scan in this class relies on this list being non-empty. A
+        // broken exclusion filter or a projectRoot miscalculation would otherwise make
+        // every "no violations found" assertion pass vacuously, having scanned nothing.
+        $this->assertNotEmpty($files, 'No production PHP files found — the file scan is broken.');
+
         return $files;
     }
 
@@ -298,6 +365,9 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
 
             $files[] = $path;
         }
+
+        // Tripwire: see the matching assertion in getProductionPhpFiles().
+        $this->assertNotEmpty($files, 'No test PHP files found — the file scan is broken.');
 
         return $files;
     }

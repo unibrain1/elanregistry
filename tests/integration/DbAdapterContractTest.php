@@ -98,6 +98,40 @@ final class DbAdapterContractTest extends IntegrationTestCase
         $this->assertFalse($db->error(), 'Error state must reflect only the most recent statement');
     }
 
+    /**
+     * `BackupManager::isTableNotFoundError()` distinguishes a missing-table error from
+     * every other database failure by reading this exact SQLSTATE/driver-code pair
+     * off errorInfo() rather than parsing errorString(). Pinning the real shape here
+     * protects that dependency from an unnoticed PDO/MySQL driver change.
+     */
+    public function test_query_reportsTableNotFound_viaErrorInfoSqlstateAndDriverCode(): void
+    {
+        $db = $this->adapter();
+
+        $db->query('SELECT id FROM ' . self::MISSING_TABLE);
+        $errorInfo = $db->errorInfo();
+
+        $this->assertSame('42S02', $errorInfo[0] ?? null, 'errorInfo()[0] must be the "table not found" SQLSTATE');
+        $this->assertSame(1146, (int) ($errorInfo[1] ?? 0), 'errorInfo()[1] must be the MySQL "table not found" driver code');
+    }
+
+    /**
+     * Real \DB::query() resets $_errorInfo to [0, null, null] — the literal integer
+     * 0, not the PDO "no error" SQLSTATE string '00000' — at the start of every call,
+     * and only overwrites it with the statement's real errorInfo() on failure. A
+     * successful query therefore leaves errorInfo()[0] as int 0, distinguishable from
+     * both a real SQLSTATE string and PHP's usual falsy-but-stringy defaults.
+     */
+    public function test_query_errorInfo_isIntegerZero_afterSuccessfulStatement(): void
+    {
+        $db = $this->adapter();
+
+        $db->query('SELECT 1 AS one');
+        $errorInfo = $db->errorInfo();
+
+        $this->assertSame(0, $errorInfo[0] ?? null, 'errorInfo()[0] must be the literal integer 0 after a successful statement');
+    }
+
     // ---------------------------------------------------------------- first()
 
     public function test_first_returnsObjectOrArray_dependingOnAssocFlag(): void
@@ -210,6 +244,86 @@ final class DbAdapterContractTest extends IntegrationTestCase
         $this->expectException(InvalidArgumentException::class);
 
         $this->adapter()->get('cars', ['id', 'NOT_AN_OPERATOR', 1]);
+    }
+
+    // --------------------------------------------------------------- delete()
+
+    public function test_delete_returnsSameAdapterInstance_onSuccessfulDelete(): void
+    {
+        $db = $this->adapter();
+        $carId = $this->createTestCar($this->userId);
+
+        $returned = $db->delete('cars', ['id', '=', $carId]);
+
+        $this->assertSame($db, $returned, 'A successful delete() must return the adapter, matching \DB::action()');
+
+        $db->query('SELECT id FROM cars WHERE id = ?', [$carId]);
+        $this->assertSame(0, $db->count(), 'The row must actually be gone after delete()');
+
+        // Row is already gone — stop tearDown() from deleting it a second time.
+        $this->untrackCarId($carId);
+    }
+
+    /**
+     * Mirrors test_get_returnsFalse_whenUnderlyingQueryFails: \DB::delete() delegates
+     * to the same action()/query() machinery as get(), so a query against a table that
+     * cannot exist is the only reachable `false` path here too — an empty $where
+     * short-circuits to false before any query runs (not exercised: it never reaches
+     * the DbAdapter), and a malformed WHERE array throws rather than returning false.
+     */
+    public function test_delete_returnsFalse_whenUnderlyingQueryFails(): void
+    {
+        $db = $this->adapter();
+
+        $returned = $db->delete(self::MISSING_TABLE, ['id', '=', 1]);
+
+        $this->assertFalse($returned, 'delete() must return false — not throw, not return the adapter — on a failed query');
+        $this->assertTrue($db->error());
+    }
+
+    /**
+     * Same SQLSTATE/driver-code pin as test_query_reportsTableNotFound_viaErrorInfoSqlstateAndDriverCode,
+     * proven independently through delete()'s own action()/query() path rather than assumed
+     * from query() alone.
+     */
+    public function test_delete_errorInfo_reportsTableNotFound_afterFailedDelete(): void
+    {
+        $db = $this->adapter();
+
+        $db->delete(self::MISSING_TABLE, ['id', '=', 1]);
+        $errorInfo = $db->errorInfo();
+
+        $this->assertSame('42S02', $errorInfo[0] ?? null, 'errorInfo()[0] must be the "table not found" SQLSTATE after a failed delete()');
+        $this->assertSame(1146, (int) ($errorInfo[1] ?? 0), 'errorInfo()[1] must be the MySQL "table not found" driver code after a failed delete()');
+    }
+
+    /**
+     * The real \DB::query() (which delete()'s action() call delegates to) resets
+     * `_errorInfo` to the literal `[0, null, null]` — integer zero, not the PDO
+     * "00000" SQLSTATE string — at the start of every call, and only overwrites it
+     * with the real PDO triple when the statement fails. It is therefore never
+     * actually set to `'00000'` on a successful statement, despite the class's own
+     * property default suggesting otherwise — see the matching
+     * test_query_errorInfo_isIntegerZero_afterSuccessfulStatement for query() itself.
+     * Verified directly against a real successful
+     * delete() rather than assumed, since this is the shape a caller like
+     * BackupManager would actually observe.
+     */
+    public function test_delete_errorInfo_reportsIntegerZeroTriple_afterSuccessfulDelete(): void
+    {
+        $db = $this->adapter();
+        $carId = $this->createTestCar($this->userId);
+
+        $db->delete('cars', ['id', '=', $carId]);
+        $errorInfo = $db->errorInfo();
+
+        $this->assertSame(0, $errorInfo[0] ?? null, 'errorInfo()[0] must be the literal integer 0 that \DB::query() resets to before any error — not the PDO "00000" string');
+        $this->assertArrayHasKey(1, $errorInfo);
+        $this->assertNull($errorInfo[1]);
+        $this->assertArrayHasKey(2, $errorInfo);
+        $this->assertNull($errorInfo[2]);
+
+        $this->untrackCarId($carId);
     }
 
     // ----------------------------------------- insert() / update() round trip

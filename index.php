@@ -25,7 +25,7 @@ if (!securePage($php_self)) {
 
 $showcasePool = [];
 try {
-    $showcasePool = CarShowcaseService::buildShowcasePool($db);
+    $showcasePool = CarShowcaseService::buildShowcasePool(dbi());
 } catch (\Throwable $e) {
     logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Homepage showcase pool failed: ' . $e->getMessage());
 }
@@ -72,7 +72,7 @@ $yearsSince = (int) (new DateTime())->diff(new DateTime('2003-01-01'))->y;
 
 $timelineData = [];
 try {
-    $timelineData = (new StatisticsDataService($db))->getTimelineData();
+    $timelineData = (new StatisticsDataService(dbi()))->getTimelineData();
 } catch (\Throwable $e) {
     logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Homepage timeline query failed: ' . $e->getMessage());
 }

@@ -54,11 +54,9 @@ try {
             ->send();
     }
 
-    if (!isset($db)) {
-        ApiResponse::serverError('Database connection not available')
-            ->withLogging($userId, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'Statistics API: Database connection not available')
-            ->send();
-    }
+    // dbi() delegates to \DB::getInstance(), which die()s in its constructor if the
+    // connection can't be established — there is no "unavailable but reachable" state
+    // for the isset($db) guard this replaced to have meaningfully checked.
     $dataService = new StatisticsDataService(dbi());
 
     switch ($tab) {

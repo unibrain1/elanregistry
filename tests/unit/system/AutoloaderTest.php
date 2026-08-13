@@ -34,7 +34,8 @@ class AutoloaderTest extends TestCase
         $this->assertTrue(class_exists('Car'), 'Global Car alias should be registered by Car/Car.php');
         $this->assertTrue(class_exists('ElanRegistry\\Owner'), 'ElanRegistry\\Owner class should auto-load');
         // A DatabaseInterface double is required: Owner's constructor otherwise
-        // falls back to DB::getInstance(), which the unit tier has no class for.
+        // falls back to dbi(), which is undefined in the unit tier (custom_functions.php
+        // — where dbi() lives — is never loaded there).
         new \ElanRegistry\Owner(null, $this->createStub(\ElanRegistry\DatabaseInterface::class));
         $this->assertTrue(class_exists('ElanRegistry\\CarView'), 'ElanRegistry\\CarView class should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\Resize'), 'ElanRegistry\\Resize class should auto-load');

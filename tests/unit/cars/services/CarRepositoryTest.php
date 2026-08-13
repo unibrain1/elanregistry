@@ -59,6 +59,41 @@ final class CarRepositoryTest extends TestCase
         $this->assertEquals(1, $result->id);
     }
 
+    /**
+     * findById() must throw CarDatabaseException — not fatal, and not silently
+     * report "not found" — when get() itself fails (real \DB::get() returns the
+     * literal false on a failed query, per DatabaseInterface's documented contract).
+     */
+    public function testFindByIdThrowsCarDatabaseExceptionWhenGetFails(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('get')->willReturn(false);
+
+        $repo = new CarRepository($db);
+
+        $this->expectException(CarDatabaseException::class);
+        $repo->findById(1);
+    }
+
+    /**
+     * findById() must return null — not the raw array — when count() reports a row
+     * but first() yields the real \DB empty-row value ([]) rather than an object.
+     * This should be unreachable against a real connection (count()>0 implies first()
+     * is an object), but the is_object() guard exists to fail closed instead of
+     * returning a caller-facing array where an object is documented.
+     */
+    public function testFindByIdReturnsNullWhenFirstYieldsNonObject(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('get')->willReturnSelf();
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturn([]);
+
+        $repo = new CarRepository($db);
+
+        $this->assertNull($repo->findById(1));
+    }
+
     public function testInsertCarReturnsTrue(): void
     {
         $repo   = new CarRepository($this->makeEmptyResultDb());

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Car;
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\LogCategories;
 
 /**
@@ -21,10 +22,10 @@ class CarShowcaseService
      * Return IDs of all "new" cars: added within NEW_DAYS days OR among the
      * NEW_FLOOR most-recently-added (all cars, regardless of images).
      *
-     * @param object $db UserSpice database object
+     * @param DatabaseInterface $db Database instance
      * @return list<int>
      */
-    public static function getNewCarIds(object $db): array
+    public static function getNewCarIds(DatabaseInterface $db): array
     {
         $db->query("
             SELECT id FROM cars
@@ -52,10 +53,10 @@ class CarShowcaseService
      * are eligible. Each item has `id`, `year`, `series`, `variant`, `type`,
      * `ctime`, and `is_new` (bool).
      *
-     * @param object $db UserSpice database object
+     * @param DatabaseInterface $db Database instance
      * @return array<object>
      */
-    public static function buildShowcasePool(object $db): array
+    public static function buildShowcasePool(DatabaseInterface $db): array
     {
         $recent = $db->query("
             SELECT id, year, series, variant, type, ctime

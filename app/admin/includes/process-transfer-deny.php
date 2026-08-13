@@ -32,7 +32,6 @@ if ($transferId <= 0) {
         ->send();
 }
 
-$db = DB::getInstance();
 $repo = new CarTransferRepository(dbi());
 
 try {

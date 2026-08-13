@@ -49,8 +49,9 @@ Three tiers, each with a distinct purpose and a hard boundary:
   `CarModel`: `new CarValidator($carModel)`, where `$carModel` is a real
   `CarModel` constructed against a `DatabaseInterface` double
   (`new CarModel($db)`). Without injection, `CarValidator` lazily builds a
-  default `CarModel` backed by `dbi()`, which fatals in the unit tier (no real
-  `DB` class exists there).
+  default `CarModel` backed by `dbi()`, which fatals in the unit tier — `dbi()`
+  itself is undefined there (it lives in `custom_functions.php`, which the
+  unit bootstrap never loads).
 
   UserSpice's own bare (non-namespaced) classes under `users/classes/` are a
   different case, and the rule there is absolute: they can **never** be loaded

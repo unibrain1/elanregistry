@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use ElanRegistry\Car\CarValidator;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarValidationException;
+use ElanRegistry\Reference\CarModel;
 use PHPUnit\Framework\TestCase;
 
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -679,6 +681,53 @@ final class CarValidatorTest extends TestCase
         ];
 
         $this->validator->validateAndSanitizeFields($data, true);
+    }
+
+    /**
+     * Model-combination-exists branch, reached in the unit tier via constructor
+     * injection per TESTING_STRATEGY.md: a real CarModel built against a
+     * DatabaseInterface double whose query()->first() simulates
+     * CarModel::exists()'s "COUNT(*) > 0" success shape. Reference-data-backed
+     * combination validity itself remains proven in
+     * tests/integration/cars/services/CarValidatorModelTest.php (#1446) — this
+     * only proves CarValidator wires a successful CarModel::exists() lookup
+     * through to a passing validation result.
+     */
+    #[Group('unit')]
+    public function testValidateModelSucceedsWhenInjectedCarModelConfirmsCombinationExists(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturn((object) ['cnt' => 1]);
+
+        $validator = new CarValidator(new CarModel($db));
+
+        $result = $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
+
+        $this->assertSame('S4|FHC|36', $result['model']);
+    }
+
+    /**
+     * Symmetric counterpart: an injected CarModel whose double reports the
+     * "COUNT(*) == 0" not-found shape must fail validation with the
+     * invalid-combination message — the branch that mock-domain-object tests
+     * (a hand-rolled mock CarModel) could not exercise honestly, since it
+     * would test the mock's own behavior rather than CarModel::exists()'s
+     * real `($result->cnt ?? 0) > 0` translation.
+     */
+    #[Group('unit')]
+    public function testValidateModelThrowsWhenInjectedCarModelReportsCombinationMissing(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturn((object) ['cnt' => 0]);
+
+        $validator = new CarValidator(new CarModel($db));
+
+        $this->expectException(CarValidationException::class);
+        $this->expectExceptionMessage('is not a valid Lotus Elan model');
+
+        $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
     }
 
     // ============================================================
