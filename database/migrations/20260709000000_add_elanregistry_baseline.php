@@ -613,16 +613,57 @@ final class AddElanregistryBaseline extends AbstractMigration
      * collation is the array key, also hardcoded — nothing here is derived from
      * input. Phinx 0.16 uses PDO::query() rather than prepare(), so bind
      * parameters are unavailable in migrations (see 20260713120000).
+     *
+     * `CONVERT TO CHARACTER SET` rewrites every row, which re-validates every
+     * datetime column against the session's sql_mode. Stock UserSpice ships
+     * its seeded `id=1 admin` user with `users.created = '0000-00-00
+     * 00:00:00'` (a NOT NULL column with no default) — harmless under a
+     * permissive sql_mode, but a hard failure under the NO_ZERO_DATE +
+     * STRICT_TRANS_TABLES combination MySQL 8 enables by default. Relax just
+     * the zero-date-related modes for the duration of each ALTER, restore
+     * immediately after, so strict mode still applies everywhere else in this
+     * migration (and to the application at runtime).
      */
     private function convertSharedTableCollations(): void
     {
         foreach (self::COLLATION_CONVERSIONS as $collation => $tables) {
             $charset = explode('_', $collation)[0];
             foreach ($tables as $table) {
-                $this->execute(
-                    "ALTER TABLE `{$table}` CONVERT TO CHARACTER SET {$charset} COLLATE {$collation}"
-                );
+                $this->withRelaxedZeroDateSqlMode(function () use ($table, $charset, $collation) {
+                    $this->execute(
+                        "ALTER TABLE `{$table}` CONVERT TO CHARACTER SET {$charset} COLLATE {$collation}"
+                    );
+                });
             }
+        }
+    }
+
+    /**
+     * Brackets a single statement with a session sql_mode that has
+     * NO_ZERO_DATE, NO_ZERO_IN_DATE, and STRICT_TRANS_TABLES stripped, then
+     * restores the original session sql_mode — even if the statement throws.
+     *
+     * Session-scoped (not GLOBAL): no other connection is affected, and
+     * nothing needs resetting if the process dies mid-migration.
+     */
+    private function withRelaxedZeroDateSqlMode(callable $statement): void
+    {
+        $original = $this->fetchRow('SELECT @@SESSION.sql_mode AS mode')['mode'] ?? '';
+
+        $relaxed = implode(',', array_filter(
+            explode(',', $original),
+            static fn (string $mode): bool => !in_array(
+                $mode,
+                ['NO_ZERO_DATE', 'NO_ZERO_IN_DATE', 'STRICT_TRANS_TABLES'],
+                true
+            )
+        ));
+
+        $this->execute("SET SESSION sql_mode = '{$relaxed}'");
+        try {
+            $statement();
+        } finally {
+            $this->execute("SET SESSION sql_mode = '{$original}'");
         }
     }
 
@@ -764,14 +805,15 @@ final class AddElanregistryBaseline extends AbstractMigration
     }
 
     /**
-     * `users` in dev order, with the definition each column must end up with.
-     *
-     * The table drifted the furthest of any: six columns stock 6.1.4 no longer
-     * creates, a dozen type changes, and — because stock reordered the table at
-     * some point — 42 of the 43 columns sitting at a different ordinal position
-     * than dev. Rebuilding the whole column list in order handles all three at
-     * once and is far easier to check against `SHOW CREATE TABLE users` than
-     * three interleaved passes would be.
+     * Type/nullability/default `users` columns must end up with, keyed by
+     * column name. This is not the full column list and not an order — it is
+     * only the columns whose *definition* differs from what stock 6.1.4
+     * creates. `alignUsersTable()` issues a `MODIFY COLUMN` in place for each
+     * one and never adds or repositions a column: columns stock doesn't
+     * create (e.g. the ElanRegistry additions) are provisioned elsewhere, and
+     * columns dev carries at a different ordinal position (or that dev
+     * doesn't carry at all — the commented-out entries below) are left
+     * exactly where stock puts them.
      *
      * No column carries an explicit CHARACTER SET/COLLATE: the collation pass
      * has already converted the table to utf8mb4_unicode_ci, which every
@@ -793,8 +835,6 @@ final class AddElanregistryBaseline extends AbstractMigration
         'logins'             => 'int unsigned NOT NULL',
         'account_owner'      => "tinyint NOT NULL DEFAULT '1'",
         'account_id'         => "int NOT NULL DEFAULT '0'",
-        // ElanRegistry addition.
-        'company'            => 'mediumtext',
         'join_date'          => 'datetime NOT NULL',
         'last_login'         => 'datetime NOT NULL',
         'email_verified'     => "tinyint NOT NULL DEFAULT '0'",
@@ -811,67 +851,71 @@ final class AddElanregistryBaseline extends AbstractMigration
         'fb_uid'             => 'mediumtext',
         'un_changed'         => 'int NOT NULL',
         'msg_exempt'         => "int NOT NULL DEFAULT '0'",
-        // ElanRegistry addition.
-        'last_confirm'       => 'datetime DEFAULT NULL',
         'protected'          => "int NOT NULL DEFAULT '0'",
         'dev_user'           => "int NOT NULL DEFAULT '0'",
         'msg_notification'   => "int NOT NULL DEFAULT '1'",
         'force_pr'           => "int NOT NULL DEFAULT '0'",
-        // Legacy 2FA columns from a UserSpice older than 6.1.4, which moved TOTP
-        // to `us_totp_secrets`. Kept for fidelity with dev and prod — dropping
-        // unreferenced columns is out of scope here — but all three look
-        // like cleanup candidates:
+        // Not present in a genuine fresh UserSpice 6.1.4 install (verified
+        // against a stock install) — dev/prod carry them as environment
+        // drift of unconfirmed origin, not a documented 6.1.4 baseline
+        // feature. `twoDate` is added by the upstream update component
+        // users/updates/components/4A6BdJHyvP4a.php, which apparently never
+        // ran against the install these came from; `twoKey`/`twoEnabled`
+        // have no confirmed provenance at all. Kept here for fidelity with
+        // dev and prod — dropping unreferenced columns is a separate,
+        // tracked cleanup (#1669) — but all three are confirmed unused:
         //   twoKey     — zero references anywhere in the repo, app or framework.
         //   twoEnabled — referenced once, only as the AFTER anchor in
         //                users/updates/components/4A6BdJHyvP4a.php.
         //   twoDate    — referenced only by that same component, which created
         //                it; no code reads or writes it.
-        'twoKey'             => 'varchar(16) DEFAULT NULL',
-        'twoEnabled'         => "int DEFAULT '0'",
-        'twoDate'            => 'datetime DEFAULT NULL',
+        // 'twoKey'             => 'varchar(16) DEFAULT NULL',
+        // 'twoEnabled'         => "int DEFAULT '0'",
+        // 'twoDate'            => 'datetime DEFAULT NULL',
         'cloak_allowed'      => "tinyint(1) NOT NULL DEFAULT '0'",
         'vericode_expiry'    => 'datetime DEFAULT NULL',
         'oauth_tos_accepted' => 'tinyint(1) DEFAULT NULL',
         'language'           => "varchar(15) DEFAULT 'en-US'",
         // Also unreferenced: no genuine `org` column usage in app code or in
         // the UserSpice framework, and no migration in this repo creates it.
-        // Another cleanup candidate, kept here for fidelity.
-        'org'                => 'int DEFAULT NULL',
+        // Not present in a genuine fresh 6.1.4 install either. Cleanup
+        // tracked in #1669, kept here for fidelity with dev and prod.
+        // 'org'                => 'int DEFAULT NULL',
         // Stock 6.1.4 does have this column (as NOT NULL); dev has it nullable.
         // Referenced only by database/4-sample-data.sql's INSERT column list.
         'account_mgr'        => "int DEFAULT '0'",
     ];
 
     /**
-     * Rebuild `users` column by column in dev's order.
+     * Bring each drifted `users` column's type/nullability/default in line
+     * with dev, in place.
      *
-     * Each column is added if stock lacks it, otherwise modified in place, and
-     * anchored after its predecessor so ordinal positions end up matching dev
-     * exactly. Column names and definitions come from the private const above —
-     * hardcoded strings, nothing derived from input. Phinx 0.16 runs migration
-     * SQL through PDO::query() rather than prepare(), so bind parameters are
-     * unavailable here (see 20260713120000 for the same note).
+     * `MODIFY COLUMN` only — no `ADD COLUMN`, no `AFTER` clause. This
+     * migration does not add columns to `users` or change column order;
+     * a column stock doesn't create is simply skipped (`fetchRow` returns no
+     * row), left exactly where and however stock put it. Column names and
+     * definitions come from the private const above — hardcoded strings,
+     * nothing derived from input. Phinx 0.16 runs migration SQL through
+     * PDO::query() rather than prepare(), so bind parameters are unavailable
+     * here (see 20260713120000 for the same note).
      */
     private function alignUsersTable(): void
     {
-        $existing = array_column(
-            $this->fetchAll(
-                "SELECT COLUMN_NAME
+        foreach (self::USERS_COLUMNS as $column => $definition) {
+            $exists = $this->fetchRow(
+                "SELECT 1
                    FROM information_schema.COLUMNS
                   WHERE TABLE_SCHEMA = DATABASE()
-                    AND TABLE_NAME = 'users'"
-            ),
-            'COLUMN_NAME'
-        );
+                    AND TABLE_NAME = 'users'
+                    AND COLUMN_NAME = '{$column}'"
+            );
+            if (!$exists) {
+                continue;
+            }
 
-        $previous = null;
-        foreach (self::USERS_COLUMNS as $column => $definition) {
-            $action   = in_array($column, $existing, true) ? 'MODIFY COLUMN' : 'ADD COLUMN';
-            $position = $previous === null ? 'FIRST' : "AFTER `{$previous}`";
-
-            $this->execute("ALTER TABLE `users` {$action} `{$column}` {$definition} {$position}");
-
-            $previous = $column;
+            $this->withRelaxedZeroDateSqlMode(function () use ($column, $definition) {
+                $this->execute("ALTER TABLE `users` MODIFY COLUMN `{$column}` {$definition}");
+            });
         }
     }
 }
