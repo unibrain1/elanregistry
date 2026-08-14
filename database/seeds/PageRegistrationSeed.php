@@ -137,10 +137,14 @@ final class PageRegistrationSeed extends AbstractSeed
 
     private function registerNewPage(string $page): void
     {
+        // `z_us_root.php` carries `core=1` on dev/prod (see the ROOT_PAGES docblock); every
+        // other discovered page is `core=0`, matching what lazy registration would have inserted.
+        $core = $page === 'z_us_root.php' ? 1 : 0;
+
         $inserted = $this->execute(
             'INSERT INTO `pages` (`page`, `title`, `private`, `re_auth`, `core`, `lang_key`) ' .
-            'VALUES (?, NULL, ?, 0, 0, NULL)',
-            [$page, $this->classifyPrivate($page)]
+            'VALUES (?, NULL, ?, 0, ?, NULL)',
+            [$page, $this->classifyPrivate($page), $core]
         );
 
         if ($inserted !== 1) {
