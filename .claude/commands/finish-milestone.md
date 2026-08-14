@@ -5,6 +5,8 @@ model: claude-sonnet-5
 
 # Finish Milestone
 
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 Create a PR to merge a completed milestone branch into main, finalize release
 notes, update wiki documentation, and prepare for release.
 

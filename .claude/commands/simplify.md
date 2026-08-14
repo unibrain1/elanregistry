@@ -5,6 +5,11 @@ model: claude-haiku-4-5-20251001
 
 # Simplify
 
+Think hard about whether each proposed simplification preserves behavior
+exactly — including edge cases, error paths, and side effects.
+
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 Review the recently modified code for opportunities to simplify, improve
 clarity, reduce redundancy, and align with project coding standards — without
 changing any behavior. Focus only on files changed in the current session

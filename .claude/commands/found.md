@@ -5,6 +5,8 @@ model: claude-haiku-4-5-20251001
 
 # Found: Capture Pre-Existing Issue
 
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 Capture an issue discovered incidentally during planning or development work,
 classify it using the containment + severity framework, and take the appropriate
 action without disrupting the current task.
