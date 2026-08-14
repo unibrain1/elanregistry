@@ -73,7 +73,10 @@ final class BackupManagerTest extends TestCase
     #[Group('fast')]
     public function testInstantiation(): void
     {
-        $this->assertInstanceOf(BackupManager::class, $this->backupManager);
+        // $this->backupManager is typed BackupManager (non-nullable) and assigned in
+        // setUp(); reaching this line without a fatal error already proves the
+        // constructor succeeded, so there's nothing further to assert here.
+        $this->expectNotToPerformAssertions();
     }
 
     /**
@@ -465,7 +468,10 @@ final class BackupManagerTest extends TestCase
             // The realpath guard blocked deletion; deleted count for automated must be 0
             $this->assertSame(0, $result['automated']['deleted']);
         } finally {
-            if (is_link($symlinkPath ?? '')) {
+            // $symlinkPath is assigned as the very first statement in the try block
+            // (a plain string concatenation that can't itself throw), so it's always
+            // set by the time finally runs.
+            if (is_link($symlinkPath)) {
                 unlink($symlinkPath);
             }
             $this->recursiveRemoveDirectory($outsideDir);

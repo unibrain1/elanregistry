@@ -21,7 +21,6 @@ require_once $abs_us_root . $us_url_root . 'app/admin/includes/account-cleanup-h
 
 if (!isAdmin()) {
     ApiResponse::forbidden('Forbidden')->send();
-    exit;
 }
 
 $type      = $_GET['type']      ?? '';
@@ -33,7 +32,6 @@ if ($type === 'unverified') {
     if (dbi()->error()) {
         logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: unverified query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
-        exit;
     }
     $rows = array_map(static function (object $a): array {
         return [
@@ -53,7 +51,6 @@ if ($type === 'unverified') {
     if (dbi()->error()) {
         logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: verified query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
-        exit;
     }
     $rows = array_map(static function (object $a): array {
         $ll = $a->last_login ?? null;
@@ -74,7 +71,6 @@ if ($type === 'unverified') {
     if (dbi()->error()) {
         logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: archive query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
-        exit;
     }
     $rows = array_map(static function (object $a): array {
         $restoredBy = ($a->restored_by_fname || $a->restored_by_lname)
@@ -96,7 +92,6 @@ if ($type === 'unverified') {
     }, $accounts);
 } else {
     ApiResponse::error('Invalid type', 400)->send();
-    exit;
 }
 
 header('Content-Type: application/json; charset=utf-8');

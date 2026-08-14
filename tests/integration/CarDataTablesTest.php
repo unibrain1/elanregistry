@@ -285,7 +285,10 @@ final class CarDataTablesTest extends IntegrationTestCase
      * Build a default DataTables request array with optional overrides.
      *
      * @param array<string, mixed> $overrides Key/value pairs to override default values
-     * @param list<array<string, string>> $columns Column definitions (defaults to id column)
+     * @param list<array<string, mixed>> $columns Column definitions (defaults to id column).
+     *                                            Values are usually strings ('data', 'searchable',
+     *                                            'orderable') but 'search' holds a nested
+     *                                            array{value: string}, hence `mixed` not `string`.
      * @return array<string, mixed>
      */
     private function buildDataTablesRequest(array $overrides = [], array $columns = []): array
