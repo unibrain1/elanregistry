@@ -24,7 +24,7 @@ use PHPUnit\Framework\Attributes\Group;
  * not for skipping when the database doesn't happen to already have it.
  */
 #[Group('integration')]
-final class CarShowcaseServiceTest extends IntegrationTestCase
+final class CarShowcaseServiceIntegrationTest extends IntegrationTestCase
 {
     protected function setUp(): void
     {
@@ -114,7 +114,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      */
     public function testBuildShowcasePoolReturnsArray(): void
     {
-        $pool = CarShowcaseService::buildShowcasePool($this->db);
+        $pool = (new CarShowcaseService($this->db))->buildShowcasePool();
 
         $this->assertIsArray($pool);
     }
@@ -124,7 +124,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
      */
     public function testBuildShowcasePoolMaxSize(): void
     {
-        $pool = CarShowcaseService::buildShowcasePool($this->db);
+        $pool = (new CarShowcaseService($this->db))->buildShowcasePool();
 
         $this->assertLessThanOrEqual(12, count($pool));
     }
@@ -136,7 +136,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
     {
         $this->createShowcaseEligibleCar();
 
-        $pool = CarShowcaseService::buildShowcasePool($this->db);
+        $pool = (new CarShowcaseService($this->db))->buildShowcasePool();
 
         $this->assertNotEmpty($pool, 'Pool must be non-empty once at least one image-eligible car exists');
         foreach ($pool as $car) {
@@ -152,7 +152,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
     {
         $this->createShowcaseEligibleCar();
 
-        $pool = CarShowcaseService::buildShowcasePool($this->db);
+        $pool = (new CarShowcaseService($this->db))->buildShowcasePool();
 
         $this->assertNotEmpty($pool, 'Pool must be non-empty once at least one image-eligible car exists');
         $car = $pool[0];
@@ -187,7 +187,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
             }
         }
 
-        $pool = CarShowcaseService::buildShowcasePool($this->db);
+        $pool = (new CarShowcaseService($this->db))->buildShowcasePool();
 
         $this->assertLessThanOrEqual(12, count($pool));
 
@@ -217,7 +217,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
             $fixtureIds[] = $carId;
         }
 
-        $pool = CarShowcaseService::buildShowcasePool($this->db);
+        $pool = (new CarShowcaseService($this->db))->buildShowcasePool();
 
         $fixtureIdSet = array_flip($fixtureIds);
         $poolFixtureCars = array_filter($pool, fn($car) => isset($fixtureIdSet[(int) $car->id]));
@@ -243,7 +243,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
         $userId = $this->createTestUser();
         $this->createTestCar($userId);
 
-        $ids = CarShowcaseService::getNewCarIds($this->db);
+        $ids = (new CarShowcaseService($this->db))->getNewCarIds();
 
         $this->assertIsArray($ids);
         foreach ($ids as $id) {
@@ -259,7 +259,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
         $userId = $this->createTestUser();
         $carId  = $this->createTestCar($userId); // ctime = NOW()
 
-        $ids = CarShowcaseService::getNewCarIds($this->db);
+        $ids = (new CarShowcaseService($this->db))->getNewCarIds();
 
         $this->assertContains($carId, $ids, 'Car with ctime=NOW() must appear in getNewCarIds() via the 90-day rule');
     }
@@ -286,7 +286,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
             $this->fail("Failed to backdate fixture car {$carId}: " . $backdate->errorString());
         }
 
-        $ids = CarShowcaseService::getNewCarIds($this->db);
+        $ids = (new CarShowcaseService($this->db))->getNewCarIds();
 
         $this->assertNotContains(
             $carId,
@@ -326,7 +326,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
         // The second-lowest ID is at position 5 of 6 and must be included via the floor.
         $fifthNewestId = $carIds[1];
 
-        $ids = CarShowcaseService::getNewCarIds($this->db);
+        $ids = (new CarShowcaseService($this->db))->getNewCarIds();
 
         $this->assertContains(
             $fifthNewestId,
@@ -367,7 +367,7 @@ final class CarShowcaseServiceTest extends IntegrationTestCase
         $lowestId   = $carIds[0];                 // Position 6 of 6 by id DESC — must be excluded
         $topFiveIds = array_slice($carIds, 1);    // Positions 1–5 by id DESC — must be included
 
-        $ids = CarShowcaseService::getNewCarIds($this->db);
+        $ids = (new CarShowcaseService($this->db))->getNewCarIds();
 
         $this->assertNotContains(
             $lowestId,
