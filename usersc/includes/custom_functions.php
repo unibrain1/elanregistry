@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 use ElanRegistry\ApiResponse;
+use ElanRegistry\Database\DbAdapter;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\LogCategories;
 use ElanRegistry\TypeHelpers;
 
@@ -50,6 +52,24 @@ $email_field_whitelist = [
     // Admin contact
     'fromEmail', 'emailTemplate',
 ];
+
+/**
+ * Get a shared DatabaseInterface-typed handle wrapping the real \DB singleton.
+ *
+ * Memoized per request. Use this wherever a collaborator is typed as
+ * DatabaseInterface — the ambient $db global stays a real \DB and is never
+ * wrapped, so it remains compatible with upstream UserSpice code that
+ * type-hints \DB directly (e.g. DataTableRequest and the ssp_* parsers).
+ *
+ * @return DatabaseInterface Shared adapter over the \DB singleton
+ * @see https://github.com/elan-registry/registry/issues/1585
+ */
+function dbi(): DatabaseInterface
+{
+    static $instance = null;
+
+    return $instance ??= new DbAdapter(DB::getInstance());
+}
 
 /**
  * Check if user has Registry admin or editor permissions
@@ -231,11 +251,11 @@ function requireAdminAjax(string $context = '', bool $isWrite = true): void
  * DB::query() swallows most query errors internally — only a PDOException from
  * a failed prepare (e.g. connection loss) propagates to the caller.
  *
- * @param DB $db Database instance
+ * @param DatabaseInterface $db Database instance
  * @return array{total_cars: int, total_users: int, last_updated: string}
  * @throws \PDOException If the database connection or statement preparation fails
  */
-function getAdminSystemStatus(DB $db): array
+function getAdminSystemStatus(DatabaseInterface $db): array
 {
     $carCount  = $db->query("SELECT COUNT(*) as count FROM cars")->first();
     $userCount = $db->query("SELECT COUNT(*) as count FROM users WHERE active = ?", [1])->first();

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ElanRegistry\Car\CarRepository;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use PHPUnit\Framework\TestCase;
@@ -15,50 +16,119 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('fast')]
 final class CarRepositoryTest extends TestCase
 {
-    private CarRepository $repo;
-
-    protected function setUp(): void
+    /**
+     * A database double standing in for a healthy connection with an empty
+     * result set: query() and get() return the double itself (the real \DB
+     * contract — both return $this for chaining), error() is false, the result
+     * accessors report no rows (first() returns [], never null), writes
+     * succeed, and no transaction is active.
+     *
+     * A stub rather than a mock: the tests using it assert on what the
+     * repository returns, not on how it calls the database.
+     *
+     * @return \PHPUnit\Framework\MockObject\Stub&DatabaseInterface
+     */
+    private function makeEmptyResultDb(): object
     {
-        $this->repo = new CarRepository(DB::getInstance());
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('get')->willReturnSelf();
+        $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(0);
+        $db->method('first')->willReturn([]);
+        $db->method('results')->willReturn([]);
+        $db->method('insert')->willReturn(true);
+        $db->method('update')->willReturn(true);
+        $db->method('lastId')->willReturn(1);
+        $db->method('inTransaction')->willReturn(false);
+
+        return $db;
     }
 
     public function testFindByIdReturnsObjectForExistingCar(): void
     {
-        $result = $this->repo->findById(1);
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('get')->willReturnSelf();
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturn((object) ['id' => 1, 'chassis' => 'TEST123456']);
+
+        $repo   = new CarRepository($db);
+        $result = $repo->findById(1);
+
         $this->assertIsObject($result);
         $this->assertEquals(1, $result->id);
     }
 
+    /**
+     * findById() must throw CarDatabaseException — not fatal, and not silently
+     * report "not found" — when get() itself fails (real \DB::get() returns the
+     * literal false on a failed query, per DatabaseInterface's documented contract).
+     */
+    public function testFindByIdThrowsCarDatabaseExceptionWhenGetFails(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('get')->willReturn(false);
+
+        $repo = new CarRepository($db);
+
+        $this->expectException(CarDatabaseException::class);
+        $repo->findById(1);
+    }
+
+    /**
+     * findById() must return null — not the raw array — when count() reports a row
+     * but first() yields the real \DB empty-row value ([]) rather than an object.
+     * This should be unreachable against a real connection (count()>0 implies first()
+     * is an object), but the is_object() guard exists to fail closed instead of
+     * returning a caller-facing array where an object is documented.
+     */
+    public function testFindByIdReturnsNullWhenFirstYieldsNonObject(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('get')->willReturnSelf();
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturn([]);
+
+        $repo = new CarRepository($db);
+
+        $this->assertNull($repo->findById(1));
+    }
+
     public function testInsertCarReturnsTrue(): void
     {
-        $result = $this->repo->insertCar(['chassis' => 'TEST99999', 'model' => 'Elan']);
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->insertCar(['chassis' => 'TEST99999', 'model' => 'Elan']);
         $this->assertTrue($result);
     }
 
     public function testUpdateCarReturnsTrue(): void
     {
-        $result = $this->repo->updateCar(1, ['color' => 'Blue']);
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->updateCar(1, ['color' => 'Blue']);
         $this->assertTrue($result);
     }
 
     public function testLastIdReturnsInt(): void
     {
-        $this->repo->insertCar(['chassis' => 'TEST']);
-        $lastId = $this->repo->lastId();
+        $repo = new CarRepository($this->makeEmptyResultDb());
+        $repo->insertCar(['chassis' => 'TEST']);
+        $lastId = $repo->lastId();
         $this->assertIsInt($lastId);
     }
 
     public function testTransactionMethodsDoNotThrow(): void
     {
-        $this->repo->beginTransaction();
-        $this->repo->commit();
+        $repo = new CarRepository($this->makeEmptyResultDb());
+        $repo->beginTransaction();
+        $repo->commit();
         $this->expectNotToPerformAssertions();
     }
 
     public function testRollbackDoesNotThrow(): void
     {
-        $this->repo->beginTransaction();
-        $this->repo->rollback();
+        $repo = new CarRepository($this->makeEmptyResultDb());
+        $repo->beginTransaction();
+        $repo->rollback();
         $this->expectNotToPerformAssertions();
     }
 
@@ -78,7 +148,7 @@ final class CarRepositoryTest extends TestCase
      */
     public function testStandaloneTransactionOwnsCommit(): void
     {
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
 
         // No outer transaction — beginTransaction() should call through and flip the
         // state; commit() then sees inTransaction()=true and commits. Modeling actual
@@ -89,8 +159,9 @@ final class CarRepositoryTest extends TestCase
             return $inTransaction;
         });
         $db->expects($this->once())->method('beginTransaction')
-            ->willReturnCallback(function () use (&$inTransaction): void {
+            ->willReturnCallback(function () use (&$inTransaction): bool {
                 $inTransaction = true;
+                return true;
             });
         $db->expects($this->once())->method('commit');
 
@@ -110,7 +181,7 @@ final class CarRepositoryTest extends TestCase
      */
     public function testNestedTransactionDoesNotCommit(): void
     {
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
 
         // Outer transaction already active — every inTransaction() call returns true.
         $db->method('inTransaction')->willReturn(true);
@@ -131,7 +202,7 @@ final class CarRepositoryTest extends TestCase
      */
     public function testStandaloneTransactionOwnsRollback(): void
     {
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
 
         // beginTransaction() flips state to "in transaction"; rollback() then sees
         // inTransaction()=true and rolls back. State-modeled, not call-count-modeled —
@@ -141,8 +212,9 @@ final class CarRepositoryTest extends TestCase
             return $inTransaction;
         });
         $db->expects($this->once())->method('beginTransaction')
-            ->willReturnCallback(function () use (&$inTransaction): void {
+            ->willReturnCallback(function () use (&$inTransaction): bool {
                 $inTransaction = true;
+                return true;
             });
         $db->expects($this->once())->method('rollBack');
         $db->expects($this->never())->method('commit');
@@ -160,7 +232,7 @@ final class CarRepositoryTest extends TestCase
      */
     public function testRollbackIsNoOpWhenNotOwner(): void
     {
-        $db = $this->createMock(DB::class);
+        $db = $this->createMock(DatabaseInterface::class);
 
         $db->method('inTransaction')->willReturn(true);
         $db->expects($this->never())->method('rollBack');
@@ -172,7 +244,8 @@ final class CarRepositoryTest extends TestCase
 
     public function testGetHistoryReturnsEmptyArrayWhenNoneFound(): void
     {
-        $result = $this->repo->getHistory(1);
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->getHistory(1);
         $this->assertIsArray($result);
         $this->assertSame([], $result);
     }
@@ -188,11 +261,14 @@ final class CarRepositoryTest extends TestCase
         $db = $this->makeDbMock();
         $db->expects($this->once())
             ->method('query')
-            ->willReturnCallback(function (string $sql, array $params = []) use (&$capturedSql): QueryResult {
-                $capturedSql = $sql;
-                return new QueryResult([]);
-            });
+            ->willReturnCallback(
+                function (string $sql, array $params = []) use (&$capturedSql, $db): DatabaseInterface {
+                    $capturedSql = $sql;
+                    return $db;
+                }
+            );
         $db->method('error')->willReturn(false);
+        $db->method('results')->willReturn([]);
 
         $repo = new CarRepository($db);
         $repo->getHistory(1);
@@ -224,7 +300,8 @@ final class CarRepositoryTest extends TestCase
 
     public function testInsertHistoryReturnsTrue(): void
     {
-        $result = $this->repo->insertHistory([
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->insertHistory([
             'operation' => 'TEST',
             'car_id' => 1,
             'comments' => 'Test history'
@@ -234,26 +311,29 @@ final class CarRepositoryTest extends TestCase
 
     public function testUpdateVerificationCodeReturnsTrue(): void
     {
-        $result = $this->repo->updateVerificationCode(1, 'TESTCODE12345678');
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->updateVerificationCode(1, 'TESTCODE12345678');
         $this->assertTrue($result);
     }
 
     public function testUpdateLastVerifiedReturnsTrue(): void
     {
-        $result = $this->repo->updateLastVerified(1, '2026-07-05 12:00:00');
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->updateLastVerified(1, '2026-07-05 12:00:00');
         $this->assertTrue($result);
     }
 
     public function testUpdateSoldDateReturnsTrue(): void
     {
-        $result = $this->repo->updateSoldDate(1, '2026-07-05');
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->updateSoldDate(1, '2026-07-05');
         $this->assertTrue($result);
     }
 
     public function testUpdateImageReturnsTrue(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(1);
 
@@ -265,7 +345,8 @@ final class CarRepositoryTest extends TestCase
 
     public function testGetFilterOptionsReturnsCorrectShape(): void
     {
-        $result = $this->repo->getFilterOptions();
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->getFilterOptions();
         $this->assertIsArray($result);
         $this->assertArrayHasKey('series', $result);
         $this->assertArrayHasKey('types', $result);
@@ -279,18 +360,24 @@ final class CarRepositoryTest extends TestCase
     // reassignCarsByUser tests (issue #1148)
     // =========================================================================
 
-    /** @return \PHPUnit\Framework\MockObject\MockObject&DB */
+    /**
+     * A bare database double for tests that shape the result themselves.
+     *
+     * query() must be stubbed with willReturnSelf() (or a callback returning
+     * the double) wherever the repository chains off it — the real \DB::query()
+     * always returns $this.
+     *
+     * @return \PHPUnit\Framework\MockObject\MockObject&DatabaseInterface
+     */
     private function makeDbMock(): object
     {
-        return $this->getMockBuilder(DB::class)
-            ->onlyMethods(['query', 'error', 'errorString', 'count', 'first', 'results'])
-            ->getMock();
+        return $this->createMock(DatabaseInterface::class);
     }
 
     public function testReassignCarsByUserReturnsRowCount(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(3);
 
@@ -309,7 +396,7 @@ final class CarRepositoryTest extends TestCase
                 'UPDATE cars SET user_id = ? WHERE user_id = ?',
                 [null, 42]
             )
-            ->willReturn(new QueryResult([]));
+            ->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(0);
 
@@ -322,7 +409,7 @@ final class CarRepositoryTest extends TestCase
     public function testReassignCarsByUserThrowsOnDatabaseError(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(true);
         $db->method('errorString')->willReturn('Deadlock found');
 
@@ -345,7 +432,7 @@ final class CarRepositoryTest extends TestCase
     public function testUpdateImageReturnsFalseOnConcurrentModification(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(0);
 
@@ -362,7 +449,7 @@ final class CarRepositoryTest extends TestCase
     public function testUpdateImageThrowsCarDatabaseExceptionOnQueryError(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(true);
 
         $repo = new CarRepository($db);
@@ -382,7 +469,7 @@ final class CarRepositoryTest extends TestCase
     public function testDeleteCarThrowsCarNotFoundExceptionWhenNoRowsAffected(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(0);
 
@@ -399,7 +486,7 @@ final class CarRepositoryTest extends TestCase
     public function testDeleteCarReturnsFalseOnQueryError(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query');
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(true);
 
         $repo = new CarRepository($db);
@@ -416,7 +503,7 @@ final class CarRepositoryTest extends TestCase
     public function testFindByIdForUpdateReturnsNullWhenNotFound(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(0);
 
@@ -433,7 +520,7 @@ final class CarRepositoryTest extends TestCase
         $car = (object) ['id' => 1, 'chassis' => 'TEST001'];
 
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(1);
         $db->method('first')->willReturn($car);
@@ -453,7 +540,7 @@ final class CarRepositoryTest extends TestCase
     public function testFindByIdForUpdateThrowsCarDatabaseExceptionOnQueryError(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(true);
 
         $repo = new CarRepository($db);
@@ -474,7 +561,7 @@ final class CarRepositoryTest extends TestCase
     public function testGetAllForSitemapThrowsCarDatabaseExceptionOnQueryError(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(true);
         $db->method('errorString')->willReturn('Connection lost');
 
@@ -494,7 +581,7 @@ final class CarRepositoryTest extends TestCase
     public function testGetAllForSitemapReturnsRows(): void
     {
         $db = $this->makeDbMock();
-        $db->expects($this->once())->method('query');
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('results')->willReturn([(object) ['id' => 1, 'mtime' => '2026-01-01 00:00:00']]);
 

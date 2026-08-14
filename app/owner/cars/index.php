@@ -24,7 +24,7 @@ if (!securePage($php_self)) {
 }
 
 ['series' => $filterSeries, 'types' => $filterTypes, 'variants' => $filterVariants]
-    = (new CarRepository($db))->getFilterOptions();
+    = (new CarRepository(dbi()))->getFilterOptions();
 
 /**
  * Render a row of filter pills for a single DataTables column.
@@ -113,7 +113,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
 window.carListConfig = {
     csrf: <?= json_encode(Token::generate()) ?>,
     urlRoot: <?= json_encode((string)$us_url_root, JSON_HEX_TAG | JSON_HEX_AMP) ?>,
-    newCarIds: <?= json_encode(CarShowcaseService::getNewCarIds($db), JSON_HEX_TAG | JSON_HEX_AMP) ?>
+    newCarIds: <?= json_encode(CarShowcaseService::getNewCarIds(dbi()), JSON_HEX_TAG | JSON_HEX_AMP) ?>
 };
 window.img_root = <?= json_encode((string)($us_url_root . ($settings->elan_image_dir ?? '')), JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 </script>

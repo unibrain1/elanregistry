@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FakeDatabase;
 
 require_once __DIR__ . '/../../../app/admin/includes/account-cleanup-helpers.php';
 
 /**
  * Unit tests for archiveAccounts() in account-cleanup-helpers.php.
  *
- * Uses an inline anonymous DB mock so the strict `DB $db` type hint is satisfied.
+ * Uses ArchiveAccountsFakeDatabase (declared at the foot of this file) so the strict
+ * `DatabaseInterface $db` type hint is satisfied.
  * DB-level SQL correctness and constraint enforcement are left to integration tests.
  *
  * @see ArchiveAndRestoreIntegrationTest
@@ -24,41 +26,14 @@ final class ArchiveAccountsTest extends TestCase
     // Helpers
     // -------------------------------------------------------------------------
 
-    /** Build a DB mock. $insertOk controls insert() return value; $queryRows drives query().results(). */
-    private function makeDb(bool $insertOk = true, array $queryRows = []): object
+    /**
+     * Build a DB double. $insertOk controls insert() return value; $queryRows drives query().results().
+     *
+     * @param array<int, object|array<string, mixed>> $queryRows
+     */
+    private function makeDb(bool $insertOk = true, array $queryRows = []): ArchiveAccountsFakeDatabase
     {
-        return new class($insertOk, $queryRows) extends DB {
-            public int $commitCalls   = 0;
-            public int $rollBackCalls = 0;
-            public ?array $lastInsertData = null;
-
-            private bool $errorFlag = false;
-
-            public function __construct(
-                private readonly bool $insertOk,
-                private readonly array $queryRows
-            ) {}
-
-            public function query(string $sql, array $params = []): QueryResult
-            {
-                return new QueryResult($this->queryRows);
-            }
-
-            public function insert(string $table, array $data): bool
-            {
-                $this->lastInsertData = $data;
-                return $this->insertOk;
-            }
-
-            public function error(): bool   { return $this->errorFlag; }
-            public function errorString(): string { return ''; }
-
-            public function setError(): void { $this->errorFlag = true; }
-
-            public function beginTransaction(): void {}
-            public function commit(): void   { $this->commitCalls++; }
-            public function rollBack(): void { $this->rollBackCalls++; }
-        };
+        return new ArchiveAccountsFakeDatabase($insertOk, $queryRows);
     }
 
     // -------------------------------------------------------------------------
@@ -168,5 +143,111 @@ final class ArchiveAccountsTest extends TestCase
 
         $this->assertSame(1, $db->commitCalls, 'commit() must be called exactly once on success');
         $this->assertSame(0, $db->rollBackCalls, 'rollBack() must not be called on success');
+    }
+}
+
+/**
+ * DB double for archiveAccounts(): canned SELECT rows, a switchable insert() result,
+ * and call counters for commit()/rollBack() plus the last insert payload.
+ *
+ * Deliberately a *named* class rather than the anonymous `new class extends
+ * FakeDatabase` it replaces: PHPStan reports `impureMethod.pure` when an anonymous
+ * class overrides one of DatabaseInterface's `@phpstan-impure` methods (`results()`,
+ * `error()`, `errorString()` here) with a side-effect-free body, because an anonymous
+ * class can never be extended to add the side effect later. A named class is exempt.
+ */
+class ArchiveAccountsFakeDatabase extends FakeDatabase
+{
+    public int $commitCalls = 0;
+    public int $rollBackCalls = 0;
+
+    /** @var array<string, mixed>|null Fields passed to the most recent insert() call */
+    public ?array $lastInsertData = null;
+
+    private bool $errorFlag = false;
+
+    /**
+     * @param bool $insertOk Value returned by insert()
+     * @param array<int, object|array<string, mixed>> $queryRows Rows handed back by results()
+     */
+    public function __construct(
+        private readonly bool $insertOk,
+        private readonly array $queryRows
+    ) {
+    }
+
+    /**
+     * @param array<mixed> $params
+     */
+    public function query(string $sql, array $params = []): self
+    {
+        return $this;
+    }
+
+    /**
+     * @return array<int, object|array<string, mixed>>
+     */
+    public function results(bool $assoc = false): array
+    {
+        return $this->queryRows;
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     */
+    public function insert(string $table, array $fields = [], bool $update = false): bool
+    {
+        $this->lastInsertData = $fields;
+        return $this->insertOk;
+    }
+
+    /**
+     * @return bool True once setError() has been called
+     */
+    public function error(): bool
+    {
+        return $this->errorFlag;
+    }
+
+    /**
+     * @return string Always empty — the tests assert on the thrown message, not this
+     */
+    public function errorString(): string
+    {
+        return '';
+    }
+
+    /**
+     * Make every subsequent error() check report a failed query.
+     */
+    public function setError(): void
+    {
+        $this->errorFlag = true;
+    }
+
+    /**
+     * @return bool Always true
+     */
+    public function beginTransaction(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return bool Always true; increments $commitCalls
+     */
+    public function commit(): bool
+    {
+        $this->commitCalls++;
+        return true;
+    }
+
+    /**
+     * @return bool Always true; increments $rollBackCalls
+     */
+    public function rollBack(): bool
+    {
+        $this->rollBackCalls++;
+        return true;
     }
 }

@@ -71,7 +71,7 @@ $systemStatus = [
 ];
 
 try {
-    $systemStatus = getAdminSystemStatus($db);
+    $systemStatus = getAdminSystemStatus(dbi());
 } catch (\Throwable $e) {
     // Header stats are cosmetic — log and degrade gracefully.
     logger($currentUserId, LogCategories::LOG_CATEGORY_DATABASE_ERROR,

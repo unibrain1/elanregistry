@@ -22,6 +22,8 @@ tests/
 │
 ├── regression/                # Legacy regression suite
 │
+├── Support/                   # Shared test doubles (e.g. FakeDatabase)
+│
 ├── playwright/                # Browser E2E tests
 │   ├── e2e/                   # End-to-end workflows
 │   ├── security/              # Security testing

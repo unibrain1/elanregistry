@@ -15,7 +15,7 @@ require_once $abs_us_root . $us_url_root . 'app/admin/includes/system/script-enu
  * Backups, one-time migration scripts, and recurring maintenance tasks.
  */
 
-$backupManager = new BackupManager($db, $abs_us_root . $us_url_root . BACKUP_BASE_DIR, (int)$user->data()->id);
+$backupManager = new BackupManager(dbi(), $abs_us_root . $us_url_root . BACKUP_BASE_DIR, (int)$user->data()->id);
 
 $fixDirectory = $abs_us_root . $us_url_root . 'app/admin/scripts/fix/';
 $fixScripts   = enumerateScriptFiles($fixDirectory);

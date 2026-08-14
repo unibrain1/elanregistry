@@ -24,6 +24,21 @@ class CarValidator
     public const MIN_CAR_DATE = '1957-01-01';
 
     /**
+     * Injected model-reference lookup, or null to resolve one lazily on first use.
+     */
+    private ?CarModel $carModel;
+
+    /**
+     * @param CarModel|null $carModel Optional model reference for testing. When omitted, a
+     *                                default CarModel (backed by the shared dbi() handle) is
+     *                                created on first use by a model-field validation.
+     */
+    public function __construct(?CarModel $carModel = null)
+    {
+        $this->carModel = $carModel;
+    }
+
+    /**
      * Parse a pipe-delimited model string into its three components.
      *
      * @param string $model A string in "series|variant|type" format.
@@ -92,7 +107,7 @@ class CarValidator
 
                         [$series, $variant, $type] = self::parseModel($validatedFields[$key]);
 
-                        $carModelRef = new CarModel();
+                        $carModelRef = $this->carModel ??= new CarModel();
                         if (!$carModelRef->exists($series, $variant, $type)) {
                             throw new CarValidationException(
                                 "Invalid model combination: {$series} {$variant} (Type {$type}) is not a valid Lotus Elan model"

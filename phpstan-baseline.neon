@@ -19,12 +19,6 @@ parameters:
 			path: app/admin/includes/tab-placeholder.php
 
 		-
-			message: '#^Negated boolean expression is always false\.$#'
-			identifier: booleanNot.alwaysFalse
-			count: 1
-			path: app/admin/scripts/maintenance/21-Fix-Page-Permissions.php
-
-		-
 			message: '#^Variable \$car might not be defined\.$#'
 			identifier: variable.undefined
 			count: 1
@@ -55,22 +49,10 @@ parameters:
 			path: app/admin/verify/_email_template.php
 
 		-
-			message: '#^Cannot access property \$id on object\|false\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/admin/verify/send_email.php
-
-		-
 			message: '#^Parameter \#1 \$prefix of function uniqid expects string, int\<0, max\> given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/admin/verify/send_email.php
-
-		-
-			message: '#^Unreachable statement \- code above always terminates\.$#'
-			identifier: deadCode.unreachable
-			count: 5
-			path: app/api/admin/account-cleanup-data.php
 
 		-
 			message: '#^Match arm comparison between ''num''\|''txt'' and ''toggle'' is always false\.$#'
@@ -83,18 +65,6 @@ parameters:
 			identifier: deadCode.unreachable
 			count: 2
 			path: app/api/cars/models.php
-
-		-
-			message: '#^Cannot access property \$id on object\|false\.$#'
-			identifier: property.nonObject
-			count: 4
-			path: app/api/cars/transfer-request.php
-
-		-
-			message: '#^Cannot access property \$user_id on object\|false\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/api/cars/transfer-request.php
 
 		-
 			message: '#^Variable \$context might not be defined\.$#'
@@ -211,54 +181,6 @@ parameters:
 			path: error/500.php
 
 		-
-			message: '#^Comparison operation "\>" between 900\|1250\|2650\|2976\|4526 and 0 is always true\.$#'
-			identifier: greater.alwaysTrue
-			count: 1
-			path: index.php
-
-		-
-			message: '#^Comparison operation "\>" between 900\|1250\|int\<1800, max\> and 0 is always true\.$#'
-			identifier: greater.alwaysTrue
-			count: 1
-			path: index.php
-
-		-
-			message: '#^Cannot access property \$name on object\|false\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: tests/bootstrap-integration.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between mixed and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: tests/bootstrap-integration.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: tests/bootstrap-integration.php
-
-		-
-			message: '#^Parameter \#2 \$columns of method CarDataTablesTest\:\:buildDataTablesRequest\(\) expects list\<array\<string, string\>\>, array\{array\{data\: ''color'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''''\}\}, array\{data\: ''series'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''S4''\}\}\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: tests/integration/CarDataTablesTest.php
-
-		-
-			message: '#^Parameter \#2 \$columns of method CarDataTablesTest\:\:buildDataTablesRequest\(\) expects list\<array\<string, string\>\>, array\{array\{data\: ''series'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: ''S4''\}\}\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: tests/integration/CarDataTablesTest.php
-
-		-
-			message: '#^Parameter \#2 \$columns of method CarDataTablesTest\:\:buildDataTablesRequest\(\) expects list\<array\<string, string\>\>, array\{array\{data\: ''series'', searchable\: ''true'', orderable\: ''true'', search\: array\{value\: non\-falsy\-string\}\}\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: tests/integration/CarDataTablesTest.php
-
-		-
 			message: '#^Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects class\-string\<Server\>\|Server, string given\.$#'
 			identifier: argument.type
 			count: 1
@@ -287,24 +209,6 @@ parameters:
 			identifier: method.alreadyNarrowedType
 			count: 1
 			path: tests/integration/reference/CarModelTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Admin\\\\BackupManager'' and ElanRegistry\\Admin\\BackupManager will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/admin/BackupManagerTest.php
-
-		-
-			message: '#^Method class@anonymous/tests/unit/admin/BackupManagerTest\.php\:1020\:\:first\(\) never returns null so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: tests/unit/admin/BackupManagerTest.php
-
-		-
-			message: '#^Variable \$symlinkPath on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.variable
-			count: 1
-			path: tests/unit/admin/BackupManagerTest.php
 
 		-
 			message: '#^Variable \$matches in empty\(\) always exists and is not falsy\.$#'
@@ -499,24 +403,6 @@ parameters:
 			path: usersc/account.php
 
 		-
-			message: '#^Cannot access property \$count on object\|false\.$#'
-			identifier: property.nonObject
-			count: 2
-			path: usersc/classes/Car/CarDataTablesService.php
-
-		-
-			message: '#^If condition is always false\.$#'
-			identifier: if.alwaysFalse
-			count: 2
-			path: usersc/classes/Car/CarDataTablesService.php
-
-		-
-			message: '#^Cannot access property \$count on object\|false\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: usersc/classes/Transfer/CarTransferRepository.php
-
-		-
 			message: '#^File ends with a trailing whitespace\. This may cause problems when running the code in the web browser\. Remove the closing \?\> mark or remove the whitespace\.$#'
 			identifier: whitespace.fileEnd
 			count: 1
@@ -569,30 +455,6 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: usersc/includes/user_manager_columns.php
-
-		-
-			message: '#^Loose comparison using \=\= between true and true will always evaluate to true\.$#'
-			identifier: equal.alwaysTrue
-			count: 1
-			path: usersc/join.php
-
-		-
-			message: '#^Variable \$email on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.variable
-			count: 1
-			path: usersc/join.php
-
-		-
-			message: '#^Variable \$errors might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/join.php
-
-		-
-			message: '#^Variable \$username on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.variable
-			count: 1
-			path: usersc/join.php
 
 		-
 			message: '#^Variable \$lang might not be defined\.$#'
@@ -653,18 +515,6 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: usersc/oauth_server/login_scripts/default_script.php
-
-		-
-			message: '#^If condition is always false\.$#'
-			identifier: if.alwaysFalse
-			count: 2
-			path: usersc/scripts/after_user_deletion.php
-
-		-
-			message: '#^Variable \$id might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/scripts/after_user_deletion.php
 
 		-
 			message: '#^Variable \$o might not be defined\.$#'

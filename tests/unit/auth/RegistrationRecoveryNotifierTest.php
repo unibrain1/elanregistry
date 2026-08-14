@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\RegistrationRecoveryNotifier;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -24,7 +25,7 @@ require_once __DIR__ . '/_User_test_double.php';
 #[Group('fast')]
 final class RegistrationRecoveryNotifierTest extends TestCase
 {
-    /** @var DB&MockObject */
+    /** @var DatabaseInterface&MockObject */
     private $db;
 
     protected function setUp(): void
@@ -37,7 +38,7 @@ final class RegistrationRecoveryNotifierTest extends TestCase
         $mockEmailBodyResult = null;
         $mockLogEntries = [];
 
-        $this->db = $this->createMock(DB::class);
+        $this->db = $this->createMock(DatabaseInterface::class);
     }
 
     protected function tearDown(): void
@@ -81,10 +82,10 @@ final class RegistrationRecoveryNotifierTest extends TestCase
     /**
      * PDO/mysqli can return database INTEGER columns as numeric strings (see
      * docs/development/STRICT_TYPE_HANDLING.md) — \User::data()->id is not
-     * guaranteed to already be a native int. This file (and DB::update()'s
-     * mock signature in tests/bootstrap-unit.php) declares strict_types=1,
-     * so passing an uncast numeric string to $this->db->update()'s int $id
-     * parameter throws a TypeError. That TypeError would be silently caught
+     * guaranteed to already be a native int. This file declares strict_types=1
+     * and DatabaseInterface::update() types $id as array|int, so passing an
+     * uncast numeric string to $this->db->update()'s $id parameter throws a
+     * TypeError. That TypeError would be silently caught
      * by this method's own catch(\Throwable), logged, and swallowed — the
      * caller (join.php) sees no difference, but no recovery email is ever
      * sent in production. This test uses a string 'id' specifically so a
@@ -95,7 +96,7 @@ final class RegistrationRecoveryNotifierTest extends TestCase
         $fuser = new User(true, (object) ['id' => '42', 'fname' => 'Jane']);
 
         // identicalTo() is a strict (===) match, so a string '42' reaching
-        // DB::update() fails the expectation rather than passing on ==.
+        // update() fails the expectation rather than passing on ==.
         $this->db->expects($this->once())
             ->method('update')
             ->with('users', $this->identicalTo(42), $this->anything())

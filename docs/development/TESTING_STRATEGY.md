@@ -23,25 +23,35 @@ Three tiers, each with a distinct purpose and a hard boundary:
   a mocked `DB` instead, so the class's own translation logic (DB response →
   return value/exception) actually executes.
 
-  `tests/bootstrap-unit.php`'s global `DB` class is intentionally retained as
-  a thin, type-shaped stand-in — every class constructed in the unit tier
-  that type-hints `DB` (`CarRepository`, `CarTransferRepository`,
-  `RegistrationRecoveryNotifier`, and more) needs a class literally named
-  `DB` to resolve, and PHPUnit's `createMock(DB::class)`/`createStub(DB::class)`
-  needs one too to build a double against — a class can't be deleted just
-  because most of its default behavior was (#1441). The convention, per
-  `tests/unit/cars/services/CarRepositoryTest.php`'s `makeDbMock()`: build a
-  per-test `createMock(DB::class)`/`createStub(DB::class)` double configured
-  for exactly what that test needs, rather than relying on the shared
-  singleton's canned defaults for anything beyond "happy path, don't care
-  about the exact shape." A follow-up (extracting a narrow
-  `ElanRegistry\DatabaseInterface` for these classes to type-hint instead of
-  `DB`) would let the shell disappear for real — tracked in #1585.
+  Every class that needs a database collaborator type-hints
+  `ElanRegistry\DatabaseInterface` (`usersc/classes/DatabaseInterface.php`), a
+  narrow interface covering exactly the methods production code calls on
+  UserSpice's real `\DB` class, matching `\DB`'s actual runtime behavior
+  (fluent self-returning `query()`/`get()`, `[]` — never `null` — on empty
+  `first()`/`results()`). The real `\DB` is wrapped by
+  `ElanRegistry\Database\DbAdapter` (`usersc/classes/Database/DbAdapter.php`)
+  for production use; unit tests build a per-test double of the interface
+  directly — `createMock(DatabaseInterface::class)`/
+  `createStub(DatabaseInterface::class)` for interaction-style expectations
+  (per the convention in `tests/unit/cars/services/CarRepositoryTest.php`'s
+  `makeDbMock()`), or a concrete `tests/Support/FakeDatabase.php` subclass
+  when a test needs mutable tracked state (hand-tracked call counts, etc.) —
+  see `tests/unit/admin/ArchiveAccountsTest.php` for that pattern. There is no
+  shared global `DB` mock shell — a regression guardrail
+  (`tests/unit/regression/DatabaseInterfaceUsageRegressionTest.php`) fails CI
+  if one, or a concrete `\DB` type-hint in production code, or a call to a
+  `\DB` method that isn't on `DatabaseInterface`, ever reappears (#1585).
 
-  Model-combination existence can't be proven in the unit tier — the shared
-  `DB` mock has no `car_models` branch, so `CarModel::exists()` always returns
-  `false` there (#1446). Assert it in
-  `tests/integration/cars/services/CarValidatorModelTest.php` instead.
+  Model-combination existence is proven against the real `car_models` table in
+  `tests/integration/cars/services/CarValidatorModelTest.php` (#1446) — that
+  remains the place to assert which combinations are actually valid. A unit test
+  that needs to *reach* `CarValidator`'s model branch must inject its own
+  `CarModel`: `new CarValidator($carModel)`, where `$carModel` is a real
+  `CarModel` constructed against a `DatabaseInterface` double
+  (`new CarModel($db)`). Without injection, `CarValidator` lazily builds a
+  default `CarModel` backed by `dbi()`, which fatals in the unit tier — `dbi()`
+  itself is undefined there (it lives in `custom_functions.php`, which the
+  unit bootstrap never loads).
 
   UserSpice's own bare (non-namespaced) classes under `users/classes/` are a
   different case, and the rule there is absolute: they can **never** be loaded

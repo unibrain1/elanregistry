@@ -32,8 +32,7 @@ if ($transferId <= 0) {
         ->send();
 }
 
-$db = DB::getInstance();
-$repo = new CarTransferRepository($db);
+$repo = new CarTransferRepository(dbi());
 
 try {
     // Check that transfer request exists and is pending
@@ -61,7 +60,7 @@ try {
 
     // Send denial notification email with error handling
     try {
-        $emailService = new TransferEmailService(DB::getInstance(), 'email');
+        $emailService = new TransferEmailService(dbi(), 'email');
         $notificationSent = $emailService->sendResponse(
             $transferId,
             false,

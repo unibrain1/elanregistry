@@ -34,7 +34,7 @@ if ($preloadCarId) {
     }
 }
 
-$repo = new CarTransferRepository($db);
+$repo = new CarTransferRepository(dbi());
 $pendingTransfers = [];
 $transferStats    = ['pending' => 0, 'completed_today' => 0, 'denied_today' => 0];
 $transferLoadError = false;

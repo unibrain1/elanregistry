@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Transfer\TransferEmailService;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -19,35 +20,87 @@ final class TransferEmailServiceTest extends TestCase
     }
 
     /**
-     * Creates a mock DB whose query() always returns count=0 (transfer not found).
-     * error() always returns false (no DB error).
+     * Creates a database double whose queries report $rowCount rows
+     * (0 = transfer not found). error() always returns false (no DB error).
+     *
+     * query() returns the double itself because the real \DB::query() always
+     * returns $this for chaining — the result data lives in count()/first()
+     * on the same instance.
      */
-    private function createMockDb(int $rowCount = 0): \DB
+    private function createMockDb(int $rowCount = 0): DatabaseInterface
     {
-        $rows = array_fill(0, $rowCount, (object) []);
-        $db = $this->createStub(\DB::class);
-        $db->method('query')->willReturn(new \QueryResult($rows));
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn($rowCount);
+        // Real \DB::first() returns [] when there are no rows, never null.
+        $db->method('first')->willReturn([]);
         return $db;
     }
 
     /**
-     * Creates a mock DB that dispatches by table name:
+     * Creates a database double that dispatches by table name:
      * queries against `car_transfer_requests` return $transferRow,
-     * queries against `cars` return $carRow.
+     * the `users LEFT JOIN profiles` lookup that Owner::find() runs returns a
+     * user row for the requested id, and everything else returns $carRow.
      * error() always returns false (no DB error).
+     *
+     * TransferEmailService passes its own $db to every `new Owner(...)` it
+     * constructs, so this one double answers both the service's car/transfer
+     * queries and the owner lookups made through it.
+     *
+     * Real \DB carries result state on the instance — query() returns $this and
+     * count()/first() describe the most recent statement — so $currentRow
+     * mirrors that: each query() selects the row the following first() returns.
      */
-    private function createFoundMockDb(object $transferRow, object $carRow): \DB
+    private function createFoundMockDb(object $transferRow, object $carRow): DatabaseInterface
     {
-        $db = $this->createStub(\DB::class);
+        $db         = $this->createStub(DatabaseInterface::class);
+        $currentRow = $transferRow;
+
         $db->method('query')->willReturnCallback(
-            function (string $sql, array $params = []) use ($transferRow, $carRow): \QueryResult {
-                $row = str_contains($sql, 'car_transfer_requests') ? $transferRow : $carRow;
-                return new \QueryResult([$row]);
+            function (string $sql, array $params = []) use ($db, $transferRow, $carRow, &$currentRow): DatabaseInterface {
+                if (str_contains($sql, 'car_transfer_requests')) {
+                    $currentRow = $transferRow;
+                } elseif (str_contains($sql, 'profiles') && str_contains($sql, 'WHERE u.id')) {
+                    $currentRow = $this->makeUserRow((int) ($params[0] ?? 0));
+                } else {
+                    $currentRow = $carRow;
+                }
+                return $db;
             }
         );
         $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturnCallback(
+            function () use (&$currentRow): object {
+                return $currentRow;
+            }
+        );
         return $db;
+    }
+
+    /**
+     * A `users LEFT JOIN profiles` row as Owner::find() expects to read it.
+     *
+     * Owner::find() short-circuits on ids <= 0 without querying, so the
+     * owner-not-found tests never reach this helper.
+     */
+    private function makeUserRow(int $userId): object
+    {
+        return (object) [
+            'id'        => $userId,
+            'email'     => 'test@example.com',
+            'fname'     => 'Test',
+            'lname'     => 'User',
+            'join_date' => '2024-01-01 00:00:00',
+            'city'      => 'Test City',
+            'state'     => 'TS',
+            'country'   => 'US',
+            'lat'       => null,
+            'lon'       => null,
+            'website'   => '',
+        ];
     }
 
     private function makeTransferRow(array $overrides = []): object
@@ -157,8 +210,8 @@ final class TransferEmailServiceTest extends TestCase
         $result  = $service->sendRequest(1);
 
         $this->assertTrue($result);
-        // 'test@example.com' is the hardcoded email returned by the Owner stub in
-        // tests/unit/bootstrap-unit.php — if that fixture changes, update this assertion.
+        // 'test@example.com' is the email carried by makeUserRow(), which the
+        // db double returns for Owner::find() — update both together.
         $this->assertSame('test@example.com', $capturedTo);
     }
 

@@ -6,6 +6,7 @@ use ElanRegistry\Admin\BackupManager;
 use ElanRegistry\Exceptions\BackupException;
 use ElanRegistry\LogCategories;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FakeDatabase;
 
 use PHPUnit\Framework\Attributes\Group;
 // BackupManager and BackupException auto-loaded via custom autoloader
@@ -23,7 +24,7 @@ use PHPUnit\Framework\Attributes\Group;
 final class BackupManagerTest extends TestCase
 {
     private string $testBackupDir;
-    private $mockDb;
+    private BackupManagerFakeDatabase $mockDb;
     private BackupManager $backupManager;
 
     /**
@@ -72,7 +73,10 @@ final class BackupManagerTest extends TestCase
     #[Group('fast')]
     public function testInstantiation(): void
     {
-        $this->assertInstanceOf(BackupManager::class, $this->backupManager);
+        // $this->backupManager is typed BackupManager (non-nullable) and assigned in
+        // setUp(); reaching this line without a fatal error already proves the
+        // constructor succeeded, so there's nothing further to assert here.
+        $this->expectNotToPerformAssertions();
     }
 
     /**
@@ -464,7 +468,10 @@ final class BackupManagerTest extends TestCase
             // The realpath guard blocked deletion; deleted count for automated must be 0
             $this->assertSame(0, $result['automated']['deleted']);
         } finally {
-            if (is_link($symlinkPath ?? '')) {
+            // $symlinkPath is assigned as the very first statement in the try block
+            // (a plain string concatenation that can't itself throw), so it's always
+            // set by the time finally runs.
+            if (is_link($symlinkPath)) {
                 unlink($symlinkPath);
             }
             $this->recursiveRemoveDirectory($outsideDir);
@@ -693,6 +700,43 @@ final class BackupManagerTest extends TestCase
     }
 
     /**
+     * Verify that a SHOW CREATE TABLE that succeeds but returns no rows aborts the
+     * backup instead of writing a corrupt dump.
+     *
+     * The real `\DB::first()` returns `[]` — not null and not an object — when there
+     * are no rows, and `[]->{'Create Table'}` silently evaluates to null. Without the
+     * is_object() guard in generateTableDump() the dump would be written with a bare
+     * `;` where the CREATE statement belongs, producing a backup file that looks
+     * healthy but cannot restore the table. This is reachable in practice when a table
+     * is dropped between the caller listing tables and the dump reaching it.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testTableDumpMissingStructureRowAbortsBackup(): void
+    {
+        $mockDb = $this->createMockDatabase(null, 0, null, 'SHOW CREATE TABLE `cars`');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $filesBefore = glob($this->testBackupDir . 'manual/*.sql');
+
+        try {
+            $backupManager->createManualBackup('Missing Structure Row', ['cars']);
+            $this->fail('Expected BackupException was not thrown');
+        } catch (BackupException $e) {
+            $this->assertStringContainsString('No structure returned for table cars', $e->getMessage());
+        }
+
+        $filesAfter = glob($this->testBackupDir . 'manual/*.sql');
+        $this->assertSame(
+            $filesBefore,
+            $filesAfter,
+            'No backup file should be written when the structure row is missing'
+        );
+    }
+
+    /**
      * Verify that a backup-directory creation failure (mkdir() failing inside
      * createStandardizedBackup(), before generateTableDump() is ever reached) is
      * logged under LOG_CATEGORY_BACKUP_FAILED — proving the other new source of
@@ -781,32 +825,7 @@ final class BackupManagerTest extends TestCase
         global $mockLogEntries;
         $mockLogEntries = [];
 
-        $throwingDb = new class {
-            public function query(string $sql, array $params = []): object
-            {
-                throw new \RuntimeException('MySQL server has gone away');
-            }
-
-            public function error(): bool
-            {
-                return false;
-            }
-
-            public function errorString(): string
-            {
-                return '';
-            }
-
-            /**
-             * @return array{0: string, 1: int, 2: string}
-             */
-            public function errorInfo(): array
-            {
-                return ['', 0, ''];
-            }
-        };
-
-        $backupManager = new BackupManager($throwingDb, $this->testBackupDir, 1);
+        $backupManager = new BackupManager(new BackupManagerThrowingDatabase(), $this->testBackupDir, 1);
 
         try {
             $backupManager->createManualBackup('Connection Drop', ['settings']);
@@ -898,35 +917,10 @@ final class BackupManagerTest extends TestCase
     }
 
     /**
-     * Helper: Create a mock database object
+     * Helper: Create the DatabaseInterface double BackupManager runs against
      *
-     * The mock's outer object is what BackupManager holds as `$this->db`, so it must
-     * expose `error()`/`errorString()`/`errorInfo()` in addition to `query()` —
-     * mirroring UserSpice's DB class, which flags failures via `error()` rather than
-     * throwing, and `errorInfo()`, which BackupManager's `isTableNotFoundError()`
-     * inspects for SQLSTATE `42S02` / driver code `1146` to distinguish a missing
-     * table from a genuine query failure.
-     *
-     * By default every query "succeeds": table-structure/data queries return two canned
-     * rows, and the `logs` recent-failures COUNT(*) query returns `$recentFailureCount`
-     * (default 0, i.e. no recent failures) — but only when the bound `logtype` param
-     * (the query's first bound parameter) equals `LogCategories::LOG_CATEGORY_BACKUP_FAILED`;
-     * any other logtype value (or no bound params at all) yields 0 regardless of
-     * `$recentFailureCount`, so this mock only reports failures for the category
-     * `hasRecentBackupFailures()` is actually documented to query. Passing
-     * `$failOnSqlSubstring` makes any query whose SQL contains that substring behave as
-     * a failed query (`error()` becomes true for that call, and the result reports zero
-     * rows / null `first()`), letting a test target a specific query (e.g.
-     * `'SELECT * FROM `cars`'`, `'SHOW CREATE TABLE `cars`'`, or `'FROM logs'`) without
-     * affecting unrelated queries. `errorInfo()` reports a generic, non-42S02 error
-     * (`['HY000', 2006, ...]`) for a `$failOnSqlSubstring` match, so
-     * `isTableNotFoundError()` correctly treats it as a genuine failure.
-     *
-     * Passing `$tableNotFoundOnSqlSubstring` behaves like `$failOnSqlSubstring` (query
-     * fails, empty result) but reports `errorInfo()` as MySQL's "table not found" error
-     * (`['42S02', 1146, ...]`), so `isTableNotFoundError()` routes it to the soft-warning
-     * path instead of aborting the backup. The two substrings are independent — a test
-     * can configure one, the other, or both to target different queries.
+     * See BackupManagerFakeDatabase (foot of this file) for the simulated behaviour
+     * and what each parameter controls.
      *
      * @param string|null $failOnSqlSubstring Substring to match against query SQL; when
      *                                        matched, that query is simulated as a
@@ -936,127 +930,23 @@ final class BackupManagerTest extends TestCase
      * @param string|null $tableNotFoundOnSqlSubstring Substring to match against query
      *                                        SQL; when matched, that query is simulated
      *                                        as a MySQL 1146/42S02 "table not found" failure
-     * @return object Mock database object with query()/error()/errorString()/errorInfo() methods
+     * @param string|null $emptyResultOnSqlSubstring Substring to match against query SQL;
+     *                                        when matched, that query is simulated as
+     *                                        succeeding but returning no rows
      */
     private function createMockDatabase(
         ?string $failOnSqlSubstring = null,
         int $recentFailureCount = 0,
-        ?string $tableNotFoundOnSqlSubstring = null
-    ): object
+        ?string $tableNotFoundOnSqlSubstring = null,
+        ?string $emptyResultOnSqlSubstring = null
+    ): BackupManagerFakeDatabase
     {
-        return new class ($failOnSqlSubstring, $recentFailureCount, $tableNotFoundOnSqlSubstring) {
-            private bool $lastQueryFailed = false;
-            /** @var array{0: string, 1: int, 2: string} */
-            private array $lastErrorInfo = ['', 0, ''];
-
-            public function __construct(
-                private readonly ?string $failOnSqlSubstring,
-                private readonly int $recentFailureCount,
-                private readonly ?string $tableNotFoundOnSqlSubstring = null
-            ) {
-            }
-
-            public function query(string $sql, array $params = []): object {
-                $this->lastQueryFailed = false;
-                $this->lastErrorInfo = ['', 0, ''];
-
-                if ($this->tableNotFoundOnSqlSubstring !== null && str_contains($sql, $this->tableNotFoundOnSqlSubstring)) {
-                    $this->lastQueryFailed = true;
-                    $this->lastErrorInfo = ['42S02', 1146, "Table doesn't exist"];
-                } elseif ($this->failOnSqlSubstring !== null && str_contains($sql, $this->failOnSqlSubstring)) {
-                    $this->lastQueryFailed = true;
-                    $this->lastErrorInfo = ['HY000', 2006, 'MySQL server has gone away'];
-                }
-
-                if ($this->lastQueryFailed) {
-                    // Mock result object for a failed query: no rows, no first()
-                    return new class {
-                        public function results(): array {
-                            return [];
-                        }
-
-                        public function count(): int {
-                            return 0;
-                        }
-
-                        public function first(): null {
-                            return null;
-                        }
-                    };
-                }
-
-                if (str_contains($sql, 'FROM logs')) {
-                    // Mock result object for the recent-failures COUNT(*) query. Only
-                    // honors the configured recentFailureCount when the bound logtype
-                    // param actually matches LOG_CATEGORY_BACKUP_FAILED — otherwise
-                    // returns 0. This keeps the mock (and any test built on it)
-                    // sensitive to a regression back to querying the wrong log
-                    // category, since a mismatched category would silently report
-                    // zero failures regardless of the configured count.
-                    $matchesFailedCategory = ($params[0] ?? null) === LogCategories::LOG_CATEGORY_BACKUP_FAILED;
-                    $cnt = $matchesFailedCategory ? $this->recentFailureCount : 0;
-
-                    return new class ($cnt) {
-                        public function __construct(private readonly int $cnt) {
-                        }
-
-                        public function results(): array {
-                            return [];
-                        }
-
-                        public function count(): int {
-                            return 1;
-                        }
-
-                        public function first(): object {
-                            $countObj = new \stdClass();
-                            $countObj->cnt = $this->cnt;
-                            return $countObj;
-                        }
-                    };
-                }
-
-                // Mock result object for a successful table structure/data query
-                return new class {
-                    public function results(): array {
-                        $createTableObj = new \stdClass();
-                        $createTableObj->{'Create Table'} = 'CREATE TABLE `settings` (`id` int) ENGINE=InnoDB';
-
-                        $dataObj = new \stdClass();
-                        $dataObj->id = 1;
-                        $dataObj->meta_key = 'test';
-                        $dataObj->meta_value = 'value';
-
-                        return [$createTableObj, $dataObj];
-                    }
-
-                    public function count(): int {
-                        return 2;
-                    }
-
-                    public function first(): ?object {
-                        $createTableObj = new \stdClass();
-                        $createTableObj->{'Create Table'} = 'CREATE TABLE `settings` (`id` int) ENGINE=InnoDB';
-                        return $createTableObj;
-                    }
-                };
-            }
-
-            public function error(): bool {
-                return $this->lastQueryFailed;
-            }
-
-            public function errorString(): string {
-                return $this->lastQueryFailed ? 'Mock database error: query failed' : '';
-            }
-
-            /**
-             * @return array{0: string, 1: int, 2: string}
-             */
-            public function errorInfo(): array {
-                return $this->lastErrorInfo;
-            }
-        };
+        return new BackupManagerFakeDatabase(
+            $failOnSqlSubstring,
+            $recentFailureCount,
+            $tableNotFoundOnSqlSubstring,
+            $emptyResultOnSqlSubstring
+        );
     }
 
     /**
@@ -1077,5 +967,175 @@ final class BackupManagerTest extends TestCase
             is_dir($path) ? $this->recursiveRemoveDirectory($path) : unlink($path);
         }
         rmdir($dir);
+    }
+}
+
+/**
+ * DatabaseInterface double for BackupManager, mirroring the real `\DB`: `query()`
+ * returns the same instance, and `count()`/`first()`/`results()`/`error()`/
+ * `errorString()`/`errorInfo()` all report the outcome of that most recent call on
+ * that same object. UserSpice flags a failed query via `error()` rather than throwing,
+ * and `errorInfo()` carries the SQLSTATE/driver code that BackupManager's
+ * `isTableNotFoundError()` inspects to distinguish a missing table from a genuine
+ * failure.
+ *
+ * By default every query "succeeds": table-structure/data queries return two canned
+ * rows, and the `logs` recent-failures COUNT(*) query returns `$recentFailureCount`
+ * (default 0, i.e. no recent failures) — but only when the bound `logtype` param
+ * (the query's first bound parameter) equals `LogCategories::LOG_CATEGORY_BACKUP_FAILED`;
+ * any other logtype value (or no bound params at all) yields 0 regardless of
+ * `$recentFailureCount`, so this double only reports failures for the category
+ * `hasRecentBackupFailures()` is actually documented to query.
+ *
+ * The three SQL-substring parameters are independent — a test can configure any
+ * combination to target different queries without affecting unrelated ones:
+ *
+ * - `$failOnSqlSubstring` — the matched query fails generically: `error()` becomes
+ *   true and `errorInfo()` reports `['HY000', 2006, ...]`, so `isTableNotFoundError()`
+ *   correctly treats it as a genuine failure.
+ * - `$tableNotFoundOnSqlSubstring` — the matched query fails with MySQL's "table not
+ *   found" error (`['42S02', 1146, ...]`), routing it to the soft-warning path.
+ * - `$emptyResultOnSqlSubstring` — the matched query *succeeds* but returns no rows,
+ *   so `first()` returns `[]` exactly as the real `\DB` does.
+ *
+ * Deliberately a *named* class rather than an anonymous `new class extends
+ * FakeDatabase`: PHPStan reports `impureMethod.pure` when an anonymous class overrides
+ * one of DatabaseInterface's `@phpstan-impure` methods with a side-effect-free body,
+ * because an anonymous class can never be extended to add the side effect later.
+ */
+class BackupManagerFakeDatabase extends FakeDatabase
+{
+    private bool $lastQueryFailed = false;
+
+    /** @var array<int, mixed> PDO errorInfo triple for the most recent query */
+    private array $lastErrorInfo = ['', 0, ''];
+
+    /** @var array<int, \stdClass> Rows returned by the most recent query */
+    private array $lastRows = [];
+
+    public function __construct(
+        private readonly ?string $failOnSqlSubstring = null,
+        private readonly int $recentFailureCount = 0,
+        private readonly ?string $tableNotFoundOnSqlSubstring = null,
+        private readonly ?string $emptyResultOnSqlSubstring = null
+    ) {
+    }
+
+    /**
+     * @param array<mixed> $params
+     */
+    public function query(string $sql, array $params = []): self
+    {
+        $this->lastQueryFailed = false;
+        $this->lastErrorInfo = ['', 0, ''];
+        $this->lastRows = [];
+
+        if ($this->tableNotFoundOnSqlSubstring !== null && str_contains($sql, $this->tableNotFoundOnSqlSubstring)) {
+            $this->lastQueryFailed = true;
+            $this->lastErrorInfo = ['42S02', 1146, "Table doesn't exist"];
+            return $this;
+        }
+
+        if ($this->failOnSqlSubstring !== null && str_contains($sql, $this->failOnSqlSubstring)) {
+            $this->lastQueryFailed = true;
+            $this->lastErrorInfo = ['HY000', 2006, 'MySQL server has gone away'];
+            return $this;
+        }
+
+        if ($this->emptyResultOnSqlSubstring !== null && str_contains($sql, $this->emptyResultOnSqlSubstring)) {
+            // Succeeds, but with no rows — first() stays `[]`
+            return $this;
+        }
+
+        if (str_contains($sql, 'FROM logs')) {
+            $matchesFailedCategory = ($params[0] ?? null) === LogCategories::LOG_CATEGORY_BACKUP_FAILED;
+
+            $countRow = new \stdClass();
+            $countRow->cnt = $matchesFailedCategory ? $this->recentFailureCount : 0;
+            $this->lastRows = [$countRow];
+
+            return $this;
+        }
+
+        // Successful table structure/data query
+        $createTableObj = new \stdClass();
+        $createTableObj->{'Create Table'} = 'CREATE TABLE `settings` (`id` int) ENGINE=InnoDB';
+
+        $dataObj = new \stdClass();
+        $dataObj->id = 1;
+        $dataObj->meta_key = 'test';
+        $dataObj->meta_value = 'value';
+
+        $this->lastRows = [$createTableObj, $dataObj];
+
+        return $this;
+    }
+
+    /**
+     * @return bool True when the most recent query was configured to fail
+     */
+    public function error(): bool
+    {
+        return $this->lastQueryFailed;
+    }
+
+    /**
+     * @return string Canned description of the most recent failure, or empty on success
+     */
+    public function errorString(): string
+    {
+        return $this->lastQueryFailed ? 'Mock database error: query failed' : '';
+    }
+
+    /**
+     * @return array<int, mixed> PDO errorInfo triple for the most recent query
+     */
+    public function errorInfo(): array
+    {
+        return $this->lastErrorInfo;
+    }
+
+    /**
+     * @return int Row count of the most recent result set
+     */
+    public function count(): int
+    {
+        return count($this->lastRows);
+    }
+
+    /**
+     * @return array<string, mixed>|object First row, or `[]` when there are none —
+     *                                     matching the real `\DB`, which never returns null
+     */
+    public function first(bool $assoc = false): array|object
+    {
+        return $this->lastRows[0] ?? [];
+    }
+
+    /**
+     * @return array<int, \stdClass> Rows from the most recent result set
+     */
+    public function results(bool $assoc = false): array
+    {
+        return $this->lastRows;
+    }
+}
+
+/**
+ * DatabaseInterface double whose every query throws a raw \Throwable, standing in for
+ * a connection-level fault (e.g. the DB going away mid-dump) that surfaces as an
+ * exception rather than UserSpice's error() flag.
+ *
+ * Named rather than anonymous for the same PHPStan `impureMethod.pure` reason
+ * documented on BackupManagerFakeDatabase.
+ */
+class BackupManagerThrowingDatabase extends FakeDatabase
+{
+    /**
+     * @param array<mixed> $params
+     */
+    public function query(string $sql, array $params = []): self
+    {
+        throw new \RuntimeException('MySQL server has gone away');
     }
 }

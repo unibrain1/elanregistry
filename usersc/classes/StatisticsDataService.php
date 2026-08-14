@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace ElanRegistry;
 
-use DB;
-
 /**
  * StatisticsDataService.php
  * Centralized data service for statistics
@@ -17,7 +15,7 @@ use DB;
  */
 
 class StatisticsDataService {
-    public function __construct(private DB $db) {}
+    public function __construct(private DatabaseInterface $db) {}
 
     /**
      * Execute database query and return results
@@ -30,8 +28,7 @@ class StatisticsDataService {
         try {
             $result = $this->db->query($query);
             // UserSpice DB class swallows errors internally and never throws — check explicitly.
-            // Also guard $result === null for fringe edge cases where query() returns null without setting the error flag.
-            if ($result === null || $this->db->error()) {
+            if ($this->db->error()) {
                 logger(
                     0,
                     LogCategories::LOG_CATEGORY_DATABASE_ERROR,

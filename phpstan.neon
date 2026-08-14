@@ -91,34 +91,31 @@ parameters:
             message: '#invalid (return )?type (DB|Token|Input|User|Redirect|Session|Cookie)#'
             reportUnmatched: false
 
-        # Method-call-shape errors on the same runtime-loaded classes above, plus
-        # QueryResult (the return type of DB::query(), also unanalyzable — real class
-        # lives in users/, has no project-owned counterpart to check a signature
-        # against). Since tests/ entered the scan path (#1555), PHPStan resolves calls
-        # on DB/Token/Input (still bare global test doubles inside the scanned
-        # tests/bootstrap-unit.php) against whichever test double happens to declare
-        # a same-named global class/method — narrower or differently-typed than the
-        # real runtime class — and misreports call sites throughout the whole
-        # project, not just the test file that defines the double. This is the same
-        # "unanalyzable at runtime" root cause as the block above, just two different
-        # error shapes it produces: the first three patterns below are call-site
-        # mismatches (undefined method, wrong arg count, wrong arg type); the fourth
-        # is PHPStan's redundant-comparison check firing on a `===`/`!==` expression,
-        # because it thinks QueryResult's real vs. stubbed type can never overlap.
-        # User is deliberately absent from these four patterns: its one test double
+        # Method-call-shape errors on the same runtime-loaded classes above. Since
+        # tests/ entered the scan path (#1555), PHPStan resolves calls on Token/Input
+        # (still bare global test doubles inside the scanned tests/bootstrap-unit.php)
+        # against whichever test double happens to declare a same-named global
+        # class/method — narrower or differently-typed than the real runtime class —
+        # and misreports call sites throughout the whole project, not just the test
+        # file that defines the double. This is the same "unanalyzable at runtime"
+        # root cause as the block above, just a different error shape it produces:
+        # call-site mismatches (undefined method, wrong arg count, wrong arg type).
+        # QueryResult was covered here too until #1585 deleted the bootstrap mock —
+        # the name now appears nowhere in the project, so its patterns (and the
+        # redundant-`===`-comparison pattern that fired only on its real-vs-stubbed
+        # type) were removed. DB stays: its double is gone too, but the real class
+        # is still referenced by production code and remains unanalyzable.
+        # User is deliberately absent from these patterns: its one test double
         # lives in a file excluded from PHPStan's scan (#1566), so \User resolves to
         # "unknown class" instead — already covered by the block above, not this one.
         -
-            message: '#Call to an undefined method (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|QueryResult)::\w+\(\)#'
+            message: '#Call to an undefined method (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)::\w+\(\)#'
             reportUnmatched: false
         -
-            message: '#(Static m|M)ethod (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|QueryResult)::\w+\(\) invoked with#'
+            message: '#(Static m|M)ethod (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)::\w+\(\) invoked with#'
             reportUnmatched: false
         -
-            message: '#of (method|class) (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|QueryResult)(::|\s)#'
-            reportUnmatched: false
-        -
-            message: '#(comparison using === between|comparison using !== between) QueryResult#'
+            message: '#of (method|class) (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)(::|\s)#'
             reportUnmatched: false
 
         # UserSpice framework functions loaded at runtime via init.php

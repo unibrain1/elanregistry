@@ -29,7 +29,7 @@ if (!securePage($php_self)) {
 }
 
 // Initialize data service
-$dataService = new StatisticsDataService($db);
+$dataService = new StatisticsDataService(dbi());
 
 // Build inlined map marker data — targeted query, deterministic jitter
 $markerRows = $dataService->getMapPins();

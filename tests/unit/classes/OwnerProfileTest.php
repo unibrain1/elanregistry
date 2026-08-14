@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Owner;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -31,7 +32,13 @@ final class OwnerProfileTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->owner    = new Owner();
+        // A DatabaseInterface double is required: Owner's constructor otherwise
+        // falls back to dbi(), which is undefined in the unit tier (custom_functions.php
+        // — where dbi() lives — is never loaded there).
+        // A stub, not a mock — the tests sharing this instance exercise pure
+        // scoring/completeness logic over reflection-injected data and never
+        // reach the database.
+        $this->owner    = new Owner(null, $this->createStub(DatabaseInterface::class));
         $ref            = new \ReflectionClass(Owner::class);
         $this->dataProp = $ref->getProperty('_data');
         // PHP 8.1+: setAccessible() is a no-op; ReflectionProperty accesses
@@ -407,13 +414,18 @@ final class OwnerProfileTest extends TestCase
     // $userId <= 0 (early-return), DB error, user not found, and success.
     // -----------------------------------------------------------------------
 
-    /** @return \PHPUnit\Framework\MockObject\MockObject&\DB */
+    /**
+     * Database double for Owner::find().
+     *
+     * query() returns the double itself, mirroring the real \DB contract
+     * (query() always returns $this for chaining), so the row data each test
+     * needs is shaped with the count()/first() stubs on the same double.
+     *
+     * @return \PHPUnit\Framework\MockObject\MockObject&DatabaseInterface
+     */
     private function makeOwnerDbMock(): object
     {
-        return $this->getMockBuilder(DB::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['query', 'error', 'errorString'])
-            ->getMock();
+        return $this->createMock(DatabaseInterface::class);
     }
 
     public function testFindReturnsFalseForNonPositiveUserId(): void
@@ -429,7 +441,7 @@ final class OwnerProfileTest extends TestCase
     public function testFindReturnsFalseOnDatabaseError(): void
     {
         $db = $this->makeOwnerDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(true);
         $db->method('errorString')->willReturn('connection lost');
 
@@ -441,8 +453,9 @@ final class OwnerProfileTest extends TestCase
     public function testFindReturnsFalseWhenUserNotFound(): void
     {
         $db = $this->makeOwnerDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([]));
+        $db->expects($this->once())->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(0);
 
         $owner = new Owner(null, $db);
         $this->assertFalse($owner->find(99));
@@ -452,7 +465,10 @@ final class OwnerProfileTest extends TestCase
     public function testFindReturnsTrueAndPopulatesData(): void
     {
         $db = $this->makeOwnerDbMock();
-        $db->expects($this->once())->method('query')->willReturn(new QueryResult([(object) [
+        $db->expects($this->once())->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturn((object) [
             'id'        => '7',
             'email'     => 'test@example.com',
             'fname'     => 'Test',
@@ -463,8 +479,7 @@ final class OwnerProfileTest extends TestCase
             'lat'       => null,
             'lon'       => null,
             'website'   => null,
-        ]]));
-        $db->method('error')->willReturn(false);
+        ]);
 
         $owner = new Owner(null, $db);
         $this->assertTrue($owner->find(7));

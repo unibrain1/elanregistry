@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Car;
 
-use DB;
 use Exception;
 use Token;
 use ElanRegistry\AppConstants;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarCreationException;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarDeletionException;
@@ -36,7 +36,7 @@ class Car
 {
     private const CHASSIS_SUFFIX_LENGTH = 5;
 
-    private DB $_db;
+    private DatabaseInterface $_db;
     private ?object $_data = null;
     private array $_history = [];
     private ?array $_images = null;
@@ -56,11 +56,12 @@ class Car
      * Instantiates the Car object.
      *
      * @param int|null $id Optional Car ID. If given, the information for Car will be populated.
+     * @param DatabaseInterface|null $db Optional database instance for testing. Defaults to the shared dbi() handle.
      * @return void
      */
-    public function __construct(?int $id = null)
+    public function __construct(?int $id = null, ?DatabaseInterface $db = null)
     {
-        $this->_db = DB::getInstance();
+        $this->_db = $db ?? dbi();
 
         if (function_exists('getSettings')) {
             $settings = getSettings();
@@ -69,7 +70,7 @@ class Car
             $settings = $settingsQuery->count() > 0 ? $settingsQuery->first() : null;
         }
 
-        if ($id && $settings) {
+        if ($id && is_object($settings)) {
             $this->imageDir = $settings->elan_image_dir . $id . '/';
             $this->find($id);
         }
@@ -122,7 +123,7 @@ class Car
     private function getDataTablesService(): CarDataTablesService
     {
         if ($this->dataTablesService === null) {
-            $this->dataTablesService = new CarDataTablesService();
+            $this->dataTablesService = new CarDataTablesService($this->_db);
         }
         return $this->dataTablesService;
     }
@@ -264,6 +265,9 @@ class Car
      *
      * @param int $carID Car ID to find
      * @return bool True if found, false otherwise
+     * @throws CarDatabaseException If the underlying lookup query fails (propagated
+     *                              from CarRepository::findById(); a car that simply
+     *                              does not exist returns false rather than throwing)
      */
     public function find(int $carID): bool
     {
@@ -479,7 +483,8 @@ class Car
             $reason,
             $operationType,
             $actingUserId,
-            $this->getRepository()
+            $this->getRepository(),
+            $this->_db
         );
     }
 
@@ -582,8 +587,7 @@ class Car
         }
 
         try {
-            $db = DB::getInstance();
-            $repo = new CarRepository($db);
+            $repo = new CarRepository(dbi());
             $carData = $repo->findByVerificationCode($verificationCode);
 
             if ($carData !== null) {
@@ -611,8 +615,7 @@ class Car
             throw new CarValidationException('Invalid owner ID provided');
         }
 
-        $db = DB::getInstance();
-        $repo = new CarRepository($db);
+        $repo = new CarRepository(dbi());
         $carResults = $repo->findByOwner($ownerID);
         $cars = [];
 
@@ -636,7 +639,7 @@ class Car
      */
     public function getDataTablesData(array $request, string $table = 'cars'): array
     {
-        return $this->getDataTablesService()->getDataTablesData($request, $table, $this->_db);
+        return $this->getDataTablesService()->getDataTablesData($request, $table);
     }
 }
 

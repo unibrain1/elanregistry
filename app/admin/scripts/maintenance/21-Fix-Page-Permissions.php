@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ElanRegistry\Admin\BackupManager;
 use ElanRegistry\Admin\PagePermissionClassifier;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\LogCategories;
 
 /**
@@ -109,7 +110,7 @@ function shouldBePrivate(string $pagePath): bool {
 /**
  * Analyze current permissions and determine what needs to change
  */
-function analyzePermissions(DB $db): array {
+function analyzePermissions(DatabaseInterface $db): array {
     global $user;
     $issues = [
         'set_public' => [],                    // Pages that should be public but are private
@@ -355,7 +356,7 @@ if ($method === 'POST' && isset($_POST['action'])) {
         logger($user->data()->id, LogCategories::LOG_CATEGORY_PERMISSION_FIX, 'Starting permission analysis');
 
         try {
-            $issues = analyzePermissions($db);
+            $issues = analyzePermissions(dbi());
             $totalIssues = count($issues['set_public']) + count($issues['set_private_admin']) +
                           count($issues['set_private_user']) + count($issues['set_private_no_perms']) +
                           count($issues['remove_perms']) + count($issues['add_perms_admin']) +
@@ -391,7 +392,7 @@ if ($method === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'details') {
         // STEP 2: Get detailed changes
         try {
-            $issues = analyzePermissions($db);
+            $issues = analyzePermissions(dbi());
             echo json_encode([
                 'success' => true,
                 'issues' => $issues
@@ -1140,7 +1141,7 @@ function abortProcess() {
                 }
 
                 // SAFETY: Create automatic backup
-                $backupManager = new BackupManager($db, $abs_us_root . $us_url_root . BACKUP_BASE_DIR, (int)$user->data()->id);
+                $backupManager = new BackupManager(dbi(), $abs_us_root . $us_url_root . BACKUP_BASE_DIR, (int)$user->data()->id);
                 outputMessage("⚠️  SAFETY NOTICE: Creating automatic backup...");
                 try {
                     $cleanupSummary = $backupManager->performEnhancedCleanup();
@@ -1165,7 +1166,7 @@ function abortProcess() {
                 try {
                     // Get issues to fix
                     outputMessage("🔍 Analyzing permissions...");
-                    $issues = analyzePermissions($db);
+                    $issues = analyzePermissions(dbi());
 
                     $totalChanges = count($issues['set_public']) + count($issues['set_private_admin']) +
                                    count($issues['set_private_user']) + count($issues['set_private_no_perms']) +
@@ -1478,7 +1479,7 @@ function abortProcess() {
                             // Verification
                             outputMessage("");
                             outputMessage("🔍 Verifying results...");
-                            $issuesAfter = analyzePermissions($db);
+                            $issuesAfter = analyzePermissions(dbi());
                             $remainingIssues = count($issuesAfter['set_public']) + count($issuesAfter['set_private_admin']) +
                                               count($issuesAfter['set_private_user']) + count($issuesAfter['set_private_no_perms']) +
                                               count($issuesAfter['remove_perms']) + count($issuesAfter['add_perms_admin']) +

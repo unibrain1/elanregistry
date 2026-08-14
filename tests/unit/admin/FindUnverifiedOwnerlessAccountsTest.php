@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FakeDatabase;
+use Tests\Support\SqlRecordingFakeDatabase;
 
 require_once __DIR__ . '/../../../app/admin/includes/account-cleanup-helpers.php';
 
 /**
  * Unit tests for findUnverifiedOwnerlessAccounts() in account-cleanup-helpers.php.
  *
- * These tests use an inline anonymous DB mock that extends the bootstrap's DB class
- * so the strict `DB $db` type hint in the function under test is satisfied at runtime.
- * The anonymous class returns a real QueryResult so the ->results() chain works without
- * any special plumbing.
+ * These tests use SqlRecordingFakeDatabase (a FakeDatabase subclass) so the strict
+ * `DatabaseInterface $db` type hint in the function under test is satisfied at runtime.
+ * query() returns the double itself, so the ->results() chain works without any
+ * special plumbing.
  *
  * What is NOT tested here (delegated to integration tests):
  *   - Actual SQL filter correctness (email_verified, active, protected)
@@ -35,30 +37,17 @@ final class FindUnverifiedOwnerlessAccountsTest extends TestCase
     // -------------------------------------------------------------------------
 
     /**
-     * Build a DB mock that returns $rows from ->results() and records the last
+     * Build a DB double that returns $rows from ->results() and records the last
      * SQL query string and parameters for inspection via getLastSql() and getLastParams().
      *
-     * The anonymous class extends the bootstrap mock DB so the `DB $db` type
-     * hint in findUnverifiedOwnerlessAccounts() is satisfied at runtime.
+     * SqlRecordingFakeDatabase extends FakeDatabase so the `DatabaseInterface $db`
+     * type hint in findUnverifiedOwnerlessAccounts() is satisfied at runtime.
+     *
+     * @param array<int, object|array<string, mixed>> $rows
      */
-    private function makeDb(array $rows): object
+    private function makeDb(array $rows): SqlRecordingFakeDatabase
     {
-        return new class($rows) extends DB {
-            private array $lastParams = [];
-            private string $lastSql   = '';
-
-            public function __construct(private readonly array $rows) {}
-
-            public function query(string $sql, array $params = []): QueryResult
-            {
-                $this->lastSql    = $sql;
-                $this->lastParams = $params;
-                return new QueryResult($this->rows);
-            }
-
-            public function getLastParams(): array { return $this->lastParams; }
-            public function getLastSql(): string   { return $this->lastSql; }
-        };
+        return new SqlRecordingFakeDatabase($rows);
     }
 
     // -------------------------------------------------------------------------
@@ -126,7 +115,7 @@ final class FindUnverifiedOwnerlessAccountsTest extends TestCase
 
     /**
      * The array returned by the function must be the exact array returned by
-     * QueryResult::results() — not a copy, subset, or re-keyed version.
+     * results() — not a copy, subset, or re-keyed version.
      */
     public function testResultsAreReturnedDirectly(): void
     {
@@ -163,29 +152,22 @@ final class FindUnverifiedOwnerlessAccountsTest extends TestCase
     {
         $state = (object) ['queryWasCalled' => false];
 
-        $db = new class($state) extends DB {
+        $db = new class($state) extends FakeDatabase {
             public function __construct(private readonly object $state) {}
 
-            public function query(string $sql, array $params = []): QueryResult
+            public function query(string $sql, array $params = []): self
             {
                 $this->state->queryWasCalled = true;
-                $s = $this->state;
+                return $this;
+            }
 
-                // Return a QueryResult subclass whose results() enforces ordering.
-                return new class($s) extends QueryResult {
-                    public function __construct(private readonly object $s)
-                    {
-                        // Intentionally skip parent::__construct() — we override results().
-                    }
-
-                    public function results(): array
-                    {
-                        if (!$this->s->queryWasCalled) {
-                            throw new \RuntimeException('results() was reached before query() was called');
-                        }
-                        return [];
-                    }
-                };
+            // results() enforces ordering: it may only be reached after query().
+            public function results(bool $assoc = false): array
+            {
+                if (!$this->state->queryWasCalled) {
+                    throw new \RuntimeException('results() was reached before query() was called');
+                }
+                return [];
             }
         };
 

@@ -25,7 +25,7 @@ if (!securePage($php_self)) {
 
 $showcasePool = [];
 try {
-    $showcasePool = CarShowcaseService::buildShowcasePool($db);
+    $showcasePool = CarShowcaseService::buildShowcasePool(dbi());
 } catch (\Throwable $e) {
     logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Homepage showcase pool failed: ' . $e->getMessage());
 }
@@ -72,7 +72,7 @@ $yearsSince = (int) (new DateTime())->diff(new DateTime('2003-01-01'))->y;
 
 $timelineData = [];
 try {
-    $timelineData = (new StatisticsDataService($db))->getTimelineData();
+    $timelineData = (new StatisticsDataService(dbi()))->getTimelineData();
 } catch (\Throwable $e) {
     logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Homepage timeline query failed: ' . $e->getMessage());
 }
@@ -117,7 +117,8 @@ try {
 						<div class="row g-2">
 							<?php foreach ($count as $key => $value):
 								$key_display = htmlspecialchars(strtoupper((string) $key), ENT_QUOTES, 'UTF-8');
-								$pct = (int) $notes[$key] > 0 ? (int) round((int) $value * 100 / (int) $notes[$key]) : 0;
+								// $notes' values are the hardcoded historical production totals below — always > 0.
+								$pct = (int) round((int) $value * 100 / (int) $notes[$key]);
 							?>
 							<div class="col-6">
 								<div class="er-stat-tile">
@@ -127,7 +128,10 @@ try {
 								</div>
 							</div>
 							<?php endforeach; ?>
-							<?php $totalPct = $totalN > 0 ? (int) round($total * 100 / $totalN) : 0; ?>
+							<?php
+								// $totalN sums the same hardcoded, always-positive $notes values.
+								$totalPct = (int) round($total * 100 / $totalN);
+							?>
 							<div class="col-12">
 								<div class="er-stat-tile d-flex align-items-center gap-3">
 									<div>

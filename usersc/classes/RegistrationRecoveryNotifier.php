@@ -46,9 +46,9 @@ namespace ElanRegistry;
 class RegistrationRecoveryNotifier
 {
     /**
-     * @param \DB $db UserSpice database handle used to persist the recovery vericode.
+     * @param DatabaseInterface $db UserSpice database handle used to persist the recovery vericode.
      */
-    public function __construct(private \DB $db)
+    public function __construct(private DatabaseInterface $db)
     {
     }
 

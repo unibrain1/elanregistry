@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ElanRegistry\Car;
 
 use ElanRegistry\AppConstants;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarException;
@@ -81,6 +82,7 @@ class CarAdministrationService
      * @param string $operationType Operation type (e.g., 'NEWOWNER', 'TRANSFER')
      * @param int $adminUserId ID of the admin performing the transfer
      * @param CarRepository $repo Repository for database operations
+     * @param DatabaseInterface $db Database instance used to look up the target owner
      * @return true Always returns true; throws on any failure.
      * @throws CarValidationException If target user is invalid
      * @throws CarDatabaseException If database operation fails
@@ -91,9 +93,10 @@ class CarAdministrationService
         string $reason,
         string $operationType,
         int $adminUserId,
-        CarRepository $repo
+        CarRepository $repo,
+        DatabaseInterface $db
     ): true {
-        $targetUser = (new Owner($newUserId))->data();
+        $targetUser = (new Owner($newUserId, $db))->data();
         if (!$targetUser) {
             logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_TRANSFER, 'Target user not found - cannot transfer ownership to user ID: ' . $newUserId);
             throw new CarValidationException('Unable to transfer ownership: the target user account is not valid.');

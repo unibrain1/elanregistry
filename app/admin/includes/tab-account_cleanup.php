@@ -22,6 +22,8 @@ $acvThreshold = max(1,   (int) ($_GET['acv_threshold'] ?? 365));
 if ($method === 'POST' && isset($_POST['ac_action'])) {
     require_once __DIR__ . '/account-cleanup-helpers.php';
 
+    $db = dbi();
+
     if (!isset($_POST['csrf']) || !Token::check($_POST['csrf'])) {
         logger($currentUserId, LogCategories::LOG_CATEGORY_SECURITY,
             'CSRF validation failed on account cleanup tab');

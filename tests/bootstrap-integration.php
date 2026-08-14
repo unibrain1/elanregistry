@@ -117,7 +117,7 @@ restore_error_handler();
 // integration tests set up their own authenticated $user explicitly in setUp() and don't
 // depend on this fallback existing at all. Aborting the whole run over an unused fallback
 // would block tests that never needed it.
-if (!isset($GLOBALS['user']) || $GLOBALS['user'] === null) {
+if (!isset($GLOBALS['user'])) {
     if (class_exists('User')) {
         try {
             $GLOBALS['user'] = new User();
@@ -133,7 +133,7 @@ try {
     if (class_exists('DB')) {
         // Reset the DB singleton cache to force reconnection with corrected config
         // The DB class caches the PDO connection, so we need to clear it to force a new one
-        $reflectionClass = new ReflectionClass('DB');
+        $reflectionClass = new ReflectionClass(DB::class);
         $instanceProperty = $reflectionClass->getProperty('_instance');
         $instanceProperty->setValue(null, null); // static property: first arg is object (null), second is new value
         fwrite(STDERR, "NOTE: Reset DB singleton cache for reinitialization\n");
@@ -155,7 +155,11 @@ try {
         // couldn't confirm which database we're connected to — that must abort,
         // not be logged as a passive reconnection hiccup and continue anyway.
         try {
-            $connectedDb = strtolower(trim((string)($testDb->query('SELECT DATABASE() AS name')->first()?->name ?? '')));
+            // first() never returns null — its return type is array|object (empty array
+            // for zero rows), and SELECT DATABASE() always returns exactly one row on a
+            // valid connection — so a plain -> is correct here; ?? '' still covers a
+            // theoretical empty-array result, where property access on an array yields null.
+            $connectedDb = strtolower(trim((string)($testDb->query('SELECT DATABASE() AS name')->first()->name ?? '')));
         } catch (\Throwable $e) {
             fwrite(STDERR, "ERROR: Could not verify the connected database's identity: {$e->getMessage()}\n");
             fwrite(STDERR, "Refusing to proceed without confirming this is not the development database.\n");
