@@ -25,7 +25,7 @@ if (!securePage($php_self)) {
 
 $showcasePool = [];
 try {
-    $showcasePool = CarShowcaseService::buildShowcasePool(dbi());
+    $showcasePool = (new CarShowcaseService())->buildShowcasePool();
 } catch (\Throwable $e) {
     logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Homepage showcase pool failed: ' . $e->getMessage());
 }
