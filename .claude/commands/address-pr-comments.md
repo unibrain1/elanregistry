@@ -5,6 +5,11 @@ model: claude-opus-4-8
 
 # Address PR Comments
 
+Think hard when triaging blocking vs. advisory findings — a wrong call
+either ships a real issue or wastes a fix/re-verify cycle.
+
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 After a PR is created and CI runs, this command fetches all review comments
 and check annotations, triages them, fixes blocking items, and prepares the
 PR for `/finish-issue`.

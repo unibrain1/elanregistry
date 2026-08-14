@@ -5,6 +5,12 @@ model: claude-opus-4-8
 
 # GitHub Issue Workflow Command
 
+Think hard throughout this workflow — especially when assessing the
+complexity tier, triaging pre-existing issues, and writing the
+implementation plan. Plan quality gates everything downstream.
+
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 ## Hard Constraints (non-negotiable)
 
 > **1. PLAN APPROVAL IS REQUIRED before writing any code.**

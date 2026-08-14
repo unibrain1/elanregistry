@@ -5,6 +5,11 @@ model: claude-opus-4-8
 
 # Architecture Documentation Update
 
+Think through the codebase audit before writing documentation — verify
+what the code actually does rather than what existing docs claim.
+
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 ## Step 0: Initialize TaskList
 
 Before any other action, create one tracking task per major step below using

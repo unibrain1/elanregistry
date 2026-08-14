@@ -5,6 +5,11 @@ argument-hint: "[aspects: code|errors|comments|tests|simplify|all]"
 
 # PR Review (Full Branch)
 
+Think hard when verifying findings and judging false positives — a wrong
+triage call either ships a bug or burns a CI round-trip.
+
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 Run a comprehensive review against the **full accumulated branch diff** — the
 same view the CI `pr-to-milestone-review` check uses. This catches cross-commit
 issues (dead code, broken call interactions, unreachable paths) that per-file or

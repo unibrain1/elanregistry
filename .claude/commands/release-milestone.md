@@ -5,6 +5,8 @@ model: claude-opus-4-8
 
 # Release Milestone
 
+Keep output brief — terse status lines, no preamble, no restating of steps.
+
 Merge a milestone PR into main, create an annotated tag, push to remotes, and
 publish a GitHub release. This command picks up where `/finish-milestone` left
 off — after the milestone PR has been created and reviewed.
