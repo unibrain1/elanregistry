@@ -190,6 +190,58 @@ final class PageRegistrationSeedTest extends IntegrationTestCase
     }
 
     /**
+     * Covers the healing path `isRegistrationComplete()` exists for: a `pages` row that already
+     * exists (simulating one left behind by UserSpice's lazy `createPages()`, or a pre-#1671
+     * seed run) with an incomplete `permission_page_matches` set. The seed's own transaction
+     * can't produce this state itself (see PageRegistrationSeed's class docblock) — this
+     * reproduces the external-drift scenario directly by pre-seeding the row by hand.
+     */
+    public function testSeedHealsIncompletePermissionMatchesOnExistingPage(): void
+    {
+        $page = 'app/admin/scripts/maintenance/21-Fix-Page-Permissions.php';
+
+        $this->db->insert('pages', [
+            'page' => $page,
+            'title' => null,
+            'private' => 1,
+            're_auth' => 0,
+            'core' => 0,
+            'lang_key' => null,
+        ]);
+        $preExistingPageId = (int) $this->db->lastId();
+
+        // Zero permission_page_matches rows — classification expects exactly one
+        // (Administrator = 2) for this admin-only page, so this is incomplete.
+        $matchesBeforeSeed = $this->fetchAllRows(
+            'SELECT * FROM `permission_page_matches` WHERE `page_id` = ?',
+            [$preExistingPageId]
+        );
+        $this->assertCount(0, $matchesBeforeSeed, 'Test setup must start with zero matches for this page');
+
+        [$returnCode, $output] = $this->runSeed();
+        $this->assertSame(0, $returnCode, 'Seeds must exit 0. Output: ' . implode("\n", $output));
+
+        $pageRows = $this->fetchAllRows('SELECT * FROM `pages` WHERE `page` = ?', [$page]);
+        $this->assertCount(1, $pageRows, 'Healing must not insert a duplicate pages row');
+        $this->assertSame(
+            $preExistingPageId,
+            (int) $pageRows[0]['id'],
+            'Healing must reuse the existing pages.id, not insert a new row'
+        );
+
+        $matchesAfterSeed = $this->fetchAllRows(
+            'SELECT * FROM `permission_page_matches` WHERE `page_id` = ?',
+            [$preExistingPageId]
+        );
+        $this->assertCount(1, $matchesAfterSeed, 'Healing must add the missing permission_page_matches row');
+        $this->assertSame(
+            2,
+            (int) $matchesAfterSeed[0]['permission_id'],
+            'Healed match must grant Administrator (2), matching classification'
+        );
+    }
+
+    /**
      * @return array{0: int, 1: list<string>}
      */
     private function runSeed(): array

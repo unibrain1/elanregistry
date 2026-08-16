@@ -23,9 +23,19 @@ use Phinx\Seed\AbstractSeed;
  * directly, using `ElanRegistry\Admin\PagePermissionClassifier` (the same
  * classifier `21-Fix-Page-Permissions.php` uses) so the two never disagree
  * about how a page should be classified. It does not duplicate that
- * classifier's logic, and it does not touch `permission_page_matches` for a
- * page that already exists in `pages` — reconciling drift on already-known
- * pages remains `21-Fix-Page-Permissions.php`'s job.
+ * classifier's logic. For a page that already has a `pages` row, this seed
+ * only ever adds `permission_page_matches` rows to make its match count meet
+ * what classification expects — healing drift from a cause outside this
+ * seed's own control, since `registerNewPage()` wraps both the `pages` and
+ * `permission_page_matches` inserts in one transaction and can't itself
+ * leave a page partially registered. The drift this heals comes from
+ * elsewhere: a `pages` row created by UserSpice's lazy `createPages()`
+ * before this seed ever ran, a pre-#1671 version of this seed that predates
+ * the transaction wrap, or manual DB intervention. It never removes or changes
+ * a match, and it never revises a page whose match count already meets expectations, even if
+ * classification would now produce a different set — reconciling that kind
+ * of drift (e.g. a page's classification changing after it was first
+ * registered) remains `21-Fix-Page-Permissions.php`'s job.
  *
  * A small fixed list (`ROOT_PAGES`) covers the two lone repo-root pages that
  * sit outside every scanned directory. Everything else uses two strategies
@@ -160,10 +170,13 @@ final class PageRegistrationSeed extends AbstractSeed
     }
 
     /**
-     * A page row existing is not sufficient evidence that registration finished — a prior run
-     * could have inserted `pages` and then failed partway through `permission_page_matches`
-     * (no transaction spans both). Compare the actual match count against what classification
-     * expects for this page so a partial failure is retried instead of permanently skipped.
+     * A page row existing is not sufficient evidence that registration finished. This seed's own
+     * `registerNewPage()` can't leave a page partially registered — it wraps both the `pages`
+     * and `permission_page_matches` inserts in one transaction — but the `pages` row could have
+     * come from somewhere else entirely: UserSpice's lazy `createPages()` firing before this seed
+     * ever ran, a pre-#1671 version of this seed that predated the transaction wrap, or manual DB
+     * intervention. Compare the actual match count against what classification expects for this
+     * page so that kind of external drift is healed instead of permanently skipped.
      */
     private function isRegistrationComplete(int $pageId, string $page): bool
     {
@@ -185,8 +198,8 @@ final class PageRegistrationSeed extends AbstractSeed
             $this->assertPermissionExists($permissionId, $page);
         }
 
-        $pdo = $this->getAdapter()->getConnection();
-        $pdo->beginTransaction();
+        $adapter = $this->getAdapter();
+        $adapter->beginTransaction();
 
         try {
             $pageId = $existingPageId ?? $this->insertPage($page);
@@ -195,9 +208,9 @@ final class PageRegistrationSeed extends AbstractSeed
                 $this->insertPermissionMatch($pageId, $permissionId);
             }
 
-            $pdo->commit();
+            $adapter->commitTransaction();
         } catch (\Throwable $e) {
-            $pdo->rollBack();
+            $adapter->rollbackTransaction();
             throw $e;
         }
     }
