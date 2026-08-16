@@ -24,6 +24,19 @@ data already exists.
 Pick whichever matches the shape of the data you're adding, not whichever an
 existing seed happens to use.
 
+## Run order
+
+Seeds are normally independent — `-s <ClassName>` bypasses Phinx's
+`getDependencies()` ordering, so don't rely on it. One exception:
+`BaselinePermissionsSeed` must run before `PageRegistrationSeed`, since the
+latter inserts `permission_page_matches` rows referencing
+`permissions.id = 3`, which only the former creates. `provision-schema.sh`
+discovers seeds via an alphabetical filesystem glob, and
+`BaselinePermissionsSeed` is named specifically to sort ahead of
+`PageRegistrationSeed` — see that class's docblock for the full rationale.
+Any new seed with a similar ordering requirement must either sort correctly
+by name or the discovery mechanism needs to grow explicit ordering support.
+
 ## Exceptions, deliberately
 
 Every seed throws bare `\RuntimeException` on failure, not a typed exception
