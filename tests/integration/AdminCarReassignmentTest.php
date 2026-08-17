@@ -20,10 +20,11 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * Regression coverage for #1562: admin-core.js and tab-car_mgmt.php
  * previously hardcoded the noowner user's ID as 83, which only happened to
- * be correct on production. A freshly-seeded environment (NoownerSeed.php)
- * deliberately lets the ID fall out of AUTO_INCREMENT, so any test that
- * hardcodes 83 would pass by coincidence and mask the bug. This test
- * asserts against the *actual* seeded ID instead.
+ * be correct on production. A freshly-provisioned environment (the
+ * RegisterNoownerAccount migration) deliberately lets the ID fall out of
+ * AUTO_INCREMENT, so any test that hardcodes 83 would pass by coincidence
+ * and mask the bug. This test asserts against the *actual* seeded ID
+ * instead.
  */
 #[Group('integration')]
 final class AdminCarReassignmentTest extends IntegrationTestCase
@@ -36,7 +37,7 @@ final class AdminCarReassignmentTest extends IntegrationTestCase
 
     /**
      * Happy path: resolving "no_owner" via User::find('noowner') and
-     * transferring a car to that ID must land on the real seeded noowner
+     * transferring a car to that ID must land on the real noowner
      * account, not the literal integer 83 (which is not guaranteed to be
      * the noowner account's ID on any environment other than the original
      * production database).
@@ -44,7 +45,7 @@ final class AdminCarReassignmentTest extends IntegrationTestCase
     public function testNoOwnerResolutionTransfersCarToSeededNoownerAccount(): void
     {
         $noOwnerRow = $this->db->query("SELECT id FROM users WHERE username = ?", ['noowner'])->first();
-        $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer seed:run (NoownerSeed)');
+        $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer migrate (RegisterNoownerAccount)');
         $noOwnerId = (int) $noOwnerRow->id;
 
         $ownerId = $this->createTestUser();

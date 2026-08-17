@@ -82,21 +82,31 @@ final class CarAdministrationServiceTest extends TestCase
      * mirrors that: query() returns itself, one row is found, and first()
      * returns a complete user row.
      */
-    private function createOwnerDb(int $userId = 1): DatabaseInterface
-    {
+    /**
+     * @param bool $blankLocation When true the target owner carries no location
+     *                            or website data at all — the shape of the
+     *                            `noowner` system account, and the case where
+     *                            CarValidator drops the keys entirely rather
+     *                            than passing the blanks through.
+     */
+    private function createOwnerDb(
+        int $userId = 1,
+        string $email = 'test@example.com',
+        bool $blankLocation = false
+    ): DatabaseInterface {
         $db = $this->createStub(DatabaseInterface::class);
         $db->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
         $db->method('count')->willReturn(1);
         $db->method('first')->willReturn((object) [
             'id'        => $userId,
-            'email'     => 'test@example.com',
+            'email'     => $email,
             'fname'     => 'Test',
             'lname'     => 'User',
             'join_date' => '2024-01-01 00:00:00',
-            'city'      => 'Test City',
-            'state'     => 'TS',
-            'country'   => 'US',
+            'city'      => $blankLocation ? '' : 'Test City',
+            'state'     => $blankLocation ? '' : 'TS',
+            'country'   => $blankLocation ? '' : 'US',
             'lat'       => null,
             'lon'       => null,
             'website'   => '',
@@ -157,6 +167,112 @@ final class CarAdministrationServiceTest extends TestCase
         // assertion is needed on the return value itself — the mock's beginTransaction/
         // commit expectations above (verified in tearDown) are what this test proves.
         $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo, $this->createOwnerDb());
+    }
+
+    /**
+     * Regression (#1679): transferring to a system account whose email is
+     * deliberately unroutable must succeed, storing an empty owner email rather
+     * than aborting or denormalizing the sentinel address.
+     *
+     * The `noowner` account created by RegisterNoownerAccount carries
+     * `noowner@invalid` precisely so password reset and passwordless login can
+     * never reach it. That address fails CarValidator's FILTER_VALIDATE_EMAIL
+     * check, so copying it onto the car threw CarValidationException and rolled
+     * back the transfer — which silently broke GDPR account deletion, since
+     * after_user_deletion.php reassigns every car through this exact path and
+     * would leave the deleted owner's PII in place.
+     */
+    public function testTransferToUnroutableSystemAccountBlanksEmailInsteadOfFailing(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+
+        $updateFields = null;
+        $historyFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            function (string $table, array $fields = [], bool $update = false) use (&$historyFields): bool {
+                $historyFields = $fields;
+                return true;
+            }
+        );
+        $repo = new CarRepository($db);
+
+        $this->service->transfer(
+            $carData,
+            1,
+            'Account deleted — reassigned to noowner',
+            'NEWOWNER',
+            1,
+            $repo,
+            $this->createOwnerDb(1, 'noowner@invalid')
+        );
+
+        $this->assertSame('', $updateFields['email'] ?? null, 'cars.email must be blanked, not set to the sentinel address');
+        $this->assertSame('', $historyFields['email'] ?? null, 'history email must be blanked, not set to the sentinel address');
+    }
+
+    /**
+     * Guards every field in CarAdministrationService::OWNER_IDENTITY_FIELDS, not
+     * just `email`. CarValidator omits any empty-valued key from its result, so
+     * without withBlankedFieldsRestored() a transfer to an owner with no
+     * location or website would leave the *previous* owner's city/state/country/
+     * website sitting on the car — PII the GDPR deletion path must clear.
+     * Dropping any field from OWNER_IDENTITY_FIELDS regresses this silently.
+     */
+    public function testTransferClearsAllOwnerIdentityFieldsWhenTargetHasNone(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+
+        $updateFields = null;
+        $historyFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            function (string $table, array $fields = [], bool $update = false) use (&$historyFields): bool {
+                $historyFields = $fields;
+                return true;
+            }
+        );
+        $repo = new CarRepository($db);
+
+        $this->service->transfer(
+            $carData,
+            1,
+            'Account deleted — reassigned to noowner',
+            'NEWOWNER',
+            1,
+            $repo,
+            $this->createOwnerDb(1, 'noowner@invalid', blankLocation: true)
+        );
+
+        foreach (['email', 'city', 'state', 'country', 'website'] as $field) {
+            $this->assertArrayHasKey(
+                $field,
+                $updateFields,
+                "cars.{$field} must be written on transfer, not dropped by CarValidator"
+            );
+            $this->assertSame(
+                '',
+                $updateFields[$field],
+                "cars.{$field} must be cleared so the previous owner's value cannot survive the transfer"
+            );
+        }
+
+        $this->assertSame('', $historyFields['email'] ?? null);
+        $this->assertSame('', $historyFields['city'] ?? null);
     }
 
     public function testTransferThrowsCarDatabaseExceptionWhenUpdateFails(): void

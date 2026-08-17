@@ -92,7 +92,7 @@ final class UserDeletionReassignmentTest extends TransferIntegrationTestCase
     public function test_afterUserDeletionHook_cleansUpUserDataAndLogs(): void
     {
         $noOwnerRow = $this->db->query("SELECT id FROM users WHERE username = ?", ['noowner'])->first();
-        $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer seed:run (NoownerSeed)');
+        $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer migrate (RegisterNoownerAccount)');
         $noOwnerId = (int) $noOwnerRow->id;
 
         $userId = $this->createTestUser();

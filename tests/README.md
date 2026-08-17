@@ -154,12 +154,14 @@ not the test bootstrap's — see [Test Data Isolation](#test-data-isolation) bel
 ./scripts/provision-schema.sh
 ```
 
-This applies the vendored stock UserSpice structure, runs `composer migrate`,
-then `phinx seed:run` for `CarModelsSeed`, `NoownerSeed`, and
-`SettingsBaselineSeed` (see `database/seeds/`). `tests/bootstrap-integration.php`
+This applies the vendored stock UserSpice structure, runs `composer migrate`
+(which applies the `UpdateSettingsBaselineDefaults`, `RegisterBaselinePermissions`,
+and `RegisterNoownerAccount` migrations' ElanRegistry settings defaults,
+permissions row, and system account), then `phinx seed:run` for
+`CarModelsSeed` (see `database/seeds/`). `tests/bootstrap-integration.php`
 verifies these exist on every test run and aborts with a clear message —
-telling you to run `composer seed:run` — if they don't, rather than silently
-trying to fix it inline.
+pointing at `composer migrate`/`composer seed:run` — if they don't, rather
+than silently trying to fix it inline.
 
 ### Fixture Requirements by Test
 
@@ -181,24 +183,26 @@ after that:
   `createTestCar()`, or a direct insert like a `profiles`/`car_transfer_requests`
   row) is torn down after *that test* in `tearDown()`. Every test starts and
   ends with none of its own data left behind.
-- **Schema-level reference/config data** — `car_models`, `settings`, and the
-  `noowner` system account are seeded once by `composer seed:run`
-  (`database/seeds/CarModelsSeed.php`, `SettingsBaselineSeed.php`,
-  `NoownerSeed.php`), then **persist across every subsequent run** (they are
-  never torn down). This mirrors a real install, which configures these once,
-  not per test. `tests/bootstrap-integration.php` only *verifies* they exist —
-  it does not seed them itself. Re-running `scripts/provision-schema.sh` resets
-  everything, seeds included.
+- **Schema-level reference/config data** — `car_models` is seeded once by
+  `composer seed:run` (`database/seeds/CarModelsSeed.php`), then **persists
+  across every subsequent run** (it is never torn down). The `noowner`
+  system account and `permissions` id=3 row are created once by the
+  `RegisterNoownerAccount` and `RegisterBaselinePermissions` migrations. The
+  `settings` row (id=1) is created by UserSpice's own install wizard rather
+  than a seed. This mirrors a real install, which configures these once, not
+  per test. `tests/bootstrap-integration.php` only *verifies* they exist — it
+  does not create them itself. Re-running `scripts/provision-schema.sh`
+  resets everything, migrations and seeds included.
 
-The seeded `settings` row layers real values over generic type-based
-placeholders (`''`/`0`) for the remaining NOT NULL columns with no default —
-see `ELAN_DEFAULTS` in `database/seeds/SettingsBaselineSeed.php`. Those values
-come from the real ElanRegistry production configuration
-(`site_name`, `permission_restriction`, `session_manager`, `req_cap`/`req_num`,
-`email_login`, etc.), plus a few standard UserSpice defaults
-(`min_pw`/`max_pw`/`min_un`/`max_un`) not tied to any ElanRegistry-specific
-value. Don't assume a setting *not* in `ELAN_DEFAULTS` matches production —
-set it explicitly in your test if it does.
+The `settings` row's ElanRegistry default values are applied by the
+`UpdateSettingsBaselineDefaults` migration
+(`database/migrations/20260817033111_update_settings_baseline_defaults.php`),
+layered over UserSpice's own column defaults. Those values come from the real
+ElanRegistry production configuration (`site_name`, `permission_restriction`,
+`session_manager`, `req_cap`/`req_num`, `email_login`, etc.), plus a few
+standard UserSpice defaults (`min_pw`/`max_pw`/`min_un`/`max_un`) not tied to
+any ElanRegistry-specific value. Don't assume a setting *not* covered by that
+migration matches production — set it explicitly in your test if it does.
 
 Every test must create the fixtures it depends on and must never assume
 pre-existing data exists. Tests that relied on ambient data in the old shared

@@ -250,8 +250,8 @@ final class PageRegistrationSeed extends AbstractSeed
     /**
      * `permission_page_matches.permission_id` has no FK constraint, so an insert referencing a
      * nonexistent permission id would succeed silently and produce an orphaned, meaningless row.
-     * `BaselinePermissionsSeed` must run first (see that file's docblock) to guarantee id 3
-     * exists; this check turns a broken run order into a loud failure instead of silent data
+     * The `RegisterBaselinePermissions` migration guarantees id 3 exists before any seed runs;
+     * this check turns a broken environment into a loud failure instead of silent data
      * corruption.
      */
     private function assertPermissionExists(int $permissionId, string $page): void
@@ -262,8 +262,8 @@ final class PageRegistrationSeed extends AbstractSeed
         if ($row === false) {
             throw new RuntimeException(
                 "PageRegistrationSeed: page '{$page}' classifies to permission_id={$permissionId}, " .
-                'but no such row exists in `permissions`. BaselinePermissionsSeed must run before ' .
-                'PageRegistrationSeed — check seed run order.'
+                'but no such row exists in `permissions`. Run composer migrate ' .
+                '(RegisterBaselinePermissions) before running this seed.'
             );
         }
     }
