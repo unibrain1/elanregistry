@@ -721,7 +721,7 @@ function initializeCarManagement() {
         if (isChecked) {
             // Set No Owner data
             selectedUser = {
-                id: 83,
+                isNoOwner: true,
                 fname: 'No',
                 lname: 'Owner',
                 email: 'noowner@example.com',
@@ -732,7 +732,9 @@ function initializeCarManagement() {
             };
 
             // Update UI — use readonly, not disabled: disabled fields are excluded from form submission
-            $userIdField.val('83').prop('readonly', true);
+            // Also drop 'required' so the global .needs-validation submit handler (admin-core.js
+            // initializeFormValidation) doesn't flag this now-empty field as invalid.
+            $userIdField.val('').prop('readonly', true).prop('required', false);
             $lookupBtn.prop('disabled', true);
             $('#userDetails').hide();
             $('#noOwnerDetails').show();
@@ -740,7 +742,7 @@ function initializeCarManagement() {
         } else {
             // Clear No Owner data
             selectedUser = null;
-            $userIdField.val('').prop('readonly', false).focus();
+            $userIdField.val('').prop('readonly', false).prop('required', true).focus();
             $lookupBtn.prop('disabled', false);
             $('#userDetails').hide();
             $('#noOwnerDetails').hide();
@@ -767,10 +769,8 @@ function initializeCarManagement() {
     });
 
     $('#reassign_user_id').on('input', function() {
-        const value = $(this).val();
-
-        // If field is cleared or different from 83, uncheck "No Owner"
-        if (!value || value !== '83') {
+        // If the user types into this field, uncheck "No Owner"
+        if ($('#noOwnerCheckbox').is(':checked')) {
             $('#noOwnerCheckbox').prop('checked', false);
             $('#noOwnerDetails').hide();
             selectedUser = null;
@@ -816,7 +816,7 @@ function initializeCarManagement() {
         const carName = `${selectedCar.year || 'Unknown'} ${selectedCar.type || 'Unknown'} (${selectedCar.chassis || 'Unknown'})`;
         const currentOwner = selectedCar.fname && selectedCar.lname ? `${selectedCar.fname} ${selectedCar.lname}` : 'Unknown Owner';
         const newOwner = selectedUser.fname && selectedUser.lname ? `${selectedUser.fname} ${selectedUser.lname}` : 'Unknown Name';
-        const isNoOwner = Number(selectedUser.id) === 83;
+        const isNoOwner = $('#noOwnerCheckbox').is(':checked') || Boolean(selectedUser.isNoOwner);
 
         // Populate modal with car details
         $('#modal-car-details').html(

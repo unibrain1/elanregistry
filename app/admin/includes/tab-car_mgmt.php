@@ -249,7 +249,7 @@ try {
 
                                                 <div class="input-group">
                                                     <input type="number" class="form-control" id="reassign_user_id" name="user_id"
-                                                           placeholder="Enter User ID" required>
+                                                           placeholder="Enter User ID">
                                                     <button class="btn btn-outline-primary" type="button" id="lookupUserBtn">
                                                         <i class="fas fa-search"></i>
                                                     </button>
@@ -258,9 +258,9 @@ try {
 
                                                 <!-- No Owner Checkbox -->
                                                 <div class="form-check mt-2">
-                                                    <input class="form-check-input" type="checkbox" id="noOwnerCheckbox" value="83">
+                                                    <input class="form-check-input" type="checkbox" id="noOwnerCheckbox" name="no_owner" value="1">
                                                     <label class="form-check-label" for="noOwnerCheckbox">
-                                                        <i class="fas fa-user-slash text-muted"></i> Assign to "No Owner" (ID: 83)
+                                                        <i class="fas fa-user-slash text-muted"></i> Assign to "No Owner"
                                                     </label>
                                                 </div>
 
@@ -276,7 +276,7 @@ try {
                                                 <div id="noOwnerDetails" class="mt-2" style="display: none;">
                                                     <div class="alert alert-warning alert-sm">
                                                         <h6 class="alert-heading mb-1"><i class="fas fa-user-slash"></i> No Owner</h6>
-                                                        <div>Car will be assigned to <strong>"No Owner"</strong> registry account.<br>
+                                                        <div>Car will be assigned to the <strong>"No Owner"</strong> account.<br>
                                                         <small class="text-muted">Used for cars without current owner information.</small></div>
                                                     </div>
                                                 </div>
