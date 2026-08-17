@@ -93,6 +93,15 @@ $cards = [
         'description' => 'Complete chassis number validation rules for all Elan and Plus 2 models, including pre-1970 and post-1970 formats.',
     ],
     [
+        'title'       => 'Identification Guide',
+        'icon'        => 'fa-magnifying-glass',
+        'url'         => 'identification-guide.php',
+        'buttonText'  => 'Browse',
+        'headerClass' => 'card-header-er-primary',
+        'buttonClass' => 'btn-primary btn-sm',
+        'description' => 'Identify a car by chassis prefix and visual features &mdash; series, variant and body style, with photographs.',
+    ],
+    [
         'title'       => 'Paint Colors',
         'icon'        => 'fa-palette',
         'url'         => 'paint-colors.php',

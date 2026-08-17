@@ -27,7 +27,7 @@ $htmlContent = <<<'GUIDEHTML'
                     <li><a href="#general-questions">General Questions</a></li>
                     <li><a href="#before-requesting-a-transfer">Before Requesting a Transfer</a></li>
                     <li><a href="#the-transfer-process">The Transfer Process</a></li>
-                    <li><a href="#current-owner-responses">Current Owner Responses</a></li>
+                    <li><a href="#current-owner-responses">The Current Owner&rsquo;s Role</a></li>
                     <li><a href="#after-transfer">After Transfer</a></li>
                 </ol>
             </div>
@@ -188,7 +188,7 @@ $htmlContent = <<<'GUIDEHTML'
         </h3>
         <div id="faq-p3" class="accordion-collapse collapse">
             <div class="accordion-body">
-                Response time varies (typically 1&ndash;7 days) depending on how quickly the current owner responds. Once approved, transfers complete immediately.
+                A registry administrator reviews every request. Timing depends on administrator availability rather than on the current owner, who is notified but does not decide the outcome. Once a request is approved, the transfer completes immediately. Requests expire automatically after 30 days if they have not been actioned.
             </div>
         </div>
     </div>
@@ -209,23 +209,19 @@ $htmlContent = <<<'GUIDEHTML'
 </div>
 
 <!-- 4. Current Owner Responses -->
-<h2 id="current-owner-responses">Current Owner Responses</h2>
+<h2 id="current-owner-responses">The Current Owner&rsquo;s Role</h2>
 <div class="accordion mb-4" id="faq-owner">
 
     <div class="accordion-item">
         <h3 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq-o1">
-                What can the current owner do with my request?
+                What does the current owner do with my request?
             </button>
         </h3>
         <div id="faq-o1" class="accordion-collapse collapse">
             <div class="accordion-body">
-                <p class="mb-2">They have three options:</p>
-                <ul class="mb-0">
-                    <li><strong>Approve</strong> &mdash; Transfer completes immediately</li>
-                    <li><strong>Deny</strong> &mdash; Transfer is declined (reason may be provided)</li>
-                    <li><strong>No response</strong> &mdash; Request stays pending</li>
-                </ul>
+                <p class="mb-2">They are notified by email, but they do not approve or decline the request &mdash; that decision rests with a registry administrator.</p>
+                <p class="mb-0">The notification exists so the current owner is never surprised by a change to their own record, and so they can contact the registry if something looks wrong.</p>
             </div>
         </div>
     </div>
@@ -233,12 +229,12 @@ $htmlContent = <<<'GUIDEHTML'
     <div class="accordion-item">
         <h3 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq-o2">
-                What if the current owner doesn&rsquo;t respond?
+                What if the current owner doesn&rsquo;t reply?
             </button>
         </h3>
         <div id="faq-o2" class="accordion-collapse collapse">
             <div class="accordion-body">
-                After 7&ndash;14 days with no response, contact registry administrators. They can help facilitate communication or make decisions based on documentation.
+                Nothing stalls. The current owner&rsquo;s reply was never required &mdash; an administrator reviews the request on its merits either way. If you have supporting documentation (a bill of sale, for example), mention it in your request comments; it helps the administrator decide.
             </div>
         </div>
     </div>
@@ -414,7 +410,7 @@ $htmlContent = <<<'GUIDEHTML'
         </h3>
         <div id="faq-s4" class="accordion-collapse collapse">
             <div class="accordion-body">
-                Review the request carefully. If legitimate (you sold the car), approve it. If not legitimate or you need more information, you can deny it or contact the requester directly.
+                Read it carefully. If it is legitimate &mdash; you sold the car and the details match &mdash; no action is needed from you; an administrator will review and complete the transfer. <strong>If it looks wrong, contact the registry straight away</strong> and say why. You cannot approve or decline the request yourself, but an administrator will not proceed over a genuine objection from the registered owner.
             </div>
         </div>
     </div>

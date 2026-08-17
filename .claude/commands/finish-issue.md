@@ -146,6 +146,46 @@ Do NOT merge until the user confirms.
 - **Stop here.** Do not merge. Tell the user to fix the issue, push the fix,
   and re-run `/finish-issue` when ready.
 
+### Step 4.5: Documentation drift check
+
+Run before merging, once CI is green.
+
+```bash
+composer check:docs
+```
+
+That catches structural rot — dead links, stale indexes, ADR drift, dropped
+tables, removed symbols. It does **not** catch a doc that describes behaviour
+the code never had, so also check what this diff could have falsified:
+
+```bash
+gh pr diff <pr-number> --name-only
+```
+
+| If the diff touched | Check |
+| --- | --- |
+| `usersc/classes/**` | `docs/development/CLASSES.md` — do the documented classes, paths and signatures still match? |
+| `database/migrations/**` | `docs/development/DATABASE.md` — tables, columns, triggers |
+| `composer.json` / `package.json` scripts | `CLAUDE.md` Quick Start Commands, `docs/development/QUICK_REFERENCE.md` |
+| `app/api/**` | Endpoint references in `ERROR_HANDLING.md`, `DATATABLES.md`, `SYSTEM_OVERVIEW.md` |
+| `app/admin/**` or permission guards | `SYSTEM_OVERVIEW.md` §3, `Page-Security-and-Access-Control` on the wiki |
+| Anything user-visible | `docs/guides/`, `docs/reference/` — these are read by car owners |
+| A capability added, removed, or newly gated | `SYSTEM_OVERVIEW.md` §6 (deliberately not built) and §7 (built but broken) |
+
+**The trigger is the diff, not a judgment call about significance.** Every
+serious documentation defect found in the August 2026 audit was a doc
+contradicting code that a merged PR had just changed — a dropped table, a
+deleted function, a removed endpoint. Each was mechanically detectable from the
+diff; none was caught, because nothing looked.
+
+If a doc needs updating, update it in this PR rather than filing a follow-up.
+A doc fix that lands separately from the change it describes is a doc fix that
+usually does not land.
+
+**Wiki pages are a separate repository** and cannot be updated from this branch.
+If the diff invalidates a wiki page, note it in the merge report so it can be
+published with `/publish-wiki`.
+
 ### Step 5: Squash-merge the PR
 
 ```bash
@@ -202,6 +242,9 @@ Output a summary:
 
 - Issue #`<number>` — closed
 - PR #`<pr-number>` — squash-merged into `<milestone-branch>`
+- Documentation — `composer check:docs` result, and any doc updated in this PR
+  (or "no doc impact"). Note any **wiki** page needing a separate
+  `/publish-wiki` run.
 - Branch `<issue-branch>` — deleted
 - Release notes updated at `docs/releases/RELEASE_NOTES_v<version>.md`
 - Now on `<milestone-branch>`
