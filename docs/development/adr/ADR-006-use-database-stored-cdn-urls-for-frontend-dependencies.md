@@ -4,7 +4,7 @@
 
 ## Status
 
-**In Review** (retroactive)
+**Superseded** by [ADR-015](ADR-015-self-host-frontend-libraries.md) — retroactively documented
 
 ## Date
 
@@ -108,7 +108,8 @@ Two approaches for updating CDN versions:
 
 At the time this ADR was written, default CDN values were seeded as part of provisioning. This
 document is superseded by [ADR-015](ADR-015-self-host-frontend-libraries.md) — current provisioning
-does not seed CDN values (see `database/seeds/SettingsBaselineSeed.php`).
+does not seed CDN values (see the `UpdateSettingsBaselineDefaults` migration,
+`database/migrations/20260817033111_update_settings_baseline_defaults.php`).
 
 ## Consequences
 

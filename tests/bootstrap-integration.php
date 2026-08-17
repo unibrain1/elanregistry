@@ -223,12 +223,18 @@ function abortMissingSeed(string ...$reasonLines): never
 // ============================================================
 // Verify Reference Data for Integration Tests
 // ============================================================
-// car_models, settings (id=1), and the noowner system account are seeded once
-// via Phinx (database/seeds/CarModelsSeed.php, SettingsBaselineSeed.php,
-// NoownerSeed.php), run through `composer seed:run` as part of provisioning
-// (scripts/provision-schema.sh) — not on every test run. This block is a
-// thin, fail-loud verifier: it confirms the seeds actually ran and tells you
-// exactly what to run if they didn't, rather than trying to fix it inline.
+// car_models is seeded once via Phinx (database/seeds/CarModelsSeed.php), run
+// through `composer seed:run` as part of provisioning
+// (scripts/provision-schema.sh) — not on every test run. The noowner system
+// account and permissions id=3 row are created once by the
+// RegisterNoownerAccount and RegisterBaselinePermissions migrations. The
+// settings row (id=1) is created by UserSpice's install wizard rather than a
+// seed; its ElanRegistry default values are applied by the
+// UpdateSettingsBaselineDefaults migration
+// (database/migrations/20260817033111_update_settings_baseline_defaults.php).
+// This block is a thin, fail-loud verifier: it confirms the reference data
+// actually exists and tells you exactly what to run if it doesn't, rather
+// than trying to fix it inline.
 
 try {
     if (class_exists('DB')) {

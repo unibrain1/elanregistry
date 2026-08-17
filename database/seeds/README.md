@@ -16,10 +16,12 @@ data already exists.
   this way — see `data/README.md`. A CSV gives a clean, reviewable diff per
   row and scales to large row counts without bloating the PHP file.
 - **A single row** → write the values directly as a PHP array/const in the
-  class. `NoownerSeed` (one system account, via `$this->insert('users', [...])`)
-  and `SettingsBaselineSeed` (`ELAN_DEFAULTS`) both do this — a CSV with one
-  header row and one data row would be more awkward to read and review than
-  the equivalent inline array.
+  class. (The one prior example of this shape, `NoownerSeed`, was converted
+  to a migration — `database/migrations/20260817035200_register_noowner_account.php`
+  — since the account is part of the registry's base configuration and
+  should never need to be replayed. A future single-row seed would still be
+  shaped this way; a CSV with one header row and one data row would be more
+  awkward to read and review than the equivalent inline array.)
 
 Pick whichever matches the shape of the data you're adding, not whichever an
 existing seed happens to use.
@@ -27,15 +29,19 @@ existing seed happens to use.
 ## Run order
 
 Seeds are normally independent — `-s <ClassName>` bypasses Phinx's
-`getDependencies()` ordering, so don't rely on it. One exception:
-`BaselinePermissionsSeed` must run before `PageRegistrationSeed`, since the
-latter inserts `permission_page_matches` rows referencing
-`permissions.id = 3`, which only the former creates. `provision-schema.sh`
-discovers seeds via an alphabetical filesystem glob, and
-`BaselinePermissionsSeed` is named specifically to sort ahead of
-`PageRegistrationSeed` — see that class's docblock for the full rationale.
-Any new seed with a similar ordering requirement must either sort correctly
-by name or the discovery mechanism needs to grow explicit ordering support.
+`getDependencies()` ordering, so don't rely on it. One prior exception no
+longer applies here: `PageRegistrationSeed` inserts `permission_page_matches`
+rows referencing `permissions.id = 3`, which used to require
+`BaselinePermissionsSeed` to run first (guaranteed only by alphabetical
+filename ordering in `provision-schema.sh`'s filesystem glob). That seed was
+converted to a migration —
+`database/migrations/20260817035422_register_baseline_permissions.php` —
+since the row is part of the registry's base configuration; migrations
+always run before seeds, so the ordering dependency is now structural rather
+than name-dependent. Any new seed with a similar ordering requirement on
+schema/reference data created by a migration gets this guarantee for free;
+an ordering requirement between two *seeds* would still need the filename
+trick.
 
 ## Exceptions, deliberately
 

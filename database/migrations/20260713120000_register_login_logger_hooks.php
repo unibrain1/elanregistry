@@ -18,6 +18,8 @@ final class RegisterLoginLoggerHooks extends AbstractMigration
         // All interpolated values come from self::HOOKS — a private const of
         // hardcoded strings. Phinx 0.16 uses PDO::query() (not prepare()) so
         // bind-parameter syntax is unavailable here; interpolation is safe.
+        $adapter = $this->getAdapter();
+        $adapter->beginTransaction();
         foreach (self::HOOKS as [$page, $position, $hook]) {
             $exists = $this->fetchRow(
                 "SELECT id FROM us_plugin_hooks
@@ -30,5 +32,6 @@ final class RegisterLoginLoggerHooks extends AbstractMigration
                 );
             }
         }
+        $adapter->commitTransaction();
     }
 }

@@ -7,33 +7,33 @@ require_once __DIR__ . '/../IntegrationTestCase.php';
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Integration tests for database/seeds/PageRegistrationSeed.php and
- * database/seeds/BaselinePermissionsSeed.php (#1671).
+ * Integration tests for database/seeds/PageRegistrationSeed.php (#1671).
  *
- * Both seeds are Phinx `AbstractSeed` subclasses, discovered by filename glob
- * and executed under Phinx's own CLI runtime (adapter, input/output) — they
- * are not autoloaded by Composer and cannot be instantiated directly from
- * PHPUnit. This test therefore runs them the same way
- * `scripts/provision-schema.sh` does: as a real `vendor/bin/phinx seed:run`
- * subprocess against the dedicated integration test schema, passing both
- * `-s BaselinePermissionsSeed -s PageRegistrationSeed` in the same order
- * `provision-schema.sh` derives from its alphabetical glob — so the ordering
- * dependency documented in BaselinePermissionsSeed's docblock (it must run
- * first, since PageRegistrationSeed inserts permission_id=3 rows) is
- * genuinely exercised end-to-end, not just asserted true by a single-seed
- * test that happens to pass because the shared integration schema already
- * has `permissions.id=3` from elsewhere. This mirrors
- * `LogDeploymentScriptTest`'s subprocess pattern, including propagating this
- * run's DB_* env vars via putenv() so the subprocess connects to the same
- * test schema instead of falling back to the project's real .env.
+ * PageRegistrationSeed is a Phinx `AbstractSeed` subclass, discovered by
+ * filename glob and executed under Phinx's own CLI runtime (adapter,
+ * input/output) — it is not autoloaded by Composer and cannot be
+ * instantiated directly from PHPUnit. This test therefore runs it the same
+ * way `scripts/provision-schema.sh` does: as a real `vendor/bin/phinx
+ * seed:run` subprocess against the dedicated integration test schema. This
+ * mirrors `LogDeploymentScriptTest`'s subprocess pattern, including
+ * propagating this run's DB_* env vars via putenv() so the subprocess
+ * connects to the same test schema instead of falling back to the project's
+ * real .env.
  *
  * `pages` and `permission_page_matches` are truncated in setUp() so every
  * test starts from the empty-table state a fresh install actually has, and
  * restored from a snapshot in tearDown() so this suite never leaves the
  * shared integration schema missing its real page inventory for other tests.
- * `permissions` id=3 is likewise deleted/restored so BaselinePermissionsSeed's
- * own insert path is genuinely exercised rather than finding the row already
- * present.
+ *
+ * `permissions` id=3 is no longer deleted/recreated by this suite: the row
+ * is now created once by the `RegisterBaselinePermissions` migration
+ * (`database/migrations/20260817035422_register_baseline_permissions.php`),
+ * not a repeatable seed, so it's simply expected to already exist on any
+ * schema this test runs against (same assumption `PageRegistrationSeed`
+ * itself now makes in practice). The ordering dependency the previous
+ * version of this suite exercised end-to-end (BaselinePermissionsSeed must
+ * run before PageRegistrationSeed) is now structural — migrations always
+ * run before seeds — rather than something a test needs to prove.
  */
 #[Group('integration')]
 #[Group('migration')]
@@ -48,23 +48,25 @@ final class PageRegistrationSeedTest extends IntegrationTestCase
     /** @var list<array<string, mixed>> Snapshot of `permission_page_matches` rows before truncation. */
     private array $permissionMatchesSnapshot = [];
 
-    /** @var array<string, mixed>|null Snapshot of `permissions` id=3 before this suite deletes it, or null if absent. */
-    private ?array $editorPermissionSnapshot = null;
-
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireDatabase();
 
+        $editorPermission = $this->fetchAllRows('SELECT * FROM `permissions` WHERE id = 3');
+        if ($editorPermission === []) {
+            $this->markTestSkipped(
+                'permissions id=3 (Editor) is missing. Run: composer migrate ' .
+                '(RegisterBaselinePermissions) before running this suite.'
+            );
+        }
+
         $this->pagesSnapshot = $this->fetchAllRows('SELECT * FROM `pages`');
         $this->permissionMatchesSnapshot = $this->fetchAllRows('SELECT * FROM `permission_page_matches`');
-        $editorRow = $this->fetchAllRows('SELECT * FROM `permissions` WHERE id = 3');
-        $this->editorPermissionSnapshot = $editorRow[0] ?? null;
 
         $this->db->query('SET FOREIGN_KEY_CHECKS = 0');
         $this->db->query('TRUNCATE TABLE `permission_page_matches`');
         $this->db->query('TRUNCATE TABLE `pages`');
-        $this->db->query('DELETE FROM `permissions` WHERE id = 3');
         $this->db->query('SET FOREIGN_KEY_CHECKS = 1');
     }
 
@@ -74,16 +76,12 @@ final class PageRegistrationSeedTest extends IntegrationTestCase
             $this->db->query('SET FOREIGN_KEY_CHECKS = 0');
             $this->db->query('TRUNCATE TABLE `permission_page_matches`');
             $this->db->query('TRUNCATE TABLE `pages`');
-            $this->db->query('DELETE FROM `permissions` WHERE id = 3');
 
             foreach ($this->pagesSnapshot as $row) {
                 $this->db->insert('pages', $row);
             }
             foreach ($this->permissionMatchesSnapshot as $row) {
                 $this->db->insert('permission_page_matches', $row);
-            }
-            if ($this->editorPermissionSnapshot !== null) {
-                $this->db->insert('permissions', $this->editorPermissionSnapshot);
             }
             $this->db->query('SET FOREIGN_KEY_CHECKS = 1');
         }
@@ -96,9 +94,10 @@ final class PageRegistrationSeedTest extends IntegrationTestCase
         [$returnCode, $output] = $this->runSeed();
         $this->assertSame(0, $returnCode, 'Seeds must exit 0. Output: ' . implode("\n", $output));
 
-        // BaselinePermissionsSeed must have created the Editor row PageRegistrationSeed depends on.
+        // RegisterBaselinePermissions migration must already have created the
+        // Editor row PageRegistrationSeed depends on (checked in setUp()).
         $editorPermission = $this->fetchAllRows('SELECT * FROM `permissions` WHERE id = 3');
-        $this->assertCount(1, $editorPermission, 'BaselinePermissionsSeed must insert permissions id=3');
+        $this->assertCount(1, $editorPermission, 'permissions id=3 must exist');
         $this->assertSame('Editor', $editorPermission[0]['name'], 'permissions id=3 must be named Editor');
 
         // ROOT_PAGES special case: z_us_root.php must be registered core=1 to match dev/prod (#1671).
@@ -251,14 +250,13 @@ final class PageRegistrationSeedTest extends IntegrationTestCase
         $phinxBinary = __DIR__ . '/../../../vendor/bin/phinx';
         $phinxConfig = __DIR__ . '/../../../phinx.php';
 
-        // Order matches provision-schema.sh's actual invocation (seeds discovered via
-        // alphabetical glob of database/seeds/*.php — BaselinePermissionsSeed sorts first).
-        // This is deliberate, not incidental: PageRegistrationSeed depends on
-        // BaselinePermissionsSeed having already inserted permissions id=3.
+        // permissions id=3 (Editor) is now created once by the
+        // RegisterBaselinePermissions migration, not a seed — setUp()
+        // already verified it exists, so only PageRegistrationSeed needs
+        // to run here.
         $command = 'php ' . escapeshellarg($phinxBinary)
             . ' seed:run'
             . ' -c ' . escapeshellarg($phinxConfig)
-            . ' -s ' . escapeshellarg('BaselinePermissionsSeed')
             . ' -s ' . escapeshellarg('PageRegistrationSeed')
             . ' 2>&1';
 

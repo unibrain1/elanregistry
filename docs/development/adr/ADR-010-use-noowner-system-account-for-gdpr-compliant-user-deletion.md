@@ -15,9 +15,39 @@ removal, and behavior added after this ADR was written); the rest of the
 document below describes the mechanism as it existed before this update and
 is kept for historical context:
 
-- **"No migration script creates noowner"** -- resolved. `database/seeds/NoownerSeed.php`
-  creates the account on any provisioned environment, with `password = NULL`
-  and `protected = 1` exactly as this ADR specifies.
+- **"No migration script creates noowner"** -- resolved, and literally so:
+  `database/migrations/20260817035200_register_noowner_account.php` (a real
+  Phinx migration, not a seed) creates the account on any provisioned
+  environment, with `password = NULL` and `protected = 1` as this ADR
+  specifies.
+- **Email changed to `noowner@invalid`** (#1679) -- supersedes the
+  `'noowner@example.com'` placeholder in the Account Specification below. The
+  original value is syntactically valid, so it could be typed into
+  `users/forgot_password.php` or `users/passwordless.php`, both of which
+  locate an account by email lookup against submitted input. This closes the
+  account-recovery vector that a NULL password alone does not cover -- the
+  Security Model section below addresses login only. The two recovery forms
+  are closed by different mechanisms, and the difference matters:
+  - **Password reset is closed by validation.** `users/forgot_password.php`
+    enforces `Validate`'s `valid_email` rule
+    (`filter_var($value, FILTER_VALIDATE_EMAIL)`) before any lookup, and a
+    bare-label domain fails it, so the address never reaches the query.
+  - **Passwordless login is closed by delivery, not validation.**
+    `users/passwordless.php` applies no server-side format check, so the
+    address *does* match and *does* create a pending `us_email_logins` row.
+    That row is inert only because `.invalid` is the RFC 2606 reserved TLD
+    and cannot resolve: the vericode is stored hashed, never rendered to the
+    page, and travels solely in an undeliverable email before expiring after
+    15 minutes. The send failure does not invalidate the row early. This gate
+    therefore rests entirely on the address being non-routable -- **never
+    point this account at a routable address.** The missing validation is a
+    framework gap tracked as #1687.
+- **The migration is self-healing** (#1679) -- it forces `password`, `email`
+  and `protected` to the locked-down values on a pre-existing account rather
+  than only creating a missing one. Production's hand-created 2012 account had
+  drifted (`protected = 0`, routable email) and would otherwise never have been
+  corrected. `id`, `fname`, `lname` and `active` are left untouched so existing
+  `cars.user_id` references survive.
 - **`car_user` junction table** -- removed entirely (#1162,
   `database/migrations/20260711000000_drop_car_user_tables.php`). Ownership is
   now authoritative on `cars.user_id` alone; every reference to `car_user`
@@ -71,7 +101,8 @@ noowner account is a real row in the`users` table that cannot authenticate (NULL
 | `fname` | `'No'` | Displays as "No Owner" in UI via`fname . ' ' . lname` |
 | `lname` | `'Owner'` | See above |
 | `password` | `NULL` | Prevents authentication; no login possible |
-| `email` | `'noowner@example.com'` | Placeholder; not a real mailbox |
+| `email` | `'noowner@invalid'` | Unroutable by construction (RFC 2606). Closes password reset by validation and passwordless login by delivery. Was `'noowner@example.com'` until #1679 |
+| `protected` | `1` | Excludes the account from admin and automated account-deletion cleanup |
 | `id` | `83` (production) | Assigned at creation in 2012; not guaranteed across environments |
 
 ### Mechanism
@@ -129,7 +160,11 @@ in`users/helpers/users.php`. The hook fires inside a `foreach`loop after the`use
 
 ### Integration Points
 
-- **Admin UI** (`app/admin/assets/manage-consolidated.js`): Provides a "No Owner" checkbox for manual car reassignment. Currently hard-codes noowner ID as 83
+- **Admin UI** (`app/admin/assets/admin-core.js`): Provides a "No Owner" checkbox for
+  manual car reassignment. The checkbox sends a `no_owner` flag; `app/admin/index.php`'s
+  `reassign` handler resolves the account id server-side via `User::find('noowner')`. It
+  previously hard-coded id 83 on the client — fixed in #1562, since a client-supplied id
+  must never be trusted for this path and 83 was only correct by accident on production
 - **Recovery script** (`FIX/_ARCHIVE/02-Cleanup-Orphaned-Profiles.php`): Reassigns orphaned cars (whose user_id points to a deleted user) back to noowner
 - **Privacy policy** (`docs/faq/PRIVACY.md`): Explicitly documents the noowner pattern: "Car Ownership: Transferred to a system account called 'noowner'"
 - **ElanRegistryOwner class**: No special handling -- treats noowner as a standard user record, which is intentional
@@ -137,6 +172,28 @@ in`users/helpers/users.php`. The hook fires inside a `foreach`loop after the`use
 ### Security Model
 
 - **Authentication**: noowner has NULL password hash -- cannot authenticate through any login path
+- **Account recovery**: noowner's email is the deliberately unroutable sentinel
+  `noowner@invalid`. Password reset is closed by validation — `users/forgot_password.php`
+  requires the submitted address to clear `Validate`'s `valid_email` rule
+  (`FILTER_VALIDATE_EMAIL`), which a bare-label domain fails. Passwordless login is closed
+  by delivery instead: `users/passwordless.php` performs no server-side format check, so
+  the address does match and a pending `us_email_logins` row is created, but the vericode
+  is stored only as a hash, never rendered to the page, and transmitted solely in an email
+  that `.invalid` (RFC 2606) guarantees cannot be delivered. The row expires unused after
+  15 minutes. **The unroutable domain is therefore load-bearing, not cosmetic** — a
+  routable address here would convert passwordless login into a live path to this account.
+  Guarded by `tests/integration/database/RegisterNoownerAccountMigrationTest.php`; the
+  underlying framework gap is tracked as #1687
+- **Transfer interaction** (#1679): because `noowner@invalid` fails `FILTER_VALIDATE_EMAIL`
+  by design, it must never be denormalized onto a car. `CarAdministrationService::transfer()`
+  copies the target owner's contact fields onto `cars` and `car_history`, then validates
+  them -- propagating the sentinel threw `CarValidationException` and rolled back the entire
+  reassignment transaction, silently leaving the deleted owner's PII on their former cars.
+  `transfer()` now blanks any owner email that fails the same filter rather than propagating
+  or rejecting it. A car with no reachable owner correctly carries no owner email; contact
+  flows resolve the owner through `user_id`, never through the denormalized `cars.email`
+  copy. **Any future change to noowner's email must preserve both properties: unroutable,
+  and blanked rather than propagated on transfer**
 - **Authorization**: noowner has permissions level 0 -- no admin or registry access even if authentication were possible
 - **Cleanup exclusion**: Explicitly excluded from all automated deletion queries by username check AND `protected` flag
 - **Hook integrity**: The deletion hook fires for every `deleteUsers()` call, including admin panel deletions and cron cleanup -- no deletion path bypasses it

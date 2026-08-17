@@ -127,11 +127,14 @@ and the `noowner` system account) to be populated.
 ./scripts/provision-schema.sh
 ```
 
-Applies the vendored stock UserSpice structure, runs `composer migrate`, then
-`phinx seed:run` for `CarModelsSeed`, `NoownerSeed`, and `SettingsBaselineSeed`
+Applies the vendored stock UserSpice structure, runs `composer migrate`
+(which applies the `UpdateSettingsBaselineDefaults`, `RegisterBaselinePermissions`,
+and `RegisterNoownerAccount` migrations' ElanRegistry defaults, permissions
+row, and system account), then `phinx seed:run` for `CarModelsSeed`
 (`database/seeds/`). `tests/bootstrap-integration.php` only *verifies* these
 exist on every test run — it aborts with a clear message (pointing at
-`composer seed:run`) if they don't, rather than seeding inline.
+`composer migrate`/`composer seed:run`) if they don't, rather than seeding
+inline.
 
 ### Reference Data Requirements
 

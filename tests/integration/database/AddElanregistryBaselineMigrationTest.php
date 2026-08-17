@@ -9,7 +9,7 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * Integration tests for migration 20260709000000_add_elanregistry_baseline
  *
- * Verifies the post-migration state of the 13 ElanRegistry tables the baseline
+ * Verifies the post-migration state of the 9 ElanRegistry tables the baseline
  * creates on top of stock UserSpice, plus the 3 car audit triggers it creates.
  * Structural drift on shared stock tables (collation conversions, column
  * changes) is not re-tested here — that is what schema-fidelity verification
@@ -23,7 +23,24 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('migration')]
 final class AddElanregistryBaselineMigrationTest extends IntegrationTestCase
 {
-    /** The 13 tables the baseline migration creates, excluding phinxlog (Phinx-owned). */
+    /**
+     * The 9 tables the baseline migration creates, excluding phinxlog (Phinx-owned).
+     *
+     * Keep this list in sync with the migration's `CREATE TABLE` statements and
+     * nothing else. Four entries were removed in #1679 because the baseline
+     * migration does not create them, so the test failed on every environment
+     * including CI:
+     *
+     * - `notifications` is not a table at all. The name exists only as the
+     *   `settings.notifications` *column* (stock UserSpice, read by
+     *   `usersc/templates/customizer/file_nav_custom.php`), which is what the
+     *   entry was mistaken for. See #1685.
+     * - `plg_db_explainer_columns`, `plg_db_explainer_databases` and
+     *   `plg_db_explainer_tables` belong to the DB Explainer plugin, which
+     *   creates them on install via the UserSpice plugin manager. They are
+     *   plugin state, not baseline schema, and are absent from any environment
+     *   where that plugin is not installed.
+     */
     private const REGISTRY_TABLES = [
         'car_models',
         'car_transfer_requests',
@@ -33,10 +50,6 @@ final class AddElanregistryBaselineMigrationTest extends IntegrationTestCase
         'deleted_accounts_archive',
         'elan_factory_info',
         'fix_script_runs',
-        'notifications',
-        'plg_db_explainer_columns',
-        'plg_db_explainer_databases',
-        'plg_db_explainer_tables',
         'plg_sendinblue',
     ];
 

@@ -724,7 +724,7 @@ function initializeCarManagement() {
                 isNoOwner: true,
                 fname: 'No',
                 lname: 'Owner',
-                email: 'noowner@example.com',
+                email: 'noowner@invalid',
                 city: null,
                 state: null,
                 country: null,
