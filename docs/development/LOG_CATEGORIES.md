@@ -349,7 +349,7 @@ try {
 
 ## Related Documentation
 
-- [CLAUDE.md - Error Logging Standards](../CLAUDE.md#error-logging-standards)
+- [CLAUDE.md - Error Logging Standards](../../CLAUDE.md#error-logging-standards)
 - [CODING_STANDARDS.md - Logging Requirements](./CODING_STANDARDS.md#logging)
 - [CLASSES.md - ElanRegistryException](./CLASSES.md#elanregistryexception)
 

@@ -435,10 +435,10 @@ This decision was made in v2.12.0 and is documented retroactively.
 - **ElanRegistryException Base Class**: [usersc/classes/Exceptions/ElanRegistryException.php](../../usersc/classes/Exceptions/ElanRegistryException.php)
 - **LogCategories Constants**: [usersc/classes/LogCategories.php](../../usersc/classes/LogCategories.php)
 - **Client Injection**: [usersc/includes/footer.php](../../usersc/includes/footer.php)
-- **Error Handling Guide**: [docs/development/ERROR_HANDLING.md](../development/ERROR_HANDLING.md)
-- **Coding Standards**: [docs/development/CODING_STANDARDS.md](../development/CODING_STANDARDS.md)
-- **Class Documentation**: [docs/development/CLASSES.md](../development/CLASSES.md)
+- **Error Handling Guide**: [docs/development/ERROR_HANDLING.md](../ERROR_HANDLING.md)
+- **Coding Standards**: [docs/development/CODING_STANDARDS.md](../CODING_STANDARDS.md)
+- **Class Documentation**: [docs/development/CLASSES.md](../CLASSES.md)
 - **CSRF Pattern**: ADR-001 covers UserSpice Token class and CSRF protection
-- **Migration Issue**: [GitHub Issue #481](https://github.com/unibrain1/elanregistry/issues/481) (jQuery.ajax() removal — completed v2.25.3)
+- **Migration Issue**: [GitHub Issue #481](https://github.com/elan-registry/registry/issues/481) (jQuery.ajax() removal — completed v2.25.3)
 - **Nygard ADR Format**:
   [https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)

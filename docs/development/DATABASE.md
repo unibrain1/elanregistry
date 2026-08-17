@@ -117,7 +117,7 @@ to own multiple cars.
 | `userid` | `int` | User ID |
 | `timestamp` | `timestamp` | Change timestamp |
 
-**Note**: This table is populated by database triggers on `car_user` (added in [#592](https://github.com/unibrain1/elanregistry/issues/592)). Indexes on `car_id` and `userid` were added for query performance.
+**Note**: This table is populated by database triggers on `car_user` (added in [#592](https://github.com/elan-registry/registry/issues/592)). Indexes on `car_id` and `userid` were added for query performance.
 
 #### `car_transfer_requests` - Ownership transfer workflow
 

@@ -23,7 +23,7 @@ Use this table to choose the right class for your task:
 | Access owner profile and user data | Owner | User profile integration, custom user methods | `$owner = new Owner($uid)` |
 | Validate VIN/chassis format | ChassisValidator | Specialized validation for vehicle identifiers | `$validator->validate('26/0001')` |
 | Create database backups | BackupManager | Backup/restore operations, database dumping | `$backup = new BackupManager(...)` |
-| Get car images | CarImage | Image metadata and associations | `$images = CarImage::getByCarId($carId)` |
+| Decode car images | CarImageProcessor | Decodes the `cars.image` JSON array into usable entries | `CarImageProcessor::decode($car->image)` |
 | Query car models by year/series | CarModel | Reference data for model filtering | `$models = (new CarModel())->getAvailableInYear(1970)` |
 
 ---
@@ -38,7 +38,7 @@ The Elan Registry uses namespaces to organize classes by their architectural rol
 | --- | --- | --- | --- |
 | **(root)** | Entity classes (domain objects) | `/usersc/classes/` | Car, Owner |
 | `ElanRegistry\Exceptions` | Custom exception types | `/usersc/classes/Exceptions/` | CarNotFoundException, CarValidationException |
-| `ElanRegistry\Reference` | **External reference data** | `/usersc/classes/ElanRegistry/Reference/` | CarModel, FactoryColor |
+| `ElanRegistry\Reference` | **External reference data** | `/usersc/classes/Reference/` | CarModel |
 
 ### Reference Data vs. Entity Classes
 
@@ -47,7 +47,7 @@ The Elan Registry uses namespaces to organize classes by their architectural rol
 - Represent **external/canonical facts** about cars from Lotus (factory data, official colors, model specifications)
 - **Read-only** - no create/update/delete operations
 - Static query methods only
-- Examples: CarModel (model types), FactoryColor (official colors), FactoryInfo (production specs)
+- Example: CarModel (model types, backed by the `car_models` table)
 
 **Entity Classes** (root namespace):
 
@@ -69,7 +69,7 @@ The Elan Registry uses namespaces to organize classes by their architectural rol
 
 ### Car
 
-**Location**: `/usersc/classes/Car.php`
+**Location**: `/usersc/classes/Car/Car.php`
 
 **Purpose**: Manages car records with full CRUD operations, history tracking,
 and audit trails.
@@ -188,16 +188,19 @@ generation.
 **Common Usage**:
 
 ```php
-// Display car image
-CarView::loadCarPic($imageData, true); // true = thumbnail
+use ElanRegistry\CarView;
 
-// Generate image carousel
-$carouselId = rand(1000, 9999);
-CarView::generateCarousel($images, $carouselId);
+// Render a single car image; $image is one decoded entry from cars.image
+CarView::loadPicture(array $image, ?bool $thumbnail = null, bool $isPrimary = false): string
 
-// Display car specifications
-CarView::displayCarSpecs($carData);
+// Render the Bootstrap carousel for a car
+CarView::displayCarousel(Car $car, ?int $instanceId = null): string
+
+// Build the schema.org structured-data array for a car detail page
+CarView::buildCarSchema(object $carData, string $currentUrl): array
 ```
+
+These three static methods are the class's entire public surface.
 
 **Design Notes**:
 
@@ -724,7 +727,7 @@ if ($result !== true) {
 
 ### DocumentPortalTemplate
 
-**Location**: `/usersc/classes/DocumentPortalTemplate.php`
+**Location**: `/usersc/classes/Documentation/DocumentPortalTemplate.php`
 
 **Namespace**: `ElanRegistry\Documentation`
 
@@ -746,9 +749,6 @@ echo DocumentPortalTemplate::renderDocumentCardGrid($cards);
 > **Note**: Guide content is pre-rendered to static HTML and inlined as PHP
 > heredocs in the individual guide pages under `docs/guides/`. To update guide
 > content, edit the heredoc directly in the relevant PHP file.
-
-- `CarActions` - Car-related user operations
-- `DatabaseMaintenance` - Maintenance operations
 
 ### Naming Conventions
 
@@ -888,7 +888,7 @@ Classes in the `ElanRegistry\Reference` namespace provide access to external/can
 
 ### CarModel
 
-**Location**: `/usersc/classes/ElanRegistry/Reference/CarModel.php`
+**Location**: `/usersc/classes/Reference/CarModel.php`
 
 **Namespace**: `ElanRegistry\Reference`
 
@@ -951,13 +951,13 @@ if ($carModel->exists('S4', 'FHC', '36')) {
 
 **See Also**:
 
-- [Issue #577](https://github.com/jimboone/elan-registry/issues/577) - car_models table creation
+- [Issue #577](https://github.com/elan-registry/registry/issues/577) - car_models table creation
 - `/usersc/classes/ElanRegistry/README.md` - Namespace pattern documentation
 
 ## See Also
 
-- [GitHub Wiki: Architecture Guide](https://github.com/jimboone/elan-registry/wiki/Architecture) - System architecture overview
+- [GitHub Wiki: Architecture Guide](https://github.com/elan-registry/registry/wiki/Architecture) - System architecture overview
 - [DATABASE.md](DATABASE.md) - Database schema and relationships
-- [GitHub Wiki: UserSpice Integration Guide](https://github.com/jimboone/elan-registry/wiki/Integration) - UserSpice integration patterns
+- [GitHub Wiki: UserSpice Integration Guide](https://github.com/elan-registry/registry/wiki/Integration) - UserSpice integration patterns
 - [CODING_STANDARDS.md](CODING_STANDARDS.md) - Code quality requirements
 - [TESTING.md](../testing/TESTING.md) - Testing guidelines

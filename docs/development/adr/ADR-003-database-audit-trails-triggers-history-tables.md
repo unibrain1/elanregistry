@@ -348,7 +348,7 @@ point-in-time history.
 ## References
 
 - **Database Schema and Triggers**:
-  [docs/development/DATABASE.md](../development/DATABASE.md) and
+  [docs/development/DATABASE.md](../DATABASE.md) and
   [database/1-schema.sql](../../database/1-schema.sql) (Section 5)
 - **ADR-002 Denormalized Cars Table**:
   [ADR-002](ADR-002-denormalized-cars-table-cached-owner-data.md)
@@ -371,6 +371,6 @@ point-in-time history.
   [08-Fix-Car-History-Triggers-Username-Column.php](../../FIX/_ARCHIVE/08-Fix-Car-History-Triggers-Username-Column.php)
   (trigger rebuild example)
 - **Coding Standards**:
-  [CODING_STANDARDS.md](../development/CODING_STANDARDS.md)
+  [CODING_STANDARDS.md](../CODING_STANDARDS.md)
 - **Nygard ADR Format**:
   [Documenting Architecture Decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)

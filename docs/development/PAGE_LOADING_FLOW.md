@@ -79,7 +79,8 @@ users/init.php
 │   │
 │   ├─ 1.5.1. usersc/includes/custom_functions.php
 │   │   └─ Custom helper functions:
-│   │       ├─ getUserWithProfile() - Combined user/profile data
+│   │       ├─ currentUserId() - Logged-in user ID (throws if absent)
+│   │       ├─ dbInt() - Safe integer cast for database values
 │   │       ├─ isRegistryAdmin() - Check registry admin/editor permissions
 │   │       ├─ getBaseUrl() - Get environment-aware base URL
 │   │       ├─ getAdminEmails() - Get admin email addresses
@@ -736,8 +737,8 @@ Debug mode shows:
 
 ## Related Documentation
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Overall system architecture
-- **[INTEGRATION.md](INTEGRATION.md)** - UserSpice integration patterns
+- **[ARCHITECTURE.md](https://github.com/elan-registry/registry/wiki/Elan-Registry-Architecture-and-Database-Design)** - Overall system architecture
+- **[INTEGRATION.md](https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns)** - UserSpice integration patterns
 - **[CLASSES.md](CLASSES.md)** - Custom application classes
 - **[CODING_STANDARDS.md](CODING_STANDARDS.md)** - Coding standards
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Common tasks lookup

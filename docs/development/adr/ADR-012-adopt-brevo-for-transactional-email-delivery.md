@@ -443,7 +443,7 @@ SMTP failures.
 - **Brevo Free Plan Limits**: [Brevo Help: Plans and Pricing](https://help.brevo.com/hc/en-us/articles/208580669)
 - **Plugin Implementation**: [/usersc/plugins/sendinblue/](../../usersc/plugins/sendinblue/)
 - **Current Email Function**: [users/helpers/helpers.php](../../users/helpers/helpers.php) (lines 158-237)
-- **Email Configuration Table**: [Database schema: email table](../development/DATABASE.md)
+- **Email Configuration Table**: [Database schema: email table](../DATABASE.md)
 - **UserSpice Plugin Hook**: [usersc/scripts/email_function_override.php](../../usersc/scripts/email_function_override.php)
 - **Custom Email Templates**: [usersc/classes/EmailTemplate.php](../../usersc/classes/EmailTemplate.php)
 - **Transfer Notifications**: [usersc/includes/transfer_email_notifications.php](../../usersc/includes/transfer_email_notifications.php)

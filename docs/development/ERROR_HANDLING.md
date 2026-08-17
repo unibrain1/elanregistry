@@ -548,7 +548,7 @@ const result = await api.post('endpoint', data);
 - `/usersc/classes/Exceptions/ElanRegistryException.php` - Base exception (namespace: `ElanRegistry\Exceptions`)
 - `/usersc/classes/Exceptions/` - All exception classes (26 total)
 - `/usersc/classes/LogCategories.php` - Log category constants
-- `/usersc/includes/custom_functions.php` - logger() function, getUserWithProfile()
+- `/usersc/includes/custom_functions.php` - Global helpers: `dbInt()`, `currentUserId()`, `isRegistryAdmin()`, `requireAdminAjax()`, `getBaseUrl()`
 - `/usersc/js/elan-registry-api.js` - Frontend API client
 - `/usersc/js/notification-helper.js` - Notification utility
 - `/composer.json` - PSR-4 autoload configuration for `ElanRegistry\Exceptions`
@@ -566,7 +566,7 @@ const result = await api.post('endpoint', data);
 
 ### Related Patterns
 
-- **UserSpice Integration**: See [INTEGRATION.md](INTEGRATION.md) for session
+- **UserSpice Integration**: See [INTEGRATION.md](https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns) for session
   management and authentication patterns
 - **Class Architecture**: See [CLASSES.md](CLASSES.md) for exception patterns
   in domain classes

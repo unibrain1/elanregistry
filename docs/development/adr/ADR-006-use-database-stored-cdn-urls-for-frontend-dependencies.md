@@ -1,10 +1,8 @@
 # ADR-006: Use Database-Stored CDN URLs for Frontend Dependencies
 
-**Status: Superseded by [ADR-015](ADR-015-self-host-frontend-libraries.md)**
-
 ## Status
 
-**In Review** (retroactive)
+**Superseded** by [ADR-015](ADR-015-self-host-frontend-libraries.md)
 
 ## Date
 
@@ -236,8 +234,8 @@ Store CDN URLs and SRI hashes as separate database columns (e.g., `elan_jquery_u
 - **FIX Script (SRI)**: [FIX/_ARCHIVE/17-Add-SRI-To-CDN-Resources.php](../../FIX/_ARCHIVE/17-Add-SRI-To-CDN-Resources.php)
 - **FIX Script (DataTables)**: [FIX/_ARCHIVE/19-Add-Select-Extension-DataTables-CDN.php](../../FIX/_ARCHIVE/19-Add-Select-Extension-DataTables-CDN.php)
 - **FIX Script (Optimization)**: [FIX/_ARCHIVE/23-Optimize-CDN-Resources.php](../../FIX/_ARCHIVE/23-Optimize-CDN-Resources.php)
-- **CSS & Assets Guide**: [docs/development/CSS_AND_ASSETS.md](../development/CSS_AND_ASSETS.md)
-- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../development/PAGE_LOADING_FLOW.md)
+- **CSS & Assets Guide**: [docs/development/CSS_AND_ASSETS.md](../CSS_AND_ASSETS.md)
+- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../PAGE_LOADING_FLOW.md)
 - **UserSpice Integration**: ADR-001 covers UserSpice `$settings` object pattern
 - **SRI Specification**: [MDN Subresource Integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity)
 - **Nygard ADR Format**:

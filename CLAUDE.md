@@ -8,6 +8,9 @@ working with code in this repository.
 **Essential reading:**
 
 - `CLAUDE.md` (this file) - Overview and quick reference
+- `docs/development/SYSTEM_OVERVIEW.md` - **What the registry does and for whom** —
+  capabilities by role, what is deliberately not built, and what is built but
+  broken. Read before designing any feature change.
 - `docs/development/UI_STANDARDS.md` - **UI component standards** (color tokens, card hierarchy, component patterns) — read before any UI change
 - `docs/development/EMAIL_SYSTEM.md` - Brevo email plugin setup and configuration
 - `docs/development/CODING_STANDARDS.md` - Code quality requirements
@@ -82,7 +85,8 @@ all other Cloudflare features work normally.
 - **Car Image Storage**: `cars.image` column is a JSON array of bare filenames
   (e.g. `["abc123.jpg"]`). Files live at `userimages/{carid}/{filename}` with
   resized variants as `{basename}-resized-{size}.{ext}` (sizes: 100, 300, 768,
-  1024, 2048). Unassigned images accumulate in `userimages/orphan/`.
+  1024, 2048). New uploads land in `userimages/temp/` and move to
+  `userimages/{carid}/` on success.
   Use `CarImageProcessor` to decode; `CarRepository::updateImage()` to write.
 - **New PHP Directories**: Only add a directory to the `$path` array in
   `/z_us_root.php` when it contains files that call `securePage()`. Pure API
