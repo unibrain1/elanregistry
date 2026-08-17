@@ -249,7 +249,7 @@ try {
 
                                                 <div class="input-group">
                                                     <input type="number" class="form-control" id="reassign_user_id" name="user_id"
-                                                           placeholder="Enter User ID" required>
+                                                           placeholder="Enter User ID">
                                                     <button class="btn btn-outline-primary" type="button" id="lookupUserBtn">
                                                         <i class="fas fa-search"></i>
                                                     </button>

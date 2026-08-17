@@ -732,7 +732,9 @@ function initializeCarManagement() {
             };
 
             // Update UI — use readonly, not disabled: disabled fields are excluded from form submission
-            $userIdField.val('').prop('readonly', true);
+            // Also drop 'required' so the global .needs-validation submit handler (admin-core.js
+            // initializeFormValidation) doesn't flag this now-empty field as invalid.
+            $userIdField.val('').prop('readonly', true).prop('required', false);
             $lookupBtn.prop('disabled', true);
             $('#userDetails').hide();
             $('#noOwnerDetails').show();
@@ -740,7 +742,7 @@ function initializeCarManagement() {
         } else {
             // Clear No Owner data
             selectedUser = null;
-            $userIdField.val('').prop('readonly', false).focus();
+            $userIdField.val('').prop('readonly', false).prop('required', true).focus();
             $lookupBtn.prop('disabled', false);
             $('#userDetails').hide();
             $('#noOwnerDetails').hide();
