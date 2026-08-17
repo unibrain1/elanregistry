@@ -662,41 +662,63 @@ final class BackupManagerTest extends TestCase
 
     /**
      * Verify that a table dump for a table that does not exist (MySQL error 1146,
-     * SQLSTATE 42S02) takes the soft-warning path instead of aborting the backup.
+     * SQLSTATE 42S02) aborts the backup rather than degrading to a warning.
      *
-     * This is the regression test for the bug this fix round exists to prevent: a
-     * missing table must degrade gracefully to a warning comment in the dump — the
-     * backup file must still be written, and any other, successful table in the same
-     * backup must still be dumped in full. Without this test, a future change that
-     * re-broke the SQLSTATE/driver-code distinction in isTableNotFoundError() (e.g.
-     * routing 42S02 through the generic-failure branch again) would not be caught.
+     * This test previously asserted the opposite — that a missing table produced a
+     * warning comment and the backup file was still written. #1696 reversed that
+     * decision: getCriticalTables() listed `car_history`, which is not a real table
+     * (it is `cars_hist`), so generateTableDump() emitted a warning comment and the
+     * backup reported success — silently dropping the car audit trail from every
+     * manual backup until the omission surfaced at restore time. A backup that
+     * reports success while missing a table the caller explicitly requested is worse
+     * than no backup at all.
+     *
+     * The SQLSTATE/driver-code distinction in isTableNotFoundError() still matters
+     * and is still exercised here: 42S02 must produce the specific "table does not
+     * exist" message rather than the generic structure-read failure message.
      *
      * @return void
      */
     #[Group('fast')]
     #[Group('unit')]
-    public function testTableDumpTableNotFoundTakesSoftWarningPath(): void
+    public function testTableDumpTableNotFoundAbortsBackup(): void
     {
         $mockDb = $this->createMockDatabase(null, 0, 'SHOW CREATE TABLE `missing_table`');
         $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
 
-        $backupPath = $backupManager->createManualBackup('Missing Table Test', ['missing_table', 'cars']);
+        $this->expectException(BackupException::class);
+        $this->expectExceptionMessage("Cannot back up 'missing_table': table does not exist");
 
-        $this->assertFileExists($backupPath, 'A missing table should degrade to a warning, not abort the backup');
+        $backupManager->createManualBackup('Missing Table Test', ['missing_table', 'cars']);
+    }
 
-        $content = file_get_contents($backupPath);
-        $this->assertStringContainsString(
-            '-- Warning: Table missing_table not found',
-            $content,
-            'The missing table should be recorded as a warning comment'
-        );
-        $this->assertStringContainsString(
-            '-- Dump for table: cars',
-            $content,
-            'The other, successful table should still be dumped in full'
-        );
-        $this->assertStringContainsString('CREATE TABLE', $content);
-        $this->assertStringContainsString('INSERT INTO', $content);
+    /**
+     * Verify that aborting on a missing table leaves no backup file behind.
+     *
+     * createStandardizedBackup() only writes the file once every requested table has
+     * dumped successfully, so a caller that sees the exception can rely on there
+     * being no half-written artifact to mistake for a good backup later (#1696).
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testMissingTableLeavesNoBackupFile(): void
+    {
+        $mockDb = $this->createMockDatabase(null, 0, 'SHOW CREATE TABLE `missing_table`');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $before = glob($this->testBackupDir . '/**/*.sql') ?: [];
+
+        try {
+            $backupManager->createManualBackup('Missing Table Test', ['missing_table', 'cars']);
+            $this->fail('Expected BackupException for a missing table');
+        } catch (BackupException) {
+            // expected
+        }
+
+        $after = glob($this->testBackupDir . '/**/*.sql') ?: [];
+        $this->assertSame($before, $after, 'A failed backup must not leave a file behind');
     }
 
     /**

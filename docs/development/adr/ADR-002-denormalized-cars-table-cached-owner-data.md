@@ -72,7 +72,7 @@ When a car is transferred to a new owner via `CarAdministrationService::transfer
 
 ```php
 // All 10 columns are synchronized
-// $targetUser is the flat object returned by getUserWithProfile()
+// $targetUser is the flat object returned by (new Owner($userId))->data()
 $updateFields = [
     'user_id'   => $targetUser->id,
     'email'     => $targetUser->email ?? '',
@@ -388,7 +388,7 @@ if (displaying_email($context)) {
   (location update and conditional car sync, lines 162-293)
 - **Admin Location Sync**: [app/admin/includes/process-owner-sync-location.php](../../app/admin/includes/process-owner-sync-location.php)
 - **User Deletion Handler**: [usersc/scripts/after_user_deletion.php](../../usersc/scripts/after_user_deletion.php)
-- **Database Documentation**: [docs/development/DATABASE.md](../development/DATABASE.md)
+- **Database Documentation**: [docs/development/DATABASE.md](../DATABASE.md)
 - **FIX Scripts (Archive)**: `FIX/_ARCHIVE/20-Backfill-Location-Coordinates.php`,
   `FIX/_ARCHIVE/04-Regeocode-Null-Coordinates.php`
 - **ADR-001: Authentication Framework**: [ADR-001-userspice-authentication-framework.md](ADR-001-userspice-authentication-framework.md)

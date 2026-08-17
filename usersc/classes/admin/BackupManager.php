@@ -338,7 +338,7 @@ class BackupManager {
             'cars',
             'profiles',
             'settings',
-            'car_history',
+            'cars_hist',
             'fix_script_runs'
         ];
     }
@@ -599,15 +599,16 @@ class BackupManager {
      *
      * Creates a complete SQL dump including table structure (CREATE TABLE)
      * and data (INSERT statements). Validates table names to prevent SQL
-     * injection. A table that does not exist (MySQL 1146 / SQLSTATE 42S02) is
-     * degraded to a warning comment so the rest of the backup still completes.
+     * injection. A table that does not exist (MySQL 1146 / SQLSTATE 42S02) aborts
+     * the backup rather than degrading to a warning comment: the caller asked for
+     * that table, so reporting success without it hides the loss until restore
+     * time (#1696).
      *
      * @param string $tableName Table name to dump (validated against injection)
-     * @return string Complete SQL dump with CREATE and INSERT statements, or a warning
-     *                comment if the table does not exist
-     * @throws BackupException If the table name contains invalid characters or either the
-     *                         structure or data query fails for any reason other than a
-     *                         missing table, aborting the whole backup
+     * @return string Complete SQL dump with CREATE and INSERT statements
+     * @throws BackupException If the table name contains invalid characters, the table
+     *                         does not exist, or either the structure or data query
+     *                         fails — any of which aborts the whole backup
      */
     private function generateTableDump(string $tableName): string {
         try {
@@ -624,8 +625,13 @@ class BackupManager {
             $createResult = $this->db->query("SHOW CREATE TABLE `{$tableName}`");
             if ($this->db->error()) {
                 if ($this->isTableNotFoundError()) {
+                    // Fail rather than emit a comment. A backup that silently omits
+                    // a requested table looks successful and is discovered missing
+                    // at restore time — which is how a stale `car_history` entry in
+                    // getCriticalTables() dropped the car audit trail from every
+                    // manual backup without anyone noticing (#1696).
                     ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, "Table {$tableName} not found during backup");
-                    return "-- Warning: Table {$tableName} not found\n\n";
+                    throw new BackupException("Cannot back up '{$tableName}': table does not exist");
                 }
                 throw new BackupException("Failed to read structure for table {$tableName}: " . $this->db->errorString());
             }
@@ -681,6 +687,8 @@ class BackupManager {
             // Always abort: a partial or empty dump written as if it succeeded is a
             // silent data-loss risk. createStandardizedBackup() only writes the file
             // after every table dumps successfully, so throwing here means no file.
+            // This supersedes #1696's message-substring triage — every path that
+            // reaches here is now fatal, so there is nothing left to classify.
             //
             // Logged with the per-table detail for diagnosis; createStandardizedBackup()
             // raises the BackupFailed alarm once the exception reaches it.

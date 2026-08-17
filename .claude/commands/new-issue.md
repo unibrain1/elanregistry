@@ -201,7 +201,7 @@ After creating the issue, ask:
 
 Would you like to:
 
-1. Start working on it now? (`/issue NUMBER`)
+1. Start working on it now? (`/start-issue NUMBER`)
 2. Create another related issue?
 3. That's all for now."
 

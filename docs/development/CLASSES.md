@@ -4,8 +4,8 @@ Complete reference for all custom classes in the Elan Registry application.
 
 ## Overview
 
-All custom classes are located in `/usersc/classes/` (application classes) and
-`/app/admin/includes/classes/` (admin-specific classes). Exception classes use
+All custom classes are located under `/usersc/classes/`, with admin-specific
+classes in `/usersc/classes/admin/`. Exception classes use
 the `ElanRegistry\Exceptions` namespace and are located in
 `/usersc/classes/Exceptions/`. Classes follow established design patterns with
 consistent database integration, exception handling, and audit logging.
@@ -23,7 +23,7 @@ Use this table to choose the right class for your task:
 | Access owner profile and user data | Owner | User profile integration, custom user methods | `$owner = new Owner($uid)` |
 | Validate VIN/chassis format | ChassisValidator | Specialized validation for vehicle identifiers | `$validator->validate('26/0001')` |
 | Create database backups | BackupManager | Backup/restore operations, database dumping | `$backup = new BackupManager(...)` |
-| Get car images | CarImage | Image metadata and associations | `$images = CarImage::getByCarId($carId)` |
+| Decode car images | CarImageProcessor | Decodes the `cars.image` JSON array into usable entries | `CarImageProcessor::decode($car->image)` |
 | Query car models by year/series | CarModel | Reference data for model filtering | `$models = (new CarModel())->getAvailableInYear(1970)` |
 
 ---
@@ -38,7 +38,7 @@ The Elan Registry uses namespaces to organize classes by their architectural rol
 | --- | --- | --- | --- |
 | **(root)** | Entity classes (domain objects) | `/usersc/classes/` | Car, Owner |
 | `ElanRegistry\Exceptions` | Custom exception types | `/usersc/classes/Exceptions/` | CarNotFoundException, CarValidationException |
-| `ElanRegistry\Reference` | **External reference data** | `/usersc/classes/ElanRegistry/Reference/` | CarModel, FactoryColor |
+| `ElanRegistry\Reference` | **External reference data** | `/usersc/classes/Reference/` | CarModel |
 
 ### Reference Data vs. Entity Classes
 
@@ -47,7 +47,7 @@ The Elan Registry uses namespaces to organize classes by their architectural rol
 - Represent **external/canonical facts** about cars from Lotus (factory data, official colors, model specifications)
 - **Read-only** - no create/update/delete operations
 - Static query methods only
-- Examples: CarModel (model types), FactoryColor (official colors), FactoryInfo (production specs)
+- Example: CarModel (model types, backed by the `car_models` table)
 
 **Entity Classes** (root namespace):
 
@@ -69,7 +69,7 @@ The Elan Registry uses namespaces to organize classes by their architectural rol
 
 ### Car
 
-**Location**: `/usersc/classes/Car.php`
+**Location**: `/usersc/classes/Car/Car.php`
 
 **Purpose**: Manages car records with full CRUD operations, history tracking,
 and audit trails.
@@ -188,16 +188,19 @@ generation.
 **Common Usage**:
 
 ```php
-// Display car image
-CarView::loadCarPic($imageData, true); // true = thumbnail
+use ElanRegistry\CarView;
 
-// Generate image carousel
-$carouselId = rand(1000, 9999);
-CarView::generateCarousel($images, $carouselId);
+// Render a single car image; $image is one decoded entry from cars.image
+CarView::loadPicture(array $image, ?bool $thumbnail = null, bool $isPrimary = false): string
 
-// Display car specifications
-CarView::displayCarSpecs($carData);
+// Render the Bootstrap carousel for a car
+CarView::displayCarousel(Car $car, ?int $instanceId = null): string
+
+// Build the schema.org structured-data array for a car detail page
+CarView::buildCarSchema(object $carData, string $currentUrl): array
 ```
+
+These three static methods are the class's entire public surface.
 
 **Design Notes**:
 
@@ -388,7 +391,7 @@ if (!CarModel::exists($series, $variant, $type)) {
 
 - `validateAndSanitizeFields(array $fields, bool $requireAll): array` - Main validation method
 - `validateRequiredFields(array $fields, array $required): void` - Check required fields are present
-- `normalizeString(string $input, int $maxLength): string` - Trim whitespace and truncate to max length; caller must apply `htmlspecialchars()` at the render layer
+- `parseModel(string $model): array` - Static; splits a `series|variant|type` model string into its parts
 
 **Exceptions**:
 
@@ -562,45 +565,11 @@ if ($result['valid']) {
 
 ## Support Classes
 
-### DatabaseInterface / DbAdapter
-
-**Location**: `usersc/classes/DatabaseInterface.php`, `usersc/classes/Database/DbAdapter.php`
-
-`DatabaseInterface` is a narrow interface (`query`, `get`, `insert`, `update`,
-`delete`, `error`, `errorString`, `errorInfo`, `count`, `first`, `results`,
-`lastId`, `beginTransaction`, `commit`, `rollBack`, `inTransaction`) covering
-exactly the methods application classes call on a database collaborator. Its
-signatures document the *real* runtime behavior of UserSpice's `\DB` class —
-`query()`/`get()` always return the instance for chaining (never throw; check
-`error()`), `first()`/`results()` return `[]` on no rows (never `null`) — not
-`\DB`'s untyped declarations.
-
-`DbAdapter implements DatabaseInterface`, wrapping a real `\DB` instance with
-1:1 delegation. `\DB` itself is upstream UserSpice code and is never modified
-or subclassed to implement the interface directly.
-
-**Obtaining an instance**: call the global `dbi(): DatabaseInterface` helper
-(`usersc/includes/custom_functions.php`), a per-request memoized `DbAdapter`
-around `\DB::getInstance()`. The ambient page-scope `$db` global is
-deliberately **never** wrapped — it stays a real `\DB` so upstream UserSpice
-code that type-hints `\DB` directly (e.g. `DataTableRequest`) keeps working.
-Application classes that need `DatabaseInterface` (`CarRepository`,
-`CarTransferRepository`, `StatisticsDataService`, `CarDataTablesService`,
-`RegistrationRecoveryNotifier`, `BackupManager`, and `Car`/`CarModel`/`Owner`'s
-optional constructor overrides) are constructed with `dbi()`, not `$db`.
-
-**Testing**: unit tests build a `DatabaseInterface` double directly —
-`createMock`/`createStub(DatabaseInterface::class)`, or a
-`tests/Support/FakeDatabase.php` subclass for tests needing mutable tracked
-state. There is no shared global mock; see
-[TESTING_STRATEGY.md](TESTING_STRATEGY.md).
-
 ### BackupManager
 
-**Location**: `usersc/classes/admin/BackupManager.php`
+**Location**: `/usersc/classes/admin/BackupManager.php`
 
 Database backup management with retention policies, schema operation integration, and environment-aware cleanup. Throws `BackupException` on failures.
-Constructor takes a `DatabaseInterface` (see above) — construct with `dbi()`.
 
 **See [BACKUP_SYSTEM.md](BACKUP_SYSTEM.md)** for complete API reference, usage examples, and retention policies.
 
@@ -758,7 +727,7 @@ if ($result !== true) {
 
 ### DocumentPortalTemplate
 
-**Location**: `/usersc/classes/DocumentPortalTemplate.php`
+**Location**: `/usersc/classes/Documentation/DocumentPortalTemplate.php`
 
 **Namespace**: `ElanRegistry\Documentation`
 
@@ -780,9 +749,6 @@ echo DocumentPortalTemplate::renderDocumentCardGrid($cards);
 > **Note**: Guide content is pre-rendered to static HTML and inlined as PHP
 > heredocs in the individual guide pages under `docs/guides/`. To update guide
 > content, edit the heredoc directly in the relevant PHP file.
-
-- `CarActions` - Car-related user operations
-- `DatabaseMaintenance` - Maintenance operations
 
 ### Naming Conventions
 
@@ -922,7 +888,7 @@ Classes in the `ElanRegistry\Reference` namespace provide access to external/can
 
 ### CarModel
 
-**Location**: `/usersc/classes/ElanRegistry/Reference/CarModel.php`
+**Location**: `/usersc/classes/Reference/CarModel.php`
 
 **Namespace**: `ElanRegistry\Reference`
 
@@ -985,13 +951,13 @@ if ($carModel->exists('S4', 'FHC', '36')) {
 
 **See Also**:
 
-- [Issue #577](https://github.com/jimboone/elan-registry/issues/577) - car_models table creation
+- [Issue #577](https://github.com/elan-registry/registry/issues/577) - car_models table creation
 - `/usersc/classes/ElanRegistry/README.md` - Namespace pattern documentation
 
 ## See Also
 
-- [GitHub Wiki: Architecture Guide](https://github.com/jimboone/elan-registry/wiki/Architecture) - System architecture overview
+- [GitHub Wiki: Architecture Guide](https://github.com/elan-registry/registry/wiki/Architecture) - System architecture overview
 - [DATABASE.md](DATABASE.md) - Database schema and relationships
-- [GitHub Wiki: UserSpice Integration Guide](https://github.com/jimboone/elan-registry/wiki/Integration) - UserSpice integration patterns
+- [GitHub Wiki: UserSpice Integration Guide](https://github.com/elan-registry/registry/wiki/Integration) - UserSpice integration patterns
 - [CODING_STANDARDS.md](CODING_STANDARDS.md) - Code quality requirements
 - [TESTING.md](../testing/TESTING.md) - Testing guidelines

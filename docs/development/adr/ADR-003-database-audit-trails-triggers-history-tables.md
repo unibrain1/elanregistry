@@ -100,7 +100,13 @@ metadata:
 
 ### car_user_hist -- Junction Table Audit
 
-A `car_user_hist` table exists in the schema to audit the `car_user` ownership
+> **No longer applies (v2.26.2).** `car_user` and `car_user_hist`, and the
+> triggers described below, were dropped by migration
+> `20260711000000_drop_car_user_tables.php` (issue #1162). Ownership is now a
+> single authoritative column, `cars.user_id`, audited through `cars_hist`.
+> The rest of this section is retained as a record of the decision as made.
+
+A `car_user_hist` table existed in the schema to audit the `car_user` ownership
 relationship table:
 
 | Column | Type |
@@ -348,7 +354,7 @@ point-in-time history.
 ## References
 
 - **Database Schema and Triggers**:
-  [docs/development/DATABASE.md](../development/DATABASE.md) and
+  [docs/development/DATABASE.md](../DATABASE.md) and
   `database/migrations/` (current schema-of-record; the file cited when this
   ADR was written has since been removed)
 - **ADR-002 Denormalized Cars Table**:
@@ -372,6 +378,6 @@ point-in-time history.
   [08-Fix-Car-History-Triggers-Username-Column.php](../../FIX/_ARCHIVE/08-Fix-Car-History-Triggers-Username-Column.php)
   (trigger rebuild example)
 - **Coding Standards**:
-  [CODING_STANDARDS.md](../development/CODING_STANDARDS.md)
+  [CODING_STANDARDS.md](../CODING_STANDARDS.md)
 - **Nygard ADR Format**:
   [Documenting Architecture Decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)

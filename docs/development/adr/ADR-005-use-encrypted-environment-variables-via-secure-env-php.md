@@ -371,13 +371,13 @@ Place a `config.php`one directory above`document_root` (outside web-accessible d
 - **Locked Version**: [usersc/composer.lock](../../usersc/composer.lock) (v2.0.1)
 - **Loading Point**: [users/init.php](../../users/init.php) (lines 50-52, 58-61)
 - **Autoloader Registration**: [users/helpers/helpers.php](../../users/helpers/helpers.php) (lines 55-57)
-- **Environment Documentation**: [docs/development/ENVIRONMENT.md](../development/ENVIRONMENT.md)
+- **Environment Documentation**: [docs/development/ENVIRONMENT.md](../ENVIRONMENT.md)
 - **Plaintext Sample**: [.env.local.sample](../../.env.local.sample)
 - **Install Script**: [scripts/install-dependencies.sh](../../scripts/install-dependencies.sh)
 - **Integration Test Bootstrap**: [tests/bootstrap-integration.php](../../tests/bootstrap-integration.php)
 - **Crypto Implementation**: [usersc/vendor/johnathanmiller/secure-env-php/src/Crypto.php](../../usersc/vendor/johnathanmiller/secure-env-php/src/Crypto.php)
-- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../development/PAGE_LOADING_FLOW.md)
-- **v2.11.0 Release Notes**: [docs/releases/RELEASE_NOTES_V2.11.0.md](../releases/RELEASE_NOTES_V2.11.0.md)
+- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../PAGE_LOADING_FLOW.md)
+- **v2.11.0 Release Notes**: [docs/releases/RELEASE_NOTES_V2.11.0.md](https://github.com/elan-registry/registry/releases/tag/v2.11.0)
 - **UserSpice Integration**: ADR-001 covers UserSpice `/users/`vs`/usersc/` separation
 - **Nygard ADR Format**:
   [https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)

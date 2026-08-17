@@ -39,8 +39,9 @@ on the UserSpice framework.
   `*_hist` trigger tables.
 - **Classes**: Custom classes in `/usersc/classes/` (Car, CarView,
   Owner, ChassisValidator, etc.)
-- **Owner data**: Use `getUserWithProfile($userId)` for combined user+profile
-  access. "Owner" in UI/domain, "User" in auth/framework code.
+- **Owner data**: Use `(new Owner($userId))->data()` for combined user+profile
+  data access (`getUserWithProfile()` was removed in v2.26.2).
+  "Owner" in UI/domain, "User" in auth/framework code.
 - **AJAX endpoints**: Use Pattern A response format (`{success, message, ...}`)
   with `ApiResponse` class. Frontend uses `ElanRegistryAPI` client.
 - **Error handling**: Typed exceptions, `LogCategories` constants, centralized
@@ -51,8 +52,8 @@ on the UserSpice framework.
 - **Logging**: Use `logger()` with `LogCategories::LOG_CATEGORY_*` constants.
 - **New directories**: Register in `$path` array in `/z_us_root.php` **only
   if the directory contains files that call `securePage()`**. API endpoints
-  and action handlers without `securePage()` (e.g. `app/action/`,
-  `app/api/`) are intentionally omitted.
+  and action handlers without `securePage()` (e.g. `app/api/cars/`,
+  `app/api/shared/`) are intentionally omitted.
 
 ### UserSpice Framework
 

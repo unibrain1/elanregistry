@@ -65,7 +65,7 @@ currentUserId();  // When not logged in
 Before:
 
 ```php
-$userId = getUserWithProfile($carData->user_id);
+$owner = new Owner($carData->user_id);
 $carId = (int) $row->id;
 $createdById = (int) $user->data()->id;
 ```
@@ -73,7 +73,7 @@ $createdById = (int) $user->data()->id;
 After:
 
 ```php
-$userId = getUserWithProfile(dbInt($carData, 'user_id'));
+$owner = new Owner(dbInt($carData, 'user_id'));
 $carId = dbInt($row, 'id');
 $createdById = currentUserId();
 ```

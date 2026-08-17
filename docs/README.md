@@ -44,9 +44,15 @@ project, structured for different audiences and use cases.
 
 #### 🚀 START HERE
 
-- **[CLAUDE.md](../CLAUDE.md)** - Root instructions for Claude Code AI assistant
-- **[QUICK_REFERENCE.md](development/QUICK_REFERENCE.md)** - Quick reference for common tasks and commands
-- **[INSTALLATION.md](development/INSTALLATION.md)** - Complete installation and setup procedures
+New to the project? Four documents, in this order:
+
+1. **[SYSTEM_OVERVIEW.md](development/SYSTEM_OVERVIEW.md)** — what the registry does, who can do what, and what is deliberately not built
+2. **[Registry Installation Guide][install-wiki]** — get it running
+3. **[CLAUDE.md](../CLAUDE.md)** — conventions, commands, development workflow
+4. **[CODING_STANDARDS.md](development/CODING_STANDARDS.md)** — how to write code here
+
+`CLAUDE.md` is the canonical entry point; this index and the wiki both defer to
+its ordering.
 
 #### 📚 CORE DOCUMENTATION
 
@@ -54,9 +60,10 @@ project, structured for different audiences and use cases.
 - **[PAGE_LOADING_FLOW.md](development/PAGE_LOADING_FLOW.md)** - Page initialization and file loading sequence
 - **[DATABASE.md](development/DATABASE.md)** - Complete database schema and table relationships
 - **[UserSpice Integration Guide][us-wiki]** - UserSpice integration and custom functions
-- **[CODING_STANDARDS.md](development/CODING_STANDARDS.md)** - Code quality requirements and project conventions
-- **[TESTING_STRATEGY.md](development/TESTING_STRATEGY.md)** - Testing tier architecture and UserSpice DB conventions
+- **[CODING_STANDARDS.md](development/CODING_STANDARDS.md)** - Code quality requirements, project conventions, and static analysis (PHPStan, phpcs, ESLint)
+- **[UI_STANDARDS.md](development/UI_STANDARDS.md)** - **Read before any UI change** — color tokens, card hierarchy, component patterns
 - **[STRICT_TYPE_HANDLING.md](development/STRICT_TYPE_HANDLING.md)** - PHP strict type handling patterns
+- **[USERSPICE_FUNCTIONS.md](development/USERSPICE_FUNCTIONS.md)** - UserSpice framework function reference — check before building custom solutions
 
 #### 🔧 SPECIALIZED TOPICS
 
@@ -69,8 +76,9 @@ project, structured for different audiences and use cases.
 - **[CSS_AND_ASSETS.md](development/CSS_AND_ASSETS.md)** - CSS file structure and build process
 - **[DATATABLES.md](development/DATATABLES.md)** - DataTables configuration and server-side processing
 - **[ENVIRONMENT.md](development/ENVIRONMENT.md)** - Environment setup and configuration
-- **[STATIC_ANALYSIS.md](development/STATIC_ANALYSIS.md)** - Code quality and static analysis tools
+- **[LOG_CATEGORIES.md](development/LOG_CATEGORIES.md)** - Audit logging constants for `logger()` calls
 - **[RELEASE_NOTES_TEMPLATE.md](development/RELEASE_NOTES_TEMPLATE.md)** - Template for creating release notes
+- **[adr/](development/adr/)** - Architecture Decision Records — why significant technical choices were made
 
 ### `/testing/` - Testing Documentation
 
@@ -114,3 +122,4 @@ in the relevant PHP file. No build step required.
 
 [arch-wiki]: https://github.com/elan-registry/registry/wiki/Elan-Registry-Architecture-and-Database-Design
 [us-wiki]: https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns
+[install-wiki]: https://github.com/elan-registry/registry/wiki/Registry-Installation

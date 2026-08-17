@@ -192,7 +192,7 @@ throughout the application.
 **Purpose**: Replace hardcoded log strings with constants to prevent typos,
 improve discoverability, and maintain consistency.
 
-**Organization**: 140+ categories organized by functional domain:
+**Organization**: 107 categories organized by functional domain:
 
 - Car Management (CarActions, CarCreation, CarUpdate, CarDeletion, CarMerge,
   CarTransfer, CarVerification, CarSold, CarErrors)
@@ -264,7 +264,7 @@ automatic CSRF token injection, error handling, and request cancellation.
 const api = new ElanRegistryAPI();
 
 try {
-    const result = await api.post('app/action/update-car.php', {
+    const result = await api.post('app/api/cars/save.php', {
         car_id: 123,
         year: 2020
     });
@@ -294,7 +294,7 @@ try {
 const api = new ElanRegistryAPI();
 
 try {
-    const result = await api.get('app/action/search-cars.php', {
+    const result = await api.get('app/api/cars/list.php', {
         query: 'Elan',
         limit: 10
     });
@@ -319,7 +319,7 @@ async function search(query) {
     }
 
     try {
-        const result = await api.request('app/action/search.php', {
+        const result = await api.request('app/api/cars/list.php', {
             method: 'GET',
             params: { q: query },
             requestId: (searchRequestId = api.generateRequestId())
@@ -546,9 +546,9 @@ const result = await api.post('endpoint', data);
 
 - `/usersc/classes/ApiResponse.php` - API response class
 - `/usersc/classes/Exceptions/ElanRegistryException.php` - Base exception (namespace: `ElanRegistry\Exceptions`)
-- `/usersc/classes/Exceptions/` - All exception classes (26 total)
+- `/usersc/classes/Exceptions/` - All exception classes (22 total)
 - `/usersc/classes/LogCategories.php` - Log category constants
-- `/usersc/includes/custom_functions.php` - logger() function, getUserWithProfile()
+- `/usersc/includes/custom_functions.php` - Global helpers: `dbInt()`, `currentUserId()`, `isRegistryAdmin()`, `requireAdminAjax()`, `getBaseUrl()`
 - `/usersc/js/elan-registry-api.js` - Frontend API client
 - `/usersc/js/notification-helper.js` - Notification utility
 - `/composer.json` - PSR-4 autoload configuration for `ElanRegistry\Exceptions`
@@ -559,14 +559,14 @@ const result = await api.post('endpoint', data);
   to read this guide
 - **[CODING_STANDARDS.md](CODING_STANDARDS.md)** - Error handling requirements
   and code review checklist
-- **[LOG_CATEGORIES.md](LOG_CATEGORIES.md)** - Complete list of 140+ log
+- **[LOG_CATEGORIES.md](LOG_CATEGORIES.md)** - Complete list of all 107 log
   category constants
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Copy-paste code snippets for
   error handling patterns
 
 ### Related Patterns
 
-- **UserSpice Integration**: See [INTEGRATION.md](INTEGRATION.md) for session
+- **UserSpice Integration**: See [INTEGRATION.md](https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns) for session
   management and authentication patterns
 - **Class Architecture**: See [CLASSES.md](CLASSES.md) for exception patterns
   in domain classes
@@ -578,6 +578,6 @@ const result = await api.post('endpoint', data);
 - **v2.12.0**: Complete error handling system introduced
   - ApiResponse class
   - ElanRegistryException hierarchy (23 types)
-  - LogCategories constants (140+ categories)
+  - LogCategories constants (107 categories)
   - ElanRegistryAPI frontend client
   - NotificationHelper utility

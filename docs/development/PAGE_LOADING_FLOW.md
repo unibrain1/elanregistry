@@ -79,7 +79,8 @@ users/init.php
 │   │
 │   ├─ 1.5.1. usersc/includes/custom_functions.php
 │   │   └─ Custom helper functions:
-│   │       ├─ getUserWithProfile() - Combined user/profile data
+│   │       ├─ currentUserId() - Logged-in user ID (throws if absent)
+│   │       ├─ dbInt() - Safe integer cast for database values
 │   │       ├─ isRegistryAdmin() - Check registry admin/editor permissions
 │   │       ├─ getBaseUrl() - Get environment-aware base URL
 │   │       ├─ getAdminEmails() - Get admin email addresses
@@ -304,14 +305,14 @@ users/includes/template/prep.php
 │       │   ├─ Title tag (from page metadata)
 │       │   ├─ Favicon links
 │       │   ├─ CSS includes:
-│       │   │   ├─ Bootstrap 5.3.3 (cdnjs.cloudflare.com, SRI-hashed)
+│       │   │   ├─ Bootstrap 5.3.8 (self-hosted, users/css/ — ADR-015)
 │       │   │   ├─ Font Awesome icons (self-hosted)
 │       │   │   ├─ DataTables CSS (self-hosted)
 │       │   │   ├─ Customizer child theme CSS (see CSS loading below)
 │       │   │   └─ usersc/templates/{template}.css override (if exists)
 │       │   └─ JavaScript includes (header):
 │       │       ├─ jQuery (users/js/jquery.php → code.jquery.com CDN)
-│       │       └─ Bootstrap bundle 5.3.3 (cdnjs.cloudflare.com, SRI-hashed)
+│       │       └─ Bootstrap bundle 5.3.8 (self-hosted, users/js/ — ADR-015)
 │       └─ <body> opening tag
 │
 ├─ 2.3. usersc/templates/{template}/navigation.php
@@ -736,8 +737,8 @@ Debug mode shows:
 
 ## Related Documentation
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Overall system architecture
-- **[INTEGRATION.md](INTEGRATION.md)** - UserSpice integration patterns
+- **[ARCHITECTURE.md](https://github.com/elan-registry/registry/wiki/Elan-Registry-Architecture-and-Database-Design)** - Overall system architecture
+- **[INTEGRATION.md](https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns)** - UserSpice integration patterns
 - **[CLASSES.md](CLASSES.md)** - Custom application classes
 - **[CODING_STANDARDS.md](CODING_STANDARDS.md)** - Coding standards
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Common tasks lookup

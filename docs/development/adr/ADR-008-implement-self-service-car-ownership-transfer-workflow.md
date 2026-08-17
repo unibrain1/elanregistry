@@ -117,7 +117,8 @@ set`status='expired'`; admin interfaces filter on both pending status and not-ye
 Fields updated per ADR-002 (denormalized owner data): `user_id`, `token`, `email`, `fname`, `lname`, `join_date`, `city`, `state`, `country`, `lat`, `lon`,
 `website`
 
-**`car_user`** junction table:
+**`car_user`** junction table (**dropped in v2.26.2**, issue #1162 — this step
+no longer occurs; ownership moves via `cars.user_id` alone):
 `userid`field updated to new owner's`user_id`
 
 **`cars_hist`** table:
@@ -297,10 +298,10 @@ Dedicated button on car detail page to initiate transfer, visible even before us
 | Database schema | `database/migrations/` (current schema-of-record) |
 | Integration tests | [/tests/integration/transfer/CarTransferWorkflowTest.php](../../tests/integration/transfer/CarTransferWorkflowTest.php) |
 | Car repository | [/usersc/classes/Car/CarRepository.php](../../usersc/classes/Car/CarRepository.php) |
-| User guide | [/docs/faq/CAR_TRANSFER_USER_GUIDE.md](../faq/CAR_TRANSFER_USER_GUIDE.md) |
-| Admin guide | [/docs/faq/admin/CAR_TRANSFER_ADMIN_GUIDE.md](../faq/admin/CAR_TRANSFER_ADMIN_GUIDE.md) |
+| User guide | [/docs/faq/CAR_TRANSFER_USER_GUIDE.md](../../guides/car-transfer-faq.php) |
+| Admin guide | [/docs/faq/admin/CAR_TRANSFER_ADMIN_GUIDE.md](../../guides/car-transfer-faq.php) |
 | Log categories | [/usersc/classes/LogCategories.php](../../usersc/classes/LogCategories.php) (LOG_CATEGORY_CAR_TRANSFER) |
-| Error handling patterns | [ERROR_HANDLING.md](../development/ERROR_HANDLING.md) |
+| Error handling patterns | [ERROR_HANDLING.md](../ERROR_HANDLING.md) |
 | Database audit trails | [ADR-003](ADR-003-database-audit-trails-triggers-history-tables.md) |
 | Denormalization rationale | [ADR-002](ADR-002-denormalized-cars-table-cached-owner-data.md) |
 | API response patterns | [ADR-004](ADR-004-standardize-api-architecture-pattern-a-responses.md) |

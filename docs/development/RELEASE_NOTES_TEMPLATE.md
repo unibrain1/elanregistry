@@ -15,23 +15,23 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 
 ### New Features
 
-- **[Feature Name]** ([#NNN](https://github.com/unibrain1/elanregistry/issues/NNN)): One-line description of the feature and its benefit to users.
+- **[Feature Name]** ([#NNN](https://github.com/elan-registry/registry/issues/NNN)): One-line description of the feature and its benefit to users.
 
 ### Improvements
 
-- **[Improvement Name]** ([#NNN](https://github.com/unibrain1/elanregistry/issues/NNN)): One-line description of the improvement and its benefit.
+- **[Improvement Name]** ([#NNN](https://github.com/elan-registry/registry/issues/NNN)): One-line description of the improvement and its benefit.
 
 ## Admin-Facing Changes
 
 Changes visible only to administrators (admin dashboard, maintenance tools, settings, etc.).
 Uses the same subsections (New Features, Improvements) as User-Facing Changes above.
 
-- **[Change Name]** ([#NNN](https://github.com/unibrain1/elanregistry/issues/NNN)): One-line description.
+- **[Change Name]** ([#NNN](https://github.com/elan-registry/registry/issues/NNN)): One-line description.
 
 ## Issues Resolved
 
-- [#NNN](https://github.com/unibrain1/elanregistry/issues/NNN) — GitHub issue title (verbatim)
-- [#NNN](https://github.com/unibrain1/elanregistry/issues/NNN) — GitHub issue title (verbatim)
+- [#NNN](https://github.com/elan-registry/registry/issues/NNN) — GitHub issue title (verbatim)
+- [#NNN](https://github.com/elan-registry/registry/issues/NNN) — GitHub issue title (verbatim)
 
 ---
 

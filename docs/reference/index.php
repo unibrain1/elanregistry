@@ -55,7 +55,7 @@ $externalCards = [
     [
         'title'        => 'Elan Registry on GitHub',
         'icon'         => 'fa-code-branch',
-        'url'          => 'https://github.com/unibrain1/elanregistry',
+        'url'          => 'https://github.com/elan-registry/registry',
         'buttonText'   => 'View',
         'buttonTarget' => '_blank',
         'headerClass'  => 'card-header-er-primary',

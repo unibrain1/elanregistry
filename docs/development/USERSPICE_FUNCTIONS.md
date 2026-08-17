@@ -343,9 +343,10 @@ Retrieves and sanitizes a form input value.
 $username = Input::get('username');
 ```
 
-### Input::sanitize($item)
-
-Sanitizes non-form data for safe storage.
+> **Removed.** `Input::sanitize()` pre-encoded values at storage time. It was
+> removed by the encode-at-output reform: store raw with
+> `ElanRegistry\Input::raw()`, escape with `htmlspecialchars()` at the render
+> layer. Do not reintroduce it — double-encoding is the bug this prevents.
 
 ### Input::json($json, $associative = false, $encode = false)
 
@@ -1279,7 +1280,6 @@ These exist in `users/helpers/deprecated.php`. Avoid using in new code.
 | `importSQL` | Utility | Execute SQL file |
 | `Input::exists` | Input | Check for POST/GET data |
 | `Input::get` | Input | Get sanitized form input |
-| `Input::sanitize` | Input | Sanitize non-form data |
 | `isAdmin` | Permissions | Check if user is admin |
 | `isLocalhost` | Utility | Check if running locally |
 | `isStandardUser` | Permissions | Check standard user only |

@@ -25,7 +25,7 @@ This is the Lotus Elan Registry (elanregistry.org), a PHP application built on U
 - MySQL 8.0+ with audit trail tables (*_hist)
 - UserSpice handles auth; custom classes in `/usersc/classes/`
 - Use `securePage()` for page protection
-- Use `(new Owner($userId))->data()` for combined user+profile data access
+- Use `(new Owner($userId))->data()` for owner data access
   (`getUserWithProfile()` was removed in v2.26.2)
 - Use ElanRegistryAPI (fetch-based) for new AJAX endpoints, Pattern A response format
 - Use LogCategories constants for all logging
@@ -35,38 +35,13 @@ This is the Lotus Elan Registry (elanregistry.org), a PHP application built on U
 ## When Reviewing Code
 
 - Check for duplicated UserSpice functionality (see `docs/development/USERSPICE_FUNCTIONS.md`)
+- Check for SQL injection, XSS, CSRF vulnerabilities
+- Verify type declarations on all function parameters and returns
 - Identify dead code, unused variables, redundant abstractions
+- Ensure error handling follows centralized patterns (ApiResponse, typed exceptions)
 - Verify GDPR implications of any personal data handling
-- Confirm overall design and architectural fit — does this belong here, does
-  it introduce a pattern the codebase should be consistent about, is there a
-  simpler shape that meets the same requirement
-- Spot-check security and error handling for obvious, structural problems
-  (e.g. a whole endpoint missing `securePage()`, a catch block that silently
-  swallows a security-relevant failure) — but see "Overlaps with" below for
-  where the exhaustive sweep belongs instead
-
-### Overlaps with other review agents — don't re-derive their checklists
-
-This agent is invoked for **judgment calls** a checklist can't make: does
-this fit the architecture, is the abstraction right, is this the simplest
-design, are there GDPR/data-minimization implications. It is not the place
-for an exhaustive line-by-line sweep — that duplicates agents built for it:
-
-- **security-reviewer** owns the systematic OWASP/CSRF/SQLi/XSS/input-
-  validation pass. Flag a security issue if you spot one, but don't run the
-  full checklist yourself — that's what security-reviewer is for.
-- **code-reviewer** owns CLAUDE.md / CODING_STANDARDS.md conformance (type
-  hints, `declare(strict_types=1)`, PHPDoc, Pattern A responses). Don't
-  re-derive that list here.
-- **silent-failure-hunter** owns the detailed error-handling audit (catch
-  specificity, logging context, fallback justification). Flag a structural
-  problem if you see one; leave the systematic pass to that agent.
-- **pr-test-analyzer** owns test-coverage-adequacy judgment. This agent may
-  note that tests seem missing, but shouldn't produce the coverage analysis.
-
-If this agent is being run alongside one of the above on the same diff,
-prefer noting "see security-reviewer/code-reviewer finding" over restating
-the same issue independently.
+- Check that new pages use `securePage()` and are registered in UserSpice
+- Confirm tests exist or recommend what tests to add
 
 ## When Designing Features
 

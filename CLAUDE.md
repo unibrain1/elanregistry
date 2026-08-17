@@ -8,10 +8,12 @@ working with code in this repository.
 **Essential reading:**
 
 - `CLAUDE.md` (this file) - Overview and quick reference
+- `docs/development/SYSTEM_OVERVIEW.md` - **What the registry does and for whom** —
+  capabilities by role, what is deliberately not built, and what is built but
+  broken. Read before designing any feature change.
 - `docs/development/UI_STANDARDS.md` - **UI component standards** (color tokens, card hierarchy, component patterns) — read before any UI change
 - `docs/development/EMAIL_SYSTEM.md` - Brevo email plugin setup and configuration
 - `docs/development/CODING_STANDARDS.md` - Code quality requirements
-- `docs/development/TESTING_STRATEGY.md` - Testing tier architecture and UserSpice DB conventions
 - `docs/development/QUICK_REFERENCE.md` - Common tasks lookup
 - `docs/development/DEPLOYMENT.md` - Production deployment procedures
 - `docs/development/ENVIRONMENT.md` - Environment setup and configuration
@@ -69,9 +71,9 @@ all other Cloudflare features work normally.
 - `/usersc/` - UserSpice customizations (templates, plugins, overrides)
 - `/usersc/classes/` - Custom application classes (PSR-4: `ElanRegistry\` →
   `usersc/classes/`, `ElanRegistry\Exceptions\` → `usersc/classes/Exceptions/`)
-- `/tests/` - PHPUnit and Playwright tests: `unit/` (mocked, no DB, includes
-  `unit/regression/` — tagged `#[Group('regression')]`, not a separate tier),
-  `integration/` (real DB), `playwright/` (browser), `manual/`, `fixtures/`
+- `/tests/` - PHPUnit and Playwright tests: `unit/` (mocked, no DB),
+  `integration/` (real DB), `regression/`, `playwright/` (browser),
+  `manual/`
 
 **Key Integration Points:**
 
@@ -83,12 +85,13 @@ all other Cloudflare features work normally.
 - **Car Image Storage**: `cars.image` column is a JSON array of bare filenames
   (e.g. `["abc123.jpg"]`). Files live at `userimages/{carid}/{filename}` with
   resized variants as `{basename}-resized-{size}.{ext}` (sizes: 100, 300, 768,
-  1024, 2048). Unassigned images accumulate in `userimages/orphan/`.
+  1024, 2048). New uploads land in `userimages/temp/` and move to
+  `userimages/{carid}/` on success.
   Use `CarImageProcessor` to decode; `CarRepository::updateImage()` to write.
 - **New PHP Directories**: Only add a directory to the `$path` array in
   `/z_us_root.php` when it contains files that call `securePage()`. Pure API
   endpoints, action handlers, and partials that do not call `securePage()` are
-  **not** added — `app/action/`, `app/api/cars/`, and `app/api/shared/` are examples of this
+  **not** added — `app/api/cars/` and `app/api/shared/` are examples of this
   pattern. (`app/api/contact/` is an exception: it contains files that call `securePage()` and
   is therefore included.)
   New admin scripts go under `app/admin/scripts/fix/` (one-time migrations) or
@@ -153,7 +156,6 @@ composer migrate                # Apply pending migrations
 composer migrate:status         # Show pending and applied migrations
 composer migrate:dry-run        # Preview pending migrations without applying
 composer migrate:rollback       # Roll back the most recent migration
-composer seed:run               # Populate reference/config data after migrate (see database/seeds/README.md)
 
 # Build (minify first-party JS/CSS — run after editing source files)
 npm run build                   # Minify app/assets/js/, app/assets/css/, app/admin/assets/
@@ -227,32 +229,6 @@ Pre-existing baseline errors are tracked debt — clear them for files you touch
 `reportUnmatchedIgnoredErrors: true` ensures CI rejects stale entries once fixed.
 See `docs/development/CODING_STANDARDS.md` — PHPStan Baseline Hygiene.
 
-### Review Layer Map
-
-Each mechanical check and review agent owns a distinct concern. **Before
-adding a new full-diff review step to any workflow command or agent, check
-this table first** — a new step that re-covers an existing layer adds cost,
-not coverage. (Background: several review layers were found stacking
-identical checks on the same PR; see the workflow-efficiency plan that
-prompted this section.)
-
-| Layer | Owns |
-| --- | --- |
-| PHPStan | Type errors, static analysis (level 5, baselined) |
-| `check-coding-standards.php` | Security patterns, type hints, PHPDoc presence, regression-test issue-linking |
-| ESLint | JavaScript style and static checks |
-| CodeQL / Semgrep | Known vulnerability patterns (SQL concatenation, XSS sinks, etc.) |
-| `security-reviewer` agent | Exhaustive OWASP/CSRF/SQLi/XSS/input-validation sweep |
-| `code-reviewer` agent | CLAUDE.md / CODING_STANDARDS.md conformance and obvious bugs, breadth over the whole diff |
-| `silent-failure-hunter` agent | Error-handling and fallback correctness (catch specificity, logging context) |
-| `senior-architect` agent | Architecture fit, design tradeoffs, GDPR — Large-tier issues only (see `start-issue.md`) |
-| `pr-test-analyzer` agent | Test-coverage adequacy judgment |
-| `comment-analyzer` agent | Comment/PHPDoc accuracy and long-term maintainability |
-| CI `pr-to-milestone-review` (Sonnet backstop) | Catches what static tools can't, assuming `/review-pr` already ran locally — not a full re-review |
-
-Each agent's own file documents its "Scope of Overlap with Other Review
-Agents" in more detail — see `.claude/agents/*.md`.
-
 ### Playwright Test Maintenance
 
 When adding, moving, removing, or renaming any page, update tests **in the same PR**:
@@ -321,11 +297,8 @@ and architecture agents.
 
 ### Planning Work
 
-- Working documents (sprint plans, triage reports, FRDs) live in a permanent
-  local directory outside this repo — path in `.claude.local.md` (gitignored;
-  copy `.claude.local.md.example` to set it up), same pattern as the wiki
-  clone. Delete a plan's contents after its decisions are applied to GitHub
-  milestones/issues.
+- `plans/` directory is for temporary working documents (sprint plans, triage
+  reports) — delete after decisions are applied to GitHub milestones/issues
 - For milestone planning, use the `senior-product-manager`, `senior-architect`,
   and `security-reviewer` agents in parallel for comprehensive analysis
 
@@ -335,11 +308,10 @@ and architecture agents.
 /new-issue           — Create a well-defined GitHub issue with PM refinement
 /address-pr-comments — Triage CI/reviewer comments, fix blocking items
 /security-review     — OWASP security audit of recent changes
-/release             — Standalone release (hotfixes not tied to a milestone)
+/found               — Capture a pre-existing issue found mid-task; classify and file or fix
 /architecture-update — Full wiki architecture documentation refresh
 /revise-claude-md    — Update CLAUDE.md with session learnings
 /clean_gone          — Delete local branches removed from remote
-/found               — Capture a pre-existing issue found mid-task; classify and file or fix
 ```
 
 ### Release Notes
@@ -375,23 +347,21 @@ See [DEPLOYMENT.md](docs/development/DEPLOYMENT.md) for complete procedures. **C
 
 ## GitHub Wiki
 
-The wiki is a **separate git repository**, cloned once at a permanent local
-path outside this repo. That path is developer-specific (not committed here
-— see `.claude.local.md`, gitignored; copy `.claude.local.md.example` to set
-it up). Note this is a plain reference file Claude Code reads on demand when
-a prompt or instruction like this one points at it — it is not Claude Code's
-built-in auto-loaded project memory.
+The wiki is a **separate git repository** at the permanent path:
 
-**CRITICAL:** ALWAYS use that one permanent clone. NEVER clone to `/tmp/`, a
-worktree, or any other temporary location.
+```text
+/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki
+```
 
-To update the live wiki, edit files directly in that clone (path in
-`.claude.local.md`):
+**CRITICAL:** ALWAYS use this exact path. NEVER clone to `/tmp/`, a worktree,
+or any other temporary location — there is one permanent clone and it is the
+only place to use.
+
+To update the live wiki after editing files in `wiki/` on a branch:
 
 ```bash
-cd <your wiki clone path>
-git pull
-# edit <file>.md directly in this clone
+cp wiki/<file>.md /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/
+cd /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki
 git add <file>.md
 git commit -m "docs: <description>"
 git push

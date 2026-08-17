@@ -740,8 +740,8 @@ Add a `Permissions-Policy` header to restrict browser feature access
 
 **Related Documentation:**
 
-- **Page Loading Flow:** [docs/development/PAGE_LOADING_FLOW.md](../development/PAGE_LOADING_FLOW.md) (Phase 1.11.2)
-- **v2.15.1 Release Notes:** [docs/releases/RELEASE_NOTES_v2.15.1.md](../releases/RELEASE_NOTES_v2.15.1.md) (Issue #420)
+- **Page Loading Flow:** [docs/development/PAGE_LOADING_FLOW.md](../PAGE_LOADING_FLOW.md) (Phase 1.11.2)
+- **v2.15.1 Release Notes:** [docs/releases/RELEASE_NOTES_v2.15.1.md](https://github.com/elan-registry/registry/releases/tag/v2.15.1) (Issue #420)
 
 **Related ADRs:**
 

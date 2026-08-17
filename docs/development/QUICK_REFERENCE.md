@@ -12,7 +12,7 @@ See [CLAUDE.md](../../CLAUDE.md) → Quick Start Commands for the full testing a
 ### Pre-commit Quality Checks
 
 ```bash
-composer phpcs                  # Manual coding standards check
+composer check:php               # Coding standards + PHPStan (no `composer phpcs` script exists)
 ```
 
 ### Milestone Lifecycle
@@ -27,10 +27,11 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for complete release procedures.
 
 ```text
 /app/                      # Main application pages
-  /cars/                   # Car listing, details, edit
+  /owner/cars/             # Car listing, details, edit, factory
+  /owner/contact/          # Owner contact functionality
+  /owner/reports/          # Statistics and reports
   /admin/                  # Admin interfaces
-  /reports/                # Statistics and reports
-  /contact/                # Owner contact functionality
+  /api/                    # AJAX JSON endpoints
 /users/                    # UserSpice authentication
 /usersc/                   # UserSpice customizations
   /classes/                # Custom PHP classes
@@ -57,7 +58,7 @@ VERSION                    # Current version number
 See [DATABASE.md](DATABASE.md)
 
 **User/Profile Access:**
-`$owner = getUserWithProfile($userId)` → `$owner->fname`, `$owner->city`
+`$owner = (new Owner($userId))->data()` → `$owner->fname`, `$owner->city`
 See [CLASSES.md](CLASSES.md)
 
 **Error Handling:**
@@ -79,7 +80,7 @@ See [CLAUDE.md](../../CLAUDE.md) for the full list and [PAGE_LOADING_FLOW.md](PA
 
 **New PHP Directories:**
 Add path to `$path` array in `/z_us_root.php`, register pages in UserSpice admin
-See [GitHub Wiki: UserSpice Integration Guide](https://github.com/unibrain1/elanregistry/wiki/Customization-and-Integration-Patterns)
+See [GitHub Wiki: UserSpice Integration Guide](https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns)
 
 ## Custom Functions Available on All Pages
 
@@ -87,8 +88,8 @@ These functions are loaded globally and available on every page:
 
 | Function | Returns | Purpose | Example |
 | --- | --- | --- | --- |
-| `getUserWithProfile($userId)` | object | Get user + profile data in one query | `$owner = getUserWithProfile(5)` |
 | `isRegistryAdmin($userId)` | bool | Check if user has admin/editor perms | `if (isRegistryAdmin()) { ... }` |
+| `requireAdminAjax($context)` | void | Guard an admin AJAX endpoint (exits on failure) | `requireAdminAjax('transfer approval')` |
 | `getBaseUrl()` | string | Get app base URL (environment-aware) | `$base = getBaseUrl()` |
 | `getAdminEmails()` | string | Get comma-separated admin emails | `$emails = getAdminEmails()` |
 | `getFeedbackEmail()` | string | Get feedback form email address | `$email = getFeedbackEmail()` |
@@ -100,7 +101,9 @@ These functions are loaded globally and available on every page:
 
 ```php
 // Get owner data with profile information
-$owner = getUserWithProfile($userId);
+// (getUserWithProfile() was removed in v2.26.2 — use the Owner class)
+use ElanRegistry\Owner;
+$owner = (new Owner($userId))->data();
 echo $owner->fname . " from " . $owner->city;
 
 // Check admin status
@@ -174,7 +177,7 @@ open findings for all repos.
 
 ```bash
 SEMGREP_APP_TOKEN=$(op read "op://HomeLab/SEMGREP_APP_TOKEN/credential")
-curl -s "https://semgrep.dev/api/v1/deployments/jim_unibrain_org/findings?dedup=true&ref=main&repos=unibrain1%2Felanregistry" \
+curl -s "https://semgrep.dev/api/v1/deployments/jim_unibrain_org/findings?dedup=true&ref=main&repos=elan-registry%2Fregistry" \
   --header "Authorization: Bearer $SEMGREP_APP_TOKEN" | jq '.findings[] | {
     id, severity, rule: .rule_name,
     file: .location.file_path, line: .location.line,
