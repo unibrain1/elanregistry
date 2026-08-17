@@ -183,10 +183,29 @@ if (ElanInput::existsPost()) {
             switch ($command) {
                 // Car reassignment
                 case "reassign":
-                    $user_id = (int) ElanInput::get('user_id');
+                    $noOwner = (bool) ElanInput::get('no_owner');
                     $car_id  = (int) ElanInput::get('car_id');
 
-                    if (!$user_id || !$car_id) {
+                    if (!$car_id) {
+                        $errors[] = 'Please provide valid car ID and user ID';
+                        break;
+                    }
+
+                    if ($noOwner) {
+                        $noOwnerUser = new User();
+                        $noOwnerUser->find('noowner');
+                        $noOwnerData = $noOwnerUser->data();
+                        if (!$noOwnerData) {
+                            $errors[] = 'Unable to reassign: the "No Owner" system account could not be found. Contact an administrator.';
+                            logger($currentUserId, LogCategories::LOG_CATEGORY_CAR_TRANSFER_ERROR, 'No Owner reassignment failed — noowner account not found');
+                            break;
+                        }
+                        $user_id = (int) $noOwnerData->id;
+                    } else {
+                        $user_id = (int) ElanInput::get('user_id');
+                    }
+
+                    if (!$user_id) {
                         $errors[] = 'Please provide valid car ID and user ID';
                         break;
                     }
