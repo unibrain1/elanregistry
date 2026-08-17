@@ -468,7 +468,6 @@ It will not re-run on every push — that keeps CI cost down.
 - Milestone-scope corrections from Step 5.5 (none found, or list issues added/removed/reassigned and why)
 - Release notes status (finalized or needs attention)
 - Wiki updates status (updated, committed, or skipped)
-- PRD update status (updated or skipped)
 - CLAUDE.md update status (updated or skipped)
 - Remind: wiki/ files need to be manually pushed to the wiki repo
 - Next steps:

@@ -74,6 +74,7 @@ quality, security, and project management compliance.
 | **Issue Management**          | Auto-label issues     | ❌ No  | Issue events       |
 | **PR Management**             | Link PRs to issues    | ❌ No  | PR events          |
 | **PHPUnit Unit + Regression** | Behavioral test suite | ❌ No* | All PRs            |
+| **Static Analysis**           | PHPStan, phpcs, lint  | ✅ Yes | PHP/JS/MD changes  |
 
 \* Not yet a GitHub-required status check — failures are caught by `/finish-issue`'s CI-status gate
 before merge, not by GitHub blocking the merge button itself (see issue #1437).

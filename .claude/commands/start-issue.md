@@ -49,7 +49,7 @@ Launch agents via the Task tool. Use parallel instances when work can be partiti
 | Explore | `Explore` | `haiku` | Codebase research |
 | Plan | `Plan` | `sonnet` | Implementation strategy |
 | Software Developer | `software-developer` | `sonnet` (Trivial/Small), `opus` (Medium/Large) | **Primary coding agent** — see per-tier override below |
-| Senior Architect | `senior-architect` | `sonnet` | Architecture, security, code review |
+| Senior Architect | `senior-architect` | `opus` | Architecture, security, code review |
 | Senior Product Manager | `senior-product-manager` | `sonnet` | Issue refinement, scope, criteria |
 | Senior Test Engineer | `senior-test-engineer` | `sonnet` | Test strategy and writing |
 | Technical Documentation Writer | `technical-documentation-writer` | `haiku` | Docs updates |
@@ -425,9 +425,10 @@ Once the user has explicitly approved the plan, execute using agents strategical
    - **Test coverage**: Are tests comprehensive? Do they cover security and edge cases?
    - **Documentation**: Are docs complete and accurate?
 
-   **Model by tier:** For Large issues pass `model: "opus"` to the architect
-   agent — cross-cutting changes benefit from deeper reasoning. For Small and
-   Medium issues omit `model` (agent inherits its Sonnet default).
+   **Model by tier:** `senior-architect` defaults to **opus** (set in its own
+   frontmatter), so omitting `model` gives Opus on every tier. For Small and
+   Medium issues pass `model: "sonnet"` explicitly if you want the cheaper
+   run; Large issues need no override.
 
 7. Address any issues raised by the security review or architect review. If
    fixes are needed, launch software-developer agents again for the

@@ -20,11 +20,11 @@ paginated table views of cars and factory data.
 
 As of v2.11.0, we use **only 3 DataTables extensions** for optimal performance:
 
-| Extension           | Version    | Purpose                  | Usage      |
-| ------------------- | ---------- | ------------------------ | ---------- |
-| **DataTables Core** | dt-1.10.23 | Base table functionality | All tables |
-| **FixedHeader**     | fh-3.1.8   | Sticky table headers     | All tables |
-| **Responsive**      | r-2.2.7    | Mobile-responsive tables | All tables |
+| Extension           | Version  | Purpose                  | Usage      |
+| ------------------- | -------- | ------------------------ | ---------- |
+| **DataTables Core** | dt-2.3.8 | Base table functionality | All tables |
+| **FixedHeader**     | fh-4.0.6 | Sticky table headers     | All tables |
+| **Responsive**      | r-3.0.8  | Mobile-responsive tables | All tables |
 
 ## Where DataTables is Used
 
@@ -89,11 +89,16 @@ const table = $("#cartable").DataTable({
 
 ### Backend Data Providers
 
-Three dedicated POST-only endpoints (v2.25.3+, issue #1036):
+Two dedicated POST-only endpoints (v2.25.3+, issue #1036):
 
 - **`app/api/cars/list.php`** — Car registry DataTable (`table=cars` branch, now implicit)
 - **`app/api/cars/factory-list.php`** — Factory records DataTable (`table=factory` branch, now implicit)
-- **`app/api/cars/chassis-lookup.php`** — Chassis-to-car-ID lookup for registry links; returns `{success, message, car_id}`
+
+> A third endpoint, `chassis-lookup.php`, previously resolved a chassis number to
+> a car ID one row at a time — roughly 25 AJAX requests per page turn.
+> `CarDataTablesService` now embeds `car_id` directly in the factory response via
+> a subquery, and the endpoint was removed. `tests/playwright/e2e/factory-registry-link.spec.js`
+> asserts that no request to it ever occurs; do not reintroduce the pattern.
 
 ## Asset Loading
 
@@ -129,9 +134,9 @@ builder with:
 
 | Extension Code | Full Name       | Version    |
 | -------------- | --------------- | ---------- |
-| `dt`           | DataTables Core | `1.10.23`  |
-| `fh`           | FixedHeader     | `3.1.8`    |
-| `r`            | Responsive      | `2.2.7`    |
+| `dt`           | DataTables Core | `2.3.8`    |
+| `fh`           | FixedHeader     | `4.0.6`    |
+| `r`            | Responsive      | `3.0.8`    |
 
 The styling target is `bs4` (Bootstrap 4).
 
@@ -196,9 +201,9 @@ server-side processing or assess if the UX trade-offs are acceptable.
 
 **Current versions are stable and battle-tested**:
 
-- DataTables Core: 1.10.23
-- FixedHeader: 3.1.8
-- Responsive: 2.2.7
+- DataTables Core: 2.3.8
+- FixedHeader: 4.0.6
+- Responsive: 3.0.8
 
 **When to upgrade**:
 
@@ -275,29 +280,10 @@ examples from the Registry Link feature on the factory page.
 
 Unit tests for DataTables endpoints validate logic without database dependencies.
 
-**Example**: `/tests/unit/api/GetDataTablesFindCarByChassisTest.php`
+**Example**: `tests/unit/cars/services/CarDataTablesServiceTest.php`
 
-Tests the chassis lookup logic now in `/app/api/cars/chassis-lookup.php`:
-
-```php
-/**
- * Test SQL query uses prepared statement (prevents SQL injection)
- */
-public function testSqlQueryUsesPreparedStatement(): void
-{
-    // Verify prepared statement with ? placeholder
-    $this->assertStringContainsString(
-        'SELECT id FROM cars WHERE chassis = ? LIMIT 1',
-        $content
-    );
-
-    // Verify chassis is passed as bound parameter
-    $this->assertStringContainsString(
-        '[$chassis]',
-        $content
-    );
-}
-```
+Covers column whitelisting, ordering, and the search clause built by
+`CarDataTablesService` — all without a database.
 
 **Coverage Areas**:
 
@@ -309,38 +295,20 @@ public function testSqlQueryUsesPreparedStatement(): void
 **Run unit tests**:
 
 ```bash
-vendor/bin/phpunit tests/unit/api/GetDataTablesFindCarByChassisTest.php
+vendor/bin/phpunit tests/unit/cars/services/CarDataTablesServiceTest.php
 ```
 
 ### Integration Tests
 
 Integration tests validate database interactions with real data.
 
-**Example**: `/tests/integration/FactoryRegistryLinkIntegrationTest.php`
+**Example**: `tests/integration/FactoryRegistryLinkIntegrationTest.php`
 
-Tests the complete `findCarByChassis` workflow:
+Verifies the `car_id` subquery against a real database:
 
-```php
-/**
- * Test findCarByChassis finds registered car by chassis number
- */
-public function testFindCarByChassisWithMatchingCar(): void
-{
-    // Create test car with known chassis
-    $this->createTestCar($this->testUserId, [
-        'chassis' => $this->testChassis
-    ]);
-
-    // Query database directly
-    $query = $this->db->query(
-        "SELECT id FROM cars WHERE chassis = ? LIMIT 1",
-        [$this->testChassis]
-    );
-
-    $this->assertTrue($query->count() > 0);
-}
-```
-
+- `testFactoryRowContainsCarIdWhenChassisMatches()`
+- `testFactoryRowCarIdIsNullWhenNoChassisMatch()`
+- `testFactoryDataTablesResponseIncludesCarIdField()`
 **Coverage Areas**:
 
 - Real database queries
