@@ -24,13 +24,24 @@ is kept for historical context:
   `'noowner@example.com'` placeholder in the Account Specification below. The
   original value is syntactically valid, so it could be typed into
   `users/forgot_password.php` or `users/passwordless.php`, both of which
-  locate an account by email lookup against submitted input. A bare-label
-  domain fails `Validate`'s `valid_email` rule
-  (`filter_var($value, FILTER_VALIDATE_EMAIL)`), so the address cannot be
-  submitted through either form and neither lookup can match this row;
-  `.invalid` is additionally the RFC 2606 reserved TLD and cannot resolve.
-  This closes the account-recovery vector that NULL password alone does not
-  cover -- the Security Model section below addresses login only.
+  locate an account by email lookup against submitted input. This closes the
+  account-recovery vector that a NULL password alone does not cover -- the
+  Security Model section below addresses login only. The two recovery forms
+  are closed by different mechanisms, and the difference matters:
+  - **Password reset is closed by validation.** `users/forgot_password.php`
+    enforces `Validate`'s `valid_email` rule
+    (`filter_var($value, FILTER_VALIDATE_EMAIL)`) before any lookup, and a
+    bare-label domain fails it, so the address never reaches the query.
+  - **Passwordless login is closed by delivery, not validation.**
+    `users/passwordless.php` applies no server-side format check, so the
+    address *does* match and *does* create a pending `us_email_logins` row.
+    That row is inert only because `.invalid` is the RFC 2606 reserved TLD
+    and cannot resolve: the vericode is stored hashed, never rendered to the
+    page, and travels solely in an undeliverable email before expiring after
+    15 minutes. The send failure does not invalidate the row early. This gate
+    therefore rests entirely on the address being non-routable -- **never
+    point this account at a routable address.** The missing validation is a
+    framework gap tracked as #1687.
 - **The migration is self-healing** (#1679) -- it forces `password`, `email`
   and `protected` to the locked-down values on a pre-existing account rather
   than only creating a missing one. Production's hand-created 2012 account had
@@ -90,7 +101,8 @@ noowner account is a real row in the`users` table that cannot authenticate (NULL
 | `fname` | `'No'` | Displays as "No Owner" in UI via`fname . ' ' . lname` |
 | `lname` | `'Owner'` | See above |
 | `password` | `NULL` | Prevents authentication; no login possible |
-| `email` | `'noowner@example.com'` | Placeholder; not a real mailbox. **Superseded by `'noowner@invalid'` (#1679)** -- see Update above |
+| `email` | `'noowner@invalid'` | Unroutable by construction (RFC 2606). Closes password reset by validation and passwordless login by delivery. Was `'noowner@example.com'` until #1679 |
+| `protected` | `1` | Excludes the account from admin and automated account-deletion cleanup |
 | `id` | `83` (production) | Assigned at creation in 2012; not guaranteed across environments |
 
 ### Mechanism

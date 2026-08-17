@@ -9,8 +9,15 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * Schema constraint tests for car_transfer_requests.
  *
- *   1. existing_car_id → cars.id ON DELETE CASCADE
- *   2. expires_at allows NULL (column re-typed to NULL DEFAULT NULL in #693)
+ *   1. expires_at allows NULL (column re-typed to NULL DEFAULT NULL in #693)
+ *
+ * A second test asserting `existing_car_id → cars.id ON DELETE CASCADE` was
+ * removed in #1679: that FK does not exist. The baseline migration documents
+ * its absence deliberately (20260709000000_add_elanregistry_baseline.php, the
+ * REVIEW note above the `cars` DDL) because dev lacks the constraint too, and
+ * the migration reproduces dev's real schema. Deleting a car therefore leaves
+ * its transfer-request rows orphaned — a real gap, tracked as #1547. Restore
+ * that test only as part of adding the FK, never on its own.
  */
 #[Group('integration')]
 final class TransferRequestConstraintTest extends IntegrationTestCase
@@ -27,16 +34,15 @@ final class TransferRequestConstraintTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        // Clean up any transfer requests that were NOT consumed by a CASCADE delete.
-        // The base class tearDown deletes cars (which cascades), so rows referencing
-        // still-existing cars need to be removed first to avoid FK errors on the
-        // car_transfer_requests side (the base class already issues this DELETE, but
-        // running it here again for rows we tracked is harmless and defensive).
+        // Delete every transfer request this test created. There is no FK from
+        // existing_car_id to cars.id (#1547), so nothing is removed for us when
+        // the base class tearDown deletes the cars — these rows would otherwise
+        // be left orphaned in the test database.
         foreach ($this->createdTransferIds as $id) {
             try {
                 $this->db->query("DELETE FROM car_transfer_requests WHERE id = ?", [$id]);
             } catch (\Throwable $e) {
-                // Ignore — row may already be gone via CASCADE
+                // Ignore — the base class DELETE may already have removed it.
             }
         }
         $this->createdTransferIds = [];
@@ -130,45 +136,7 @@ final class TransferRequestConstraintTest extends IntegrationTestCase
     // =========================================================================
 
     /**
-     * FK #1: deleting a car cascades to car_transfer_requests (ON DELETE CASCADE).
-     *
-     * Arrange: create a test car and a transfer request referencing it.
-     * Act:     delete the car row directly.
-     * Assert:  the transfer request row no longer exists.
-     */
-    public function test_deleteCar_cascadesTransferRequests(): void
-    {
-        $userId = $this->createTestUser();
-        $carId  = $this->createTestCar($userId);
-
-        $transferId = $this->createTransferRequest($carId, $userId);
-
-        // Confirm the transfer request exists before the delete.
-        $before = $this->db->query(
-            "SELECT id FROM car_transfer_requests WHERE id = ?",
-            [$transferId]
-        );
-        $this->assertSame(1, $before->count(), 'Pre-condition: transfer request must exist');
-
-        // deleteTestCar() deletes cars before cars_hist (#1503) and self-verifies
-        // both are gone, which the CASCADE assertion below depends on; it also
-        // untracks the car so tearDown() doesn't redundantly delete it again.
-        $this->deleteTestCar($carId);
-
-        $after = $this->db->query(
-            "SELECT id FROM car_transfer_requests WHERE id = ?",
-            [$transferId]
-        );
-        $this->assertSame(0, $after->count(), 'car_transfer_requests row must be gone after cascaded car delete');
-
-        // Remove from our own tracking — the CASCADE already deleted it.
-        $this->createdTransferIds = array_values(
-            array_diff($this->createdTransferIds, [$transferId])
-        );
-    }
-
-    /**
-     * FK #2: car_transfer_requests.expires_at accepts NULL.
+     * car_transfer_requests.expires_at accepts NULL.
      *
      * Before the migration the column was NOT NULL DEFAULT '0000-00-00 00:00:00'.
      * After: NULL DEFAULT NULL.

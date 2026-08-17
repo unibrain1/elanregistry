@@ -31,6 +31,15 @@ use Phinx\Migration\AbstractMigration;
  * application code reads them any more, and copying them here would enshrine
  * dead configuration as the official baseline for new installs.
  *
+ * MAINTENANCE: that INSERT column list is hardcoded, unlike the removed
+ * `SettingsBaselineSeed`, which discovered columns from `information_schema`
+ * at run time. The trade is deliberate — a hardcoded list fails loudly on a
+ * schema it no longer matches, where dynamic discovery would silently write a
+ * misconfigured row — but it does mean a vendored-schema bump that adds a
+ * NOT NULL column with no default breaks provisioning with a MySQL error
+ * naming that column. The fix is to add the column and its default here; the
+ * error is the intended signal, not a regression.
+ *
  * down() is intentionally a no-op — see database/migrations/README.md's
  * documented carve-out for fixing a bad default that should not be restored
  * on rollback.

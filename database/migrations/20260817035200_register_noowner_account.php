@@ -100,36 +100,45 @@ final class RegisterNoownerAccount extends AbstractMigration
         $adapter = $this->getAdapter();
         $adapter->beginTransaction();
 
-        $existing = $this->findExisting();
-        if ($existing !== null) {
-            $this->lockDown((int) $existing['id']);
-            $this->assertInvariants($this->findExisting());
-            $adapter->commitTransaction();
-            return;
-        }
+        // Every failure path below rolls back explicitly before rethrowing, so a
+        // migration that aborts never leaves a half-applied account or an open
+        // transaction behind. assertInvariants() throwing is the security-relevant
+        // case: it means the account is not in the locked-down state, and the
+        // partial write must not survive.
+        try {
+            $existing = $this->findExisting();
+            if ($existing !== null) {
+                $this->lockDown((int) $existing['id']);
+                $this->assertInvariants($this->findExisting());
+                $adapter->commitTransaction();
+                return;
+            }
 
-        $now = date('Y-m-d H:i:s');
+            $now = date('Y-m-d H:i:s');
 
-        $this->execute(
-            "INSERT INTO `users`
-                (username, password, email, fname, lname, active, permissions,
-                 protected, logins, un_changed, join_date, last_login, created, modified)
-             VALUES
-                ('" . self::USERNAME . "', NULL, '" . self::EMAIL . "', 'No', 'Owner',
-                 1, 0, 1, 0, 0, '{$now}', '{$now}', '{$now}', '{$now}')"
-        );
-
-        $created = $this->findExisting();
-        if ($created === null) {
-            $adapter->rollbackTransaction();
-            throw new RuntimeException(
-                'RegisterNoownerAccount: the INSERT ran but no user named ' . self::USERNAME . ' exists. ' .
-                'Account deletion would silently orphan cars — investigate before going live.'
+            $this->execute(
+                "INSERT INTO `users`
+                    (username, password, email, fname, lname, active, permissions,
+                     protected, logins, un_changed, join_date, last_login, created, modified)
+                 VALUES
+                    ('" . self::USERNAME . "', NULL, '" . self::EMAIL . "', 'No', 'Owner',
+                     1, 0, 1, 0, 0, '{$now}', '{$now}', '{$now}', '{$now}')"
             );
-        }
-        $this->assertInvariants($created);
 
-        $adapter->commitTransaction();
+            $created = $this->findExisting();
+            if ($created === null) {
+                throw new RuntimeException(
+                    'RegisterNoownerAccount: the INSERT ran but no user named ' . self::USERNAME . ' exists. ' .
+                    'Account deletion would silently orphan cars — investigate before going live.'
+                );
+            }
+            $this->assertInvariants($created);
+
+            $adapter->commitTransaction();
+        } catch (\Throwable $e) {
+            $adapter->rollbackTransaction();
+            throw $e;
+        }
     }
 
     public function down(): void
