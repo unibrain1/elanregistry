@@ -305,14 +305,14 @@ users/includes/template/prep.php
 │       │   ├─ Title tag (from page metadata)
 │       │   ├─ Favicon links
 │       │   ├─ CSS includes:
-│       │   │   ├─ Bootstrap 5.3.3 (cdnjs.cloudflare.com, SRI-hashed)
+│       │   │   ├─ Bootstrap 5.3.8 (self-hosted, users/css/ — ADR-015)
 │       │   │   ├─ Font Awesome icons (self-hosted)
 │       │   │   ├─ DataTables CSS (self-hosted)
 │       │   │   ├─ Customizer child theme CSS (see CSS loading below)
 │       │   │   └─ usersc/templates/{template}.css override (if exists)
 │       │   └─ JavaScript includes (header):
 │       │       ├─ jQuery (users/js/jquery.php → code.jquery.com CDN)
-│       │       └─ Bootstrap bundle 5.3.3 (cdnjs.cloudflare.com, SRI-hashed)
+│       │       └─ Bootstrap bundle 5.3.8 (self-hosted, users/js/ — ADR-015)
 │       └─ <body> opening tag
 │
 ├─ 2.3. usersc/templates/{template}/navigation.php

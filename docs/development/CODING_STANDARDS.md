@@ -52,7 +52,7 @@ Defined in `usersc/includes/custom_functions.php`. Use `dbInt()` for PDO result 
 
 ### Exception Handling
 
-All exceptions extend `ElanRegistryException` (26 domain types). Never throw generic `Exception`. Each carries
+All exceptions extend `ElanRegistryException` (22 domain types). Never throw generic `Exception`. Each carries
 an HTTP status code, log category, and separate technical/user-facing messages.
 See [ERROR_HANDLING.md](ERROR_HANDLING.md#exception-hierarchy).
 
