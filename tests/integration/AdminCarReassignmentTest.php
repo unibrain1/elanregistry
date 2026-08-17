@@ -71,4 +71,21 @@ final class AdminCarReassignmentTest extends IntegrationTestCase
             'Car must be reassigned to the dynamically-resolved noowner ID, not a hardcoded value'
         );
     }
+
+    /**
+     * Not-found path: app/admin/index.php gates its "noowner account
+     * missing" error on User::find('noowner')'s boolean return. find()
+     * only ever assigns $_data inside its "row found" branch (users/classes/user.php),
+     * so on a failed lookup $_data is left at its uninitialized default
+     * (null) and data() returns null. This proves find()'s return value —
+     * not a truthiness check on data() — is the correct not-found signal to
+     * key error handling off of.
+     */
+    public function testFindReturnsFalseForNonexistentUsername(): void
+    {
+        $missingUser = new User();
+        $found = $missingUser->find('this-username-does-not-exist-1562');
+        $this->assertFalse($found, 'User::find() must return false for a nonexistent username');
+        $this->assertEmpty($missingUser->data(), 'User::data() must be empty/null after a failed find()');
+    }
 }
