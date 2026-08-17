@@ -117,7 +117,8 @@ set`status='expired'`; admin interfaces filter on both pending status and not-ye
 Fields updated per ADR-002 (denormalized owner data): `user_id`, `token`, `email`, `fname`, `lname`, `join_date`, `city`, `state`, `country`, `lat`, `lon`,
 `website`
 
-**`car_user`** junction table:
+**`car_user`** junction table (**dropped in v2.26.2**, issue #1162 — this step
+no longer occurs; ownership moves via `cars.user_id` alone):
 `userid`field updated to new owner's`user_id`
 
 **`cars_hist`** table:

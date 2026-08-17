@@ -56,7 +56,7 @@ $backupPath = $backupManager->createSchemaBackup(
 );
 ```
 
-**Default Tables**: settings, users, cars, car_user, profiles
+**Default Tables**: settings, users, cars, profiles
 
 ---
 
@@ -242,7 +242,7 @@ Each backup file includes metadata in SQL comments:
 -- Script: schema-schema-maintenance
 -- Environment: development
 -- Created: 2025-12-18 14:30:22
--- Tables: settings, users, cars, car_user, profiles
+-- Tables: settings, users, cars, profiles
 -- Retention: 7 days
 -- Rollback-Ready: yes
 -- Generator: BackupManager v2.0
@@ -288,8 +288,8 @@ $backupManager = new BackupManager(
 );
 
 $allTables = [
-    'users', 'cars', 'car_user', 'profiles',
-    'settings', 'permissions', 'car_history'
+    'users', 'cars', 'profiles',
+    'settings', 'permissions', 'cars_hist'
 ];
 $backupPath = $backupManager->createManualBackup(
     'Pre-Migration-v2.9.2',
