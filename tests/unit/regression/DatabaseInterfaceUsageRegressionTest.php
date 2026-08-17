@@ -305,8 +305,6 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
      * Excluded by design:
      * - `usersc/classes/Database/DbAdapter.php` — the sanctioned exception; the
      *   adapter's whole job is to wrap the real `\DB` behind the interface.
-     * - `app/admin/scripts/fix/_ARCHIVE/` — historical one-time migration
-     *   scripts that already ran and are not part of the live call graph.
      * - `usersc/plugins/ai_prompts/**\/*.md.php` — `__halt_compiler()`-guarded
      *   markdown documentation whose PHP is illustrative prose snippets.
      * - Third-party plugin vendor trees and hidden directories.
@@ -317,7 +315,6 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
     {
         $excludedPaths = [
             '/usersc/classes/Database/DbAdapter.php',
-            '/app/admin/scripts/fix/_ARCHIVE/',
             '/vendor/',
             '/.',
         ];

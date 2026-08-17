@@ -165,7 +165,8 @@ in`users/helpers/users.php`. The hook fires inside a `foreach`loop after the`use
   `reassign` handler resolves the account id server-side via `User::find('noowner')`. It
   previously hard-coded id 83 on the client — fixed in #1562, since a client-supplied id
   must never be trusted for this path and 83 was only correct by accident on production
-- **Recovery script** (`FIX/_ARCHIVE/02-Cleanup-Orphaned-Profiles.php`): Reassigns orphaned cars (whose user_id points to a deleted user) back to noowner
+- **Recovery script** (`02-Cleanup-Orphaned-Profiles.php`, since deleted — recoverable from git history):
+  Reassigned orphaned cars (whose user_id points to a deleted user) back to noowner
 - **Privacy policy** (`docs/faq/PRIVACY.md`): Explicitly documents the noowner pattern: "Car Ownership: Transferred to a system account called 'noowner'"
 - **ElanRegistryOwner class**: No special handling -- treats noowner as a standard user record, which is intentional
 
@@ -313,7 +314,7 @@ Create a unique placeholder user per deletion (e.g., `username = 'deleted_12345'
 | Deletion hook script | [/usersc/scripts/after_user_deletion.php](../../usersc/scripts/after_user_deletion.php) |
 | UserSpice deleteUsers() | [/users/helpers/users.php](../../users/helpers/users.php) |
 | Admin UI (No Owner checkbox) | [/app/admin/assets/manage-consolidated.js](../../app/admin/assets/manage-consolidated.js) |
-| Orphaned car recovery | [/FIX/_ARCHIVE/02-Cleanup-Orphaned-Profiles.php](../../FIX/_ARCHIVE/02-Cleanup-Orphaned-Profiles.php) |
+| Orphaned car recovery | `02-Cleanup-Orphaned-Profiles.php` (deleted; in git history) |
 | Privacy policy | [/app/owner/privacy.php](../../app/owner/privacy.php) |
 | LogCategories constant | [/usersc/classes/LogCategories.php](../../usersc/classes/LogCategories.php) |
 | Owner class | [/usersc/classes/Owner.php](../../usersc/classes/Owner.php) |

@@ -129,9 +129,10 @@ $owner->syncLocationToCars();
 
 #### 4. Bulk Repair (Archive)
 
-Archived FIX scripts (`FIX/_ARCHIVE/20-Backfill-Location-Coordinates.php`,
-`FIX/_ARCHIVE/04-Regeocode-Null-Coordinates.php`) were used for initial bulk
-repair of location data. These are not part of the normal sync flow.
+One-time FIX scripts (`20-Backfill-Location-Coordinates.php`,
+`04-Regeocode-Null-Coordinates.php`) were used for initial bulk repair of
+location data. They are not part of the normal sync flow, have already run,
+and were deleted in v2.29.1 — git history is their record.
 
 ### Audit Trail
 
@@ -389,6 +390,6 @@ if (displaying_email($context)) {
 - **Admin Location Sync**: [app/admin/includes/process-owner-sync-location.php](../../app/admin/includes/process-owner-sync-location.php)
 - **User Deletion Handler**: [usersc/scripts/after_user_deletion.php](../../usersc/scripts/after_user_deletion.php)
 - **Database Documentation**: [docs/development/DATABASE.md](../DATABASE.md)
-- **FIX Scripts (Archive)**: `FIX/_ARCHIVE/20-Backfill-Location-Coordinates.php`,
-  `FIX/_ARCHIVE/04-Regeocode-Null-Coordinates.php`
+- **FIX Scripts (deleted; recoverable from git history)**: `20-Backfill-Location-Coordinates.php`,
+  `04-Regeocode-Null-Coordinates.php` — see [FIX_SCRIPTS.md](../FIX_SCRIPTS.md) for recovery
 - **ADR-001: Authentication Framework**: [ADR-001-userspice-authentication-framework.md](ADR-001-userspice-authentication-framework.md)

@@ -249,7 +249,6 @@ class CodingStandardsChecker
                 // Fast early-skip for vendor, third-party, and test code
                 if (strpos($path, '/vendor/') !== false ||
                     strpos($path, '/node_modules/') !== false ||
-                    strpos($path, '/scripts/fix/_ARCHIVE/') !== false ||
                     strpos($path, '/tests/') !== false ||
                     strpos($path, '/.git/') !== false) {
                     continue;
