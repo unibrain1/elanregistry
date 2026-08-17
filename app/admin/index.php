@@ -187,7 +187,7 @@ if (ElanInput::existsPost()) {
                     $car_id  = (int) ElanInput::get('car_id');
 
                     if (!$car_id) {
-                        $errors[] = 'Please provide valid car ID and user ID';
+                        $errors[] = 'Please provide a valid car ID';
                         break;
                     }
 
@@ -210,7 +210,7 @@ if (ElanInput::existsPost()) {
                     }
 
                     if (!$user_id) {
-                        $errors[] = 'Please provide valid car ID and user ID';
+                        $errors[] = 'Please provide a valid user ID, or choose "Assign to No Owner"';
                         break;
                     }
 
