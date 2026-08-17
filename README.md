@@ -47,13 +47,22 @@ See [ENVIRONMENT.md](docs/development/ENVIRONMENT.md) for full `.env` configurat
 
 ## Documentation
 
+**New here?** Read [`docs/development/SYSTEM_OVERVIEW.md`](docs/development/SYSTEM_OVERVIEW.md)
+first — what the registry does, who can do what, and what is deliberately not
+built. Then [`CLAUDE.md`](CLAUDE.md) for conventions and workflow.
+
 | Audience | Where |
 | --- | --- |
+| **What the system does, by role** | [`docs/development/SYSTEM_OVERVIEW.md`](docs/development/SYSTEM_OVERVIEW.md) |
 | Development conventions, workflow, AI context | [`CLAUDE.md`](CLAUDE.md) |
-| Architecture, database design, class patterns | [GitHub Wiki](https://github.com/elan-registry/registry/wiki) |
 | Technical reference docs | [`docs/development/`](docs/development/) |
+| Concepts and onboarding narrative | [GitHub Wiki](https://github.com/elan-registry/registry/wiki) |
 | End-user guides | [`docs/guides/`](docs/guides/) |
 | Reference pages (paint colors, chassis ID) | [`docs/reference/`](docs/reference/) |
+
+Documentation is split by whether a code change can falsify it: anything that
+can lives in this repository, updated in the same pull request; the wiki holds
+concepts and installation-from-zero.
 
 ## History
 
