@@ -290,7 +290,7 @@ class BackupManager {
             'cars',
             'profiles',
             'settings',
-            'car_history',
+            'cars_hist',
             'fix_script_runs'
         ];
     }
@@ -514,8 +514,13 @@ class BackupManager {
             // Get table structure
             $createResult = $this->db->query("SHOW CREATE TABLE `{$tableName}`");
             if ($createResult->count() === 0) {
+                // Fail rather than emit a comment. A backup that silently omits
+                // a requested table looks successful and is discovered missing
+                // at restore time — which is how a stale `car_history` entry in
+                // getCriticalTables() dropped the car audit trail from every
+                // manual backup without anyone noticing (#1696).
                 ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, "Table {$tableName} not found during backup");
-                return "-- Warning: Table {$tableName} not found\n\n";
+                throw new BackupException("Cannot back up '{$tableName}': table does not exist");
             }
 
             $createStatement = $createResult->first()->{'Create Table'};
@@ -552,8 +557,12 @@ class BackupManager {
             $errorMsg = "Error backing up table {$tableName}: " . $e->getMessage();
             ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, $errorMsg);
 
-            // Re-throw critical errors, return warning comment for non-critical
-            if (strpos($e->getMessage(), 'Invalid table name') !== false) {
+            // Re-throw critical errors, return warning comment for non-critical.
+            // A missing table is critical: the caller asked for it, so producing
+            // a backup without it — and reporting success — is worse than
+            // failing (#1696).
+            if (strpos($e->getMessage(), 'Invalid table name') !== false
+                || strpos($e->getMessage(), 'does not exist') !== false) {
                 throw $e;
             }
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ElanRegistry\Admin\BackupManager;
+use ElanRegistry\Exceptions\BackupException;
 use PHPUnit\Framework\TestCase;
 
 use PHPUnit\Framework\Attributes\Group;
@@ -516,6 +517,44 @@ final class BackupManagerTest extends TestCase
                 };
             }
         };
+    }
+
+    /**
+     * A missing table must fail the backup, not be skipped with a comment.
+     *
+     * Regression for #1696: getCriticalTables() listed `car_history`, which is
+     * not a real table (it is `cars_hist`). generateTableDump() emitted a
+     * warning comment and the backup reported success, so every manual backup
+     * silently omitted the car audit trail.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('regression')]
+    public function testMissingTableFailsBackupRatherThanSkipping(): void
+    {
+        $emptyDb = new class {
+            public function query(string $sql, array $params = []): object {
+                return new class {
+                    public function results(): array {
+                        return [];
+                    }
+                    public function count(): int {
+                        return 0;
+                    }
+                    public function first(): ?object {
+                        return null;
+                    }
+                };
+            }
+        };
+
+        $manager = new BackupManager($emptyDb, $this->testBackupDir, 1);
+
+        $this->expectException(BackupException::class);
+        $this->expectExceptionMessageMatches('/does not exist/');
+
+        $manager->createManualBackup('regression check', ['no_such_table']);
     }
 
     /**
