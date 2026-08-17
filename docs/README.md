@@ -44,13 +44,18 @@ project, structured for different audiences and use cases.
 
 #### 🚀 START HERE
 
-- **[CLAUDE.md](../CLAUDE.md)** - Root instructions for Claude Code AI assistant
-- **[QUICK_REFERENCE.md](development/QUICK_REFERENCE.md)** - Quick reference for common tasks and commands
-- **[Registry Installation Guide][install-wiki]** - Complete installation and setup procedures
+New to the project? Four documents, in this order:
+
+1. **[SYSTEM_OVERVIEW.md](development/SYSTEM_OVERVIEW.md)** — what the registry does, who can do what, and what is deliberately not built
+2. **[Registry Installation Guide][install-wiki]** — get it running
+3. **[CLAUDE.md](../CLAUDE.md)** — conventions, commands, development workflow
+4. **[CODING_STANDARDS.md](development/CODING_STANDARDS.md)** — how to write code here
+
+`CLAUDE.md` is the canonical entry point; this index and the wiki both defer to
+its ordering.
 
 #### 📚 CORE DOCUMENTATION
 
-- **[SYSTEM_OVERVIEW.md](development/SYSTEM_OVERVIEW.md)** - **What the registry does and for whom** — capabilities by role, deliberate omissions, and known gaps
 - **[Architecture Guide][arch-wiki]** - System architecture, database, and class patterns
 - **[PAGE_LOADING_FLOW.md](development/PAGE_LOADING_FLOW.md)** - Page initialization and file loading sequence
 - **[DATABASE.md](development/DATABASE.md)** - Complete database schema and table relationships
