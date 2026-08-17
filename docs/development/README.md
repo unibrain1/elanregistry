@@ -1,8 +1,14 @@
 # Development Documentation
 
+## Start here
+
+- [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) — **What the registry does and for
+  whom** — capabilities by role, deliberate omissions, and known gaps
+
 ## Core
 
 - [CODING_STANDARDS.md](CODING_STANDARDS.md) — PHP 8+ requirements, security, code review checklist
+- [UI_STANDARDS.md](UI_STANDARDS.md) — **Read before any UI change** — color tokens, card hierarchy, component patterns
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) — ApiResponse, exceptions, ElanRegistryAPI frontend client
 - [CLASSES.md](CLASSES.md) — Car, Owner, and all application classes
 - [PAGE_LOADING_FLOW.md](PAGE_LOADING_FLOW.md) — Request initialization sequence
@@ -24,8 +30,9 @@
 - [FIX_SCRIPTS.md](FIX_SCRIPTS.md) — Admin fix/maintenance script guidelines
 - [CSS_AND_ASSETS.md](CSS_AND_ASSETS.md) — CSS file structure and build process
 - [QUICK_REFERENCE.md](QUICK_REFERENCE.md) — Commands, patterns, model management
+- [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md) — Template for release notes
 
 ## External
 
-- [Architecture Guide](https://github.com/unibrain1/elanregistry/wiki/Elan-Registry-Architecture-and-Database-Design)
-- [UserSpice Integration Guide](https://github.com/unibrain1/elanregistry/wiki/Customization-and-Integration-Patterns)
+- [Architecture Guide](https://github.com/elan-registry/registry/wiki/Elan-Registry-Architecture-and-Database-Design)
+- [UserSpice Integration Guide](https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns)

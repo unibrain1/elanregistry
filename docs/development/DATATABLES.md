@@ -454,8 +454,8 @@ Unit Tests (many, fast)
 
 ## See Also
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Overall application architecture
+- [ARCHITECTURE.md](https://github.com/elan-registry/registry/wiki/Elan-Registry-Architecture-and-Database-Design) - Overall application architecture
 - [CODING_STANDARDS.md](CODING_STANDARDS.md) - Code quality requirements
-- [RELEASE_NOTES_V2.11.0.md](RELEASE_NOTES_V2.11.0.md) - v2.11.0 release notes
+- [Release Notes v2.11.0](https://github.com/elan-registry/registry/releases/tag/v2.11.0) - v2.11.0 release notes
   including DataTables optimization
 - [FIX_SCRIPTS.md](FIX_SCRIPTS.md) - FIX script creation guidelines

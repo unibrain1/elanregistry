@@ -42,7 +42,8 @@ Focus on:
   when they contain files that call `securePage()`** — pure API endpoints and
   action handlers without `securePage()` (e.g. `app/action/`, `app/api/`) are
   intentionally omitted
-- Use `getUserWithProfile($userId)` for combined user+profile data
+- Use `(new Owner($userId))->data()` for combined user+profile data access
+  (`getUserWithProfile()` was removed in v2.26.2)
 
 **Bug Detection**
 Logic errors, null handling, race conditions, resource leaks, wrong SQL

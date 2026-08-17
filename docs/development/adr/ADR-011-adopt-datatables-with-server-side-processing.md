@@ -288,15 +288,15 @@ Custom backend endpoint returning DataTables-compatible JSON, but frontend uses 
 - **Service Class**: [usersc/classes/Car/CarDataTablesService.php](../../usersc/classes/Car/CarDataTablesService.php)
 - **Cars Listing Page**: [app/owner/cars/index.php](../../app/owner/cars/index.php)
 - **Factory Listing Page**: [app/owner/cars/factory.php](../../app/owner/cars/factory.php)
-- **DataTables Documentation**: [docs/development/DATATABLES.md](../development/DATATABLES.md)
+- **DataTables Documentation**: [docs/development/DATATABLES.md](../DATATABLES.md)
 - **ADR-001 (UserSpice)**: [docs/adr/ADR-001-userspice-authentication-framework.md](ADR-001-userspice-authentication-framework.md)
 - **ADR-002 (Denormalized cars)**: [docs/adr/ADR-002-denormalized-cars-table-cached-owner-data.md](ADR-002-denormalized-cars-table-cached-owner-data.md)
 - **ADR-004 (Pattern A API)**:
   [docs/adr/ADR-004-standardize-api-architecture-pattern-a-responses.md](ADR-004-standardize-api-architecture-pattern-a-responses.md)
 - **ADR-006 (CDN management)**:
   [docs/adr/ADR-006-use-database-stored-cdn-urls-for-frontend-dependencies.md](ADR-006-use-database-stored-cdn-urls-for-frontend-dependencies.md)
-- **Error Handling Guide**: [docs/development/ERROR_HANDLING.md](../development/ERROR_HANDLING.md)
-- **CSS & Assets Guide**: [docs/development/CSS_AND_ASSETS.md](../development/CSS_AND_ASSETS.md)
+- **Error Handling Guide**: [docs/development/ERROR_HANDLING.md](../ERROR_HANDLING.md)
+- **CSS & Assets Guide**: [docs/development/CSS_AND_ASSETS.md](../CSS_AND_ASSETS.md)
 - **GitHub Issue #168**: SearchPanes/SearchBuilder investigation (incompatible with server-side mode)
 - **GitHub Issue #463**: Extract CarDataTablesService from Car.php
 - **CVE-2021-23445**: DataTables XSS vulnerability

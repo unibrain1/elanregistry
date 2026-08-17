@@ -216,10 +216,10 @@ Create a unique placeholder user per deletion (e.g., `username = 'deleted_12345'
 | UserSpice deleteUsers() | [/users/helpers/users.php](../../users/helpers/users.php) |
 | Admin UI (No Owner checkbox) | [/app/admin/assets/manage-consolidated.js](../../app/admin/assets/manage-consolidated.js) |
 | Orphaned car recovery | [/FIX/_ARCHIVE/02-Cleanup-Orphaned-Profiles.php](../../FIX/_ARCHIVE/02-Cleanup-Orphaned-Profiles.php) |
-| Privacy policy | [/docs/faq/PRIVACY.md](../faq/PRIVACY.md) |
+| Privacy policy | [/docs/faq/PRIVACY.md](../../../app/owner/privacy.php) |
 | LogCategories constant | [/usersc/classes/LogCategories.php](../../usersc/classes/LogCategories.php) |
 | Owner class | [/usersc/classes/Owner.php](../../usersc/classes/Owner.php) |
-| Database documentation | [/docs/development/DATABASE.md](../development/DATABASE.md) |
+| Database documentation | [/docs/development/DATABASE.md](../DATABASE.md) |
 | Unit tests | [/tests/unit/users/UserDeletionCleanupTest.php](../../tests/unit/users/UserDeletionCleanupTest.php) |
 | Denormalization rationale | [ADR-002](ADR-002-denormalized-cars-table-cached-owner-data.md) |
 | Audit trail triggers | [ADR-003](ADR-003-database-audit-trails-triggers-history-tables.md) |

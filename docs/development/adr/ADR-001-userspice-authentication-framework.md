@@ -155,8 +155,8 @@ UserSpice establishes several global variables available on every page:
 The application defines bridge functions in `usersc/includes/custom_functions.php`
 that wrap UserSpice internals with type-safe, domain-appropriate interfaces:
 
-- `getUserWithProfile(int $user_id): ?object` -- joins `users` and `profiles`
-  tables
+- `getUserWithProfile(int $user_id): ?object` -- joined `users` and `profiles`
+  tables. **Removed in v2.26.2 (#1148)** -- use `(new Owner($userId))->data()`
 - `isRegistryAdmin(int|string|null $userId = null): bool` -- wraps
   `hasPerm([2, 3])`
 - `currentUserId(): int` -- type-safe current user ID extraction
@@ -270,11 +270,11 @@ SaaS authentication providers with API/SDK integration.
 ## References
 
 - **UserSpice**: <https://userspice.com>
-- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../development/PAGE_LOADING_FLOW.md)
-- **UserSpice Functions Reference**: [docs/development/USERSPICE_FUNCTIONS.md](../development/USERSPICE_FUNCTIONS.md)
-- **Coding Standards**: [docs/development/CODING_STANDARDS.md](../development/CODING_STANDARDS.md)
-- **Class Documentation**: [docs/development/CLASSES.md](../development/CLASSES.md)
-- **Error Handling**: [docs/development/ERROR_HANDLING.md](../development/ERROR_HANDLING.md)
+- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../PAGE_LOADING_FLOW.md)
+- **UserSpice Functions Reference**: [docs/development/USERSPICE_FUNCTIONS.md](../USERSPICE_FUNCTIONS.md)
+- **Coding Standards**: [docs/development/CODING_STANDARDS.md](../CODING_STANDARDS.md)
+- **Class Documentation**: [docs/development/CLASSES.md](../CLASSES.md)
+- **Error Handling**: [docs/development/ERROR_HANDLING.md](../ERROR_HANDLING.md)
 - **Custom Functions**: [usersc/includes/custom_functions.php](../../usersc/includes/custom_functions.php)
 - **Root Path Configuration**: [z_us_root.php](../../z_us_root.php)
 - **Git Ignore Strategy**: [.gitignore](../../.gitignore) (`users/**` exclusion with exceptions)

@@ -34,6 +34,7 @@ jobs:
     outputs:
       php: ${{ steps.filter.outputs.php }}
       js: ${{ steps.filter.outputs.js }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -52,6 +53,29 @@ jobs:
             js:
               - "**.js"
               - "eslint.config.mjs"
+            docs:
+              - "**.md"
+              - "scripts/check-docs.php"
+
+  docs:
+    name: Documentation Consistency
+    needs: changes
+    if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.docs == 'true')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+
+      # No composer install needed — the checker uses only PHP core.
+      - name: Check documentation consistency
+        run: php scripts/check-docs.php
 
   phpstan:
     name: PHPStan Analysis

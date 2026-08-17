@@ -428,6 +428,6 @@ $backupPath = $backupManager->createSchemaBackup('my-script', ['users']);
 
 ## See Also
 
-- [Database Schema Documentation](DATABASE_SCHEMA_COMPARISON.md)
-- [Testing Documentation](TESTING.md)
-- [Release Notes v2.9.2](../releases/RELEASE_NOTES_V2.9.2.md)
+- [Database Schema Documentation](DATABASE.md)
+- [Testing Documentation](../testing/TESTING.md)
+- [Release Notes v2.9.2](https://github.com/elan-registry/registry/releases/tag/v2.9.2)

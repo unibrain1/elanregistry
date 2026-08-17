@@ -766,22 +766,22 @@ ADR-013 Phase 1-3    #350 (DocumentPortalTemplate)
 - **Document Embed Viewer**: [docs/embed.php](../embed.php) — iframe-based PDF viewer used by listing and deep-link pages.
 - **Paint Colors Page**: [docs/faq/paint-colors.php](../faq/paint-colors.php) — deep-links to Paint Codes PDF via `embed.php`.
 - **Car Stories Page**: [docs/car-stories.php](../car-stories.php) — deep-links to Shapecraft story PDF via `embed.php`.
-- **FIX Scripts**: [docs/development/FIX_SCRIPTS.md](../development/FIX_SCRIPTS.md) — database maintenance scripts pattern.
-- **Error Handling**: [docs/development/ERROR_HANDLING.md](../development/ERROR_HANDLING.md) — exception handling and ApiResponse pattern.
-- **Coding Standards**: [docs/development/CODING_STANDARDS.md](../development/CODING_STANDARDS.md) — file organization, security standards, and type hints.
-- **UserSpice Integration**: [GitHub Wiki: UserSpice Integration Guide](https://github.com/jimboone/elan-registry/wiki/Integration).
+- **FIX Scripts**: [docs/development/FIX_SCRIPTS.md](../FIX_SCRIPTS.md) — database maintenance scripts pattern.
+- **Error Handling**: [docs/development/ERROR_HANDLING.md](../ERROR_HANDLING.md) — exception handling and ApiResponse pattern.
+- **Coding Standards**: [docs/development/CODING_STANDARDS.md](../CODING_STANDARDS.md) — file organization, security standards, and type hints.
+- **UserSpice Integration**: [GitHub Wiki: UserSpice Integration Guide](https://github.com/elan-registry/registry/wiki/Integration).
 - **Custom Functions**: [usersc/includes/custom_functions.php](../../usersc/includes/custom_functions.php) — `isRegistryAdmin()`, `dbInt()`, and other bridge
   functions.
-- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../development/PAGE_LOADING_FLOW.md) — initialization sequence and globals.
+- **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../PAGE_LOADING_FLOW.md) — initialization sequence and globals.
 - **Security Headers**: [usersc/includes/security_headers.php](../../usersc/includes/security_headers.php) — CSP and other headers.
-- **Issue #350**: [Consolidate Documentation Portal Templates](https://github.com/unibrain1/elanregistry/issues/350)
+- **Issue #350**: [Consolidate Documentation Portal Templates](https://github.com/elan-registry/registry/issues/350)
 
   — complementary; provides rendering for database-driven metadata.
 
-- **Issue #559**: [Reorganize documentation by user intent](https://github.com/unibrain1/elanregistry/issues/559)
+- **Issue #559**: [Reorganize documentation by user intent](https://github.com/elan-registry/registry/issues/559)
 
   — requires `section`and`category` columns for intent-based grouping.
 
-- **Issue #576**: [Git LFS for PDF management](https://github.com/unibrain1/elanregistry/issues/576)
+- **Issue #576**: [Git LFS for PDF management](https://github.com/elan-registry/registry/issues/576)
 
   — superseded by this ADR; to be closed on approval.

@@ -39,8 +39,9 @@ on the UserSpice framework.
   `*_hist` trigger tables.
 - **Classes**: Custom classes in `/usersc/classes/` (Car, CarView,
   Owner, ChassisValidator, etc.)
-- **Owner data**: Use `getUserWithProfile($userId)` for combined user+profile
-  access. "Owner" in UI/domain, "User" in auth/framework code.
+- **Owner data**: Use `(new Owner($userId))->data()` for combined user+profile
+  data access (`getUserWithProfile()` was removed in v2.26.2).
+  "Owner" in UI/domain, "User" in auth/framework code.
 - **AJAX endpoints**: Use Pattern A response format (`{success, message, ...}`)
   with `ApiResponse` class. Frontend uses `ElanRegistryAPI` client.
 - **Error handling**: Typed exceptions, `LogCategories` constants, centralized

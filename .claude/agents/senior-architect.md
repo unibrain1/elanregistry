@@ -25,7 +25,8 @@ This is the Lotus Elan Registry (elanregistry.org), a PHP application built on U
 - MySQL 8.0+ with audit trail tables (*_hist)
 - UserSpice handles auth; custom classes in `/usersc/classes/`
 - Use `securePage()` for page protection
-- Use `getUserWithProfile()` for owner data access
+- Use `(new Owner($userId))->data()` for owner data access
+  (`getUserWithProfile()` was removed in v2.26.2)
 - Use ElanRegistryAPI (fetch-based) for new AJAX endpoints, Pattern A response format
 - Use LogCategories constants for all logging
 - "Owner" terminology in UI/domain code, "User" in auth/UserSpice code

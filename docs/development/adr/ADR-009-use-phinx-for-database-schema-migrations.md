@@ -307,8 +307,8 @@ introducing a separate migration runner.
 - **Migration Guide**: [database/migrations/README.md](../../../database/migrations/README.md)
 - **Phinx Documentation**:
   [https://book.cakephp.org/phinx/0/en/migrations.html](https://book.cakephp.org/phinx/0/en/migrations.html)
-- **FIX Script Documentation**: [docs/development/FIX_SCRIPTS.md](../development/FIX_SCRIPTS.md)
-- **Deployment Procedures**: [docs/development/DEPLOYMENT.md](../development/DEPLOYMENT.md)
+- **FIX Script Documentation**: [docs/development/FIX_SCRIPTS.md](../FIX_SCRIPTS.md)
+- **Deployment Procedures**: [docs/development/DEPLOYMENT.md](../DEPLOYMENT.md)
 
   (to be updated with migration step)
 
