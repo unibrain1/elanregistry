@@ -45,6 +45,16 @@ class CarAdministrationService
     private const OPERATION_MERGE = 'MERGE';
 
     /**
+     * The `noowner` system account's unroutable address, kept in sync with
+     * RegisterNoownerAccount::EMAIL. Used only to distinguish the expected
+     * blanking case from a real account with a malformed email — see
+     * contactableEmail(). Duplicated as a literal rather than imported: the
+     * migration is not autoloaded, and this const going stale can at worst add
+     * a spurious log line, never change behavior.
+     */
+    private const SYSTEM_ACCOUNT_EMAIL = 'noowner@invalid';
+
+    /**
      * Delete a car and all associated records
      *
      * @param object $carData Car data object
@@ -124,7 +134,7 @@ class CarAdministrationService
         // CarValidator's format check and store a junk contact address on every
         // reassigned car. A car with no reachable owner correctly has no owner
         // email; contact flows resolve the owner through `user_id`, not this column.
-        $targetEmail = $this->contactableEmail($targetUser->email ?? '');
+        $targetEmail = $this->contactableEmail($targetUser->email ?? '', $adminUserId, $carId);
 
         try {
             $repo->beginTransaction();
@@ -301,15 +311,36 @@ class CarAdministrationService
      * Reduce an owner email to what may legitimately be denormalized onto a car
      * or its history row: a real, deliverable address, or nothing at all.
      *
-     * Anything that fails FILTER_VALIDATE_EMAIL is not a contact address — it is
-     * a sentinel belonging to a system account — and is stored as an empty
-     * string rather than propagated. This is the same filter CarValidator
-     * applies, checked here so a system-account target blanks the field instead
-     * of aborting the whole transfer.
+     * Anything that fails FILTER_VALIDATE_EMAIL is stored as an empty string
+     * rather than propagated. This is the same filter CarValidator applies,
+     * checked here so a system-account target blanks the field instead of
+     * aborting the whole transfer.
+     *
+     * The expected case is a system account's unroutable sentinel (`noowner`),
+     * where blanking is the intended outcome and needs no attention. Any *other*
+     * unparseable address means a real account is carrying a malformed
+     * `users.email` — dropping that silently would erase a legitimate owner's
+     * contact details with no record, so it is logged. Blanking still wins over
+     * throwing: this path runs inside the GDPR reassignment transaction in
+     * usersc/scripts/after_user_deletion.php, where an exception would roll back
+     * the entire deletion and leave the deleted owner's PII on their former cars.
      */
-    private function contactableEmail(string $email): string
+    private function contactableEmail(string $email, int $adminUserId, int $carId): string
     {
-        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : '';
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) !== false) {
+            return $email;
+        }
+
+        if ($email !== '' && $email !== self::SYSTEM_ACCOUNT_EMAIL) {
+            logger(
+                $adminUserId,
+                LogCategories::LOG_CATEGORY_CAR_TRANSFER,
+                'Target owner email failed validation and was not copied to car ' . $carId
+                . '; the account carries a malformed users.email that needs correcting'
+            );
+        }
+
+        return '';
     }
 
     /**

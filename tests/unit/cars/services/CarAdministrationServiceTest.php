@@ -219,6 +219,52 @@ final class CarAdministrationServiceTest extends TestCase
     }
 
     /**
+     * A *real* account carrying a malformed `users.email` must also blank rather
+     * than abort — the transfer still has to complete, since this path runs
+     * inside after_user_deletion.php's single reassignment transaction.
+     *
+     * The distinction from the sentinel case above is visibility, not behavior:
+     * blanking `noowner@invalid` is expected and silent, but silently erasing a
+     * legitimate owner's contact address would hide a data-quality problem, so
+     * contactableEmail() logs that case. Both still write ''.
+     */
+    public function testTransferBlanksMalformedEmailOnRealAccountWithoutFailing(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999'];
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+
+        $updateFields = null;
+        $historyFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            function (string $table, array $fields = [], bool $update = false) use (&$historyFields): bool {
+                $historyFields = $fields;
+                return true;
+            }
+        );
+        $repo = new CarRepository($db);
+
+        $this->service->transfer(
+            $carData,
+            1,
+            'Admin-initiated transfer',
+            'NEWOWNER',
+            1,
+            $repo,
+            $this->createOwnerDb(1, 'not-an-email-address')
+        );
+
+        $this->assertSame('', $updateFields['email'] ?? null, 'a malformed owner email must be blanked, never copied onto the car');
+        $this->assertSame('', $historyFields['email'] ?? null, 'a malformed owner email must be blanked in history too');
+    }
+
+    /**
      * Guards every field in CarAdministrationService::OWNER_IDENTITY_FIELDS, not
      * just `email`. CarValidator omits any empty-valued key from its result, so
      * without withBlankedFieldsRestored() a transfer to an owner with no
