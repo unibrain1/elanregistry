@@ -287,7 +287,16 @@ else
     # newly added seed from being silently left out of provisioning.
     #
     # Note that naming seeds with -s bypasses Phinx's dependency ordering, so
-    # seeds must not rely on getDependencies(). They are independent today.
+    # seeds must not rely on getDependencies(). Most seeds are independent, but
+    # BaselinePermissionsSeed → PageRegistrationSeed is a real ordering
+    # dependency (PageRegistrationSeed inserts permission_page_matches rows
+    # referencing permissions.id=3, which only BaselinePermissionsSeed creates).
+    # It's satisfied here because glob's alphabetical order sorts
+    # BaselinePermissionsSeed before PageRegistrationSeed — see
+    # BaselinePermissionsSeed's class docblock for the full rationale. Any new
+    # seed with a similar ordering requirement must be named to sort correctly,
+    # or this loop needs an explicit ordering mechanism instead of relying on
+    # alphabetical glob order.
     SEED_ARGS=()
     SEED_NAMES=()
     for seed_file in "${SEEDS_DIR}"/*.php; do

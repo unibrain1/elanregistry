@@ -23,9 +23,19 @@ use Phinx\Seed\AbstractSeed;
  * directly, using `ElanRegistry\Admin\PagePermissionClassifier` (the same
  * classifier `21-Fix-Page-Permissions.php` uses) so the two never disagree
  * about how a page should be classified. It does not duplicate that
- * classifier's logic, and it does not touch `permission_page_matches` for a
- * page that already exists in `pages` — reconciling drift on already-known
- * pages remains `21-Fix-Page-Permissions.php`'s job.
+ * classifier's logic. For a page that already has a `pages` row, this seed
+ * only ever adds `permission_page_matches` rows to make its match count meet
+ * what classification expects — healing drift from a cause outside this
+ * seed's own control, since `registerNewPage()` wraps both the `pages` and
+ * `permission_page_matches` inserts in one transaction and can't itself
+ * leave a page partially registered. The drift this heals comes from
+ * elsewhere: a `pages` row created by UserSpice's lazy `createPages()`
+ * before this seed ever ran, a pre-#1671 version of this seed that predates
+ * the transaction wrap, or manual DB intervention. It never removes or changes
+ * a match, and it never revises a page whose match count already meets expectations, even if
+ * classification would now produce a different set — reconciling that kind
+ * of drift (e.g. a page's classification changing after it was first
+ * registered) remains `21-Fix-Page-Permissions.php`'s job.
  *
  * A small fixed list (`ROOT_PAGES`) covers the two lone repo-root pages that
  * sit outside every scanned directory. Everything else uses two strategies
@@ -56,6 +66,20 @@ use Phinx\Seed\AbstractSeed;
  *   retired/template fix scripts. `21-Fix-Page-Permissions.php` already
  *   skips `_TEMPLATE_` paths when reconciling; this seed skips both so it
  *   never registers dead or non-runnable scripts as live pages.
+ *
+ * `usersc/login.php` and `usersc/join.php` are public-by-design mirrors of
+ * `users/login.php` / `users/join.php` (see
+ * `PagePermissionClassifier::PUBLIC_USERSC_PAGES`) and, being public entry
+ * points, never call `securePage()` themselves — the grep strategy above
+ * would otherwise never discover them at all. Left undiscovered, they were
+ * never inserted by this seed; UserSpice's own lazy `createPages()`
+ * (triggered by an admin visiting some other unregistered page during the
+ * same session, not by a direct visit to these two) inserted them first
+ * using `settings.page_default_private` — which defaults to private — and
+ * the idempotency guard in `run()` then permanently skipped correcting them.
+ * `ROOT_PAGES` uses the identical pattern for the same reason (`z_us_root.php`
+ * never calls `securePage()` either); these two belong in the same
+ * explicit-list bucket.
  *
  * `users/` is walked unconditionally instead — every `.php` file found there
  * (minus the same includes/partials exclusions) is registered regardless of
@@ -103,6 +127,14 @@ final class PageRegistrationSeed extends AbstractSeed
      */
     private const ROOT_PAGES = ['index.php', 'z_us_root.php'];
 
+    /**
+     * @var list<string> Public-by-design pages that never call `securePage()` themselves
+     *                    (so the grep strategy can't discover them) and therefore need
+     *                    explicit registration, same rationale as `ROOT_PAGES`. Mirrors
+     *                    `PagePermissionClassifier::PUBLIC_USERSC_PAGES`.
+     */
+    private const EXPLICIT_PAGES = ['usersc/login.php', 'usersc/join.php'];
+
     /** @var list<string> Path substrings that exclude a file from discovery outright. */
     private const EXCLUDED_PATH_SUBSTRINGS = [
         '/vendor/',
@@ -127,15 +159,63 @@ final class PageRegistrationSeed extends AbstractSeed
         $pages = $this->discoverPages($repoRoot);
 
         foreach ($pages as $page) {
-            if ($this->findPageId($page) !== null) {
+            $pageId = $this->findPageId($page);
+
+            if ($pageId !== null && $this->isRegistrationComplete($pageId, $page)) {
                 continue;
             }
 
-            $this->registerNewPage($page);
+            $this->registerNewPage($page, $pageId);
         }
     }
 
-    private function registerNewPage(string $page): void
+    /**
+     * A page row existing is not sufficient evidence that registration finished. This seed's own
+     * `registerNewPage()` can't leave a page partially registered — it wraps both the `pages`
+     * and `permission_page_matches` inserts in one transaction — but the `pages` row could have
+     * come from somewhere else entirely: UserSpice's lazy `createPages()` firing before this seed
+     * ever ran, a pre-#1671 version of this seed that predated the transaction wrap, or manual DB
+     * intervention. Compare the actual match count against what classification expects for this
+     * page so that kind of external drift is healed instead of permanently skipped.
+     */
+    private function isRegistrationComplete(int $pageId, string $page): bool
+    {
+        $expected = count($this->classifyPermissions($page));
+
+        $row = $this->query(
+            'SELECT COUNT(*) AS cnt FROM `permission_page_matches` WHERE `page_id` = ?',
+            [$pageId]
+        )->fetch(\PDO::FETCH_ASSOC);
+        $actual = $row !== false ? (int) $row['cnt'] : 0;
+
+        return $actual >= $expected;
+    }
+
+    private function registerNewPage(string $page, ?int $existingPageId): void
+    {
+        $permissionIds = $this->classifyPermissions($page);
+        foreach ($permissionIds as $permissionId) {
+            $this->assertPermissionExists($permissionId, $page);
+        }
+
+        $adapter = $this->getAdapter();
+        $adapter->beginTransaction();
+
+        try {
+            $pageId = $existingPageId ?? $this->insertPage($page);
+
+            foreach ($permissionIds as $permissionId) {
+                $this->insertPermissionMatch($pageId, $permissionId);
+            }
+
+            $adapter->commitTransaction();
+        } catch (\Throwable $e) {
+            $adapter->rollbackTransaction();
+            throw $e;
+        }
+    }
+
+    private function insertPage(string $page): int
     {
         // `z_us_root.php` carries `core=1` on dev/prod (see the ROOT_PAGES docblock); every
         // other discovered page is `core=0`, matching what lazy registration would have inserted.
@@ -150,7 +230,8 @@ final class PageRegistrationSeed extends AbstractSeed
         if ($inserted !== 1) {
             throw new RuntimeException(
                 "PageRegistrationSeed: inserting `pages`.`page` = '{$page}' reported {$inserted} " .
-                'affected rows, expected 1.'
+                'affected rows, expected 1. Check for a duplicate-key conflict or a schema change ' .
+                'to the `pages` table, then re-run the seed.'
             );
         }
 
@@ -158,12 +239,32 @@ final class PageRegistrationSeed extends AbstractSeed
         if ($pageId === null) {
             throw new RuntimeException(
                 "PageRegistrationSeed: `pages`.`page` = '{$page}' was just inserted but cannot be " .
-                're-selected.'
+                're-selected. This suggests a transaction visibility or connection issue — verify ' .
+                'the seed is running against a single connection and re-run.'
             );
         }
 
-        foreach ($this->classifyPermissions($page) as $permissionId) {
-            $this->insertPermissionMatch($pageId, $permissionId);
+        return $pageId;
+    }
+
+    /**
+     * `permission_page_matches.permission_id` has no FK constraint, so an insert referencing a
+     * nonexistent permission id would succeed silently and produce an orphaned, meaningless row.
+     * `BaselinePermissionsSeed` must run first (see that file's docblock) to guarantee id 3
+     * exists; this check turns a broken run order into a loud failure instead of silent data
+     * corruption.
+     */
+    private function assertPermissionExists(int $permissionId, string $page): void
+    {
+        $row = $this->query('SELECT id FROM `permissions` WHERE id = ?', [$permissionId])
+            ->fetch(\PDO::FETCH_ASSOC);
+
+        if ($row === false) {
+            throw new RuntimeException(
+                "PageRegistrationSeed: page '{$page}' classifies to permission_id={$permissionId}, " .
+                'but no such row exists in `permissions`. BaselinePermissionsSeed must run before ' .
+                'PageRegistrationSeed — check seed run order.'
+            );
         }
     }
 
@@ -188,6 +289,7 @@ final class PageRegistrationSeed extends AbstractSeed
     {
         $pages = [
             ...self::ROOT_PAGES,
+            ...self::EXPLICIT_PAGES,
             ...$this->discoverSecurePageCallers($repoRoot),
             ...$this->discoverUserSpiceInstallerPages($repoRoot),
         ];
@@ -207,10 +309,12 @@ final class PageRegistrationSeed extends AbstractSeed
 
         foreach (self::SECURE_PAGE_SCAN_DIRECTORIES as $directory) {
             foreach ($this->walkPhpFiles($repoRoot, $directory) as $relativePath) {
-                $contents = file_get_contents($repoRoot . '/' . $relativePath);
+                $absolutePath = $repoRoot . '/' . $relativePath;
+                $contents = file_get_contents($absolutePath);
                 if ($contents === false) {
                     throw new RuntimeException(
-                        "PageRegistrationSeed: unable to read '{$relativePath}' during page discovery."
+                        "PageRegistrationSeed: unable to read '{$absolutePath}' during page discovery. " .
+                        'Check file permissions and that the path still exists.'
                     );
                 }
 
@@ -346,7 +450,8 @@ final class PageRegistrationSeed extends AbstractSeed
         if ($inserted !== 1) {
             throw new RuntimeException(
                 "PageRegistrationSeed: inserting permission_page_matches for page_id={$pageId}, " .
-                "permission_id={$permissionId} reported {$inserted} affected rows, expected 1."
+                "permission_id={$permissionId} reported {$inserted} affected rows, expected 1. " .
+                'Check for a schema change to `permission_page_matches`, then re-run the seed.'
             );
         }
     }
