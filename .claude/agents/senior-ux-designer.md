@@ -22,7 +22,7 @@ You are a senior UX designer with deep expertise in information architecture, in
 ## Project Context
 
 - **Audience**: Two personas — **Owners** (registered members managing their own cars) and **Enthusiasts** (logged-in or guest visitors browsing the registry).
-- **Template**: Bootstrap 5.3.3, self-hosted. jQuery available (UserSpice dependency). Font Awesome icons.
+- **Template**: Bootstrap 5.3.8, self-hosted. jQuery available (UserSpice dependency). Font Awesome icons.
 - **UI Standards**: `docs/development/UI_STANDARDS.md` — colour tokens (`--er-accent`, `--er-primary`), card hierarchy (`registry-card`, `card-header-er-primary`, `card-header-er-l2`, etc.), component patterns. **Always read this file before recommending new components.**
 - **Page types**: Public car listing (`index.php`), public car detail (`details.php`), owner account (`account.php` + `account_bottom_hook.php`), car edit form (`form.php`), admin pages.
 - **Terminology**: "Owner" in UI copy, "User" only in auth/system contexts.

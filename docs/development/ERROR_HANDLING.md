@@ -264,7 +264,7 @@ automatic CSRF token injection, error handling, and request cancellation.
 const api = new ElanRegistryAPI();
 
 try {
-    const result = await api.post('app/action/update-car.php', {
+    const result = await api.post('app/api/cars/save.php', {
         car_id: 123,
         year: 2020
     });
@@ -294,7 +294,7 @@ try {
 const api = new ElanRegistryAPI();
 
 try {
-    const result = await api.get('app/action/search-cars.php', {
+    const result = await api.get('app/api/cars/list.php', {
         query: 'Elan',
         limit: 10
     });
@@ -319,7 +319,7 @@ async function search(query) {
     }
 
     try {
-        const result = await api.request('app/action/search.php', {
+        const result = await api.request('app/api/cars/list.php', {
             method: 'GET',
             params: { q: query },
             requestId: (searchRequestId = api.generateRequestId())
@@ -546,7 +546,7 @@ const result = await api.post('endpoint', data);
 
 - `/usersc/classes/ApiResponse.php` - API response class
 - `/usersc/classes/Exceptions/ElanRegistryException.php` - Base exception (namespace: `ElanRegistry\Exceptions`)
-- `/usersc/classes/Exceptions/` - All exception classes (26 total)
+- `/usersc/classes/Exceptions/` - All exception classes (22 total)
 - `/usersc/classes/LogCategories.php` - Log category constants
 - `/usersc/includes/custom_functions.php` - Global helpers: `dbInt()`, `currentUserId()`, `isRegistryAdmin()`, `requireAdminAjax()`, `getBaseUrl()`
 - `/usersc/js/elan-registry-api.js` - Frontend API client

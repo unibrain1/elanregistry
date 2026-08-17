@@ -4,8 +4,8 @@ Complete reference for all custom classes in the Elan Registry application.
 
 ## Overview
 
-All custom classes are located in `/usersc/classes/` (application classes) and
-`/app/admin/includes/classes/` (admin-specific classes). Exception classes use
+All custom classes are located under `/usersc/classes/`, with admin-specific
+classes in `/usersc/classes/admin/`. Exception classes use
 the `ElanRegistry\Exceptions` namespace and are located in
 `/usersc/classes/Exceptions/`. Classes follow established design patterns with
 consistent database integration, exception handling, and audit logging.
@@ -391,7 +391,7 @@ if (!CarModel::exists($series, $variant, $type)) {
 
 - `validateAndSanitizeFields(array $fields, bool $requireAll): array` - Main validation method
 - `validateRequiredFields(array $fields, array $required): void` - Check required fields are present
-- `normalizeString(string $input, int $maxLength): string` - Trim whitespace and truncate to max length; caller must apply `htmlspecialchars()` at the render layer
+- `parseModel(string $model): array` - Static; splits a `series|variant|type` model string into its parts
 
 **Exceptions**:
 
@@ -567,7 +567,7 @@ if ($result['valid']) {
 
 ### BackupManager
 
-**Location**: `/app/admin/includes/classes/BackupManager.php`
+**Location**: `/usersc/classes/admin/BackupManager.php`
 
 Database backup management with retention policies, schema operation integration, and environment-aware cleanup. Throws `BackupException` on failures.
 

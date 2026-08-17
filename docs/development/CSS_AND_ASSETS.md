@@ -25,7 +25,7 @@ The child theme CSS (`consolidated.css`) is also minified via the build script.
 
 ## Frontend Library Loading
 
-Bootstrap 5.3.3 is self-hosted via the Customizer `header.php`.
+Bootstrap 5.3.8 is self-hosted from UserSpice's own copy (`users/css/bootstrap.min.css`, `users/js/bootstrap.bundle.min.js`) — see ADR-015.
 jQuery is CDN-managed by UserSpice (`users/js/jquery.php`).
 
 Frontend dependencies are vendored under `usersc/js/` and `usersc/css/` per

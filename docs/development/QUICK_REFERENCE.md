@@ -12,7 +12,7 @@ See [CLAUDE.md](../../CLAUDE.md) → Quick Start Commands for the full testing a
 ### Pre-commit Quality Checks
 
 ```bash
-composer phpcs                  # Manual coding standards check
+composer check:php               # Coding standards + PHPStan (no `composer phpcs` script exists)
 ```
 
 ### Milestone Lifecycle
@@ -27,10 +27,11 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for complete release procedures.
 
 ```text
 /app/                      # Main application pages
-  /cars/                   # Car listing, details, edit
+  /owner/cars/             # Car listing, details, edit, factory
+  /owner/contact/          # Owner contact functionality
+  /owner/reports/          # Statistics and reports
   /admin/                  # Admin interfaces
-  /reports/                # Statistics and reports
-  /contact/                # Owner contact functionality
+  /api/                    # AJAX JSON endpoints
 /users/                    # UserSpice authentication
 /usersc/                   # UserSpice customizations
   /classes/                # Custom PHP classes

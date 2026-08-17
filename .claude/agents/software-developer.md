@@ -52,8 +52,8 @@ on the UserSpice framework.
 - **Logging**: Use `logger()` with `LogCategories::LOG_CATEGORY_*` constants.
 - **New directories**: Register in `$path` array in `/z_us_root.php` **only
   if the directory contains files that call `securePage()`**. API endpoints
-  and action handlers without `securePage()` (e.g. `app/action/`,
-  `app/api/`) are intentionally omitted.
+  and action handlers without `securePage()` (e.g. `app/api/cars/`,
+  `app/api/shared/`) are intentionally omitted.
 
 ### UserSpice Framework
 

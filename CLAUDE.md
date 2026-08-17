@@ -73,7 +73,7 @@ all other Cloudflare features work normally.
   `usersc/classes/`, `ElanRegistry\Exceptions\` → `usersc/classes/Exceptions/`)
 - `/tests/` - PHPUnit and Playwright tests: `unit/` (mocked, no DB),
   `integration/` (real DB), `regression/`, `playwright/` (browser),
-  `manual/`, `fixtures/`
+  `manual/`
 
 **Key Integration Points:**
 
@@ -91,7 +91,7 @@ all other Cloudflare features work normally.
 - **New PHP Directories**: Only add a directory to the `$path` array in
   `/z_us_root.php` when it contains files that call `securePage()`. Pure API
   endpoints, action handlers, and partials that do not call `securePage()` are
-  **not** added — `app/action/`, `app/api/cars/`, and `app/api/shared/` are examples of this
+  **not** added — `app/api/cars/` and `app/api/shared/` are examples of this
   pattern. (`app/api/contact/` is an exception: it contains files that call `securePage()` and
   is therefore included.)
   New admin scripts go under `app/admin/scripts/fix/` (one-time migrations) or
@@ -308,7 +308,7 @@ and architecture agents.
 /new-issue           — Create a well-defined GitHub issue with PM refinement
 /address-pr-comments — Triage CI/reviewer comments, fix blocking items
 /security-review     — OWASP security audit of recent changes
-/release             — Standalone release (hotfixes not tied to a milestone)
+/found               — Capture a pre-existing issue found mid-task; classify and file or fix
 /architecture-update — Full wiki architecture documentation refresh
 /revise-claude-md    — Update CLAUDE.md with session learnings
 /clean_gone          — Delete local branches removed from remote
