@@ -20,11 +20,13 @@ remote, NOT `origin`!
 **Live Production Server:**
 
 ```bash
-# Push code to PRODUCTION SERVER (live site)
-git push prod main
-
-# Push version tags to PRODUCTION SERVER
+# Push version tags FIRST — the post-receive hook writes VERSION with
+# `git describe HEAD` during the branch push, so the tag must already
+# be on the server or the footer shows the previous version
 git push prod --tags
+
+# Then push code to PRODUCTION SERVER (live site)
+git push prod main
 ```
 
 **GitHub Repository (backup/development):**
@@ -235,10 +237,12 @@ git commit --no-verify           # Bypass (emergency only)
 
 1. **Create git tag**: `git tag vX.Y.Z`
 2. **Commit changes** (if any) before creating tag
-3. **Push to remotes** - deployment hooks automatically update VERSION file:
+3. **Push to remotes** - deployment hooks automatically update VERSION file.
+   On deployment remotes, push tags **before** the branch — the hook writes
+   VERSION during the branch push and needs the tag already present:
    - GitHub: `git push origin main && git push origin --tags`
-   - Test: `git push test main && git push test --tags` (hook updates VERSION)
-   - Production: `git push prod main && git push prod --tags` (hook updates VERSION)
+   - Test: `git push test --tags && git push test main` (hook updates VERSION)
+   - Production: `git push prod --tags && git push prod main` (hook updates VERSION)
 4. **Run database migrations** (see below)
 5. **Verify deployment** by checking version display matches git tag on
    production site
