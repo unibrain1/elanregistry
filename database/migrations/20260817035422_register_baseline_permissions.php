@@ -111,6 +111,21 @@ final class RegisterBaselinePermissions extends AbstractMigration
                 continue;
             }
 
+            // Same reasoning for page-level grants. PageRegistrationSeed writes
+            // a permission_page_matches row per Admin/Editor page, and
+            // permission_page_matches.permission_id carries no FK constraint,
+            // so deleting the permissions row here would orphan those matches
+            // silently rather than erroring. Checked separately from `users`
+            // because the two are independent: the baseline ids routinely have
+            // no users holding them while still being referenced by every
+            // registered admin page.
+            $matched = $this->fetchRow(
+                "SELECT COUNT(*) AS c FROM `permission_page_matches` WHERE `permission_id` = {$id}"
+            );
+            if ($matched !== false && (int) $matched['c'] > 0) {
+                continue;
+            }
+
             $this->execute(
                 "DELETE FROM `permissions` WHERE id = {$id} AND name = '{$name}'"
             );
