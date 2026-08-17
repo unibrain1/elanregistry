@@ -17,7 +17,7 @@
 
 ## References
 
-- [LOG_CATEGORIES.md](LOG_CATEGORIES.md) — 80+ audit logging constants
+- [LOG_CATEGORIES.md](LOG_CATEGORIES.md) — 107 audit logging constants
 - [USERSPICE_FUNCTIONS.md](USERSPICE_FUNCTIONS.md) — UserSpice framework function reference
 - [STRICT_TYPE_HANDLING.md](STRICT_TYPE_HANDLING.md) — dbInt() and type helpers
 - [DATATABLES.md](DATATABLES.md) — DataTables configuration

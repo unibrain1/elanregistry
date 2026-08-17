@@ -12,7 +12,7 @@ class.
 
 ### BackupManager Class
 
-**Location**: `app/admin/includes/classes/BackupManager.php`
+**Location**: `usersc/classes/admin/BackupManager.php`
 
 The BackupManager class encapsulates all backup operations, providing a clean
 OOP interface for creating, managing, and cleaning up database backups.
@@ -268,7 +268,7 @@ $backupPath = createStandardizedBackup(
 
 ```php
 // FIX script using BackupManager class
-require_once $abs_us_root . $us_url_root . 'app/admin/includes/classes/BackupManager.php';
+require_once $abs_us_root . $us_url_root . 'usersc/classes/admin/BackupManager.php';
 
 $backupDir = $abs_us_root . $us_url_root . 'app/admin/scripts/fix/backups/';
 $backupManager = new BackupManager($db, $backupDir);
@@ -402,15 +402,15 @@ chmod 755 app/admin/scripts/fix/backups/rollback/
 **Solution**: Use BackupManager directly:
 
 ```php
-require_once $abs_us_root . $us_url_root . 'app/admin/includes/classes/BackupManager.php';
+require_once $abs_us_root . $us_url_root . 'usersc/classes/admin/BackupManager.php';
 $backupManager = new BackupManager($db, $backupDir);
 $backupPath = $backupManager->createSchemaBackup('my-script', ['users']);
 ```
 
 ## Related Files
 
-- **Core Class**: `app/admin/includes/classes/BackupManager.php`
-- **Admin Integration**: `app/admin/includes/tab-system.php`
+- **Core Class**: `usersc/classes/admin/BackupManager.php`
+- **Admin Integration**: `app/admin/includes/system/backup-operations.php`
 
 ## Changelog
 

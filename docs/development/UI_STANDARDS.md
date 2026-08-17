@@ -324,7 +324,7 @@ Three first-party CSS source files (compiled to `.min.css` by `npm run build`):
 
 | File | Loaded by | Contains |
 | --- | --- | --- |
-| `app/admin/assets/manage-consolidated.css` | `index.php` | Admin comparison cards, field-match/differ, timestamp display |
+| `app/admin/assets/admin-core.css` | `index.php` | Admin comparison cards, field-match/differ, timestamp display |
 | `app/assets/css/edit_car.css` | `app/owner/cars/edit.php` | FilePond overrides, `#editCar` focus, card z-index for drag-drop |
 | `app/assets/css/location-picker.css` | `app/owner/cars/edit.php` | `.location-picker-container`-scoped styles |
 

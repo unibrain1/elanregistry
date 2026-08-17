@@ -192,7 +192,7 @@ throughout the application.
 **Purpose**: Replace hardcoded log strings with constants to prevent typos,
 improve discoverability, and maintain consistency.
 
-**Organization**: 140+ categories organized by functional domain:
+**Organization**: 107 categories organized by functional domain:
 
 - Car Management (CarActions, CarCreation, CarUpdate, CarDeletion, CarMerge,
   CarTransfer, CarVerification, CarSold, CarErrors)
@@ -559,7 +559,7 @@ const result = await api.post('endpoint', data);
   to read this guide
 - **[CODING_STANDARDS.md](CODING_STANDARDS.md)** - Error handling requirements
   and code review checklist
-- **[LOG_CATEGORIES.md](LOG_CATEGORIES.md)** - Complete list of 140+ log
+- **[LOG_CATEGORIES.md](LOG_CATEGORIES.md)** - Complete list of all 107 log
   category constants
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Copy-paste code snippets for
   error handling patterns
@@ -578,6 +578,6 @@ const result = await api.post('endpoint', data);
 - **v2.12.0**: Complete error handling system introduced
   - ApiResponse class
   - ElanRegistryException hierarchy (23 types)
-  - LogCategories constants (140+ categories)
+  - LogCategories constants (107 categories)
   - ElanRegistryAPI frontend client
   - NotificationHelper utility

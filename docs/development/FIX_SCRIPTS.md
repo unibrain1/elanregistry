@@ -53,63 +53,27 @@ The standardized template provides:
 
 ## Example Structure
 
-```php
-<?php
-// app/admin/scripts/fix/##-Descriptive-Name.php
-//   (or app/admin/scripts/maintenance/##-Descriptive-Name.php)
+**Copy `app/admin/scripts/fix/_TEMPLATE_Fix-Script.php`** rather than writing a
+script from scratch. It is the source of truth for the current pattern; an
+example reproduced here would drift from it, as an earlier version of this
+section did.
 
-require_once '../../../../users/init.php';
-require_once $abs_us_root.$us_url_root.'users/includes/template/prep.php';
+The template wires up the shared infrastructure in
+`app/admin/includes/fix-script-core.php`:
 
-// Security check
-if (!securePage($php_self)) {
-    die();
-}
+| Helper | Role |
+| --- | --- |
+| `admin_script_exec_requested()` | The gate. Returns true only for a POST with a valid CSRF token from a user passing `isAdmin()`. **Every destructive path must sit behind it** — it is what stops an editor, or a GET request, from executing a script. |
+| `admin_script_start_form()` | Renders the confirm-and-execute form that produces that POST. |
+| `logProgress($msg, $type)` | Writes to the two-phase progress UI and the run log. |
+| `admin_script_close_button()` | Standard return navigation. |
 
-$db = DB::getInstance();
-$userId = $user->data()->id;
+Runs are recorded in `fix_script_runs`, which the admin health and maintenance
+tabs read.
 
-// Script description
-$scriptName = "Descriptive Name";
-$scriptDescription = "What this script does...";
-
-// Handle POST request
-if (Input::exists()) {
-    if (Token::check(Input::get('csrf'))) {
-        try {
-            $db->query("BEGIN");
-
-            // Your maintenance logic here
-            outputMessage("Processing...");
-
-            // Log execution
-            $db->insert('fix_script_runs', ['script_name' => $scriptName]);
-
-            $db->query("COMMIT");
-            outputMessage("✓ Complete!", 'success');
-
-        } catch (Exception $e) {
-            $db->query("ROLLBACK");
-            logger($userId, 'DatabaseMaintenance', "Error in $scriptName: " . $e->getMessage());
-            outputMessage("Error: " . $e->getMessage(), 'danger');
-        }
-    }
-}
-
-// Display UI
-?>
-<div class="container">
-    <h2><?=$scriptName?></h2>
-    <p><?=$scriptDescription?></p>
-
-    <form method="post">
-        <input type="hidden" name="csrf" value="<?=Token::generate()?>">
-        <button type="submit" class="btn btn-primary">Start</button>
-    </form>
-
-    <div id="output"></div>
-</div>
-```
+> **Schema changes do not belong here.** DDL goes in a Phinx migration, which
+> runs at deploy time from the CLI rather than through a web-accessible page.
+> See [ADR-009](adr/ADR-009-use-phinx-for-database-schema-migrations.md).
 
 ## Key Requirements
 
