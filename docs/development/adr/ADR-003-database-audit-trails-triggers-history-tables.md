@@ -100,7 +100,13 @@ metadata:
 
 ### car_user_hist -- Junction Table Audit
 
-A `car_user_hist` table exists in the schema to audit the `car_user` ownership
+> **No longer applies (v2.26.2).** `car_user` and `car_user_hist`, and the
+> triggers described below, were dropped by migration
+> `20260711000000_drop_car_user_tables.php` (issue #1162). Ownership is now a
+> single authoritative column, `cars.user_id`, audited through `cars_hist`.
+> The rest of this section is retained as a record of the decision as made.
+
+A `car_user_hist` table existed in the schema to audit the `car_user` ownership
 relationship table:
 
 | Column | Type |

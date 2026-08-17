@@ -14,14 +14,55 @@
   geographic data
 - **Car Registry**: `cars`, `cars_hist` tables with comprehensive vehicle
   records and audit trails
-- **Relationships**: `car_user`, `car_user_hist` junction tables with audit
-  trails
 - **Ownership Transfers**: `car_transfer_requests` table for self-service
   ownership transfer workflow
 - **Factory Data**: `elan_factory_info` reference table for Lotus Elan
   specifications
 - **System Tables**: `audit`, `country`, `fix_script_runs` for system operations
   and reference data
+
+## Changing the schema — use Phinx
+
+**Every structural change goes through a Phinx migration.** Do not hand-edit
+`database/1-schema.sql`, and do not use a FIX script for DDL — schema changes
+run at deploy time via CLI, not through a web-accessible page. See
+[ADR-009](adr/ADR-009-use-phinx-for-database-schema-migrations.md) for why.
+
+```bash
+vendor/bin/phinx create AddApiTokenToUsers   # scaffold a new migration
+composer migrate:status                      # what is applied vs pending
+composer migrate:dry-run                     # preview SQL without applying
+composer migrate                             # apply pending migrations
+composer migrate:rollback                    # revert the most recent migration
+```
+
+Migrations live in `database/migrations/`, named
+`YYYYMMDDHHMMSS_snake_case_description.php`, and extend
+`Phinx\Migration\AbstractMigration`. Applied versions are tracked in the
+[`phinxlog`](#phinxlog---phinx-migration-tracking) table — never edit it by hand.
+
+**`change()` vs `up()`/`down()`:** use `change()` for operations Phinx can
+auto-reverse (create table, add column, add index). Use explicit `up()` and
+`down()` when it cannot — `DROP TABLE`, `DROP TRIGGER`, or any data
+transformation. `20260711000000_drop_car_user_tables.php` is the reference
+example: it drops tables in `up()` and recreates them from the original DDL in
+`down()`.
+
+**Migrations run automatically on deploy.** The server-side `post-receive` hook
+runs `composer install` then `phinx migrate` on every push to `test` and `prod`.
+A failed migration halts the deployment — fix the migration and push again
+rather than patching the database by hand.
+
+Two cautions learned from `drop_car_user_tables`:
+
+- **Do all reads before any DDL.** MySQL implicitly commits on DDL, so an
+  exception thrown after the first `DROP` leaves the schema half-changed.
+- **Reconcile drift before dropping a table.** That migration found two
+  production rows where the junction table and `cars.user_id` disagreed, and
+  had to resolve them before the drop was safe.
+
+For the full workflow, see
+[`database/migrations/README.md`](../../database/migrations/README.md).
 
 ## Database Schema
 
@@ -94,30 +135,23 @@ automatically synchronized from user profiles when user data changes.
 | `timestamp` | `timestamp` | Change timestamp |
 | *(All car columns)* | | Mirror of `cars` table structure including `chassis_override`. `year` is `SMALLINT UNSIGNED NULL` to match cars. |
 
-#### `car_user` - Car sharing relationships
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | `int` | PRIMARY KEY, AUTO_INCREMENT |
-| `userid` | `int` | User ID (INDEXED) |
-| `car_id` | `int` | Car ID (INDEXED) |
-| `mtime` | `timestamp` | Relationship modification time |
-
-**Note**: This junction table enables many-to-many relationships between users
-and cars, allowing multiple users to be associated with a single car and users
-to own multiple cars.
-
-#### `car_user_hist` - Relationship audit trail
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | `int` | PRIMARY KEY, AUTO_INCREMENT |
-| `operation` | `varchar(32)` | Operation type (INSERT/UPDATE/DELETE) |
-| `car_id` | `int UNSIGNED` | Car ID |
-| `userid` | `int` | User ID |
-| `timestamp` | `timestamp` | Change timestamp |
-
-**Note**: This table is populated by database triggers on `car_user` (added in [#592](https://github.com/elan-registry/registry/issues/592)). Indexes on `car_id` and `userid` were added for query performance.
+> #### Removed: `car_user` and `car_user_hist`
+>
+> These tables were **dropped in v2.26.2** by migration
+> `20260711000000_drop_car_user_tables.php` (issue #1162). Do not write queries
+> against them.
+>
+> `car_user` was a junction table recording ownership as `(userid, car_id)`
+> rows, but ownership is already authoritative on `cars.user_id`. Because
+> `car_user` had no foreign key back to `cars` or `users`, the two
+> representations drifted — rows pointed at cars whose `cars.user_id` said
+> something different, producing inconsistent owner data in reports.
+>
+> **Ownership is a single column: `cars.user_id`.** There is no many-to-many
+> car sharing. Every JOIN that went through the removed junction table was
+> rewritten to read `cars.user_id` directly, and its audit history and triggers
+> were dropped with it. Ownership changes are audited in `cars_hist` instead —
+> see [Audit trail triggers](#audit-trail-triggers).
 
 #### `car_transfer_requests` - Ownership transfer workflow
 
@@ -256,7 +290,6 @@ migrations live in `database/migrations/` — see
   (`users.id` → `profiles.user_id`)
 - **Users ↔ Cars**: One-to-many direct ownership
   (`users.id` → `cars.user_id`)
-- **Users ↔ Cars**: Many-to-many sharing via `car_user` junction table
 - **Cars → History**: One-to-many audit trail (`cars.id` → `cars_hist.car_id`)
 
 ### Enforced Foreign Key Constraints
@@ -293,12 +326,9 @@ by the Phinx migration
 - All triggers use current schema (no deprecated columns); `chassis_override` added in #915
 - Each trigger records operation type (INSERT/UPDATE/DELETE) and timestamp
 
-**Car-User Relationship Triggers** (implemented in #592):
-
-- `car_user_insert`: Logs new car-user relationships to `car_user_hist`
-- `car_user_update`: Logs car-user relationship modifications to `car_user_hist` with bypass via
-  `@disable_triggers` variable
-- `car_user_delete`: Logs car-user relationship removals to `car_user_hist`
+**Car-User Relationship Triggers** — removed in v2.26.2 along with the
+`car_user` / `car_user_hist` tables (issue #1162). Ownership changes are audited
+through the `cars` triggers above.
 
 ### Special System Accounts
 
@@ -314,8 +344,8 @@ ID.
 **Cleanup Process** (`/usersc/scripts/after_user_deletion.php`):
 
 1. Remove orphaned `profiles` records
-2. Remove user's `car_user` relationships
-3. Transfer car ownership to `noowner` user (preserves registry data)
+2. Transfer car ownership to the `noowner` user (preserves registry data)
+3. Expire any non-terminal transfer requests the user initiated
 4. All changes automatically logged via database triggers
 
 **Maintenance Utilities** (`/app/admin/scripts/fix/02-Cleanup-Orphaned-Profiles.php`):

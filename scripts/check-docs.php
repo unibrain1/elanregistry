@@ -38,6 +38,21 @@ final class DocsChecker
         'getUserWithProfile' => 'removed in v2.26.2 (#1148) — use (new Owner($userId))->data()',
     ];
 
+    /**
+     * Paths exempt from the dropped-table rule.
+     *
+     * ADRs are historical records: they describe a decision as it was made, so
+     * a mention of a since-dropped table is correct there — provided the
+     * section carries a supersession note, which is checked separately by
+     * review rather than by this script. Everything else — reference docs,
+     * CLAUDE.md, agent instructions — must describe the schema as it is now.
+     */
+    private const DROPPED_TABLE_ALLOWED_PATHS = [
+        'docs/development/adr/',
+        'database/migrations/',
+        'app/admin/scripts/fix/_ARCHIVE/',
+    ];
+
     /** Substrings in URLs that indicate a stale repository or branch. */
     private const BAD_URL_FRAGMENTS = [
         'unibrain1/elanregistry' => 'stale repo — use elan-registry/registry',
@@ -76,6 +91,7 @@ final class DocsChecker
         $this->checkAdrIndex();
         $this->checkBadUrls();
         $this->checkDeadSymbols();
+        $this->checkDroppedTables();
 
         return $this->report();
     }
@@ -266,6 +282,127 @@ final class DocsChecker
                 }
             }
         }
+    }
+
+    /**
+     * Rule 6 — documentation must not present a dropped table as current.
+     *
+     * The list of dropped tables is derived from the migrations themselves
+     * rather than hard-coded, so the next `dropTable()` is caught without
+     * anyone remembering to update this script. A mention is allowed when the
+     * same line marks it as removed/dropped — that is a supersession note, not
+     * a stale claim.
+     */
+    private function checkDroppedTables(): void
+    {
+        $dropped = $this->droppedTables();
+        if ($dropped === []) {
+            return;
+        }
+
+        foreach ($this->markdownFiles(true) as $file) {
+            $rel = $this->rel($file);
+
+            foreach (self::DROPPED_TABLE_ALLOWED_PATHS as $allowedPath) {
+                if (str_starts_with($rel, $allowedPath)) {
+                    continue 2;
+                }
+            }
+
+            $lines = file($file, FILE_IGNORE_NEW_LINES) ?: [];
+
+            foreach ($lines as $i => $line) {
+                foreach ($dropped as $table) {
+                    if (!preg_match('/\b' . preg_quote($table, '/') . '\b/', $line)) {
+                        continue;
+                    }
+
+                    // A removal note is usually a short block — a heading plus
+                    // a paragraph of explanation — so the word "dropped" may
+                    // sit several lines from a given mention. Scan a window
+                    // around the line rather than just its neighbour.
+                    $from = max(0, $i - 8);
+                    $context = implode(' ', array_slice($lines, $from, 17));
+                    if (preg_match('/\b(dropped|removed|no longer|superseded)\b/i', $context)) {
+                        continue;
+                    }
+
+                    $this->problem(
+                        'dropped-table',
+                        $rel . ':' . ($i + 1),
+                        "`{$table}` was dropped by a migration but is documented as current"
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Table names passed to dropTable() in any migration.
+     *
+     * @return list<string>
+     */
+    private function droppedTables(): array
+    {
+        $tables = [];
+
+        foreach (glob($this->root . '/database/migrations/*.php') ?: [] as $migration) {
+            $body = (string) file_get_contents($migration);
+            // Phinx's table builder …
+            if (preg_match_all('/->dropTable\(\s*[\'"]([a-z0-9_]+)[\'"]/i', $body, $m)) {
+                foreach ($m[1] as $table) {
+                    $tables[$table] = true;
+                }
+            }
+
+            // … and raw DDL, which is how non-reversible drops are written.
+            if (preg_match_all('/DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?([a-z0-9_]+)`?/i', $body, $m)) {
+                foreach ($m[1] as $table) {
+                    $tables[$table] = true;
+                }
+            }
+        }
+
+        // A table recreated by a LATER migration is not dropped. Only later
+        // migrations count — a down() method in the same file recreates the
+        // table on rollback, which does not mean it currently exists.
+        $migrations = glob($this->root . '/database/migrations/*.php') ?: [];
+        sort($migrations);
+
+        foreach ($tables as $table => $_) {
+            $droppedIn = '';
+            foreach ($migrations as $migration) {
+                $body = (string) file_get_contents($migration);
+                if (preg_match('/(->dropTable\(\s*[\'"]|DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?)' . preg_quote($table, '/') . '\b/i', $body)) {
+                    $droppedIn = $migration;
+                }
+            }
+
+            foreach ($migrations as $migration) {
+                if ($migration <= $droppedIn) {
+                    continue;
+                }
+                $body = (string) file_get_contents($migration);
+                if (preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?' . preg_quote($table, '/') . '\b/i', $body)
+                    || preg_match('/->table\(\s*[\'"]' . preg_quote($table, '/') . '[\'"].*?->create\(\)/is', $body)) {
+                    unset($tables[$table]);
+                    break;
+                }
+            }
+        }
+
+        // Anything still present in the committed schema is not dropped.
+        $schema = $this->root . '/database/1-schema.sql';
+        if (file_exists($schema)) {
+            $sql = (string) file_get_contents($schema);
+            foreach (array_keys($tables) as $table) {
+                if (str_contains($sql, "`{$table}`")) {
+                    unset($tables[$table]);
+                }
+            }
+        }
+
+        return array_keys($tables);
     }
 
     /**

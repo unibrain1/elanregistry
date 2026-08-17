@@ -74,7 +74,8 @@ in`users/helpers/users.php`. The hook fires inside a `foreach`loop after the`use
 - Deleted for the departing user (PII removal)
 - noowner does not require a profile record
 
-**`car_user` junction table**:
+**`car_user` junction table** (**dropped in v2.26.2**, issue #1162 — these steps
+no longer occur; reassignment updates `cars.user_id` only):
 
 - Old rows (userid = deleted user) removed
 - New rows (userid = noowner, car_id = each car) inserted
