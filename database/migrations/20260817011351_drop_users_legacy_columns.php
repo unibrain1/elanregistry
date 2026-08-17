@@ -7,10 +7,11 @@ use Phinx\Migration\AbstractMigration;
 /**
  * Drops four legacy `users` columns confirmed unused by ElanRegistry and
  * unread by UserSpice (#1669): `twoKey`, `twoEnabled`, `twoDate` (a defunct
- * two-factor-auth scaffold added by a stock UserSpice update component that
- * no longer exists in this tree, but nothing in `users/` or `usersc/` reads
- * any of the three), and `org` (no column-style reference anywhere in
- * `app/`, `usersc/`, or `users/`).
+ * two-factor-auth scaffold added by the stock UserSpice update component
+ * `users/updates/components/4A6BdJHyvP4a.php` — gitignored and untracked,
+ * but still present in the working tree; nothing in `users/` or `usersc/`
+ * reads any of the three columns), and `org` (no column-style reference
+ * anywhere in `app/`, `usersc/`, or `users/`).
  *
  * 20260709000000_add_elanregistry_baseline.php was fixed by #1672 to never
  * ADD these columns, so a freshly provisioned environment never has them.
