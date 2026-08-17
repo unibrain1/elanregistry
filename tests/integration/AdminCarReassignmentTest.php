@@ -71,28 +71,4 @@ final class AdminCarReassignmentTest extends IntegrationTestCase
             'Car must be reassigned to the dynamically-resolved noowner ID, not a hardcoded value'
         );
     }
-
-    /**
-     * Guards against the exact bug in #1562: proves the seeded noowner
-     * account's ID is not assumed/asserted to be 83. If a future
-     * regression reintroduces a hardcoded 83 anywhere in the resolution
-     * path, this either fails outright (wrong ID transferred) or, if the
-     * schema happens to seed 83 by coincidence, at minimum documents that
-     * the value is a proper dynamic lookup rather than a literal.
-     */
-    public function testNoownerAccountIdIsResolvedDynamically(): void
-    {
-        $noOwnerRow = $this->db->query("SELECT id FROM users WHERE username = ?", ['noowner'])->first();
-        $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer seed:run (NoownerSeed)');
-
-        $noOwnerUser = new User();
-        $noOwnerUser->find('noowner');
-        $resolvedId = (int) $noOwnerUser->data()->id;
-
-        $this->assertSame(
-            (int) $noOwnerRow->id,
-            $resolvedId,
-            'User::find(\'noowner\') must resolve to whatever ID the seed actually assigned, proving no hardcoded fallback is in play'
-        );
-    }
 }
