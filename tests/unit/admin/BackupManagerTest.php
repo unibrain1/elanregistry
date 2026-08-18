@@ -97,17 +97,72 @@ final class BackupManagerTest extends TestCase
     /**
      * Test createSchemaBackup uses default tables when none specified
      *
+     * Drives the real getAllTables() path: the fake database is configured to answer
+     * the information_schema.TABLES discovery query with a controllable set of table
+     * names, and this asserts those discovered names (not a hardcoded list — that
+     * hardcoded default no longer exists, see BackupManager::getAllTables()) appear
+     * in the dump's metadata header.
+     *
      * @return void
      */
     #[Group('fast')]
     public function testCreateSchemaBackupWithDefaultTables(): void
     {
-        $backupPath = $this->backupManager->createSchemaBackup('Default Tables Test');
+        $discoveredTables = ['cars', 'profiles', 'settings', 'users'];
+        $mockDb = $this->createMockDatabase(tableNames: $discoveredTables);
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $backupPath = $backupManager->createSchemaBackup('Default Tables Test');
 
         $this->assertFileExists($backupPath);
 
         $content = file_get_contents($backupPath);
-        $this->assertStringContainsString('-- Tables: settings, users, cars, profiles', $content);
+        $this->assertStringContainsString(
+            '-- Tables: ' . implode(', ', $discoveredTables),
+            $content
+        );
+    }
+
+    /**
+     * Verify getAllTables() fails loudly when the information_schema.TABLES query
+     * itself errors: hasRecentBackupFailures() and generateTableDump() both check
+     * $this->db->error() the same way, but getAllTables() is new and had zero
+     * coverage of this path before this test.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testGetAllTablesThrowsWhenSchemaQueryErrors(): void
+    {
+        $mockDb = $this->createMockDatabase(failOnSqlSubstring: 'information_schema.TABLES');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $this->expectException(BackupException::class);
+        $this->expectExceptionMessage('Cannot determine which tables to back up');
+
+        $backupManager->createManualBackup('Schema Query Failure Test');
+    }
+
+    /**
+     * Verify getAllTables() fails loudly when the information_schema.TABLES query
+     * succeeds but returns zero rows — a schema with no base tables means the
+     * connection is pointed somewhere unexpected, and a backup of nothing must not
+     * report success.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testGetAllTablesThrowsWhenSchemaQueryReturnsNoTables(): void
+    {
+        $mockDb = $this->createMockDatabase(emptyResultOnSqlSubstring: 'information_schema.TABLES');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        $this->expectException(BackupException::class);
+        $this->expectExceptionMessage('the connected schema reports no tables');
+
+        $backupManager->createManualBackup('Schema Query Empty Test');
     }
 
     /**
@@ -599,6 +654,46 @@ final class BackupManagerTest extends TestCase
     }
 
     /**
+     * Verify an aborted backup leaves no `.partial` temp file behind.
+     *
+     * Since #1714 the dump is streamed to `{backupPath}.partial` and renamed only
+     * once every table has written, so a failure part-way through leaves a temp file
+     * that the outer catch must remove. Every other failure-path assertion in this
+     * class globs `*.sql`, which a leftover `.partial` would slip straight past —
+     * so a regression in that cleanup unlink() would go unnoticed while still
+     * accumulating litter in the backup directory. This asserts on a bare `*` glob
+     * for that reason: nothing at all should remain.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testAbortedBackupLeavesNoPartialTempFile(): void
+    {
+        $mockDb = $this->createMockDatabase('SELECT * FROM `cars`');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        try {
+            $backupManager->createManualBackup('Partial Cleanup', ['cars']);
+            $this->fail('Expected BackupException was not thrown');
+        } catch (BackupException $e) {
+            // The abort itself is asserted by testTableDumpDataQueryFailureAbortsBackup();
+            // this test is only interested in what it left on disk.
+        }
+
+        $this->assertSame(
+            [],
+            glob($this->testBackupDir . 'manual/*.partial'),
+            'An aborted backup must not leave a .partial temp file behind'
+        );
+        $this->assertSame(
+            [],
+            glob($this->testBackupDir . 'manual/*'),
+            'An aborted backup must leave the backup directory empty, not merely free of .sql files'
+        );
+    }
+
+    /**
      * Verify that a failed structure query (SHOW CREATE TABLE) during table dumping
      * aborts the whole backup and leaves no partial backup file on disk.
      *
@@ -955,19 +1050,25 @@ final class BackupManagerTest extends TestCase
      * @param string|null $emptyResultOnSqlSubstring Substring to match against query SQL;
      *                                        when matched, that query is simulated as
      *                                        succeeding but returning no rows
+     * @param string[]|null $tableNames Table names the information_schema.TABLES
+     *                                        discovery query (getAllTables()) returns,
+     *                                        as TABLE_NAME rows. Defaults to a single
+     *                                        canned table when null.
      */
     private function createMockDatabase(
         ?string $failOnSqlSubstring = null,
         int $recentFailureCount = 0,
         ?string $tableNotFoundOnSqlSubstring = null,
-        ?string $emptyResultOnSqlSubstring = null
+        ?string $emptyResultOnSqlSubstring = null,
+        ?array $tableNames = null
     ): BackupManagerFakeDatabase
     {
         return new BackupManagerFakeDatabase(
             $failOnSqlSubstring,
             $recentFailureCount,
             $tableNotFoundOnSqlSubstring,
-            $emptyResultOnSqlSubstring
+            $emptyResultOnSqlSubstring,
+            $tableNames
         );
     }
 
@@ -1020,6 +1121,15 @@ final class BackupManagerTest extends TestCase
  * - `$emptyResultOnSqlSubstring` — the matched query *succeeds* but returns no rows,
  *   so `first()` returns `[]` exactly as the real `\DB` does.
  *
+ * A fourth, independent constructor parameter, `$tableNames`, controls what
+ * `getAllTables()`'s `information_schema.TABLES` discovery query returns: each name
+ * becomes a `TABLE_NAME` row, matching the real MySQL result shape. It defaults to a
+ * single canned table so tests that don't care about discovery still get a non-empty
+ * result. The three SQL-substring parameters above are checked first and take
+ * priority, so a test can still force the discovery query itself to fail or return
+ * empty via `$failOnSqlSubstring`/`$emptyResultOnSqlSubstring` targeting
+ * `'information_schema.TABLES'`.
+ *
  * Deliberately a *named* class rather than an anonymous `new class extends
  * FakeDatabase`: PHPStan reports `impureMethod.pure` when an anonymous class overrides
  * one of DatabaseInterface's `@phpstan-impure` methods with a side-effect-free body,
@@ -1035,12 +1145,22 @@ class BackupManagerFakeDatabase extends FakeDatabase
     /** @var array<int, \stdClass> Rows returned by the most recent query */
     private array $lastRows = [];
 
+    /** @var string[] Table names returned by the information_schema.TABLES discovery query */
+    private readonly array $tableNames;
+
+    /**
+     * @param string[]|null $tableNames Table names getAllTables()'s discovery query
+     *                                  returns as TABLE_NAME rows. Defaults to a
+     *                                  single canned table (['settings']) when null.
+     */
     public function __construct(
         private readonly ?string $failOnSqlSubstring = null,
         private readonly int $recentFailureCount = 0,
         private readonly ?string $tableNotFoundOnSqlSubstring = null,
-        private readonly ?string $emptyResultOnSqlSubstring = null
+        private readonly ?string $emptyResultOnSqlSubstring = null,
+        ?array $tableNames = null
     ) {
+        $this->tableNames = $tableNames ?? ['settings'];
     }
 
     /**
@@ -1066,6 +1186,19 @@ class BackupManagerFakeDatabase extends FakeDatabase
 
         if ($this->emptyResultOnSqlSubstring !== null && str_contains($sql, $this->emptyResultOnSqlSubstring)) {
             // Succeeds, but with no rows — first() stays `[]`
+            return $this;
+        }
+
+        if (str_contains($sql, 'information_schema.TABLES')) {
+            $this->lastRows = array_map(
+                static function (string $tableName): \stdClass {
+                    $row = new \stdClass();
+                    $row->TABLE_NAME = $tableName;
+                    return $row;
+                },
+                $this->tableNames
+            );
+
             return $this;
         }
 
