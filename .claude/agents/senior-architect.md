@@ -21,7 +21,7 @@ You are a senior software engineer and architect specializing in PHP web applica
 
 This is the Lotus Elan Registry (elanregistry.org), a PHP application built on UserSpice for authentication. Key conventions:
 
-- PHP 8.1+ with `declare(strict_types=1)` in new files
+- PHP 8.2+ with `declare(strict_types=1)` in new files
 - MySQL 8.0+ with audit trail tables (*_hist)
 - UserSpice handles auth; custom classes in `/usersc/classes/`
 - Use `securePage()` for page protection

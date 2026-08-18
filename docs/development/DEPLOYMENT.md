@@ -41,8 +41,11 @@ git push origin main && git push origin --tags
 ```bash
 origin git@github.com:elan-registry/registry.git    # GitHub repository
 test   [test-server-path]                            # Test/staging server
-prod   a2hosting:/home/unibrain/git/elanregistry.git # LIVE PRODUCTION SERVER
+prod   [prod-server-path]                            # LIVE PRODUCTION SERVER
 ```
+
+The real `test` and `prod` paths are deliberately not published — run
+`git remote -v` to see the values configured in your clone.
 
 **🔄 Deployment Rule:**
 
