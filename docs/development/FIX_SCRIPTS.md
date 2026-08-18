@@ -17,8 +17,8 @@ logging. As of the v2.20.0 restructuring, admin scripts live under
 `app/admin/scripts/` and are split into two categories by purpose:
 
 - **`app/admin/scripts/fix/`** — One-time migration / fix scripts. Run once,
-  recorded in `fix_script_runs`, then archived to `_ARCHIVE/` when no longer
-  needed. Sequentially numbered (`##-Descriptive-Name.php`).
+  recorded in `fix_script_runs`, then deleted when no longer needed.
+  Sequentially numbered (`##-Descriptive-Name.php`).
 - **`app/admin/scripts/maintenance/`** — Repeatable system maintenance scripts
   that are safe to run multiple times (e.g., permission audits, thumbnail
   regeneration, orphan cleanup). Sequentially numbered for consistent ordering
@@ -95,59 +95,61 @@ tabs read.
 - Use descriptive variable names
 - Follow established coding standards
 
-## Archiving Completed Fix Scripts
+## Removing Completed Fix Scripts
 
 When a `fix/` script has been successfully run on production and will never
-need to run again, move it to `app/admin/scripts/fix/_ARCHIVE/` and update the
-archive README.
+need to run again, delete it. Git history is the permanent record — the script,
+its comments, and the commit that removed it are all recoverable.
 
-Maintenance scripts under `maintenance/` are not archived — they are intended
-to be re-run, so they stay in place indefinitely.
+Maintenance scripts under `maintenance/` are never removed this way — they are
+intended to be re-run, so they stay in place indefinitely.
 
-**Do not delete scripts immediately** — move them to `_ARCHIVE/` first so the
-git history and the README serve as an audit trail.
+Scripts were formerly moved to an `app/admin/scripts/fix/_ARCHIVE/` directory
+first. That directory was deleted in v2.29.1: keeping executed scripts on disk
+made them a copy-as-template trap (several had rotted to the point of fataling
+if run) and polluted repo-wide searches, while adding nothing git history did
+not already provide.
 
-### When to archive
+### When to remove
 
 - The script has run successfully on production
 - The underlying data issue is fully resolved
 - There is no scenario where it would need to run again
 
-### Archive process
+### Removal process
 
-1. Move the script:
-   `git mv app/admin/scripts/fix/##-Name.php app/admin/scripts/fix/_ARCHIVE/##-Name.php`
-2. Add an entry to `app/admin/scripts/fix/_ARCHIVE/README.md`:
+1. Delete the script: `git rm app/admin/scripts/fix/##-Name.php`
+2. Commit with message: `chore: remove completed fix script ##-Name`
 
-```markdown
-| `##-Name.php` | Brief description | What it did in one sentence |
-```
-
-1. Commit with message: `chore: archive completed fix script ##-Name`
-
-### Bulk cleanup
-
-When multiple archived scripts accumulate, they can be deleted in a single
-commit to reduce repository size. Before deleting:
-
-1. Ensure `app/admin/scripts/fix/_ARCHIVE/README.md` lists every script being
-   removed with its purpose — this is the permanent record.
-2. Include git recovery instructions in the README (see existing README for
-   template).
-3. Commit the deletions and README update together.
+Removing several at once as part of a milestone is normal — see
+`.claude/commands/start-milestone.md`, which prompts for this cleanup when a
+new milestone branch is created.
 
 ### Recovery
 
-To restore a deleted script from git history:
+To restore a deleted script from git history, find the commit that **deleted**
+it, then read the file from that commit's parent:
 
 ```bash
-git log --all --oneline -- app/admin/scripts/fix/_ARCHIVE/<filename>.php
-git show <commit>:app/admin/scripts/fix/_ARCHIVE/<filename>.php > recovered-script.php
+# 1. Find the deleting commit (the leading * matches whichever directory the
+#    script lived in, and prints the path to use in step 2)
+git log --all --full-history --diff-filter=D --format='%h %s' --name-only \
+  -- '*<filename>.php'
+
+# 2. Recover it — note the `^`: the file does not exist *at* the deleting
+#    commit, only in its parent
+git show <commit>^:<path-from-step-1> > recovered-script.php
 ```
+
+Match the script's **final** state this way rather than searching for its
+current path directly. Scripts deleted in v2.29.1 had been moved to
+`app/admin/scripts/fix/_ARCHIVE/` first (and, before the v2.20.0
+restructuring, `FIX/_ARCHIVE/`), and several were edited *after* that move — so
+a `git log` on the pre-archive path stops at the move commit and recovers a
+stale version.
 
 ## See Also
 
 - `/app/admin/scripts/fix/_TEMPLATE_Fix-Script.php` - The standardized template
-- `/app/admin/scripts/fix/_ARCHIVE/README.md` - Record of all archived/deleted scripts
 - `/app/admin/scripts/fix/README.md` - Fix scripts directory documentation
 - [CODING_STANDARDS.md](CODING_STANDARDS.md) - Coding standards and conventions

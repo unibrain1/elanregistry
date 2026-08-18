@@ -52,7 +52,7 @@ was written; see `database/migrations/` for the present schema-of-record):
 
 ### Storage Format
 
-Values are stored as HTML-entity-encoded complete HTML tags. Example from `database/3-configuration.sql`:
+Values are stored as HTML-entity-encoded complete HTML tags. Example, from the since-removed `database/3-configuration.sql` seed:
 
 ```sql
 elan_jquery_cdn = '&lt;script src=&quot;https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js&quot; integrity=&quot;sha384-vtXRMe3mGCbOeY7l30aIg8H9p3GdeSe4IFlP6G8JMa7o7lXvnz3GFKzPxzJdPfGK&quot; crossorigin=&quot;anonymous&quot;&gt;&lt;/script&gt;'
@@ -104,8 +104,12 @@ Two approaches for updating CDN versions:
 
 ### Initialization
 
-Default CDN values are seeded in `database/3-configuration.sql`. The `processSettingsAutoCreation()` function in the admin panel auto-creates any missing
+Default CDN values were seeded by `database/3-configuration.sql`. The `processSettingsAutoCreation()` function in the admin panel auto-created any missing
 columns with sensible defaults, ensuring forward compatibility.
+
+> **Superseded (ADR-015).** That file was removed in v2.29.1 when provisioning moved to Phinx. The `elan_*_cdn` columns still exist — created by
+> `database/migrations/20260709000000_add_elanregistry_baseline.php` — but `database/migrations/20260817033111_update_settings_baseline_defaults.php`
+> deliberately leaves them empty, and no application code reads them. Frontend libraries are now self-hosted; see ADR-015.
 
 ## Consequences
 
@@ -150,9 +154,9 @@ columns with sensible defaults, ensuring forward compatibility.
 - **Full HTML tags are harder to validate.** The admin panel accepts raw HTML tag input. There is no server-side validation that the submitted value is a
   well-formed `<script>`or`<link>` tag with valid SRI attributes. Malformed input silently breaks pages.
 
-- **Seed data drifts from production.** `database/3-configuration.sql` contains initial CDN values (some at older versions like Bootstrap 4.5.3, jQuery 3.5.1)
-  that no longer match production values (updated via FIX scripts to Bootstrap 4.6.2, jQuery 3.6.0). New installations seed outdated URLs that require running
-  FIX scripts to update.
+- **Seed data drifts from production.** `database/3-configuration.sql` seeded initial CDN values (some at older versions like Bootstrap 4.5.3, jQuery 3.5.1)
+  that no longer matched production (updated via FIX scripts to Bootstrap 4.6.2, jQuery 3.6.0), so new installations started with outdated URLs that required
+  running FIX scripts to update. Moot since ADR-015 — nothing seeds CDN values any more.
 
 ### Risks
 
@@ -232,9 +236,9 @@ Store CDN URLs and SRI hashes as separate database columns (e.g., `elan_jquery_u
   ADR was written has since been removed — see `database/migrations/README.md`)
 - **Template Loading**: [usersc/templates/ElanRegistry/header.php](../../usersc/templates/ElanRegistry/header.php)
 - **Admin Interface**: [app/admin/includes/tab-settings.php](../../app/admin/includes/tab-settings.php)
-- **FIX Script (SRI)**: [FIX/_ARCHIVE/17-Add-SRI-To-CDN-Resources.php](../../FIX/_ARCHIVE/17-Add-SRI-To-CDN-Resources.php)
-- **FIX Script (DataTables)**: [FIX/_ARCHIVE/19-Add-Select-Extension-DataTables-CDN.php](../../FIX/_ARCHIVE/19-Add-Select-Extension-DataTables-CDN.php)
-- **FIX Script (Optimization)**: [FIX/_ARCHIVE/23-Optimize-CDN-Resources.php](../../FIX/_ARCHIVE/23-Optimize-CDN-Resources.php)
+- **FIX Scripts (deleted; recoverable from git history)**: `17-Add-SRI-To-CDN-Resources.php`,
+  `19-Add-Select-Extension-DataTables-CDN.php`, `23-Optimize-CDN-Resources.php` — one-time
+  scripts that already ran. See [FIX_SCRIPTS.md](../FIX_SCRIPTS.md) for recovery.
 - **CSS & Assets Guide**: [docs/development/CSS_AND_ASSETS.md](../CSS_AND_ASSETS.md)
 - **Page Loading Flow**: [docs/development/PAGE_LOADING_FLOW.md](../PAGE_LOADING_FLOW.md)
 - **UserSpice Integration**: ADR-001 covers UserSpice `$settings` object pattern

@@ -41,10 +41,9 @@ class LogCategoriesUsageTest extends TestCase
     ];
 
     /**
-     * app/admin/ PHP files that call logger()/withLogging() (excluding
-     * scripts/fix/_ARCHIVE/, which is dead code excluded from tooling
-     * elsewhere too, see phpstan.neon) — must use LogCategories constants for
-     * the category parameter. Hand-maintained: add new admin files here when
+     * app/admin/ PHP files that call logger()/withLogging() — must use
+     * LogCategories constants for the category parameter.
+     * Hand-maintained: add new admin files here when
      * they introduce logger()/withLogging() calls. (Some app/admin/includes/
      * files are grouped under CAR_ENDPOINT_FILES instead, by domain rather
      * than path.)
