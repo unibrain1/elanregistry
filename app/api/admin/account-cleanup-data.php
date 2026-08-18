@@ -21,7 +21,6 @@ require_once $abs_us_root . $us_url_root . 'app/admin/includes/account-cleanup-h
 
 if (!isAdmin()) {
     ApiResponse::forbidden('Forbidden')->send();
-    exit;
 }
 
 $type      = $_GET['type']      ?? '';
@@ -29,11 +28,10 @@ $threshold = (int) ($_GET['threshold'] ?? 30);
 
 if ($type === 'unverified') {
     $threshold = max(30, $threshold);
-    $accounts  = findUnverifiedOwnerlessAccounts($db, $threshold);
-    if ($db->error()) {
-        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: unverified query failed — ' . $db->errorString());
+    $accounts  = findUnverifiedOwnerlessAccounts(dbi(), $threshold);
+    if (dbi()->error()) {
+        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: unverified query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
-        exit;
     }
     $rows = array_map(static function (object $a): array {
         return [
@@ -49,11 +47,10 @@ if ($type === 'unverified') {
     }, $accounts);
 } elseif ($type === 'verified') {
     $threshold = max(1, $threshold);
-    $accounts  = findVerifiedOwnerlessAccounts($db, $threshold);
-    if ($db->error()) {
-        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: verified query failed — ' . $db->errorString());
+    $accounts  = findVerifiedOwnerlessAccounts(dbi(), $threshold);
+    if (dbi()->error()) {
+        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: verified query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
-        exit;
     }
     $rows = array_map(static function (object $a): array {
         $ll = $a->last_login ?? null;
@@ -70,11 +67,10 @@ if ($type === 'unverified') {
         ];
     }, $accounts);
 } elseif ($type === 'archive') {
-    $accounts = findArchivedAccounts($db);
-    if ($db->error()) {
-        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: archive query failed — ' . $db->errorString());
+    $accounts = findArchivedAccounts(dbi());
+    if (dbi()->error()) {
+        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'account-cleanup-data: archive query failed — ' . dbi()->errorString());
         ApiResponse::serverError('Database error')->send();
-        exit;
     }
     $rows = array_map(static function (object $a): array {
         $restoredBy = ($a->restored_by_fname || $a->restored_by_lname)
@@ -96,7 +92,6 @@ if ($type === 'unverified') {
     }, $accounts);
 } else {
     ApiResponse::error('Invalid type', 400)->send();
-    exit;
 }
 
 header('Content-Type: application/json; charset=utf-8');

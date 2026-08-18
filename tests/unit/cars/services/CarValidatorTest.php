@@ -3,8 +3,9 @@
 declare(strict_types=1);
 
 use ElanRegistry\Car\CarValidator;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarValidationException;
-use ElanRegistry\Exceptions\ElanRegistryException;
+use ElanRegistry\Reference\CarModel;
 use PHPUnit\Framework\TestCase;
 
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -512,14 +513,13 @@ final class CarValidatorTest extends TestCase
     // ============================================================
 
     /**
-     * Full positive case with mock model validation
-     * Uses mock CarModel class that accepts known valid combinations
+     * Full positive case for every field except `model` — see
+     * CarValidatorModelTest.php for the model-inclusive version (#1446).
      */
     public function testValidateAndSanitizeFieldsReturnsFullSanitizedArray(): void
     {
         $fields = [
             'chassis' => '1234A', // 1970 legacy 5-char format: 4 numeric digits + Elan suffix 'A' (valid letter code)
-            'model' => 'S4|FHC|36', // Valid in mock CarModel
             'year' => '1970',
             'email' => 'owner@example.com',
             'website' => 'https://example.com',
@@ -535,7 +535,6 @@ final class CarValidatorTest extends TestCase
         $result = $this->validator->validateAndSanitizeFields($fields, true);
 
         $this->assertEquals('1234A', $result['chassis']);
-        $this->assertEquals('S4|FHC|36', $result['model']);
         $this->assertSame(1970, $result['year']);
         $this->assertEquals('owner@example.com', $result['email']);
         $this->assertEquals('https://example.com', $result['website']);
@@ -553,8 +552,11 @@ final class CarValidatorTest extends TestCase
     // ============================================================
 
     /**
-     * Verify every validation error path throws CarValidationException
-     * (extends ElanRegistryException), never generic Exception.
+     * Verify every validation error path throws CarValidationException,
+     * never generic Exception. That CarValidationException itself extends
+     * ElanRegistryException is a static fact PHP's own class declaration
+     * already guarantees — not something a runtime assertion adds coverage
+     * for, so it isn't re-checked here.
      *
      * @param array<string, mixed> $fields
      */
@@ -569,11 +571,6 @@ final class CarValidatorTest extends TestCase
                 CarValidationException::class,
                 $e,
                 'Validation error must throw CarValidationException, got ' . get_class($e)
-            );
-            $this->assertInstanceOf(
-                ElanRegistryException::class,
-                $e,
-                'CarValidationException must extend ElanRegistryException'
             );
         }
     }
@@ -632,43 +629,12 @@ final class CarValidatorTest extends TestCase
     }
 
     // ============================================================
-    // Model validation tests with Mock CarModel
-    // Unit tests using mock CarModel class (see bootstrap-unit.php)
-    // Integration tests that require real database are in
-    // tests/integration/cars/services/CarValidatorModelTest.php
+    // Model validation tests
+    //
+    // Format/required/empty checks run before CarModel is touched, so they
+    // stay here. Combination-existence validation needs a real car_models
+    // row — moved to CarValidatorModelTest (integration tier) in #1446.
     // ============================================================
-
-    /**
-     * @test
-     * Model validation accepts valid model combinations (mock)
-     */
-    public function testValidateModelAcceptsValidCombination(): void
-    {
-        $data = [
-            'model' => 'S4|FHC|36', // Valid in mock CarModel
-        ];
-
-        $result = $this->validator->validateAndSanitizeFields($data, false);
-
-        $this->assertArrayHasKey('model', $result);
-        $this->assertEquals('S4|FHC|36', $result['model']);
-    }
-
-    /**
-     * @test
-     * Model validation rejects invalid combinations (mock)
-     */
-    public function testValidateModelRejectsInvalidCombination(): void
-    {
-        $this->expectException(CarValidationException::class);
-        $this->expectExceptionMessage('is not a valid Lotus Elan model');
-
-        $data = [
-            'model' => 'S4|Roadster|99', // Invalid: not in mock CarModel
-        ];
-
-        $this->validator->validateAndSanitizeFields($data, false);
-    }
 
     /**
      * @test
@@ -715,6 +681,53 @@ final class CarValidatorTest extends TestCase
         ];
 
         $this->validator->validateAndSanitizeFields($data, true);
+    }
+
+    /**
+     * Model-combination-exists branch, reached in the unit tier via constructor
+     * injection per TESTING_STRATEGY.md: a real CarModel built against a
+     * DatabaseInterface double whose query()->first() simulates
+     * CarModel::exists()'s "COUNT(*) > 0" success shape. Reference-data-backed
+     * combination validity itself remains proven in
+     * tests/integration/cars/services/CarValidatorModelTest.php (#1446) — this
+     * only proves CarValidator wires a successful CarModel::exists() lookup
+     * through to a passing validation result.
+     */
+    #[Group('unit')]
+    public function testValidateModelSucceedsWhenInjectedCarModelConfirmsCombinationExists(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturn((object) ['cnt' => 1]);
+
+        $validator = new CarValidator(new CarModel($db));
+
+        $result = $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
+
+        $this->assertSame('S4|FHC|36', $result['model']);
+    }
+
+    /**
+     * Symmetric counterpart: an injected CarModel whose double reports the
+     * "COUNT(*) == 0" not-found shape must fail validation with the
+     * invalid-combination message — the branch that mock-domain-object tests
+     * (a hand-rolled mock CarModel) could not exercise honestly, since it
+     * would test the mock's own behavior rather than CarModel::exists()'s
+     * real `($result->cnt ?? 0) > 0` translation.
+     */
+    #[Group('unit')]
+    public function testValidateModelThrowsWhenInjectedCarModelReportsCombinationMissing(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturn((object) ['cnt' => 0]);
+
+        $validator = new CarValidator(new CarModel($db));
+
+        $this->expectException(CarValidationException::class);
+        $this->expectExceptionMessage('is not a valid Lotus Elan model');
+
+        $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
     }
 
     // ============================================================

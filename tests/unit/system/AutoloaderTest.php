@@ -23,15 +23,20 @@ class AutoloaderTest extends TestCase
      *   namespaced under ElanRegistry\ and load via the PSR-4 root prefix
      *   mapping to usersc/classes/.
      * - The class_exists('Car') assertion is a regression guard confirming the global
-     *   Car alias remains available. In the unit test environment it resolves to the
-     *   bootstrap mock rather than the real ElanRegistry\Car\Car; in production it
-     *   resolves via class_alias() at the bottom of Car/Car.php.
+     *   Car alias remains available. Bare 'Car' has no PSR-4 prefix of its own, so it
+     *   only exists once class_alias() at the bottom of Car/Car.php has run — which
+     *   only happens once something first triggers autoload of the real
+     *   ElanRegistry\Car\Car. The explicit class_exists() call below does that.
      */
     public function testCoreClassesAutoload(): void
     {
-        $this->assertTrue(class_exists('Car'), 'Car class should auto-load');
+        $this->assertTrue(class_exists(\ElanRegistry\Car\Car::class), 'Real Car class must be autoloadable');
+        $this->assertTrue(class_exists('Car'), 'Global Car alias should be registered by Car/Car.php');
         $this->assertTrue(class_exists('ElanRegistry\\Owner'), 'ElanRegistry\\Owner class should auto-load');
-        $this->assertInstanceOf(\ElanRegistry\Owner::class, new \ElanRegistry\Owner(), 'Owner must instantiate as the ElanRegistry\\Owner class (not an alias or wrong class declaration)');
+        // A DatabaseInterface double is required: Owner's constructor otherwise
+        // falls back to dbi(), which is undefined in the unit tier (custom_functions.php
+        // — where dbi() lives — is never loaded there).
+        new \ElanRegistry\Owner(null, $this->createStub(\ElanRegistry\DatabaseInterface::class));
         $this->assertTrue(class_exists('ElanRegistry\\CarView'), 'ElanRegistry\\CarView class should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\Resize'), 'ElanRegistry\\Resize class should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\ChassisValidator'), 'ElanRegistry\\ChassisValidator class should auto-load');
@@ -124,9 +129,9 @@ class AutoloaderTest extends TestCase
     /**
      * Test that ElanRegistry\Reference\CarModel is available to the application.
      *
-     * Note: bootstrap-unit.php pre-loads CarModel via an eval mock before the
-     * autoloader registers, so class_exists() here confirms availability, not
-     * PSR-4 path resolution.
+     * Unlike Token/Input/DB, CarModel is not mocked in bootstrap-unit.php
+     * (removed #1446) — it's PSR-4 mapped and loads for real via Composer, so
+     * this genuinely confirms autoloader path resolution.
      */
     public function testReferenceClassIsAvailable(): void
     {
@@ -195,7 +200,6 @@ class AutoloaderTest extends TestCase
         try {
             throw new \ElanRegistry\Exceptions\CarNotFoundException('Test message');
         } catch (\ElanRegistry\Exceptions\CarNotFoundException $e) {
-            $this->assertInstanceOf(\ElanRegistry\Exceptions\CarNotFoundException::class, $e);
             $this->assertEquals('Test message', $e->getMessage());
         }
 
@@ -203,7 +207,6 @@ class AutoloaderTest extends TestCase
         try {
             throw new \ElanRegistry\Exceptions\OwnerNotFoundException('Test owner message');
         } catch (\ElanRegistry\Exceptions\OwnerNotFoundException $e) {
-            $this->assertInstanceOf(\ElanRegistry\Exceptions\OwnerNotFoundException::class, $e);
             $this->assertEquals('Test owner message', $e->getMessage());
         }
 
@@ -211,7 +214,6 @@ class AutoloaderTest extends TestCase
         try {
             throw new \ElanRegistry\Exceptions\BackupException('Test backup message');
         } catch (\ElanRegistry\Exceptions\BackupException $e) {
-            $this->assertInstanceOf(\ElanRegistry\Exceptions\BackupException::class, $e);
             $this->assertEquals('Test backup message', $e->getMessage());
         }
     }
@@ -223,12 +225,14 @@ class AutoloaderTest extends TestCase
      *
      * In production, these resolve via class_alias(\ElanRegistry\Car\Car::class, 'Car')
      * at the bottom of Car/Car.php — PHP registers the alias case-insensitively, so
-     * 'car' and 'CAR' resolve to the same entry. In the unit test environment, 'Car'
-     * resolves via the bootstrap mock, which PHP also registers case-insensitively.
+     * 'car' and 'CAR' resolve to the same entry.
      */
     public function testCaseInsensitiveLoading(): void
     {
-        // All three resolve to the same class — in production via class_alias() in Car/Car.php, in unit tests via the bootstrap mock
+        // Trigger autoload of the real class, which runs class_alias(...) at the
+        // bottom of Car.php — this is what actually registers the global 'Car' alias.
+        $this->assertTrue(class_exists(\ElanRegistry\Car\Car::class), 'Real Car class must be autoloadable');
+
         $this->assertTrue(class_exists('Car'), 'Standard case should work via global Car alias');
         $this->assertTrue(class_exists('car'), 'Lowercase should work (PHP class table is case-insensitive)');
         $this->assertTrue(class_exists('CAR'), 'Uppercase should work (PHP class table is case-insensitive)');

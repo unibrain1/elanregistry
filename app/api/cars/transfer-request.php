@@ -94,7 +94,7 @@ try {
     }
 
     $db = DB::getInstance();
-    $repo = new CarTransferRepository($db);
+    $repo = new CarTransferRepository(dbi());
 
     // Find the existing car
     $existingCarQuery = $db->query(
@@ -159,7 +159,7 @@ try {
     // Send email notifications; outer catch covers TransferEmailService constructor only —
     // sendRequest() and sendAdminAlert() each catch Throwable internally and return bool.
     try {
-        $emailService = new TransferEmailService(DB::getInstance(), 'email');
+        $emailService = new TransferEmailService(dbi(), 'email');
         set_time_limit(60);
 
         $ownerNotified = $emailService->sendRequest($transferRequestId);

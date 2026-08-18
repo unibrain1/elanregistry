@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Owner;
+use ElanRegistry\Exceptions\CarNotFoundException;
+use ElanRegistry\Exceptions\CarValidationException;
 
 use PHPUnit\Framework\Attributes\Group;
 
@@ -27,22 +30,26 @@ final class CarTransferTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
+        $this->testUserId = $this->createTestUser();
+        $this->targetUserId = $this->createTestUser();
+
         // Set up authenticated user context for transfer operations
-        global $user;
-        $user = new User();
-        $user->find(1);  // Load user ID 1
+        $this->loginAsTestUser($this->testUserId);
 
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
-
-        $this->testUserId = 1;
-        $this->targetUserId = 10;  // Use existing user ID (FredHansen)
         $this->db = DB::getInstance();
+
+        // city/state/country/lat/lon live on `profiles`, not `users` — createTestUser() only
+        // writes `users`. Give the transfer target real location data so
+        // testTransferUpdatesLocationData verifies an actual copy instead of comparing '' === ''.
+        // If this insert silently failed, the test would go right back to comparing '' === ''
+        // with no signal — so check it explicitly rather than let a failure hide.
+        $profileInserted = $this->db->insert('profiles', [
+            'user_id' => $this->targetUserId,
+            'city'    => 'Hethel',
+            'state'   => 'Norfolk',
+            'country' => 'United Kingdom',
+        ]);
+        $this->assertTrue((bool) $profileInserted, 'Test fixture: profiles insert must succeed');
 
         // Create unique test car for this test
         try {
@@ -56,7 +63,15 @@ final class CarTransferTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        parent::tearDown();
+        try {
+            if ($this->databaseConnected && $this->targetUserId) {
+                $this->db->query("DELETE FROM profiles WHERE user_id = ?", [$this->targetUserId]);
+            }
+        } finally {
+            // Run even if the profile cleanup above throws, so the base class's own
+            // fixture cleanup — and its restoreGlobalUser() call — is never skipped.
+            parent::tearDown();
+        }
     }
 
     /**
@@ -67,9 +82,7 @@ final class CarTransferTest extends IntegrationTestCase
     {
         $car = new Car($this->testCarId);
 
-        $result = $car->transfer($this->targetUserId, 'Test transfer', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        $car->transfer($this->targetUserId, 'Test transfer', 'NEWOWNER', $this->testUserId);
 
         // Reload car data from database to verify transfer
         $transferredCar = new Car($this->testCarId);
@@ -82,7 +95,7 @@ final class CarTransferTest extends IntegrationTestCase
     #[Group('fast')]
     public function testTransferCarFailsWithInvalidUser(): void
     {
-        $this->expectException(Exception::class);
+        $this->expectException(CarValidationException::class);
 
         $car = new Car($this->testCarId);
         $car->transfer(99999, 'Test transfer', 'NEWOWNER', $this->testUserId);
@@ -94,7 +107,7 @@ final class CarTransferTest extends IntegrationTestCase
     #[Group('fast')]
     public function testTransferCarFailsWhenCarNotExists(): void
     {
-        $this->expectException(Exception::class);
+        $this->expectException(CarNotFoundException::class);
 
         $car = new Car(99999);
         $car->transfer($this->targetUserId, 'Test transfer', 'NEWOWNER', $this->testUserId);
@@ -116,9 +129,7 @@ final class CarTransferTest extends IntegrationTestCase
         )->first();
         $this->assertSame($this->testUserId, (int) $before->user_id);
 
-        $result = $car->transfer($this->targetUserId, 'Test transfer', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        $car->transfer($this->targetUserId, 'Test transfer', 'NEWOWNER', $this->testUserId);
 
         // Verify owner was updated
         $after = $this->db->query(
@@ -137,9 +148,7 @@ final class CarTransferTest extends IntegrationTestCase
         $car = new Car($this->testCarId);
         $carId = $car->data()->id;
 
-        $result = $car->transfer($this->targetUserId, 'Test transfer history', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        $car->transfer($this->targetUserId, 'Test transfer history', 'NEWOWNER', $this->testUserId);
 
         // Check that history record was created with NEWOWNER operation
         $historyQuery = $this->db->query(
@@ -161,9 +170,7 @@ final class CarTransferTest extends IntegrationTestCase
         $targetUser = (new Owner($this->targetUserId))->data();
         $this->assertNotNull($targetUser);
 
-        $result = $car->transfer($this->targetUserId, 'Test transfer profile', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        $car->transfer($this->targetUserId, 'Test transfer profile', 'NEWOWNER', $this->testUserId);
 
         // Verify that car now has target user's profile data
         $updatedCar = new Car((int) $car->data()->id);
@@ -179,7 +186,7 @@ final class CarTransferTest extends IntegrationTestCase
     public function testTransferTransactionRollbackOnFailure(): void
     {
         // Test that invalid user causes transfer to fail completely
-        $this->expectException(Exception::class);
+        $this->expectException(CarValidationException::class);
 
         $car = new Car($this->testCarId);
         $originalUserId = $car->data()->user_id;
@@ -203,9 +210,7 @@ final class CarTransferTest extends IntegrationTestCase
         $car = new Car($this->testCarId);
         $carId = $car->data()->id;
 
-        $result = $car->transfer($this->targetUserId, 'Test transfer', 'TRANSFER', $this->testUserId);
-
-        $this->assertTrue($result);
+        $car->transfer($this->targetUserId, 'Test transfer', 'TRANSFER', $this->testUserId);
 
         // Check that history record was created with TRANSFER operation
         $historyQuery = $this->db->query(
@@ -223,9 +228,7 @@ final class CarTransferTest extends IntegrationTestCase
     {
         $car = new Car($this->testCarId);
 
-        $result = $car->transfer($this->targetUserId, 'Test transfer location', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        $car->transfer($this->targetUserId, 'Test transfer location', 'NEWOWNER', $this->testUserId);
 
         // Verify that car now has target user's location data
         $targetUser = (new Owner($this->targetUserId))->data();
@@ -243,17 +246,28 @@ final class CarTransferTest extends IntegrationTestCase
     #[Group('fast')]
     public function testTransferHonorsExplicitActingUserIdWithoutGlobalUser(): void
     {
+        // Car::__construct() needs a global $user (via getSettings()), so construct before
+        // unsetting it — only transfer() itself must not fall back to a global $user internally.
+        $car = new Car($this->testCarId);
+
         $savedUser = $GLOBALS['user'] ?? null;
         unset($GLOBALS['user']);
 
         try {
-            $car = new Car($this->testCarId);
-            $result = $car->transfer($this->targetUserId, 'Explicit actingUserId test', 'NEWOWNER', $this->testUserId);
-            $this->assertTrue($result);
+            $car->transfer($this->targetUserId, 'Explicit actingUserId test', 'NEWOWNER', $this->testUserId);
         } finally {
             if ($savedUser !== null) {
                 $GLOBALS['user'] = $savedUser;
             }
         }
+
+        // Reload with global $user restored (Car::__construct() needs it via getSettings())
+        // to verify transfer() itself did not depend on it.
+        $transferredCar = new Car($this->testCarId);
+        $this->assertEquals(
+            $this->targetUserId,
+            $transferredCar->data()->user_id,
+            'transfer() must not depend on global $user'
+        );
     }
 }

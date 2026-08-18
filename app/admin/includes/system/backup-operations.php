@@ -49,7 +49,7 @@ try {
     // Initialize BackupManager with global configuration constant
     $backupDir = $abs_us_root . $us_url_root . BACKUP_BASE_DIR;
     // Cast user ID to int for strict type safety across different PHP/database configurations
-    $backupManager = new BackupManager($db, $backupDir, (int)$user->data()->id);
+    $backupManager = new BackupManager(dbi(), $backupDir, (int)$user->data()->id);
 
     switch ($action) {
         case 'create_manual_backup':
@@ -62,16 +62,14 @@ try {
             // Log the reason for debugging
             logger($user->data()->id, LogCategories::LOG_CATEGORY_BACKUP_DEBUG, "Backup reason: '{$reason}'");
 
-            // Critical tables for backup
-            $criticalTables = ['users', 'cars', 'profiles', 'settings', 'car_history', 'fix_script_runs'];
-
-            // Log tables being backed up
-            logger($user->data()->id, LogCategories::LOG_CATEGORY_BACKUP_DEBUG, "Tables to backup: " . implode(', ', $criticalTables));
-
-            // Create backup
+            // Deliberately no table list here. BackupManager discovers every base table
+            // in the schema itself (BackupManager::getAllTables()). This used to hold a
+            // second, hand-copied list that drifted out of sync with the one inside
+            // BackupManager and broke every manual backup (#1714) — do not reintroduce
+            // one. To back up a subset, pass an explicit array as the second argument.
             $backupPath = $backupManager->createManualBackup(
                 $reason,
-                $criticalTables,
+                [],
                 ['user_id' => $user->data()->id, 'username' => $user->data()->username]
             );
 

@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use ElanRegistry\Car\CarDataTablesService;
+use ElanRegistry\DatabaseInterface;
+use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarValidationException;
 use PHPUnit\Framework\TestCase;
 
@@ -19,7 +21,9 @@ final class CarDataTablesServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->service = new CarDataTablesService();
+        // Column validation and the request-validation guards run before any query,
+        // so an unconfigured double is enough for those tests.
+        $this->service = new CarDataTablesService($this->createStub(DatabaseInterface::class));
     }
 
     /**
@@ -95,6 +99,24 @@ final class CarDataTablesServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
+    public function testValidateColumnNameRejectsUserId(): void
+    {
+        $result = $this->invokeValidateColumnName('user_id', 'cars');
+        $this->assertFalse($result);
+    }
+
+    public function testValidateColumnNameRejectsLat(): void
+    {
+        $result = $this->invokeValidateColumnName('lat', 'cars');
+        $this->assertFalse($result);
+    }
+
+    public function testValidateColumnNameRejectsLon(): void
+    {
+        $result = $this->invokeValidateColumnName('lon', 'cars');
+        $this->assertFalse($result);
+    }
+
     // ============================================================
     // getDataTablesData tests
     // ============================================================
@@ -104,7 +126,7 @@ final class CarDataTablesServiceTest extends TestCase
         $this->expectException(CarValidationException::class);
 
         $request = ['draw' => 1, 'start' => 0, 'length' => 10];
-        $this->service->getDataTablesData($request, 'invalid_table', DB::getInstance());
+        $this->service->getDataTablesData($request, 'invalid_table');
     }
 
     // ============================================================
@@ -134,7 +156,7 @@ final class CarDataTablesServiceTest extends TestCase
         $this->expectException(CarValidationException::class);
 
         $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
-        $this->service->getDataTablesData($request, 'cars', DB::getInstance());
+        $this->service->getDataTablesData($request, 'cars');
     }
 
     // ============================================================
@@ -156,17 +178,105 @@ final class CarDataTablesServiceTest extends TestCase
     #[DataProvider('validPaginationProvider')]
     public function testGetDataTablesDataAcceptsValidPagination(int $start, int $length): void
     {
-        $caught = null;
-        try {
-            $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
-            $this->service->getDataTablesData($request, 'cars', DB::getInstance());
-        } catch (CarValidationException $e) {
-            $caught = $e;
-        } catch (\Throwable) {
-            // DB not available in unit context — validation passed
-        }
+        // getDataTablesData() calls query() twice when search/columns are empty: COUNT(*), then the data SELECT.
+        // query() always returns the database instance itself; the simulated result set is
+        // expressed through first()/results() on the same double.
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturn((object) ['count' => 5]);
+        $db->method('results')->willReturn([]);
+        $db->method('error')->willReturn(false);
 
-        $this->assertNull($caught, 'Valid pagination parameters should not throw CarValidationException');
+        $service = new CarDataTablesService($db);
+
+        $request = ['draw' => 1, 'start' => $start, 'length' => $length, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
+        $result = $service->getDataTablesData($request, 'cars');
+
+        $this->assertSame(1, $result['draw']);
+        $this->assertSame(5, $result['recordsTotal']);
+        $this->assertSame(5, $result['recordsFiltered']);
+        $this->assertSame([], $result['data']);
+    }
+
+    // ============================================================
+    // getDataTablesData — filtered-count branch and is_object() guards
+    // ============================================================
+
+    public function testGetDataTablesDataExercisesFilteredCountBranch(): void
+    {
+        // A non-empty search.value plus a searchable column makes $combinedWhere
+        // non-empty, entering the filtered-count block that
+        // testGetDataTablesDataAcceptsValidPagination() never reaches. first() is
+        // called twice here (total count, then filtered count); willReturnOnConsecutiveCalls()
+        // sequences the two return values.
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturnOnConsecutiveCalls((object) ['count' => 42], (object) ['count' => 7]);
+        $db->method('results')->willReturn([]);
+        $db->method('error')->willReturn(false);
+
+        $service = new CarDataTablesService($db);
+
+        $request = [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 25,
+            'search' => ['value' => 'foo'],
+            'order' => [],
+            'columns' => [
+                ['data' => 'chassis', 'searchable' => 'true'],
+            ],
+        ];
+        $result = $service->getDataTablesData($request, 'cars');
+
+        $this->assertSame(42, $result['recordsTotal']);
+        $this->assertSame(7, $result['recordsFiltered']);
+    }
+
+    public function testGetDataTablesDataThrowsOnNonObjectTotalCountRow(): void
+    {
+        $this->expectException(CarDatabaseException::class);
+        $this->expectExceptionMessage('DataTables total count query returned no rows');
+
+        // first() returning [] (DatabaseInterface's no-rows shape) instead of a
+        // stdClass must trip the is_object($countRow) guard.
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturn([]);
+        $db->method('error')->willReturn(false);
+
+        $service = new CarDataTablesService($db);
+
+        $request = ['draw' => 1, 'start' => 0, 'length' => 10, 'search' => ['value' => ''], 'order' => [], 'columns' => []];
+        $service->getDataTablesData($request, 'cars');
+    }
+
+    public function testGetDataTablesDataThrowsOnNonObjectFilteredCountRow(): void
+    {
+        $this->expectException(CarDatabaseException::class);
+        $this->expectExceptionMessage('DataTables filtered count query returned no rows');
+
+        // Total count succeeds (stdClass) so the filtered branch is reached; filtered
+        // count then returns [] (DatabaseInterface's no-rows shape), tripping the
+        // is_object($filterRow) guard.
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('first')->willReturnOnConsecutiveCalls((object) ['count' => 5], []);
+        $db->method('error')->willReturn(false);
+
+        $service = new CarDataTablesService($db);
+
+        $request = [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'search' => ['value' => 'foo'],
+            'order' => [],
+            'columns' => [
+                ['data' => 'chassis', 'searchable' => 'true'],
+            ],
+        ];
+        $service->getDataTablesData($request, 'cars');
     }
 
 }

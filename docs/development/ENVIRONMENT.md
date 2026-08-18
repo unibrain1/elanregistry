@@ -160,14 +160,22 @@ internally, setting the `X-Forwarded-Proto: https` header so `$is_https` is
    # Set secure permissions
    chmod 600 .env.test.local
 
-   # Create the test schema (clones dev database structure)
-   ./scripts/create-test-schema.sh
-
-   # Load reference data (car_models)
-   php tests/setup-test-database.php
+   # Provision the test schema (stock UserSpice base + migrations + seeds)
+   ./scripts/provision-schema.sh
 
    # Run integration tests
    composer test:integration
+   ```
+
+5. **Set Up Claude Code Local Overrides (optional)**:
+
+   Personal/machine-specific paths that Claude Code needs (e.g. the local
+   GitHub Wiki clone path — see `CLAUDE.md`'s GitHub Wiki section) go in
+   `.claude.local.md`, gitignored and not shared with the team.
+
+   ```bash
+   cp .claude.local.md.example .claude.local.md
+   # Edit with your own local paths
    ```
 
 ### Test Database Isolation
@@ -184,18 +192,21 @@ database, the test suite requires a dedicated test schema:
   backfilled from the root `.env`). Either guard tripping aborts with `exit(1)`. Both guards check
   against the literal name `elanregi_spice` — if the dev database is ever renamed, update these
   checks accordingly.
-- Separately, `scripts/create-test-schema.sh` refuses to run at all if its source and target schema
-  names resolve to the same name (case-folded) — the guard protecting the one truly destructive
-  operation in this workflow, the `DROP DATABASE` on the test schema.
+- Separately, `scripts/provision-schema.sh` guards the one truly destructive operation in this
+  workflow — the `DROP DATABASE` on the target schema. It refuses to run against a schema name
+  that does not contain `test` (case-folded), or against the database this checkout's application
+  is configured to use (`DB_NAME` in `.env.local`/`.env`). Both guards require an explicit
+  `--force` to override, since the same script also provisions fresh dev and CI databases.
 
 **Files involved:**
 
 - `.env.test.local` — Test database credentials (gitignored, created once per developer)
 - `.env.test.local.sample` — Template with safe defaults (tracked in repo)
-- `scripts/create-test-schema.sh` — Structure-sync script; safe to rerun any time the dev schema
-  changes (e.g. after a migration) to resync the test schema's structure — it drops and recreates
-  only the test schema each run
-- `tests/setup-test-database.php` — Loads `car_models` reference data into whichever schema is configured
+- `scripts/provision-schema.sh` — Provisioning script; safe to rerun any time the schema changes
+  (e.g. after a new migration) — it drops and recreates only the target schema each run, then
+  rebuilds it from `database/vendor/userspice-6.1.4-base.sql`, `composer migrate`, and the Phinx
+  seeds. Requires a `mysql` client on `$PATH`, or `MYSQL_BIN` pointing at one (MAMP's client is
+  not on `$PATH` by default)
 
 After the initial setup, tests can be re-run safely and repeatedly against the test schema without risking the development database.
 

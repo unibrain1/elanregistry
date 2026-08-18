@@ -23,7 +23,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('migration')]
 final class CarsYearSmallintMigrationTest extends IntegrationTestCase
 {
-    private int $testUserId = 1;
+    private int $testUserId;
 
     /** Car IDs created by individual tests that need early cleanup (e.g. DELETE tests). */
     private array $localCarIds = [];
@@ -52,29 +52,31 @@ final class CarsYearSmallintMigrationTest extends IntegrationTestCase
             );
         }
 
+        $this->testUserId = $this->createTestUser();
+
         // Mirror the authenticated-user context required by Car::update() / Car::delete().
-        global $user;
-        $user = new User();
-        $user->find($this->testUserId);
-
-        $reflection     = new ReflectionClass($user);
-        $isLoggedInProp = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProp->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
+        $this->loginAsTestUser($this->testUserId);
 
         $this->localCarIds = [];
     }
 
     protected function tearDown(): void
     {
-        // Clean up any cars that were deleted mid-test (so IntegrationTestCase's tearDown
-        // doesn't try to DELETE them again, which would be a no-op but could hide bugs).
-        foreach ($this->localCarIds as $carId) {
-            $this->untrackCarId($carId);
+        try {
+            // Clean up cars_hist for any car deleted mid-test (localCarIds) — the
+            // cars_delete trigger's own DELETE-operation row still needs removing
+            // (#1551). Running this here, not at the end of the test body, means
+            // cleanup still happens even if the test's own assertions fail.
+            foreach ($this->localCarIds as $carId) {
+                $this->deleteCarWithHistory($carId);
+                $this->untrackCarId($carId);
+            }
+        } finally {
+            // Run even if deleteCarWithHistory() throws (a verification failure must
+            // still fail the test, but must not skip the base class's own user/car
+            // cleanup for the rest of this test's fixtures).
+            parent::tearDown();
         }
-
-        parent::tearDown();
     }
 
     // -------------------------------------------------------------------------

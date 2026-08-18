@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use ElanRegistry\AssetVersionResolver;
+
 /**
  * Global Application Configuration
  *
@@ -36,6 +38,12 @@ define('BACKUP_RETENTION_ROLLBACK', 30);    // Rollback backups: 30 days
 define('BACKUP_WARNING_THRESHOLD_DAYS', 7);
 
 /**
+ * Backup failure lookback window (in days)
+ * How far back the health check looks for logged backup failures
+ */
+define('BACKUP_FAILURE_LOOKBACK_DAYS', 7);
+
+/**
  * Backup table subdirectories
  * Organized by backup type for clarity and management
  */
@@ -49,22 +57,9 @@ define('BACKUP_DIR_ROLLBACK', BACKUP_BASE_DIR . 'rollback/');
 
 // Appended as ?v=<version> to all first-party .min.js/.min.css URLs for cache-busting.
 // Reads the VERSION file written by the post-receive deploy hook.
-// Allow-list ([a-zA-Z0-9.\-]+) matches git describe output and prevents XSS if the
-// file is tampered with. Falls back to 'dev' when absent (expected in dev/CI), empty,
-// or invalid — logs a warning when the file exists but cannot be read.
+// Resolution logic lives in AssetVersionResolver so it's unit-testable
+// directly (see #1598) — config.php only builds the path and defines the constant.
 $_versionFile = $abs_us_root . $us_url_root . 'VERSION';
-if (file_exists($_versionFile)) {
-    $_contents = file_get_contents($_versionFile);
-    if ($_contents === false) {
-        error_log('[ElanRegistry] ASSET_VERSION: file_get_contents() failed for ' . $_versionFile);
-        $_rawVersion = '';
-    } else {
-        $_rawVersion = trim($_contents);
-    }
-    unset($_contents);
-} else {
-    $_rawVersion = '';
-}
-define('ASSET_VERSION', (preg_match('/^[a-zA-Z0-9.\-]+$/', $_rawVersion) === 1) ? $_rawVersion : 'dev');
-unset($_versionFile, $_rawVersion);
+define('ASSET_VERSION', AssetVersionResolver::resolve($_versionFile));
+unset($_versionFile);
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Transfer\TransferEmailService;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -19,35 +20,87 @@ final class TransferEmailServiceTest extends TestCase
     }
 
     /**
-     * Creates a mock DB whose query() always returns count=0 (transfer not found).
-     * error() always returns false (no DB error).
+     * Creates a database double whose queries report $rowCount rows
+     * (0 = transfer not found). error() always returns false (no DB error).
+     *
+     * query() returns the double itself because the real \DB::query() always
+     * returns $this for chaining — the result data lives in count()/first()
+     * on the same instance.
      */
-    private function createMockDb(int $rowCount = 0): \DB
+    private function createMockDb(int $rowCount = 0): DatabaseInterface
     {
-        $rows = array_fill(0, $rowCount, (object) []);
-        $db = $this->createStub(\DB::class);
-        $db->method('query')->willReturn(new \QueryResult($rows));
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
         $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn($rowCount);
+        // Real \DB::first() returns [] when there are no rows, never null.
+        $db->method('first')->willReturn([]);
         return $db;
     }
 
     /**
-     * Creates a mock DB that dispatches by table name:
+     * Creates a database double that dispatches by table name:
      * queries against `car_transfer_requests` return $transferRow,
-     * queries against `cars` return $carRow.
+     * the `users LEFT JOIN profiles` lookup that Owner::find() runs returns a
+     * user row for the requested id, and everything else returns $carRow.
      * error() always returns false (no DB error).
+     *
+     * TransferEmailService passes its own $db to every `new Owner(...)` it
+     * constructs, so this one double answers both the service's car/transfer
+     * queries and the owner lookups made through it.
+     *
+     * Real \DB carries result state on the instance — query() returns $this and
+     * count()/first() describe the most recent statement — so $currentRow
+     * mirrors that: each query() selects the row the following first() returns.
      */
-    private function createFoundMockDb(object $transferRow, object $carRow): \DB
+    private function createFoundMockDb(object $transferRow, object $carRow): DatabaseInterface
     {
-        $db = $this->createStub(\DB::class);
+        $db         = $this->createStub(DatabaseInterface::class);
+        $currentRow = $transferRow;
+
         $db->method('query')->willReturnCallback(
-            function (string $sql, array $params = []) use ($transferRow, $carRow): \QueryResult {
-                $row = str_contains($sql, 'car_transfer_requests') ? $transferRow : $carRow;
-                return new \QueryResult([$row]);
+            function (string $sql, array $params = []) use ($db, $transferRow, $carRow, &$currentRow): DatabaseInterface {
+                if (str_contains($sql, 'car_transfer_requests')) {
+                    $currentRow = $transferRow;
+                } elseif (str_contains($sql, 'profiles') && str_contains($sql, 'WHERE u.id')) {
+                    $currentRow = $this->makeUserRow((int) ($params[0] ?? 0));
+                } else {
+                    $currentRow = $carRow;
+                }
+                return $db;
             }
         );
         $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturnCallback(
+            function () use (&$currentRow): object {
+                return $currentRow;
+            }
+        );
         return $db;
+    }
+
+    /**
+     * A `users LEFT JOIN profiles` row as Owner::find() expects to read it.
+     *
+     * Owner::find() short-circuits on ids <= 0 without querying, so the
+     * owner-not-found tests never reach this helper.
+     */
+    private function makeUserRow(int $userId): object
+    {
+        return (object) [
+            'id'        => $userId,
+            'email'     => 'test@example.com',
+            'fname'     => 'Test',
+            'lname'     => 'User',
+            'join_date' => '2024-01-01 00:00:00',
+            'city'      => 'Test City',
+            'state'     => 'TS',
+            'country'   => 'US',
+            'lat'       => null,
+            'lon'       => null,
+            'website'   => '',
+        ];
     }
 
     private function makeTransferRow(array $overrides = []): object
@@ -75,6 +128,18 @@ final class TransferEmailServiceTest extends TestCase
             'color'   => 'Red',
             'engine'  => 'ENG001',
         ], $overrides);
+    }
+
+    // -------------------------------------------------------------------------
+    // Constructor validation
+    // -------------------------------------------------------------------------
+
+    public function testConstructorThrowsWhenMailerIsNotCallable(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('TransferEmailService: $mailer must be callable');
+
+        new TransferEmailService($this->createMockDb(0), 123);
     }
 
     // -------------------------------------------------------------------------
@@ -145,8 +210,8 @@ final class TransferEmailServiceTest extends TestCase
         $result  = $service->sendRequest(1);
 
         $this->assertTrue($result);
-        // 'test@example.com' is the hardcoded email returned by the Owner stub in
-        // tests/unit/bootstrap-unit.php — if that fixture changes, update this assertion.
+        // 'test@example.com' is the email carried by makeUserRow(), which the
+        // db double returns for Owner::find() — update both together.
         $this->assertSame('test@example.com', $capturedTo);
     }
 
@@ -170,6 +235,24 @@ final class TransferEmailServiceTest extends TestCase
 
         $this->assertTrue($result);
         $this->assertSame(2, $attempt, 'Mailer must be called once per admin address');
+    }
+
+    public function testSendAdminAlertReturnsFalseWhenAllMailerAttemptsFail(): void
+    {
+        $GLOBALS['mockAdminEmails'] = 'fail1@example.com,fail2@example.com';
+
+        $db      = $this->createFoundMockDb($this->makeTransferRow(), $this->makeCarRow());
+        $attempt = 0;
+        $mailer  = function () use (&$attempt): bool {
+            $attempt++;
+            return false;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+        $result  = $service->sendAdminAlert(1);
+
+        $this->assertFalse($result);
+        $this->assertSame(2, $attempt, 'Mailer must be attempted once per admin address even though all fail');
     }
 
     /**
@@ -294,6 +377,107 @@ final class TransferEmailServiceTest extends TestCase
 
         $this->assertTrue($result);
         $this->assertSame(2, $attempt, 'Mailer must be called for requester and previous owner');
+    }
+
+    // -------------------------------------------------------------------------
+    // Owner-not-found guards — new coverage
+    // -------------------------------------------------------------------------
+
+    /**
+     * Asserts $mockLogEntries contains an entry whose message contains $needle.
+     *
+     * A guard's "not found" message (e.g. "Current owner ID 0 not found") is
+     * distinct from the catch-all Throwable handler's message (e.g. "... error
+     * for request #1 [TypeError] in ..."), which fires with the same false-return/
+     * mailer-not-called observable outcome if the guard is deleted and the null
+     * owner hits a typed parameter downstream. Asserting the guard's specific
+     * message — not just the return value — is what makes these tests actually
+     * detect a deleted guard instead of passing either way.
+     *
+     * @param array<int, array{user_id: int, category: string, message: string}> $logEntries
+     */
+    private function assertLogContains(array $logEntries, string $needle): void
+    {
+        $matches = array_filter($logEntries, fn($e) => str_contains($e['message'], $needle));
+        $this->assertNotEmpty($matches, "Expected a log entry containing \"$needle\", got: " . json_encode($logEntries));
+    }
+
+    public function testSendRequestReturnsFalseWhenCurrentOwnerNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(), $this->makeCarRow(['user_id' => 0]));
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendRequest(1));
+        $this->assertFalse($called, 'Mailer must not be called when the current owner cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Current owner ID 0 not found');
+    }
+
+    public function testSendRequestReturnsFalseWhenRequesterNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(['requested_by_user_id' => 0]), $this->makeCarRow());
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendRequest(1));
+        $this->assertFalse($called, 'Mailer must not be called when the requester cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Requester ID 0 not found');
+    }
+
+    public function testSendAdminAlertReturnsFalseWhenCurrentOwnerNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+        $GLOBALS['mockAdminEmails'] = 'admin@example.com';
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(), $this->makeCarRow(['user_id' => 0]));
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendAdminAlert(1));
+        $this->assertFalse($called, 'Mailer must not be called when the current owner cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Current owner ID 0 not found');
+    }
+
+    public function testSendAdminAlertReturnsFalseWhenRequesterNotFound(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+        $GLOBALS['mockAdminEmails'] = 'admin@example.com';
+
+        $db     = $this->createFoundMockDb($this->makeTransferRow(['requested_by_user_id' => 0]), $this->makeCarRow());
+        $called = false;
+        $mailer = function () use (&$called): bool {
+            $called = true;
+            return true;
+        };
+
+        $service = new TransferEmailService($db, $mailer);
+
+        $this->assertFalse($service->sendAdminAlert(1));
+        $this->assertFalse($called, 'Mailer must not be called when the requester cannot be found');
+        $this->assertLogContains($mockLogEntries, 'Requester ID 0 not found');
     }
 
     // -------------------------------------------------------------------------

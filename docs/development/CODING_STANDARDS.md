@@ -192,8 +192,66 @@ composer phpstan:baseline
 error but leave its baseline entry, CI fails. The only safe path is to fix the
 error and regenerate.
 
+Note: pre-commit (`.githooks/pre-commit`) already runs a full-repo
+`phpstan analyse` on every commit that stages a PHP file — the single-file
+command above is for your tighter inner dev loop while actively fixing a
+file, not a substitute for what the hook does at commit time.
+
 The goal is to reduce the baseline over time. Target: below 100 entries → upgrade
 to level 8 (nullable property/method access checks).
+
+---
+
+## Issue & PR Title Conventions
+
+Issue and PR titles use a Conventional-Commits-style preamble (`type: description`).
+This matters beyond the tracker: squash-merged PR titles become the commit
+message on `main` (see `/finish-issue`), so the preamble is what makes `git log`
+scannable by change type.
+
+### Preamble types
+
+| Preamble | Use for |
+| --- | --- |
+| `fix:` | A defect with a scoped, concrete corrective action already defined (acceptance criteria present) |
+| `bug:` | A defect that has been found/reported but **not yet scoped** — pairs with the `triage` label, no acceptance criteria yet |
+| `feat:` | New user-facing functionality |
+| `test:` | The deliverable is test coverage/test-suite work, even when it addresses a bug (see below) |
+| `chore:` | Maintenance work with no user-facing behavior change |
+| `docs:` | Documentation-only changes |
+| `refactor:` | Restructuring without behavior change |
+| `tech-debt:` | Debt-reduction work tracked as such |
+| `security:` | Security-motivated change (when not simply `fix:`) |
+| `seo:` | Search/crawler-visibility changes |
+
+`fix:` vs `bug:` is the pair that's easy to get backwards: `bug:` describes
+*the problem*, `fix:` describes *the scoped solution*. An issue graduates from
+`bug:` to `fix:` once someone has written concrete acceptance criteria for it
+— which is usually also when the `triage` label comes off.
+
+The preamble can legitimately differ from the primary label — e.g. a `test:`
+preamble with a `bug` label is correct when the deliverable is a test fix for
+an underlying defect (the label says what's wrong, the preamble says what
+you're shipping).
+
+### Preamble vs. labels
+
+Labels (GitHub's structured, multi-select metadata) classify orthogonal
+facets: `component: *` (area), workflow state (`triage`, `in progress`,
+`waiting: *`), and defect/debt classification (`bug`, `tech-debt`, `security`,
+`enhancement`). The preamble is a single value describing the change's primary
+verb for git history. Don't force them to match — a `test:`-preambled issue
+can correctly carry a `bug` label, and a `fix:`-preambled issue rarely needs
+`triage` since it's already scoped.
+
+### Where this is enforced
+
+- `/new-issue` always drafts a fully-scoped issue (acceptance criteria +
+  technical notes) before creating it, so its titles use a scoped type
+  (`fix:`, `feat:`, `test:`, etc.) — never bare `bug:`.
+- `/found` creates issues from a one-line description with no acceptance
+  criteria, so its titles use `bug:` (or the closest matching type for a
+  non-defect finding) and keep the `triage` label until someone scopes it.
 
 ---
 

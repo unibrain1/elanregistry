@@ -75,12 +75,29 @@ class LocationService
     private static function getUserAgent(): string
     {
         if (self::$cachedVersion === null) {
-            $versionFile = __DIR__ . '/../../VERSION';
-            $raw = is_readable($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
-            self::$cachedVersion = ($raw !== '') ? $raw : 'unknown';
+            self::$cachedVersion = self::resolveVersion(__DIR__ . '/../../VERSION');
         }
 
         return 'ElanRegistry/' . self::$cachedVersion . ' (' . self::USER_AGENT_CONTACT . ')';
+    }
+
+    /**
+     * Resolve the version string from a VERSION file path, falling back to
+     * 'unknown' when the file is absent, unreadable, or empty.
+     *
+     * Extracted as a path-parameterized helper (#1602) so unit tests can drive
+     * the real fallback branches with real temporary files instead of seeding
+     * $cachedVersion directly — mirrors the extraction technique used by
+     * AssetVersionResolver::resolve() (#1598); fallback semantics differ
+     * ('unknown' vs. 'dev', no allow-list regex).
+     *
+     * @param string $versionFile Absolute path to the VERSION file.
+     * @return string The trimmed version string, or 'unknown' as fallback.
+     */
+    private static function resolveVersion(string $versionFile): string
+    {
+        $raw = is_readable($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
+        return ($raw !== '') ? $raw : 'unknown';
     }
 
     /**
@@ -418,12 +435,10 @@ class LocationService
             if ($response === false) {
                 logger(0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE,
                     'LocationService: cURL error (' . curl_errno($ch) . '): ' . curl_error($ch));
-                curl_close($ch);
                 return false;
             }
 
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
 
             if ($httpCode !== 200) {
                 logger(0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -16,6 +17,7 @@ use PHPUnit\Framework\Attributes\Group;
 final class CarVerificationTest extends IntegrationTestCase
 {
     private $testCarId;
+    private $testUserId;
     protected $db;
 
     protected function setUp(): void
@@ -25,9 +27,11 @@ final class CarVerificationTest extends IntegrationTestCase
 
         $this->db = DB::getInstance();
 
+        $this->testUserId = $this->createTestUser();
+
         // Create unique test car for this test
         try {
-            $this->testCarId = $this->createTestCar(1, [
+            $this->testCarId = $this->createTestCar($this->testUserId, [
                 'chassis' => 'VF' . uniqid()
             ]);
         } catch (RuntimeException $e) {
@@ -210,6 +214,21 @@ final class CarVerificationTest extends IntegrationTestCase
         $result = Car::findByVerificationCode('');
 
         $this->assertNull($result);
+    }
+
+    /**
+     * Test find by verification code with special characters is handled safely
+     */
+    #[Group('fast')]
+    public function testFindByVerificationCodeWithSpecialCharacters(): void
+    {
+        $result = Car::findByVerificationCode("O'Brien\"; DROP TABLE cars; --<script>");
+
+        $this->assertNull($result, 'No car should match an arbitrary special-character code, and the query must not error');
+
+        // Proves the payload was treated as a literal, bound value — not executed as SQL.
+        $row = $this->db->query('SELECT id FROM cars WHERE id = ?', [$this->testCarId])->first();
+        $this->assertNotEmpty($row, "cars table (and this test's fixture row) must survive the lookup unharmed");
     }
 
     /**

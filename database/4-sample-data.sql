@@ -1,8 +1,10 @@
 -- ==================================================================
 -- ELAN REGISTRY - SAMPLE USER CONFIGURATION
 -- ==================================================================
--- This script adds a sample user based on the development admin user
--- Run AFTER 1-schema.sql, 2-reference-data.sql, and 3-configuration.sql
+-- This script adds a sample user and two sample cars (a production Sprint and
+-- a 26R race car).
+-- Run AFTER provisioning a schema (scripts/provision-schema.sh) — dev/test-only
+-- sample data, not part of the standard provisioning path.
 -- ==================================================================
 
 -- ==================================================================
@@ -52,7 +54,7 @@ INSERT INTO `users` (
     2,  -- Next available user ID
     'sample@elanregistry.org',  -- Generic email
     'sample_user',  -- Generic username
-    '$2y$13$PAjtKFE6ctr3hOgzIuhITeNHC8XtjcLMSRE/zhj5u.uMcs7PMgCQy',  -- Password: 'password123'
+    '$2y$13$GdQC.A9Aa54maEU/v1BRgusWsHwjBjomUhMI4lU0Klnjk0DJOFjie',  -- Password: 'password123'
     '$2y$12$/xAft.7hBI7WCEnDyKaQquxq2QAuNfbpt7h7MEb0P7Vsv6UMLs0.m',  -- PIN hash
     'Sample',  -- First name
     'User',  -- Last name
@@ -141,54 +143,64 @@ ON DUPLICATE KEY UPDATE
 -- 4. SAMPLE CAR RECORD
 -- ==================================================================
 
--- Add sample car (Car ID 1) owned by sample user
+-- Add sample cars owned by sample user.
+--
+-- `model` is a pipe-delimited "series|variant|type" string, not a free-text
+-- name — it mirrors `car_models.model_value`. CarValidator::parseModel()
+-- splits it apart and validateAndSanitizeFields() reassembles it after
+-- checking the combination against `car_models`. `type` is the Lotus type
+-- number in a char(3) column (these two cars use 36 and 26R; the reference
+-- table also has 26, 45, and 50); the body style (FHC/DHC/Roadster) belongs
+-- in `variant`. Both combinations below exist in the `car_models` reference
+-- table and pass ChassisValidator for their year.
+--
+-- Car 1: 1973 Sprint FHC (production car, post-1970 YYMMBBXXXXC chassis)
 INSERT INTO `cars` (
     `id`,
-    `user_id`, 
-    `model`, 
-    `series`, 
-    `variant`, 
-    `year`, 
-    `type`, 
-    `chassis`, 
-    `color`, 
-    `engine`, 
-    `purchasedate`, 
-    `comments`, 
+    `user_id`,
+    `model`,
+    `series`,
+    `variant`,
+    `year`,
+    `type`,
+    `chassis`,
+    `color`,
+    `engine`,
+    `purchasedate`,
+    `comments`,
     `image`,
-    `fname`, 
-    `lname`, 
-    `email`, 
-    `city`, 
-    `state`, 
-    `country`, 
-    `lat`, 
-    `lon`, 
-    `website`, 
-    `ctime`, 
+    `fname`,
+    `lname`,
+    `email`,
+    `city`,
+    `state`,
+    `country`,
+    `lat`,
+    `lon`,
+    `website`,
+    `ctime`,
     `mtime`,
     `vericode`,
-    `last_verified`,
-    `ModifiedBy`
+    `last_verified`
 ) VALUES (
     1,  -- Car ID 1
     2,  -- Owned by sample_user (ID 2)
-    'Lotus Elan',
-    'S4',
-    'SE',
-    '1973',
+    'Sprint|FHC|36',
+    'Sprint',
     'FHC',
-    '45/0123A',  -- Type 45 chassis with suffix A
+    1973,
+    '36',
+    '7301019999B',  -- Post-1970 format: YYMMBBXXXXC
     'Signal Red',
     'ABC123',
     '2020-01-15',
     'Beautiful restored example with matching numbers. Recent full restoration completed in 2019. Engine rebuilt with unleaded head conversion. Transmission rebuilt. All suspension bushings replaced. New interior and soft top. Car shows excellent and drives beautifully.',
-    '["img_5ff391578d9be6.04210270.jpg","img_60184d777af4d7.90737857.jpg","img_601c1c88b5aa67.07757198.jpg"]',  -- JSON array of actual car images
+    '["img_5ff391578e2475.05615196.jpg","img_601c1c88b856c9.16445155.jpg","img_602018826108e6.23256961.jpg"]',  -- Real files in userimages/1/, each with all 5 resized variants
     'Sample',    -- Duplicated from user profile for performance
     'User',
     'sample@elanregistry.org',
     'Portland',
-    'Oregon', 
+    'Oregon',
     'United States',
     45.51,
     -122.68,
@@ -196,9 +208,78 @@ INSERT INTO `cars` (
     NOW(),
     NOW(),
     'SampleCarVeriCode123',
+    NOW()
+) ON DUPLICATE KEY UPDATE
+    model = VALUES(model),
+    series = VALUES(series),
+    variant = VALUES(variant),
+    year = VALUES(year),
+    type = VALUES(type),
+    chassis = VALUES(chassis),
+    color = VALUES(color),
+    engine = VALUES(engine);
+
+-- Car 2: 1963 26R (race car). Gives the registry a Race-variant car, which
+-- the statistics map classifies into the "26R" bucket — markerClassForSeries()
+-- in app/assets/js/statistics.js keys on variant === 'race', and the map query
+-- (StatisticsDataService::getMapPins) only returns rows with non-zero lat/lon.
+-- Details are invented; real 26R records carry named owners and racing
+-- provenance that must not be copied into a public fixture.
+INSERT INTO `cars` (
+    `id`,
+    `user_id`,
+    `model`,
+    `series`,
+    `variant`,
+    `year`,
+    `type`,
+    `chassis`,
+    `color`,
+    `engine`,
+    `purchasedate`,
+    `comments`,
+    `image`,
+    `fname`,
+    `lname`,
+    `email`,
+    `city`,
+    `state`,
+    `country`,
+    `lat`,
+    `lon`,
+    `website`,
+    `ctime`,
+    `mtime`,
+    `vericode`,
+    `last_verified`
+) VALUES (
+    2,  -- Car ID 2
+    2,  -- Owned by sample_user (ID 2)
+    'S1|Race|26R',
+    'S1',
+    'Race',
+    1963,
+    '26R',
+    '26-R-07',  -- 1963 race format: 26-R-xx
+    'British Racing Green',
+    'LP1234',
+    '2018-06-01',
+    'Sample competition car for demonstrating the 26R category. Twin-cam engine on Weber 45 DCOE carburettors, close-ratio gearbox, and period-correct knock-off wheels. Used here to exercise race-variant filtering and reporting; not a record of a real vehicle.',
+    '',  -- No sample images for this car
+    'Sample',
+    'User',
+    'sample@elanregistry.org',
+    'Portland',
+    'Oregon',
+    'United States',
+    45.51,
+    -122.68,
+    'https://www.elanregistry.org/',
     NOW(),
-    'sample_user'
-) ON DUPLICATE KEY UPDATE 
+    NOW(),
+    'SampleCarVeriCode26R',
+    NOW()
+) ON DUPLICATE KEY UPDATE
     model = VALUES(model),
     series = VALUES(series),
     variant = VALUES(variant),
@@ -219,68 +300,9 @@ INSERT INTO `cars` (
 -- 6. SAMPLE CAR HISTORY RECORD
 -- ==================================================================
 
--- Add initial history record for the car (simulating the creation audit trail)
--- NOTE: cars_hist stores complete snapshots of all car fields, not JSON
-INSERT INTO `cars_hist` (
-    `operation`,
-    `car_id`,
-    `ctime`,
-    `mtime`,
-    `ModifiedBy`,
-    `model`,
-    `series`,
-    `variant`,
-    `year`,
-    `type`,
-    `chassis`,
-    `color`,
-    `engine`,
-    `purchasedate`,
-    `comments`,
-    `image`,
-    `user_id`,
-    `email`,
-    `fname`,
-    `lname`,
-    `city`,
-    `state`,
-    `country`,
-    `lat`,
-    `lon`,
-    `website`,
-    `timestamp`
-) VALUES (
-    'INSERT',  -- Operation type
-    1,  -- Car ID 1
-    NOW(),  -- Create time
-    NOW(),  -- Modify time
-    'sample_user',  -- Modified by
-    'Lotus Elan',
-    'S4',
-    'SE',
-    '1973',
-    'FHC',
-    '45/0123A',
-    'Signal Red',
-    'ABC123',
-    '2020-01-15',
-    'Beautiful restored example with matching numbers. Recent full restoration completed in 2019. Engine rebuilt with unleaded head conversion. Transmission rebuilt. All suspension bushings replaced. New interior and soft top. Car shows excellent and drives beautifully.',
-    '["img_5ff391578d9be6.04210270.jpg","img_60184d777af4d7.90737857.jpg","img_601c1c88b5aa67.07757198.jpg"]',
-    2,  -- User ID
-    'sample@elanregistry.org',
-    'Sample',
-    'User',
-    'Portland',
-    'Oregon',
-    'United States',
-    45.51,
-    -122.68,
-    'https://www.elanregistry.org/',
-    NOW()  -- Timestamp
-) ON DUPLICATE KEY UPDATE
-    operation = VALUES(operation),
-    model = VALUES(model),
-    chassis = VALUES(chassis);
+-- Nothing to do here. The `cars_insert` AFTER INSERT trigger writes the
+-- matching `cars_hist` row automatically for every car inserted above —
+-- inserting one by hand would duplicate the audit trail.
 
 -- ==================================================================
 -- 7. RECORD SUCCESSFUL COMPLETION
@@ -322,8 +344,8 @@ SELECT
 FROM profiles WHERE user_id = 2;
 
 -- Display sample car information
-SELECT 'Sample car created:' as status;
-SELECT 
+SELECT 'Sample cars created:' as status;
+SELECT
     id,
     model,
     series,
@@ -336,7 +358,7 @@ SELECT
     purchasedate,
     SUBSTRING(comments, 1, 50) as comments_preview,
     image
-FROM cars WHERE id = 1;
+FROM cars WHERE id IN (1, 2);
 
 -- Display car ownership
 SELECT 'Sample car ownership:' as status;
@@ -346,20 +368,19 @@ SELECT
     u.username
 FROM cars c
 JOIN users u ON c.user_id = u.id
-WHERE c.id = 1;
+WHERE c.id IN (1, 2);
 
--- Display car history
+-- Display car history (written by the cars_insert trigger, not by this file)
 SELECT 'Sample car history:' as status;
 SELECT
     car_id,
     operation,
-    ModifiedBy,
     timestamp,
     model,
     series,
     chassis,
     color
-FROM cars_hist WHERE car_id = 1;
+FROM cars_hist WHERE car_id IN (1, 2);
 
 -- Display permissions
 SELECT 'Sample user permissions:' as status;
@@ -410,12 +431,17 @@ IMPORTANT NOTES:
    - Set to 0 for production environments if needed
 
 6. **Sample Car Details**:
-   - Car ID 1: 1973 Lotus Elan S4 SE FHC
-   - Chassis: 45/0123A (realistic Type 45 format)
-   - Color: Signal Red, Engine: ABC123
-   - Complete restoration story with detailed comments
-   - 3 high-quality car images from existing userimages/1/ directory
-   - Full history record and ownership tracking
+   - Car ID 1: 1973 Lotus Elan Sprint FHC (model 'Sprint|FHC|36')
+     - Chassis: 7301019999B (post-1970 YYMMBBXXXXC format)
+     - Color: Signal Red, Engine: ABC123
+     - Complete restoration story with detailed comments
+     - 3 real images from userimages/1/, each with all 5 resized variants
+   - Car ID 2: 1963 Lotus Elan 26R race car (model 'S1|Race|26R')
+     - Chassis: 26-R-07 (1963 race format, 26-R-xx)
+     - Color: British Racing Green, Engine: LP1234
+     - No images; invented details, not a real vehicle
+     - Provides a Race-variant car for the statistics map's 26R filter
+   - History rows for both are created by the cars_insert trigger
 
 7. **Testing Purposes**:
    - Use for testing car registration and editing workflows
@@ -433,7 +459,7 @@ IMPORTANT NOTES:
 
 RECOMMENDED TESTING WORKFLOW:
 1. Login as sample_user with password 'password123'
-2. View and edit the sample car (Car ID 1) 
+2. View and edit the sample cars (Car IDs 1 and 2)
 3. Test car image display and upload functionality
 4. Verify location features work correctly  
 5. Test contact forms and owner communication

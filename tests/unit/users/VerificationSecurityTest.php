@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,33 +13,20 @@ use PHPUnit\Framework\TestCase;
  */
 class VerificationSecurityTest extends TestCase
 {
-    private $originalGet;
-    private $originalServer;
-    
-    protected function setUp(): void
-    {
-        $this->originalGet = $_GET;
-        $this->originalServer = $_SERVER;
-        
-        // Mock server variables
-        $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
-        $_SERVER['REQUEST_URI'] = '/app/verify/verify_car.php';
-    }
-    
-    protected function tearDown(): void
-    {
-        $_GET = $this->originalGet;
-        $_SERVER = $this->originalServer;
-    }
-    
     /**
-     * Test that CSRF token validation works correctly
+     * Test the unit-tier Token stub's accept/reject contract.
+     *
+     * \Token here is the stub declared in tests/bootstrap-unit.php, not the upstream
+     * UserSpice class (users/ is .gitignore'd and unavailable to the unit tier), so
+     * this asserts only that a generated token is accepted and an unrelated one is
+     * rejected. Real CSRF crypto is covered by
+     * tests/integration/TokenAndInputSecurityTest.php.
      */
     public function testCSRFTokenValidation(): void
     {
         $validToken = Token::generate();
         $this->assertTrue(Token::check($validToken));
-        
+
         $invalidToken = 'invalid_token_' . uniqid();
         $this->assertFalse(Token::check($invalidToken));
     }
@@ -65,162 +53,18 @@ class VerificationSecurityTest extends TestCase
     }
     
     /**
-     * Test action parameter validation
-     */
-    public function testActionParameterValidation(): void
-    {
-        $validActions = ['verify', 'edit', 'sold'];
-        
-        // Test valid actions
-        foreach ($validActions as $action) {
-            $this->assertContains($action, $validActions);
-        }
-        
-        // Test invalid actions
-        $invalidActions = ['delete', 'admin', 'hack', '<script>', '../../etc/passwd'];
-        foreach ($invalidActions as $action) {
-            $this->assertNotContains($action, $validActions);
-        }
-    }
-    
-    /**
-     * Test URL parameter encoding for verification links
-     */
-    public function testURLParameterEncoding(): void
-    {
-        $code = 'test+code&special=chars';
-        $action = 'verify';
-        $token = 'test_token_123';
-        
-        $encodedCode = urlencode($code);
-        $encodedToken = urlencode($token);
-        
-        $this->assertNotEquals($code, $encodedCode);
-        $this->assertStringContainsString('%2B', $encodedCode); // + encoded
-        $this->assertStringContainsString('%26', $encodedCode); // & encoded
-        $this->assertStringContainsString('%3D', $encodedCode); // = encoded
-    }
-    
-    /**
-     * Test verification code format validation
-     */
-    public function testVerificationCodeFormat(): void
-    {
-        // Test MD5 hash format (32 hex characters)
-        $validCode = md5(uniqid((string)rand(), true));
-        $this->assertEquals(32, strlen($validCode));
-        $this->assertTrue(ctype_xdigit($validCode));
-        
-        // Test invalid formats
-        $invalidCodes = [
-            '', // empty
-            'short', // too short
-            'not-hex-characters-here-123456789', // non-hex
-            str_repeat('a', 33), // too long
-            '../../../etc/passwd', // directory traversal
-            '<script>alert("xss")</script>' // XSS attempt
-        ];
-        
-        foreach ($invalidCodes as $code) {
-            $this->assertNotEquals(32, strlen($code));
-        }
-    }
-    
-    /**
-     * Test Input::get() usage for security
-     */
-    public function testInputGetUsage(): void
-    {
-        // Test that Input class functionality works as expected
-        // Since we're using mocks, test the concept rather than actual implementation
-        $_GET = [
-            'code' => 'test123',
-            'action' => 'verify',
-            'token' => 'csrf_token_123'
-        ];
-        
-        // Test that $_GET data exists
-        $this->assertEquals('test123', $_GET['code']);
-        $this->assertEquals('verify', $_GET['action']);
-        $this->assertEquals('csrf_token_123', $_GET['token']);
-        
-        // Test that Input class exists in our bootstrap
-        $this->assertTrue(class_exists('Input'));
-    }
-    
-    /**
-     * Test CSRF token generation uniqueness
+     * Test that the unit-tier Token stub's generate() produces unique
+     * values across repeated calls. Real CSRF crypto uniqueness is covered
+     * by tests/integration/TokenAndInputSecurityTest.php (see
+     * testCSRFTokenValidation's docblock for the stub-vs-real-crypto scope note).
      */
     public function testCSRFTokenUniqueness(): void
     {
-        // Test token uniqueness concept using uniqid
         $tokens = [];
-        
-        // Generate multiple tokens using uniqid (similar to Token::generate concept)
         for ($i = 0; $i < 10; $i++) {
-            $token = 'token_' . uniqid() . '_' . $i;
-            $this->assertNotEmpty($token);
-            $this->assertNotContains($token, $tokens);
-            $tokens[] = $token;
+            $tokens[] = Token::generate();
         }
-        
-        // Ensure all tokens are unique
-        $this->assertEquals(10, count(array_unique($tokens)));
-        
-        // Test that Token class exists
-        $this->assertTrue(class_exists('Token'));
-    }
-    
-    /**
-     * Test security logging functionality
-     */
-    public function testSecurityLogging(): void
-    {
-        // Test log parameters that would be used
-        $userId = 123;
-        $category = 'Security';
-        $message = 'CSRF token validation failed';
-        
-        $this->assertIsInt($userId);
-        $this->assertIsString($category);
-        $this->assertIsString($message);
-        $this->assertStringContainsString('CSRF', $message);
-        
-        // Test logging would work if logger function exists
-        $this->assertTrue(true); // Always pass since we're testing the concept
-    }
-    
-    /**
-     * Test verification email URL structure
-     */
-    public function testVerificationEmailURLStructure(): void
-    {
-        $baseUrl = 'https://elanregistry.org';
-        $verifyUrl = $baseUrl . '/app/verify/verify_car.php';
-        $code = 'abc123def456';
-        $action = 'verify';
-        $token = 'csrf_token_123';
-        
-        $fullUrl = $verifyUrl . '?code=' . urlencode($code) . '&action=' . $action . '&token=' . urlencode($token);
-        
-        // Test URL components
-        $this->assertStringStartsWith('https://', $fullUrl);
-        $this->assertStringContainsString('/app/verify/verify_car.php', $fullUrl);
-        $this->assertStringContainsString('code=', $fullUrl);
-        $this->assertStringContainsString('action=verify', $fullUrl);
-        $this->assertStringContainsString('token=', $fullUrl);
-        
-        // Test URL parsing
-        $parsedUrl = parse_url($fullUrl);
-        $this->assertArrayHasKey('query', $parsedUrl);
-        
-        parse_str($parsedUrl['query'], $params);
-        $this->assertArrayHasKey('code', $params);
-        $this->assertArrayHasKey('action', $params);
-        $this->assertArrayHasKey('token', $params);
-        $this->assertEquals($code, $params['code']);
-        $this->assertEquals($action, $params['action']);
-        $this->assertEquals($token, $params['token']);
+        $this->assertCount(10, array_unique($tokens));
     }
 
     // =========================================================================
@@ -230,7 +74,7 @@ class VerificationSecurityTest extends TestCase
     // These tests document and protect the allowlist contract.
     // =========================================================================
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('validVerificationCodeProvider')]
+    #[DataProvider('validVerificationCodeProvider')]
     public function testMd5AllowlistAcceptsValidCodes(string $code): void
     {
         $this->assertSame(1, preg_match('/^[0-9a-f]{32}$/i', $code),
@@ -249,7 +93,7 @@ class VerificationSecurityTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidVerificationCodeProvider')]
+    #[DataProvider('invalidVerificationCodeProvider')]
     public function testMd5AllowlistRejectsInvalidCodes(string $code): void
     {
         $this->assertSame(0, preg_match('/^[0-9a-f]{32}$/i', $code),

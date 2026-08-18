@@ -91,6 +91,20 @@ $db->query("SELECT * FROM cars WHERE id = $id");
 - Don't expose stack traces or internal details to users
 - Catch database exceptions appropriately
 
+## Scope of Overlap with Other Review Agents
+
+This agent owns the exhaustive security sweep — the categories above, in
+full, on every changed file. Don't spend effort on things outside that
+scope:
+
+- General style, type-hint, or PHPDoc conformance is **code-reviewer**'s
+  job, not this agent's.
+- Non-security-relevant error-handling quality (logging context, catch
+  specificity for ordinary business logic) is **silent-failure-hunter**'s
+  job — flag it here only when the swallowed error is itself a security
+  issue (e.g. an auth check that fails open).
+- Architecture/design tradeoffs are **senior-architect**'s job.
+
 ## How You Work
 
 1. **Identify changed files**: Use `git diff` or examine the files provided

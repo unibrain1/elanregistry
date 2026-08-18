@@ -20,8 +20,13 @@ use ElanRegistry\LogCategories;
  * covers profiles/cars cleanup only — not the user row deletion itself.
  */
 
+// Shadows the ambient page-scope $db global (untyped — mixed per phpstan-bootstrap.php)
+// with the same underlying connection through the interface-typed handle. dbi() is
+// memoized around DB::getInstance(), the same singleton the ambient $db already wraps,
+// so this is the same connection and transaction state, not a second one.
+$db = dbi();
 $repo = new \ElanRegistry\Car\CarRepository($db);
-$id = (int) $id;
+$id = (int) ($id ?? 0);
 
 /**
  * Run $work inside a transaction, rolling back and returning false on failure.

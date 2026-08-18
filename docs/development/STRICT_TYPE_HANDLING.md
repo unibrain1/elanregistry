@@ -27,16 +27,23 @@ Two helper functions in `usersc/includes/custom_functions.php` provide safe PDO 
 
 **`dbInt(mixed $value, string $property = 'id'): int`**
 
-Extracts an integer value from a database object or scalar. Throws `InvalidArgumentException` if the value cannot be converted to a non-zero integer.
+Extracts an integer value from a database object or scalar. Throws
+`InvalidArgumentException` if the value is missing, empty, or non-numeric —
+zero is a valid result, not an error. The conversion logic lives in
+`ElanRegistry\TypeHelpers::toInt()` (`usersc/classes/TypeHelpers.php`);
+`dbInt()` is a thin global wrapper for call-site convenience.
 
 ```php
 // Extract int from database result object
 $userId = dbInt($carData, 'user_id');
 $carId = dbInt($row, 'id');
 
+// Valid - zero is not an error
+dbInt($row, 'zero_field');      // returns 0
+
 // Error cases - throws InvalidArgumentException
 dbInt($row, 'null_field');      // null value
-dbInt($row, 'zero_field');      // zero value
+dbInt($row, 'empty_field');     // empty string
 dbInt($row, 'invalid_field');   // non-numeric string
 ```
 

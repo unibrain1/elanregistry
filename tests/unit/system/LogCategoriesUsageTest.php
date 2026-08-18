@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Test that car-related PHP endpoints use LogCategories constants
+ * Test that car, contact, and admin PHP endpoints use LogCategories constants
  * instead of hardcoded string literals in withLogging() and logger() calls.
  */
 #[Group('system')]
@@ -38,6 +38,39 @@ class LogCategoriesUsageTest extends TestCase
     private const CONTACT_ENDPOINT_FILES = [
         'app/api/contact/send-feedback.php',
         'app/api/contact/send-owner-email.php',
+    ];
+
+    /**
+     * app/admin/ PHP files that call logger()/withLogging() — must use
+     * LogCategories constants for the category parameter.
+     * Hand-maintained: add new admin files here when
+     * they introduce logger()/withLogging() calls. (Some app/admin/includes/
+     * files are grouped under CAR_ENDPOINT_FILES instead, by domain rather
+     * than path.)
+     */
+    private const ADMIN_ENDPOINT_FILES = [
+        'app/admin/includes/fix-script-core.php',
+        'app/admin/includes/load-owner-info.php',
+        'app/admin/includes/load-owner-profile.php',
+        'app/admin/includes/process-admin-contact.php',
+        'app/admin/includes/process-owner-search.php',
+        'app/admin/includes/process-owner-sync-location.php',
+        'app/admin/includes/process-owner-update.php',
+        'app/admin/includes/process-user-details.php',
+        'app/admin/includes/system/backup-operations.php',
+        'app/admin/includes/tab-account_cleanup.php',
+        'app/admin/includes/tab-car_mgmt.php',
+        'app/admin/includes/tab-health.php',
+        'app/admin/includes/tab-maintenance.php',
+        'app/admin/includes/tab-owner_mgmt.php',
+        'app/admin/includes/tab-settings.php',
+        'app/admin/index.php',
+        'app/admin/maintenance.php',
+        'app/admin/scripts/fix/_TEMPLATE_Fix-Script.php',
+        'app/admin/scripts/maintenance/21-Fix-Page-Permissions.php',
+        'app/admin/scripts/maintenance/24-Regenerate-Optimized-Thumbnails.php',
+        'app/admin/verify/send_email.php',
+        'app/admin/verify/verify_car.php',
     ];
 
     private string $rootDir;
@@ -506,6 +539,75 @@ class LogCategoriesUsageTest extends TestCase
     {
         $data = [];
         foreach (self::CONTACT_ENDPOINT_FILES as $file) {
+            $data[$file] = [$file];
+        }
+        return $data;
+    }
+
+    #[DataProvider('adminEndpointFilesProvider')]
+    public function testNoHardcodedWithLoggingStringsInAdminFiles(string $relativePath): void
+    {
+        $filePath = $this->rootDir . '/' . $relativePath;
+        if (!file_exists($filePath)) {
+            $this->markTestSkipped("File not found: $relativePath");
+        }
+
+        $content = file_get_contents($filePath);
+
+        // Match withLogging calls that use string literals for the category parameter
+        // Pattern: ->withLogging(anything, 'SomeString', anything)
+        // The category is the second argument after the user ID
+        $pattern = '/->withLogging\s*\([^,]+,\s*[\'"][^\'"]+[\'"]/';
+
+        $matches = [];
+        preg_match_all($pattern, $content, $matches);
+
+        $this->assertEmpty(
+            $matches[0],
+            sprintf(
+                "File %s contains hardcoded string literals in withLogging() calls. " .
+                "Use LogCategories constants instead.\nFound: %s",
+                $relativePath,
+                implode(', ', $matches[0])
+            )
+        );
+    }
+
+    #[DataProvider('adminEndpointFilesProvider')]
+    public function testNoHardcodedLoggerStringsInAdminFiles(string $relativePath): void
+    {
+        $filePath = $this->rootDir . '/' . $relativePath;
+        if (!file_exists($filePath)) {
+            $this->markTestSkipped("File not found: $relativePath");
+        }
+
+        $content = file_get_contents($filePath);
+
+        // Match logger() calls that use string literals for the category parameter
+        // Pattern: logger(anything, 'SomeString', anything)
+        $pattern = '/\blogger\s*\([^,]+,\s*[\'"][^\'"]+[\'"]/';
+
+        $matches = [];
+        preg_match_all($pattern, $content, $matches);
+
+        $this->assertEmpty(
+            $matches[0],
+            sprintf(
+                "File %s contains hardcoded string literals in logger() calls. " .
+                "Use LogCategories constants instead.\nFound: %s",
+                $relativePath,
+                implode(', ', $matches[0])
+            )
+        );
+    }
+
+    /**
+     * Data provider for admin endpoint files
+     */
+    public static function adminEndpointFilesProvider(): array
+    {
+        $data = [];
+        foreach (self::ADMIN_ENDPOINT_FILES as $file) {
             $data[$file] = [$file];
         }
         return $data;

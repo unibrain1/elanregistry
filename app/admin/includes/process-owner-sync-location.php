@@ -50,7 +50,7 @@ try {
             ->withData('cars_updated', $carsUpdated)
             ->withLogging(
                 $user->data()->id,
-                'OwnerActions',
+                LogCategories::LOG_CATEGORY_OWNER_ACTIONS,
                 "Admin synchronized location from owner ID {$ownerId} to {$carsUpdated} cars (Admin: {$user->data()->fname} {$user->data()->lname})"
             )
             ->send();

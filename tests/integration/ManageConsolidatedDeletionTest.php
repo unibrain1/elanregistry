@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -35,19 +36,10 @@ final class ManageConsolidatedDeletionTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
+        $this->testUserId = $this->createTestUser();
+
         // Set up authenticated user context required by Car::delete()
-        global $user;
-        $user = new User();
-        $user->find(1);
-
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
-        $this->testUserId = 1;
+        $this->loginAsTestUser($this->testUserId);
 
         try {
             $this->testCarId = $this->createTestCar($this->testUserId, [

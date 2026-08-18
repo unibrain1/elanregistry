@@ -1,5 +1,6 @@
 includes:
     - phpstan-baseline.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
 
 # PHPStan Configuration for Elan Registry
 #
@@ -26,11 +27,14 @@ parameters:
     paths:
         # Application
         - app
+        - database/migrations
+        - database/seeds
         - docs
         - error
         - index.php
         - phinx.php
         - scripts
+        - tests
         - z_us_root.php
         # UserSpice customizations (project-owned)
         - usersc/account.php
@@ -56,11 +60,14 @@ parameters:
     excludePaths:
         - */vendor/*
         - */node_modules/*
-        - */_ARCHIVE/*
         - users/
         # Excluded because its placeholder code generates errors that can never be fixed;
         # keeping it out of scope prevents those errors from entering the baseline.
         - app/admin/scripts/fix/_TEMPLATE_Fix-Script.php
+        # Test double for \User (#1566). Excluded so PHPStan never adopts its narrow
+        # 2-method surface as the definition of \User project-wide — see the file's
+        # own docblock for the full leak mechanism this prevents.
+        - tests/unit/auth/_User_test_double.php
 
     treatPhpDocTypesAsCertain: false
     checkMissingTypehints: true
@@ -83,27 +90,41 @@ parameters:
             message: '#invalid (return )?type (DB|Token|Input|User|Redirect|Session|Cookie)#'
             reportUnmatched: false
 
+        # Method-call-shape errors on the same runtime-loaded classes above. Since
+        # tests/ entered the scan path (#1555), PHPStan resolves calls on Token/Input
+        # (still bare global test doubles inside the scanned tests/bootstrap-unit.php)
+        # against whichever test double happens to declare a same-named global
+        # class/method — narrower or differently-typed than the real runtime class —
+        # and misreports call sites throughout the whole project, not just the test
+        # file that defines the double. This is the same "unanalyzable at runtime"
+        # root cause as the block above, just a different error shape it produces:
+        # call-site mismatches (undefined method, wrong arg count, wrong arg type).
+        # QueryResult was covered here too until #1585 deleted the bootstrap mock —
+        # the name now appears nowhere in the project, so its patterns (and the
+        # redundant-`===`-comparison pattern that fired only on its real-vs-stubbed
+        # type) were removed. DB stays: its double is gone too, but the real class
+        # is still referenced by production code and remains unanalyzable.
+        # User is deliberately absent from these patterns: its one test double
+        # lives in a file excluded from PHPStan's scan (#1566), so \User resolves to
+        # "unknown class" instead — already covered by the block above, not this one.
+        -
+            message: '#Call to an undefined method (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)::\w+\(\)#'
+            reportUnmatched: false
+        -
+            message: '#(Static m|M)ethod (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)::\w+\(\) invoked with#'
+            reportUnmatched: false
+        -
+            message: '#of (method|class) (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)(::|\s)#'
+            reportUnmatched: false
+
         # UserSpice framework functions loaded at runtime via init.php
         -
             message: '#Function (securePage|hasPerm|logger|currentUserId|checkMenu|lang|redirect|passwordStrength|isAdmin|email|usError|usSuccess|deleteUsers|logError|getSettings|checkRateLimit|recordRateLimit|fetchAllUsers|fetchUserDetails|checkPermission|sessionValMessages|currentPage|email_body|getMyHooks|getRateLimitErrorMessage|handleAuthFailure|handleAuthSuccess|hashVericode|includeHook|pluginActive|userSpicePasswordStrength|passwordsAllowed|safeJsonEncodeForJs|safeReturn|tokenHere|fetchUserPermissions|echousername|err|endCloak|isCloaked|passwordResetKillSessions) not found#'
             reportUnmatched: false
 
-        # UserSpice framework uses mixed types extensively
-        -
-            message: '#Function \w+\(\) has no return type specified#'
-            reportUnmatched: false
-        -
-            message: '#Method \w+::\w+\(\) has parameter \$\w+ with no type specified#'
-            reportUnmatched: false
-
         # UserSpice legacy code patterns
         -
             message: '#Unsafe usage of new static\(\)#'
-            reportUnmatched: false
-
-        # Database query results return mixed object types
-        -
-            message: '#Cannot access property .+ on array\|object#'
             reportUnmatched: false
 
         # Framework globals set by z_us_root.php, users/init.php, server_globals.php.
@@ -114,10 +135,10 @@ parameters:
             identifier: variable.undefined
             reportUnmatched: false
 
-        # Relative require_once paths (e.g. ../../users/init.php) can't be
+        # Relative require/require_once paths (e.g. ../../users/init.php) can't be
         # resolved at analysis time — these are valid runtime paths
         -
-            message: '#Path in require_once\(\) .+ is not a file or it does not exist\.$#'
+            message: '#Path in require(_once)?\(\) .+ is not a file or it does not exist\.$#'
             reportUnmatched: false
 
     bootstrapFiles:

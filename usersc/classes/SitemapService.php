@@ -19,6 +19,15 @@ class SitemapService
         ['path' => '/docs/reference/index.php', 'changefreq' => 'monthly', 'priority' => '0.6'],
         ['path' => '/docs/reference/identification-guide.php', 'changefreq' => 'yearly', 'priority' => '0.6'],
         ['path' => '/docs/guides/index.php', 'changefreq' => 'monthly', 'priority' => '0.5'],
+        ['path' => '/docs/reference/assets/Elan_26_36_Workshop_Manual.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/2016%20Jan%20Elan%20Engine%20Types.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/2019_Jan_The_Elan_Super_Safety.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/All%20Elan%20and%20Elan%20Plus%202%20Paint%20Codes.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/Engine%20number%20breakdown%20%28Miles%20Wilkins%29.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/2014%20Jul%20Elan%20Gearknobs.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/2014%20Oct%20Elan%20and%20Plus%202%20Steering%20Wheels.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
+        ['path' => '/docs/reference/assets/Lotus%20Elan%20Plus%202%20serial%20numbers.pdf', 'changefreq' => 'yearly', 'priority' => '0.4'],
     ];
 
     public function __construct(private CarRepository $carRepository) {}

@@ -56,7 +56,7 @@ final class RegistrationRecoveryLookupTest extends IntegrationTestCase
         // notifyIfAccountExists() must therefore be a true no-op: no DB
         // write, no email attempt — confirmed via its own return value
         // since exists() === false short-circuits before any side effect.
-        $notifier = new RegistrationRecoveryNotifier(DB::getInstance());
+        $notifier = new RegistrationRecoveryNotifier($this->db);
         $result = $notifier->notifyIfAccountExists($fuser, $submittedEmail, (object) ['reset_vericode_expiry' => 60]);
 
         $this->assertFalse($result, 'No recovery notification should be sent for a username-only collision');

@@ -50,7 +50,6 @@ final class DocsChecker
     private const DROPPED_TABLE_ALLOWED_PATHS = [
         'docs/development/adr/',
         'database/migrations/',
-        'app/admin/scripts/fix/_ARCHIVE/',
     ];
 
     /** Substrings in URLs that indicate a stale repository or branch. */
@@ -391,16 +390,9 @@ final class DocsChecker
             }
         }
 
-        // Anything still present in the committed schema is not dropped.
-        $schema = $this->root . '/database/1-schema.sql';
-        if (file_exists($schema)) {
-            $sql = (string) file_get_contents($schema);
-            foreach (array_keys($tables) as $table) {
-                if (str_contains($sql, "`{$table}`")) {
-                    unset($tables[$table]);
-                }
-            }
-        }
+        // The migration scan above is the whole check: `database/migrations/`
+        // is the schema-of-record, so a table that no later migration recreates
+        // is genuinely dropped.
 
         return array_keys($tables);
     }

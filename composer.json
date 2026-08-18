@@ -21,9 +21,15 @@
             "ElanRegistry\\": "usersc/classes/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
     "require-dev": {
         "phpunit/phpunit": "^12.0",
-        "phpstan/phpstan": "^2.1"
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0"
     },
     "config": {
         "platform": {
@@ -33,15 +39,13 @@
     "scripts": {
         "_comment": "Unit tests (mocks, no database) vs Integration tests (real database)",
         "test:quick": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit",
-        "test:quick:ci": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit --exclude-group known-broken --exclude-group requires-upstream-install",
+        "test:quick:ci": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit --exclude-group known-broken --exclude-group requires-upstream-install --exclude-group regression",
         "test:unit": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit",
-        "test:regression": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Regression",
-        "test:regression:ci": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Regression --exclude-group known-broken",
+        "test:regression": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit --group regression",
+        "test:regression:ci": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --testsuite=Unit --group regression --exclude-group known-broken",
         "test:unit:all": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml",
         "test:integration": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml --testsuite=Integration",
         "test:database": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/database",
-        "test:api": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/api",
-        "test:workflow": "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/workflow",
         "test:full": ["@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml", "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml"],
         "test:coverage": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --coverage-html=coverage",
         "test:medium": ["@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml", "@php vendor/phpunit/phpunit/phpunit -c phpunit-integration.xml tests/integration/database"],
@@ -49,13 +53,14 @@
         "test:users": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml tests/unit/users",
         "test:fast": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --group=fast",
         "test:slow": "@php vendor/phpunit/phpunit/phpunit -c phpunit-unit.xml --group=slow",
-        "check": "php scripts/check-coding-standards.php . && vendor/bin/phpstan analyse --no-progress --memory-limit=512M && npx eslint app/assets/js/ && php scripts/check-docs.php",
-        "check:php": "php scripts/check-coding-standards.php . && vendor/bin/phpstan analyse --no-progress --memory-limit=512M",
+        "check": "sh -c 'php scripts/check-coding-standards.php .; s=$?; vendor/bin/phpstan analyse --no-progress --memory-limit=512M; p=$?; npx eslint app/assets/js/; e=$?; php scripts/check-docs.php; d=$?; [ $s -eq 0 ] && [ $p -eq 0 ] && [ $e -eq 0 ] && [ $d -eq 0 ]'",
+        "check:php": "sh -c 'php scripts/check-coding-standards.php .; s=$?; vendor/bin/phpstan analyse --no-progress --memory-limit=512M; p=$?; [ $s -eq 0 ] && [ $p -eq 0 ]'",
         "check:docs": "php scripts/check-docs.php",
         "phpstan:baseline": "vendor/bin/phpstan analyse --generate-baseline --allow-empty-baseline --no-progress --memory-limit=512M",
         "migrate": "vendor/bin/phinx migrate",
         "migrate:status": "vendor/bin/phinx status",
         "migrate:dry-run": "vendor/bin/phinx migrate --dry-run",
-        "migrate:rollback": "vendor/bin/phinx rollback"
+        "migrate:rollback": "vendor/bin/phinx rollback",
+        "seed:run": "vendor/bin/phinx seed:run"
     }
 }

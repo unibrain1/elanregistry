@@ -71,9 +71,9 @@ all other Cloudflare features work normally.
 - `/usersc/` - UserSpice customizations (templates, plugins, overrides)
 - `/usersc/classes/` - Custom application classes (PSR-4: `ElanRegistry\` →
   `usersc/classes/`, `ElanRegistry\Exceptions\` → `usersc/classes/Exceptions/`)
-- `/tests/` - PHPUnit and Playwright tests: `unit/` (mocked, no DB),
-  `integration/` (real DB), `regression/`, `playwright/` (browser),
-  `manual/`
+- `/tests/` - PHPUnit and Playwright tests: `unit/` (no DB; includes
+  `unit/regression/`, tagged `#[Group('regression')]`), `integration/`
+  (real DB), `playwright/` (browser), `manual/`
 
 **Key Integration Points:**
 
@@ -297,8 +297,11 @@ and architecture agents.
 
 ### Planning Work
 
-- `plans/` directory is for temporary working documents (sprint plans, triage
-  reports) — delete after decisions are applied to GitHub milestones/issues
+- Working documents (sprint plans, triage reports, FRDs) live **outside this
+  repo**, in a separate private directory — never in `plans/` here, which is no
+  longer gitignored. Check `.claude.local.md` for the local path (copy it from
+  `.claude.local.md.example` if it doesn't exist yet). Delete a plan once its
+  decisions are applied to GitHub milestones/issues
 - For milestone planning, use the `senior-product-manager`, `senior-architect`,
   and `security-reviewer` agents in parallel for comprehensive analysis
 
@@ -347,21 +350,20 @@ See [DEPLOYMENT.md](docs/development/DEPLOYMENT.md) for complete procedures. **C
 
 ## GitHub Wiki
 
-The wiki is a **separate git repository** at the permanent path:
+The wiki is a **separate git repository**, cloned once per machine outside this
+repo. Its path is machine-specific — look it up in `.claude.local.md` (copy
+`.claude.local.md.example` to `.claude.local.md` and fill it in if you haven't
+yet).
 
-```text
-/Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki
-```
+**CRITICAL:** ALWAYS use that one permanent clone. NEVER clone to `/tmp/`, a
+worktree, or any other temporary location.
 
-**CRITICAL:** ALWAYS use this exact path. NEVER clone to `/tmp/`, a worktree,
-or any other temporary location — there is one permanent clone and it is the
-only place to use.
-
-To update the live wiki after editing files in `wiki/` on a branch:
+To update the live wiki after editing files in `wiki/` on a branch (substitute
+your own clone path for `<wiki-clone>`):
 
 ```bash
-cp wiki/<file>.md /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki/
-cd /Users/jimboone/Documents/Developer/Web/ElanRegistry/Wiki
+cp wiki/<file>.md <wiki-clone>/
+cd <wiki-clone>
 git add <file>.md
 git commit -m "docs: <description>"
 git push

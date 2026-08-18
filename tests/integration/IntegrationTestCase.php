@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\Database\DbAdapter;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -42,6 +43,12 @@ abstract class IntegrationTestCase extends TestCase
     /** @var int[] User IDs created during this test, cleaned up in tearDown */
     private array $createdUserIds = [];
 
+    /** @var User|null Snapshot of $GLOBALS['user'] from the first loginAsTestUser() call of a test. */
+    private ?User $savedGlobalUser = null;
+
+    /** Whether $savedGlobalUser is awaiting restoration (disambiguates "nothing saved" from "saved null"). */
+    private bool $globalUserRestorePending = false;
+
     /**
      * Set up test environment
      * Initializes database connection
@@ -53,13 +60,19 @@ abstract class IntegrationTestCase extends TestCase
         $this->createdCarIds = [];
         $this->createdUserIds = [];
 
-        // Get real DB instance (loaded by bootstrap-integration.php)
+        // Get real DB instance (loaded by bootstrap-integration.php), wrapped in the
+        // DbAdapter so it satisfies the DatabaseInterface type hints that production
+        // collaborators (CarRepository, StatisticsDataService, the account-cleanup
+        // helpers, ...) now declare. The adapter delegates 1:1 to the wrapped \DB, so
+        // tests still exercise genuine database behaviour.
         try {
-            $this->db = DB::getInstance();
+            $this->db = new DbAdapter(DB::getInstance());
 
-            // Verify database connection with simple query
+            // Verify database connection with simple query. The adapter always returns
+            // itself from query() (a failed statement is reported by error(), never by a
+            // null return), so a usable connection is one that actually yields the row.
             $result = $this->db->query("SELECT 1");
-            if ($result !== null && $result->count() > 0) {
+            if (!$result->error() && $result->count() > 0) {
                 $this->databaseConnected = true;
             }
         } catch (RuntimeException $e) {
@@ -73,15 +86,18 @@ abstract class IntegrationTestCase extends TestCase
      */
     protected function tearDown(): void
     {
+        $this->restoreGlobalUser();
+
         if ($this->databaseConnected) {
-            // Delete cars first (may depend on foreign key constraints)
             foreach ($this->createdCarIds as $carId) {
                 try {
                     $this->db->query("DELETE FROM car_transfer_requests WHERE existing_car_id = ?", [$carId]);
-                    $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
-                    $this->db->delete('cars', ['id', '=', $carId]);
+                    $this->deleteCarRows($carId);
                 } catch (RuntimeException $e) {
-                    // Ignore cleanup errors
+                    // Don't fail the test over cleanup, but a silent swallow here means the
+                    // fixture row survives into the next test run with no trace of why —
+                    // log it so a polluted test schema is diagnosable.
+                    fwrite(STDERR, "NOTE: tearDown() cleanup failed for car ID {$carId}: {$e->getMessage()}\n");
                 }
             }
 
@@ -90,7 +106,7 @@ abstract class IntegrationTestCase extends TestCase
                 try {
                     $this->db->delete('users', ['id', '=', $userId]);
                 } catch (RuntimeException $e) {
-                    // Ignore cleanup errors
+                    fwrite(STDERR, "NOTE: tearDown() cleanup failed for user ID {$userId}: {$e->getMessage()}\n");
                 }
             }
         }
@@ -109,6 +125,79 @@ abstract class IntegrationTestCase extends TestCase
         if (!$this->databaseConnected) {
             $this->markTestSkipped('Database connection not available for integration testing');
         }
+    }
+
+    /**
+     * Authenticate a test user as the ambient session for the current test.
+     *
+     * UserSpice's User class has no public API to mark an instance logged-in without a
+     * real HTTP request/session round-trip, so this bypasses login() by setting the
+     * private $_isLoggedIn flag directly via reflection. setAccessible() is intentionally
+     * omitted on the ReflectionProperty call below — it has been a no-op since PHP 8.1.
+     *
+     * Sets $GLOBALS['user'] (the `global $user` alias inside this method binds the same
+     * storage slot, so both reads observe the authenticated session). The previous
+     * $GLOBALS['user'] is snapshotted on first use only, so calling this more than once
+     * in a test still restores the value ambient before *this test's* first call.
+     *
+     * IntegrationTestCase::tearDown() restores automatically; call restoreGlobalUser()
+     * directly if a test must not leak the fake session past a single test method.
+     *
+     * @param int $userId A user ID already persisted to `users` (e.g. via createTestUser()).
+     * @return User The authenticated instance, already the ambient session.
+     */
+    protected function loginAsTestUser(int $userId): User
+    {
+        $loggedInUser = new User();
+        if (!$loggedInUser->find($userId)) {
+            throw new RuntimeException("loginAsTestUser(): no users row with id {$userId}");
+        }
+
+        $reflection = new ReflectionClass($loggedInUser);
+        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
+        $isLoggedInProperty->setValue($loggedInUser, true);
+
+        if (!$this->globalUserRestorePending) {
+            $this->savedGlobalUser = $GLOBALS['user'] ?? null;
+            $this->globalUserRestorePending = true;
+        }
+
+        global $user;
+        $user = $loggedInUser;
+        $GLOBALS['user'] = $loggedInUser;
+
+        return $loggedInUser;
+    }
+
+    /**
+     * Restore $GLOBALS['user'] (and the `global $user` alias) to whatever was ambient
+     * before the first loginAsTestUser() call of this test, or unset both if nothing was
+     * ambient. Idempotent — safe to call when no loginAsTestUser() call is pending, so
+     * setUp()-only callers (auto-restored by tearDown()) and inline mid-test-method
+     * callers (explicit finally-block call, whose later tearDown() invocation becomes a
+     * harmless no-op) both work correctly.
+     */
+    protected function restoreGlobalUser(): void
+    {
+        if (!$this->globalUserRestorePending) {
+            return;
+        }
+
+        global $user;
+        if ($this->savedGlobalUser !== null) {
+            $user = $this->savedGlobalUser;
+            $GLOBALS['user'] = $this->savedGlobalUser;
+        } else {
+            // Defensive, not dead: tests/bootstrap-integration.php seeds a non-null
+            // $GLOBALS['user'] once per process, so in practice the snapshot is never
+            // null — unless an earlier test unset the global itself. No unset($user)
+            // here: unsetting a global-bound local never unsets the actual superglobal,
+            // so it would just be a no-op.
+            unset($GLOBALS['user']);
+        }
+
+        $this->savedGlobalUser = null;
+        $this->globalUserRestorePending = false;
     }
 
     /**
@@ -227,6 +316,7 @@ abstract class IntegrationTestCase extends TestCase
             $this->createdUserIds = array_values(array_diff($this->createdUserIds, [$userId]));
             return true;
         } catch (RuntimeException $e) {
+            fwrite(STDERR, "NOTE: deleteTestUser() failed for user ID {$userId}: {$e->getMessage()}\n");
             return false;
         }
     }
@@ -244,14 +334,59 @@ abstract class IntegrationTestCase extends TestCase
         }
 
         try {
-            $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
-            $this->db->delete('cars', ['id', '=', $carId]);
+            $this->deleteCarWithHistory($carId);
             // Remove from tracking so tearDown doesn't double-delete
             $this->createdCarIds = array_values(array_diff($this->createdCarIds, [$carId]));
             return true;
+        } catch (\PHPUnit\Framework\AssertionFailedError $e) {
+            // PHPUnit\Framework\Exception extends RuntimeException, so the catch below would
+            // otherwise swallow deleteCarWithHistory()'s self-verification failures and log
+            // them away instead of failing the test — defeating the point of verifying at all.
+            throw $e;
         } catch (RuntimeException $e) {
+            fwrite(STDERR, "NOTE: deleteTestCar() failed for car ID {$carId}: {$e->getMessage()}\n");
             return false;
         }
+    }
+
+    /**
+     * Delete a car's `cars` and `cars_hist` rows, in the order required to avoid
+     * orphaning the cars_delete trigger's own history row (#1503, #1551): cars
+     * must go first, then cars_hist.
+     *
+     * @param int $carId The car ID to delete
+     */
+    private function deleteCarRows(int $carId): void
+    {
+        $this->db->delete('cars', ['id', '=', $carId]);
+        $this->db->query("DELETE FROM cars_hist WHERE car_id = ?", [$carId]);
+    }
+
+    /**
+     * Delete a car's `cars` and `cars_hist` rows (see deleteCarRows()) and self-verify
+     * both are actually gone afterward. DB::query() never throws on an execute-time
+     * failure (see countMatchingLogs() below), so the verification queries check
+     * error() explicitly — otherwise a failed verification SELECT would return zero
+     * rows and the assertion would pass vacuously, "confirming" a deletion that may
+     * not have happened.
+     *
+     * @param int $carId The car ID to delete
+     */
+    protected function deleteCarWithHistory(int $carId): void
+    {
+        $this->deleteCarRows($carId);
+
+        $carsRemaining = $this->db->query("SELECT id FROM cars WHERE id = ?", [$carId]);
+        if ($carsRemaining->error()) {
+            throw new RuntimeException("Verification query failed for cars row {$carId}: {$carsRemaining->errorString()}");
+        }
+        $this->assertSame(0, $carsRemaining->count(), "cars row {$carId} must be deleted");
+
+        $histRemaining = $this->db->query("SELECT id FROM cars_hist WHERE car_id = ?", [$carId]);
+        if ($histRemaining->error()) {
+            throw new RuntimeException("Verification query failed for cars_hist rows (car {$carId}): {$histRemaining->errorString()}");
+        }
+        $this->assertSame(0, $histRemaining->count(), "cars_hist rows for car {$carId} must be deleted");
     }
 
     /**
@@ -280,5 +415,32 @@ abstract class IntegrationTestCase extends TestCase
     protected function isDatabaseConnected(): bool
     {
         return $this->databaseConnected;
+    }
+
+    /**
+     * Count rows in the logs table matching a logtype and lognote LIKE pattern.
+     *
+     * DB::query() never throws on an execute-time failure (see DB class conventions
+     * in TESTING_STRATEGY.md) — it just leaves no rows, which count(0)/first([])
+     * would otherwise make indistinguishable from a real "zero matches" result.
+     * Checking error() explicitly means a broken query fails loudly instead of a
+     * before/after count assertion passing vacuously on 0 === 0.
+     *
+     * @param string $logtype Exact logtype value (e.g. 'CarActions')
+     * @param string $lognote LIKE pattern for lognote (e.g. 'Car update failed%')
+     * @throws RuntimeException If the underlying query fails
+     */
+    protected function countMatchingLogs(string $logtype, string $lognote): int
+    {
+        $result = $this->db->query(
+            'SELECT COUNT(*) AS cnt FROM logs WHERE logtype = ? AND lognote LIKE ?',
+            [$logtype, $lognote]
+        );
+
+        if ($result->error()) {
+            throw new RuntimeException("countMatchingLogs() query failed for logtype='{$logtype}': {$result->errorString()}");
+        }
+
+        return (int) $result->first()->cnt;
     }
 }

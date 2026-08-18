@@ -55,9 +55,9 @@ npm run test:debug        # Debug mode
 
 ### Unit Tests (`tests/unit/`)
 
-- **cars/**: CarCoreTest.php, CarCrudTest.php
+- **cars/services/**: CarValidatorTest.php, CarRepositoryTest.php, CarImageProcessorTest.php
 - **security/**: FileUploadSecurityTest.php, InputValidationTest.php
-- **users/**: UserDeletionCleanupTest.php
+- **users/**: VerificationSecurityTest.php
 - **api/**: ApiResponseTest.php, GetDataTablesFindCarByChassisTest.php
 
 ### Integration Tests (`tests/integration/`)
@@ -118,28 +118,23 @@ final class MyFeatureIntegrationTest extends IntegrationTestCase
 
 ## Test Database Setup
 
-Integration tests require the `car_models` reference table to be populated with Lotus Elan model data.
+Integration tests require the `car_models` reference table (plus `settings`
+and the `noowner` system account) to be populated.
 
-### Automatic Fixture Loading
-
-The `bootstrap-integration.php` automatically loads reference data from
-`database/2-reference-data.sql` when the `car_models` table is empty. This
-happens transparently when you run integration tests.
-
-### Manual Setup
-
-You can manually run the setup script if needed:
+### Provisioning
 
 ```bash
-php tests/setup-test-database.php
+./scripts/provision-schema.sh
 ```
 
-This script:
-
-- Verifies database connection
-- Checks if `car_models` table is populated
-- Loads 24 car model records from `database/2-reference-data.sql`
-- Provides confirmation and sample data output
+Applies the vendored stock UserSpice structure, runs `composer migrate`
+(which applies the `UpdateSettingsBaselineDefaults`, `RegisterBaselinePermissions`,
+and `RegisterNoownerAccount` migrations' ElanRegistry defaults, permissions
+row, and system account), then `phinx seed:run` for `CarModelsSeed`
+(`database/seeds/`). `tests/bootstrap-integration.php` only *verifies* these
+exist on every test run — it aborts with a clear message (pointing at
+`composer migrate`/`composer seed:run`) if they don't, rather than seeding
+inline.
 
 ### Reference Data Requirements
 
@@ -148,7 +143,8 @@ Tests that require `car_models` data:
 - `tests/integration/Reference/CarModelTest.php` - Complete CarModel class testing
 - `tests/integration/cars/services/CarValidatorModelTest.php` - Model validation with real database
 
-Unit tests use mock CarModel class (no database required).
+Unit tests never validate model-combination existence — that check needs a
+real `car_models` row and is proven only in the integration tier above.
 
 ## Configuration
 
@@ -159,7 +155,7 @@ Unit tests use mock CarModel class (no database required).
 
 ### PHPUnit Config Files
 
-- `phpunit-unit.xml` - Unit test configuration (uses mock CarModel)
+- `phpunit-unit.xml` - Unit test configuration (mocks only, no database)
 - `phpunit-integration.xml` - Integration test configuration (uses real database)
 
 ## Troubleshooting
@@ -171,19 +167,22 @@ Unit tests use mock CarModel class (no database required).
 
 ### Integration Tests
 
-- **DB connection failed**: Check `.env.local` credentials
+- **DB connection failed**: Check `.env.test.local` credentials
 - **MAMP socket**: Verify `/Applications/MAMP/tmp/mysql/mysql.sock`
-- **Missing data**: Ensure user ID 1 and car ID 1 exist
-- **Empty car_models**: Run `php tests/setup-test-database.php` to load reference data
+- **Missing data**: Tests must create their own fixtures via
+  `IntegrationTestCase::createTestUser()`/`createTestCar()` — the isolated test
+  schema starts empty, so no ambient user/car ID is guaranteed to exist
+- **Empty car_models**: Run `./scripts/provision-schema.sh` (bare `composer seed:run`
+  targets `.env`'s database, not the test schema in `.env.test.local`)
 
 ### Debugging
 
 ```bash
-# Verbose output
-vendor/bin/phpunit -c phpunit-unit.xml --verbose
+# Debug output
+vendor/bin/phpunit -c phpunit-unit.xml --debug
 
 # Single test
-vendor/bin/phpunit tests/unit/cars/CarCoreTest.php::testFind
+vendor/bin/phpunit -c phpunit-unit.xml --filter testFindByIdReturnsObjectForExistingCar tests/unit/cars/services/CarRepositoryTest.php
 ```
 
 ## Best Practices

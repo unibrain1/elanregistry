@@ -78,11 +78,40 @@ support and breaks the `--dry-run` preview.
   $adapter->commitTransaction();
   ```
 
+  **This is safe even though Phinx wraps migrations itself, and the reason is
+  worth knowing** — it has been raised as a bug twice in review. Phinx's
+  `Migration\Manager\Environment::executeMigration()` does call
+  `beginTransaction()` around `up()`/`down()` whenever the adapter reports
+  `hasTransactions()`, which `MysqlAdapter` does. The call above is therefore
+  genuinely nested. It does not throw, because `MysqlAdapter::beginTransaction()`
+  issues `START TRANSACTION` as a **SQL statement** rather than calling
+  `PDO::beginTransaction()`:
+
+  ```php
+  // vendor/robmorgan/phinx/src/Phinx/Db/Adapter/MysqlAdapter.php
+  public function beginTransaction(): void
+  {
+      $this->execute('START TRANSACTION');
+  }
+  ```
+
+  There is no PDO nesting counter to trip, so no
+  `PDOException: There is already an active transaction`. MySQL treats a second
+  `START TRANSACTION` as an implicit commit of the current one followed by a new
+  one. Verified empirically on Phinx 0.16.12 by rolling back and re-applying
+  every DML migration in the repo against live MySQL (#1679).
+
+  Keep the explicit calls: they make each migration atomic on its own terms and
+  do not depend on Phinx's outer wrapper staying in place across upgrades. If a
+  future Phinx version switches `MysqlAdapter` to native `PDO::beginTransaction()`,
+  this stops being safe — re-verify on any major Phinx upgrade.
+
 - **DDL migrations** (`ALTER TABLE`, `CREATE TABLE`, `ADD CONSTRAINT`) **cannot**
   be wrapped in a transaction. MySQL issues an implicit commit on DDL, so a
   transaction has no effect. Document this clearly in the migration file header
-  (see `20260709202522_add_foreign_key_constraints.php` for an example) so the
-  next reader knows the change is not atomic.
+  (see `20260711000000_drop_car_user_tables.php` or
+  `20260709000000_add_elanregistry_baseline.php` for examples) so the next
+  reader knows the change is not atomic.
 
 ## Naming Convention
 

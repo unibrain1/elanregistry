@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Reference;
 
-use DB;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarValidationException;
 
 /**
@@ -26,11 +26,14 @@ use ElanRegistry\Exceptions\CarValidationException;
  */
 class CarModel
 {
-    private DB $db;
+    private DatabaseInterface $db;
 
-    public function __construct()
+    /**
+     * @param DatabaseInterface|null $db Optional database instance for testing. Defaults to the shared dbi() handle.
+     */
+    public function __construct(?DatabaseInterface $db = null)
     {
-        $this->db = DB::getInstance();
+        $this->db = $db ?? dbi();
     }
 
     /**
@@ -153,7 +156,14 @@ class CarModel
             [$year, $year]
         )->results();
 
-        return array_map(fn($r) => $r->series, $results);
+        $series = [];
+        foreach ($results as $row) {
+            if (is_object($row)) {
+                $series[] = $row->series;
+            }
+        }
+
+        return $series;
     }
 
     /**

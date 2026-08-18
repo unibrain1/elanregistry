@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FakeDatabase;
 
 require_once __DIR__ . '/../../../app/admin/includes/account-cleanup-helpers.php';
 
 /**
  * Unit tests for restoreArchivedAccount() in account-cleanup-helpers.php.
  *
- * Uses an inline anonymous DB mock; SQL correctness delegated to integration tests.
+ * Uses RestoreArchivedAccountFakeDatabase (declared at the foot of this file); SQL
+ * correctness delegated to integration tests.
  *
  * @see ArchiveAndRestoreIntegrationTest
  */
@@ -24,7 +26,7 @@ final class RestoreArchivedAccountTest extends TestCase
     // -------------------------------------------------------------------------
 
     /**
-     * Build a mock DB for restoreArchivedAccount().
+     * Build a DB double for restoreArchivedAccount().
      *
      * @param object|null $archiveRow  Row returned by the initial SELECT, or null to simulate "not found"
      * @param bool        $insertOk   Whether insert() should succeed
@@ -36,49 +38,8 @@ final class RestoreArchivedAccountTest extends TestCase
         bool $insertOk = true,
         int $lastId = 42,
         bool $queryError = false
-    ): object {
-        return new class($archiveRow, $insertOk, $lastId, $queryError) extends DB {
-            public int $commitCalls   = 0;
-            public int $rollBackCalls = 0;
-
-            private bool $errorFlag     = false;
-            private bool $firstQueryDone = false;
-
-            public function __construct(
-                private readonly ?object $archiveRow,
-                private readonly bool    $insertOk,
-                private readonly int     $lastIdValue,
-                private readonly bool    $queryError
-            ) {}
-
-            public function query(string $sql, array $params = []): QueryResult
-            {
-                if (!$this->firstQueryDone) {
-                    $this->firstQueryDone = true;
-                    if ($this->queryError) {
-                        $this->errorFlag = true;
-                        return new QueryResult([]);
-                    }
-                    return new QueryResult($this->archiveRow ? [$this->archiveRow] : []);
-                }
-                // Subsequent queries (UPDATE, etc.) succeed silently
-                $this->errorFlag = false;
-                return new QueryResult([]);
-            }
-
-            public function insert(string $table, array $data): bool
-            {
-                return $this->insertOk;
-            }
-
-            public function lastId(): int    { return $this->lastIdValue; }
-            public function error(): bool    { return $this->errorFlag; }
-            public function errorString(): string { return 'mock error'; }
-
-            public function beginTransaction(): void {}
-            public function commit(): void   { $this->commitCalls++; }
-            public function rollBack(): void { $this->rollBackCalls++; }
-        };
+    ): RestoreArchivedAccountFakeDatabase {
+        return new RestoreArchivedAccountFakeDatabase($archiveRow, $insertOk, $lastId, $queryError);
     }
 
     private function archiveRow(): object
@@ -159,5 +120,129 @@ final class RestoreArchivedAccountTest extends TestCase
         $this->assertSame(42, $result, 'Must return the new user ID from lastId()');
         $this->assertSame(1, $db->commitCalls);
         $this->assertSame(0, $db->rollBackCalls);
+    }
+}
+
+/**
+ * DB double for restoreArchivedAccount(): the first query() yields the archive row
+ * (or an error), later queries succeed silently, and commit()/rollBack() are counted.
+ *
+ * Deliberately a *named* class rather than the anonymous `new class extends
+ * FakeDatabase` it replaces: PHPStan reports `impureMethod.pure` when an anonymous
+ * class overrides one of DatabaseInterface's `@phpstan-impure` methods (`first()`,
+ * `lastId()`, `error()`, `errorString()` here) with a side-effect-free body, because
+ * an anonymous class can never be extended to add the side effect later. A named
+ * class is exempt.
+ */
+class RestoreArchivedAccountFakeDatabase extends FakeDatabase
+{
+    public int $commitCalls = 0;
+    public int $rollBackCalls = 0;
+
+    private bool $errorFlag = false;
+    private bool $firstQueryDone = false;
+    private ?object $currentRow = null;
+
+    /**
+     * @param object|null $archiveRow Row returned by the initial SELECT, or null for "not found"
+     * @param bool $insertOk Value returned by insert()
+     * @param int $lastIdValue Value returned by lastId()
+     * @param bool $queryError Whether the first query() should flag an error
+     */
+    public function __construct(
+        private readonly ?object $archiveRow,
+        private readonly bool $insertOk,
+        private readonly int $lastIdValue,
+        private readonly bool $queryError
+    ) {
+    }
+
+    /**
+     * @param array<mixed> $params
+     */
+    public function query(string $sql, array $params = []): self
+    {
+        if (!$this->firstQueryDone) {
+            $this->firstQueryDone = true;
+            if ($this->queryError) {
+                $this->errorFlag = true;
+                $this->currentRow = null;
+                return $this;
+            }
+            $this->currentRow = $this->archiveRow;
+            return $this;
+        }
+        // Subsequent queries (UPDATE, etc.) succeed silently
+        $this->errorFlag = false;
+        $this->currentRow = null;
+        return $this;
+    }
+
+    /**
+     * Mirrors real \DB::first(): an empty result set is `[]`, never null.
+     *
+     * @return array<string, mixed>|object
+     */
+    public function first(bool $assoc = false): array|object
+    {
+        return $this->currentRow ?? [];
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     */
+    public function insert(string $table, array $fields = [], bool $update = false): bool
+    {
+        return $this->insertOk;
+    }
+
+    /**
+     * @return int The constructor's $lastIdValue
+     */
+    public function lastId(): int
+    {
+        return $this->lastIdValue;
+    }
+
+    /**
+     * @return bool True only when the first query() was told to fail
+     */
+    public function error(): bool
+    {
+        return $this->errorFlag;
+    }
+
+    /**
+     * @return string Fixed placeholder text for the error path
+     */
+    public function errorString(): string
+    {
+        return 'mock error';
+    }
+
+    /**
+     * @return bool Always true
+     */
+    public function beginTransaction(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return bool Always true; increments $commitCalls
+     */
+    public function commit(): bool
+    {
+        $this->commitCalls++;
+        return true;
+    }
+
+    /**
+     * @return bool Always true; increments $rollBackCalls
+     */
+    public function rollBack(): bool
+    {
+        $this->rollBackCalls++;
+        return true;
     }
 }

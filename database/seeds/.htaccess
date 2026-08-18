@@ -1,0 +1,3 @@
+# Deny all HTTP access to this directory.
+# Seed files must never be publicly accessible.
+Require all denied

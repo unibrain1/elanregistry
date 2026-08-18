@@ -87,6 +87,13 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 // Start output buffering to catch any die() output messages
 ob_start();
 
+// Intentionally non-fatal: users/init.php performs framework setup that can throw before
+// the DB connection this bootstrap actually needs is established (e.g. plugin/session
+// init that assumes a fully-configured environment). IntegrationTestCase::setUp() has its
+// own DB connectivity check and skips gracefully via requireDatabase() if the database
+// this init failure may have affected genuinely isn't reachable — that's the real signal,
+// not this early framework noise. A hard abort here would be too coarse: it can't tell
+// framework startup quirks apart from failures that actually block testing.
 try {
     require_once $initPath;
 } catch (Throwable $e) {
@@ -104,7 +111,13 @@ restore_error_handler();
 
 // Ensure $user global is properly initialized for getSettings() calls
 // If users/init.php didn't fully initialize $user, create a minimal User object
-if (!isset($GLOBALS['user']) || $GLOBALS['user'] === null) {
+//
+// Intentionally non-fatal: a failure here means only that this fallback couldn't create
+// an empty User() shell (e.g. the User class itself has a constructor issue) — most
+// integration tests set up their own authenticated $user explicitly in setUp() and don't
+// depend on this fallback existing at all. Aborting the whole run over an unused fallback
+// would block tests that never needed it.
+if (!isset($GLOBALS['user'])) {
     if (class_exists('User')) {
         try {
             $GLOBALS['user'] = new User();
@@ -120,7 +133,7 @@ try {
     if (class_exists('DB')) {
         // Reset the DB singleton cache to force reconnection with corrected config
         // The DB class caches the PDO connection, so we need to clear it to force a new one
-        $reflectionClass = new ReflectionClass('DB');
+        $reflectionClass = new ReflectionClass(DB::class);
         $instanceProperty = $reflectionClass->getProperty('_instance');
         $instanceProperty->setValue(null, null); // static property: first arg is object (null), second is new value
         fwrite(STDERR, "NOTE: Reset DB singleton cache for reinitialization\n");
@@ -142,7 +155,11 @@ try {
         // couldn't confirm which database we're connected to — that must abort,
         // not be logged as a passive reconnection hiccup and continue anyway.
         try {
-            $connectedDb = strtolower(trim((string)($testDb->query('SELECT DATABASE() AS name')->first()?->name ?? '')));
+            // first() never returns null — its return type is array|object (empty array
+            // for zero rows), and SELECT DATABASE() always returns exactly one row on a
+            // valid connection — so a plain -> is correct here; ?? '' still covers a
+            // theoretical empty-array result, where property access on an array yields null.
+            $connectedDb = strtolower(trim((string)($testDb->query('SELECT DATABASE() AS name')->first()->name ?? '')));
         } catch (\Throwable $e) {
             fwrite(STDERR, "ERROR: Could not verify the connected database's identity: {$e->getMessage()}\n");
             fwrite(STDERR, "Refusing to proceed without confirming this is not the development database.\n");
@@ -162,64 +179,100 @@ try {
         fwrite(STDERR, "NOTE: Re-initialized global \$db for integration tests\n");
     }
 } catch (Throwable $e) {
+    // Intentionally non-fatal (unlike the stricter inner catch above at the database-identity
+    // check, which does abort): this outer catch covers the DB-singleton-cache reset and
+    // reconnection attempt itself. If those steps fail, IntegrationTestCase::setUp()'s own
+    // DB::getInstance() + requireDatabase() will independently detect the same unreachable
+    // database and skip tests gracefully — that's the authoritative check, this is just an
+    // earlier best-effort reconnection step whose failure the real check will catch anyway.
     fwrite(STDERR, "NOTE: Database reconnection attempt failed: {$e->getMessage()}\n");
 }
 
+/**
+ * Write each message line to STDERR and exit(1).
+ *
+ * Used by the reference-data verification block below (via abortMissingSeed())
+ * to fail loudly rather than let tests run against a silently broken environment.
+ *
+ * @param string ...$lines Message lines, printed in order (no trailing "\n" needed).
+ */
+function abortBootstrap(string ...$lines): never
+{
+    foreach ($lines as $line) {
+        fwrite(STDERR, $line . "\n");
+    }
+    exit(1);
+}
+
+/**
+ * abortBootstrap(), with the fix instructions shared by every check in the
+ * reference-data verification block below appended automatically.
+ *
+ * @param string ...$reasonLines What's missing and why it matters, printed
+ *                                before the shared "how to fix it" lines.
+ */
+function abortMissingSeed(string ...$reasonLines): never
+{
+    abortBootstrap(...[
+        ...$reasonLines,
+        "Run: ./scripts/provision-schema.sh (composer seed:run alone targets the",
+        "dev database, not this test schema — phinx.php only reads .env).",
+    ]);
+}
+
 // ============================================================
-// Auto-load Reference Data for Integration Tests
+// Verify Reference Data for Integration Tests
 // ============================================================
-// Integration tests require car_models table to be populated.
-// Automatically load reference data if the table is empty.
+// car_models is seeded once via Phinx (database/seeds/CarModelsSeed.php), run
+// through `composer seed:run` as part of provisioning
+// (scripts/provision-schema.sh) — not on every test run. The noowner system
+// account and permissions id=3 row are created once by the
+// RegisterNoownerAccount and RegisterBaselinePermissions migrations. The
+// settings row (id=1) is created by UserSpice's install wizard rather than a
+// seed; its ElanRegistry default values are applied by the
+// UpdateSettingsBaselineDefaults migration
+// (database/migrations/20260817033111_update_settings_baseline_defaults.php).
+// This block is a thin, fail-loud verifier: it confirms the reference data
+// actually exists and tells you exactly what to run if it doesn't, rather
+// than trying to fix it inline.
 
 try {
     if (class_exists('DB')) {
         $db = DB::getInstance();
 
-        // Check if car_models table exists and is empty
-        $count = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
-
-        if ($count && $count->cnt == 0) {
-            fwrite(STDERR, "NOTE: car_models table is empty, loading reference data...\n");
-
-            // Load reference data from SQL file
-            $refDataPath = dirname(__DIR__) . '/database/2-reference-data.sql';
-
-            if (file_exists($refDataPath)) {
-                $refDataSql = file_get_contents($refDataPath);
-
-                if ($refDataSql !== false) {
-                    // Extract just the car_models INSERT statement
-                    $carModelsPattern = '/INSERT IGNORE INTO `car_models`.*?VALUES\s*(.*?);/s';
-
-                    if (preg_match($carModelsPattern, $refDataSql, $matches)) {
-                        $carModelsInsert = "INSERT IGNORE INTO `car_models`
-                          (`year_available_from`, `year_available_to`, `display_name`,
-                           `human_readable_short`, `series`, `variant`, `type_code`, `model_value`)
-                        VALUES " . $matches[1] . ";";
-
-                        // Execute the INSERT
-                        $db->query($carModelsInsert);
-
-                        // Verify loaded
-                        $newCount = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
-                        $loadedCount = (int)($newCount?->cnt ?? 0);
-
-                        fwrite(STDERR, "NOTE: Loaded {$loadedCount} car_models records for integration tests\n");
-                    } else {
-                        fwrite(STDERR, "NOTE: Could not parse car_models INSERT from reference data file\n");
-                    }
-                } else {
-                    fwrite(STDERR, "NOTE: Failed to read reference data file\n");
-                }
-            } else {
-                fwrite(STDERR, "NOTE: Reference data file not found: {$refDataPath}\n");
-            }
-        } else {
-            $recordCount = (int)($count?->cnt ?? 0);
-            fwrite(STDERR, "NOTE: car_models table already populated with {$recordCount} records\n");
+        $carModelsRow = $db->query("SELECT COUNT(*) as cnt FROM car_models")->first();
+        $carModelsCount = $carModelsRow ? (int) $carModelsRow->cnt : 0;
+        if ($carModelsCount === 0) {
+            abortMissingSeed(
+                "ERROR: car_models table is empty.",
+                "Integration tests that depend on car_models cannot run. Aborting."
+            );
         }
+
+        $settingsExists = $db->query("SELECT 1 FROM settings WHERE id = 1")->first();
+        if (!$settingsExists) {
+            abortMissingSeed(
+                "ERROR: settings row (id=1) is missing.",
+                "Car::__construct() and other framework code silently misbehave without it. Aborting."
+            );
+        }
+
+        $noownerRow = $db->query("SELECT password, protected FROM users WHERE username = 'noowner'")->first();
+        if (!$noownerRow) {
+            abortMissingSeed(
+                "ERROR: the noowner system account is missing.",
+                "GDPR account-deletion reassignment tests depend on it. Aborting."
+            );
+        }
+        if ($noownerRow->password !== null || (int) $noownerRow->protected !== 1) {
+            abortMissingSeed(
+                "ERROR: the noowner account exists but violates ADR-010's invariants",
+                "(password must be NULL, protected must be 1). Aborting."
+            );
+        }
+
+        fwrite(STDERR, "NOTE: Reference data verified (car_models: {$carModelsCount} records, settings, noowner)\n");
     }
 } catch (Throwable $e) {
-    fwrite(STDERR, "NOTE: Failed to load reference data: {$e->getMessage()}\n");
-    // Non-fatal: tests requiring car_models will handle gracefully
+    abortMissingSeed("ERROR: Failed to verify reference data: {$e->getMessage()}");
 }

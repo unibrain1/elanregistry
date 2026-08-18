@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Car\CarRepository;
 use ElanRegistry\Exceptions\CarValidationException;
 use PHPUnit\Framework\Attributes\Group;
@@ -17,14 +18,10 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('integration')]
 final class CarDataTablesTest extends IntegrationTestCase
 {
-    protected $db;
-
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireDatabase();
-
-        $this->db = DB::getInstance();
     }
 
     protected function tearDown(): void
@@ -288,7 +285,10 @@ final class CarDataTablesTest extends IntegrationTestCase
      * Build a default DataTables request array with optional overrides.
      *
      * @param array<string, mixed> $overrides Key/value pairs to override default values
-     * @param list<array<string, string>> $columns Column definitions (defaults to id column)
+     * @param list<array<string, mixed>> $columns Column definitions (defaults to id column).
+     *                                            Values are usually strings ('data', 'searchable',
+     *                                            'orderable') but 'search' holds a nested
+     *                                            array{value: string}, hence `mixed` not `string`.
      * @return array<string, mixed>
      */
     private function buildDataTablesRequest(array $overrides = [], array $columns = []): array
@@ -398,11 +398,14 @@ final class CarDataTablesTest extends IntegrationTestCase
 
     /**
      * DataTables response for the cars table must not expose email, lname, vericode,
-     * or last_verified, even when those fields are populated in the database.
+     * last_verified, user_id, lat, or lon, even when those fields are populated in the
+     * database.
      *
      * Pins the explicit SELECT column list in CarDataTablesService::getDataTablesData()
-     * that replaces SELECT * to prevent owner PII (email, lname) and internal fields
-     * (vericode, last_verified) from leaking to callers who should not see them.
+     * that replaces SELECT * to prevent owner PII (email, lname), precise owner
+     * coordinates (lat, lon), internal user IDs (user_id), and internal fields (vericode,
+     * last_verified) from leaking to callers who should not see them. lat/lon/user_id
+     * added for #1501.
      */
     #[Group('fast')]
     public function testCarDataTablesResponseExcludesPII(): void
@@ -416,6 +419,8 @@ final class CarDataTablesTest extends IntegrationTestCase
             'email' => "pii_test_{$uniqueSuffix}@example.com",
             'lname' => "PIITestLname{$uniqueSuffix}",
             'fname' => "PIIFirst",
+            'lat'   => 51.5074,
+            'lon'   => -0.1278,
         ]);
 
         $car     = new Car();
@@ -439,6 +444,12 @@ final class CarDataTablesTest extends IntegrationTestCase
                 'DataTables response must not expose vericode (internal field)');
             $this->assertArrayNotHasKey('last_verified', $rowArray,
                 'DataTables response must not expose last_verified (internal field)');
+            $this->assertArrayNotHasKey('user_id', $rowArray,
+                'DataTables response must not expose user_id (#1501)');
+            $this->assertArrayNotHasKey('lat', $rowArray,
+                'DataTables response must not expose lat (#1501)');
+            $this->assertArrayNotHasKey('lon', $rowArray,
+                'DataTables response must not expose lon (#1501)');
         }
     }
 
@@ -531,12 +542,14 @@ final class CarDataTablesTest extends IntegrationTestCase
     }
 
     /**
-     * History rows returned by getHistory() must not expose email or lname,
-     * even when those fields are populated in cars_hist.
+     * History rows returned by getHistory() must not expose email, lname, user_id, lat,
+     * or lon, even when those fields are populated in cars_hist.
      *
      * Anchors the behavioral contract independently of the SQL-capture unit test in
      * CarRepositoryTest — if getHistory() is refactored to use a query builder or
      * SELECT *, this test catches the PII regression at the return-value level.
+     * user_id/lat/lon added for #1501 — getHistory() backs the public, unauthenticated
+     * app/api/cars/history.php endpoint.
      */
     #[Group('fast')]
     public function testGetHistoryExcludesPIIFromReturnedRows(): void
@@ -559,6 +572,9 @@ final class CarDataTablesTest extends IntegrationTestCase
             'chassis'   => 'H' . substr($uniqueSuffix, -8),
             'email'     => "hist_pii_{$uniqueSuffix}@example.com",
             'lname'     => "HistPII{$uniqueSuffix}",
+            'user_id'   => $userId,
+            'lat'       => 51.5074,
+            'lon'       => -0.1278,
         ]);
 
         $repo    = new CarRepository($this->db);
@@ -572,6 +588,12 @@ final class CarDataTablesTest extends IntegrationTestCase
                 'getHistory() rows must not expose email (PII)');
             $this->assertArrayNotHasKey('lname', $rowArray,
                 'getHistory() rows must not expose lname (PII)');
+            $this->assertArrayNotHasKey('user_id', $rowArray,
+                'getHistory() rows must not expose user_id (#1501)');
+            $this->assertArrayNotHasKey('lat', $rowArray,
+                'getHistory() rows must not expose lat (#1501)');
+            $this->assertArrayNotHasKey('lon', $rowArray,
+                'getHistory() rows must not expose lon (#1501)');
         }
     }
 

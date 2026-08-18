@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Car;
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarValidationException;
-use DB;
 
 /**
  * CarDataTablesService - Server-side DataTables processing for cars
@@ -27,13 +27,26 @@ class CarDataTablesService
         'factory' => 'elan_factory_info'
     ];
 
-    /** @var array<string, array<string>> Allowed columns per table */
+    /**
+     * Allowed columns per table — dual-purpose, read before editing.
+     *
+     * Used for BOTH (a) the SELECT list returned to unauthenticated DataTables
+     * clients (see getDataTablesData()) and (b) the ORDER BY / WHERE allowlist
+     * in validateColumnName(). Adding a column here exposes it publicly.
+     *
+     * Do not re-add user_id, lat, or lon (removed in #1501 — owner PII and
+     * internal identifiers). If a feature needs to sort or filter on a
+     * non-public column, split this into separate SELECT and FILTERABLE
+     * allowlists rather than widening this one.
+     *
+     * @var array<string, array<string>>
+     */
     private const ALLOWED_COLUMNS = [
         'cars' => [
             'id', 'ctime', 'mtime',
             'model', 'series', 'variant', 'year', 'type', 'chassis', 'color', 'engine',
-            'purchasedate', 'solddate', 'comments', 'image', 'user_id', 'fname',
-            'join_date', 'city', 'state', 'country', 'lat', 'lon', 'website'
+            'purchasedate', 'solddate', 'comments', 'image', 'fname',
+            'join_date', 'city', 'state', 'country', 'website'
         ],
         'elan_factory_info' => [
             'id', 'year', 'month', 'batch', 'type', 'serial', 'suffix',
@@ -42,16 +55,20 @@ class CarDataTablesService
     ];
 
     /**
+     * @param DatabaseInterface $db Database instance
+     */
+    public function __construct(private DatabaseInterface $db) {}
+
+    /**
      * Get DataTables server-side processing data
      *
      * @param array<string, mixed> $request DataTables request parameters
      * @param string $table Table type ('cars' or 'factory')
-     * @param DB $db Database instance
      * @return array<string, mixed> DataTables response array
      * @throws CarValidationException If table type is invalid, or start < 0, or length not in [1, 100]
      * @throws CarDatabaseException If a database query fails
      */
-    public function getDataTablesData(array $request, string $table, DB $db): array
+    public function getDataTablesData(array $request, string $table): array
     {
         if (!isset(self::VALID_TABLES[$table])) {
             throw new CarValidationException("Invalid table specified");
@@ -137,20 +154,28 @@ class CarDataTablesService
         // WHERE/ORDER BY column names validated via validateColumnName() whitelist,
         // search values use prepared statement parameters ($combinedParams)
         $countSql = sprintf('SELECT COUNT(*) as count FROM `%s`', $tableName);
-        $countResult = $db->query($countSql);
-        if ($db->error()) {
-            throw new CarDatabaseException('DataTables total count query failed: ' . $db->errorString());
+        $countResult = $this->db->query($countSql);
+        if ($this->db->error()) {
+            throw new CarDatabaseException('DataTables total count query failed: ' . $this->db->errorString());
         }
-        $totalRecords = $countResult->first()->count;
+        $countRow = $countResult->first();
+        if (!is_object($countRow)) {
+            throw new CarDatabaseException('DataTables total count query returned no rows');
+        }
+        $totalRecords = $countRow->count;
 
         $totalFiltered = $totalRecords;
         if (trim($combinedWhere) !== '') {
             $filterSql = sprintf('SELECT COUNT(*) as count FROM `%s` WHERE 1 %s', $tableName, $combinedWhere);
-            $filterResult = $db->query($filterSql, $combinedParams);
-            if ($db->error()) {
-                throw new CarDatabaseException('DataTables filtered count query failed: ' . $db->errorString());
+            $filterResult = $this->db->query($filterSql, $combinedParams);
+            if ($this->db->error()) {
+                throw new CarDatabaseException('DataTables filtered count query failed: ' . $this->db->errorString());
             }
-            $totalFiltered = $filterResult->first()->count;
+            $filterRow = $filterResult->first();
+            if (!is_object($filterRow)) {
+                throw new CarDatabaseException('DataTables filtered count query returned no rows');
+            }
+            $totalFiltered = $filterRow->count;
         }
 
         // Explicit column list prevents future schema additions from silently exposing
@@ -162,9 +187,9 @@ class CarDataTablesService
             ? $publicCols . ', (SELECT id FROM cars WHERE chassis = elan_factory_info.serial LIMIT 1) AS car_id'
             : $publicCols;
         $dataSql = sprintf('SELECT %s FROM `%s` WHERE 1 %s %s LIMIT %d, %d', $selectClause, $tableName, $combinedWhere, $orderBy, $start, $length);
-        $data = $db->query($dataSql, $combinedParams)->results();
-        if ($db->error()) {
-            throw new CarDatabaseException('DataTables data query failed: ' . $db->errorString());
+        $data = $this->db->query($dataSql, $combinedParams)->results();
+        if ($this->db->error()) {
+            throw new CarDatabaseException('DataTables data query failed: ' . $this->db->errorString());
         }
 
         return [

@@ -29,6 +29,7 @@ if ($dbHost === 'localhost') {
 return [
     'paths' => [
         'migrations' => 'database/migrations',
+        'seeds'      => 'database/seeds',
     ],
     'environments' => [
         'default_migration_table' => 'phinxlog',

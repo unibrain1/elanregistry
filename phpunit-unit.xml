@@ -13,11 +13,6 @@
         <testsuite name="Unit">
             <directory>tests/unit</directory>
         </testsuite>
-
-        <!-- Regression tests - treated as unit tests -->
-        <testsuite name="Regression">
-            <directory>tests/regression</directory>
-        </testsuite>
     </testsuites>
 
     <php>

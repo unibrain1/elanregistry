@@ -20,11 +20,13 @@ remote, NOT `origin`!
 **Live Production Server:**
 
 ```bash
-# Push code to PRODUCTION SERVER (live site)
-git push prod main
-
-# Push version tags to PRODUCTION SERVER
+# Push version tags FIRST — the post-receive hook writes VERSION with
+# `git describe HEAD` during the branch push, so the tag must already
+# be on the server or the footer shows the previous version
 git push prod --tags
+
+# Then push code to PRODUCTION SERVER (live site)
+git push prod main
 ```
 
 **GitHub Repository (backup/development):**
@@ -150,10 +152,12 @@ before merge, not by GitHub blocking the merge button itself (see issue #1437).
   and `composer test:regression:ci`) — mocked, no database or network required
 - **When it runs**: On every PR (open/synchronize) and on push to `main`
   (`.github/workflows/tests.yml`)
-- **Scope**: `tests/unit/` and `tests/regression/`, excluding any test tagged
-  `#[Group('known-broken')]` (see `tests/README.md`'s "CI vs. Local Test Runs" section) — the
-  local `composer test:quick` command runs the same suite without that exclusion, so developers
-  always see the full picture locally
+- **Scope**: `tests/unit/`, excluding any test tagged `#[Group('known-broken')]` (see
+  `tests/README.md`'s "CI vs. Local Test Runs" section) — the local `composer test:quick` command
+  runs the same suite without that exclusion, so developers always see the full picture locally.
+  The `Unit` step also excludes `#[Group('regression')]` (`tests/unit/regression/`), which the
+  separate "Run regression tests" step below covers instead — see `tests/README.md`'s "The
+  `regression` Group Exclusion" section for why the two steps stay disjoint
 - **Pass criteria**: All included tests pass
 - **Failure impact**: Not (yet) a GitHub-required status check — merge isn't blocked at the
   platform level. Enforcement instead relies on `/finish-issue`'s CI-status gate, which polls
@@ -236,10 +240,12 @@ git commit --no-verify           # Bypass (emergency only)
 
 1. **Create git tag**: `git tag vX.Y.Z`
 2. **Commit changes** (if any) before creating tag
-3. **Push to remotes** - deployment hooks automatically update VERSION file:
+3. **Push to remotes** - deployment hooks automatically update VERSION file.
+   On deployment remotes, push tags **before** the branch — the hook writes
+   VERSION during the branch push and needs the tag already present:
    - GitHub: `git push origin main && git push origin --tags`
-   - Test: `git push test main && git push test --tags` (hook updates VERSION)
-   - Production: `git push prod main && git push prod --tags` (hook updates VERSION)
+   - Test: `git push test --tags && git push test main` (hook updates VERSION)
+   - Production: `git push prod --tags && git push prod main` (hook updates VERSION)
 4. **Run database migrations** (see below)
 5. **Verify deployment** by checking version display matches git tag on
    production site
@@ -272,6 +278,37 @@ composer migrate:status   # list pending and applied migrations
 **Automated deployment:** `git push prod main` runs `composer install` and `composer migrate`
 automatically via the post-receive hook. The manual steps above serve as a fallback if the hook needs to
 be bootstrapped on a fresh server.
+
+### One-Time: Stamping the ElanRegistry Baseline Migration
+
+`database/migrations/20260709000000_add_elanregistry_baseline.php` reproduces the full
+ElanRegistry-vs-stock-UserSpice schema diff as a single migration — the schema-of-record for any
+newly provisioned environment (`scripts/provision-schema.sh`). Dev and prod already have this exact
+schema natively; their databases predate Phinx and were never migrated through it. Running the
+baseline migration for real against either would try to `CREATE TABLE car_models` (and 12 other
+already-existing tables) and fail immediately.
+
+**Take a full database backup through the host's phpMyAdmin before you begin** (Export → Custom →
+all tables → SQL, structure and data). `git push` triggers the post-receive hook, which runs
+`composer migrate` immediately — once you push there is no window to intervene, so the backup and
+the stamp below must both be done first. A phpMyAdmin export is the rollback path if a migration
+behaves unexpectedly against real data; the application's own backup feature runs against the same
+database being changed and is not a substitute.
+
+**Before the next `composer migrate` runs on dev or prod** (once, the first time this migration is
+ever deployed there — not a repeatable step), manually mark it as already-applied instead of running
+it:
+
+```sql
+INSERT INTO phinxlog (version, migration_name, start_time, end_time, breakpoint)
+VALUES (20260709000000, 'AddElanregistryBaseline', NOW(), NOW(), 0);
+```
+
+Verify first that this hasn't already been stamped (`SELECT * FROM phinxlog WHERE version =
+20260709000000`) — the `PRIMARY KEY` on `version` makes a duplicate `INSERT` fail loudly rather than
+silently, but check anyway before running it against a production database. After the stamp,
+`composer migrate` skips `20260709000000` and applies only the migrations genuinely pending on that
+environment, exactly like any other deploy.
 
 ### Git & Version Control
 

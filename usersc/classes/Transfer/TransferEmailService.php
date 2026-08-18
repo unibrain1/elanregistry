@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Transfer;
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\EmailTemplate;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
@@ -21,12 +22,12 @@ use Throwable;
 class TransferEmailService
 {
     /**
-     * @param object $db Database instance
+     * @param DatabaseInterface $db Database instance
      * @param mixed $mailer Email sender callable — signature: (string $to, string $subject, string $body): bool
      * @throws \InvalidArgumentException if $mailer is not callable
      */
     public function __construct(
-        private object $db,
+        private DatabaseInterface $db,
         private mixed $mailer,
     ) {
         if (!is_callable($this->mailer)) {
@@ -91,13 +92,13 @@ class TransferEmailService
             }
             ['transferData' => $transferData, 'carData' => $carData, 'carInfo' => $carInfo] = $ctx;
 
-            $currentOwner = (new Owner(dbInt($carData, 'user_id')))->data();
+            $currentOwner = (new Owner(dbInt($carData, 'user_id'), $this->db))->data();
             if (!$currentOwner) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer request notification failed: Current owner ID {$carData->user_id} not found");
                 return false;
             }
 
-            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id')))->data();
+            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id'), $this->db))->data();
             if (!$requester) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer request notification failed: Requester ID {$transferData->requested_by_user_id} not found");
                 return false;
@@ -154,13 +155,13 @@ class TransferEmailService
             }
             ['transferData' => $transferData, 'carData' => $carData, 'carInfo' => $carInfo] = $ctx;
 
-            $currentOwner = (new Owner(dbInt($carData, 'user_id')))->data();
+            $currentOwner = (new Owner(dbInt($carData, 'user_id'), $this->db))->data();
             if (!$currentOwner) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer admin alert failed: Current owner ID {$carData->user_id} not found");
                 return false;
             }
 
-            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id')))->data();
+            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id'), $this->db))->data();
             if (!$requester) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer admin alert failed: Requester ID {$transferData->requested_by_user_id} not found");
                 return false;
@@ -230,7 +231,7 @@ class TransferEmailService
             }
             ['transferData' => $transferData, 'carData' => $carData, 'carInfo' => $carInfo] = $ctx;
 
-            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id')))->data();
+            $requester = (new Owner(dbInt($transferData, 'requested_by_user_id'), $this->db))->data();
             if (!$requester) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer response notification failed: Requester ID {$transferData->requested_by_user_id} not found");
                 return false;
@@ -299,7 +300,7 @@ class TransferEmailService
                 return false;
             }
             $lookupId = ($isApproved && $previousOwnerId > 0) ? $previousOwnerId : dbInt($carData, 'user_id');
-            $previousOwner = (new Owner($lookupId))->data();
+            $previousOwner = (new Owner($lookupId, $this->db))->data();
 
             if (!$previousOwner) {
                 logger(0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Transfer previous owner notification failed: User ID $lookupId not found");

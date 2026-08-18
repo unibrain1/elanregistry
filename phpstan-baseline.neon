@@ -1,6 +1,12 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Call to function is_string\(\) with false will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: app/admin/includes/process-admin-contact.php
+
+		-
 			message: '#^Variable \$activeTab might not be defined\.$#'
 			identifier: variable.undefined
 			count: 5
@@ -47,12 +53,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/admin/verify/send_email.php
-
-		-
-			message: '#^Unreachable statement \- code above always terminates\.$#'
-			identifier: deadCode.unreachable
-			count: 5
-			path: app/api/admin/account-cleanup-data.php
 
 		-
 			message: '#^Match arm comparison between ''num''\|''txt'' and ''toggle'' is always false\.$#'
@@ -181,16 +181,208 @@ parameters:
 			path: error/500.php
 
 		-
-			message: '#^Comparison operation "\>" between 900\|1250\|2650\|2976\|4526 and 0 is always true\.$#'
-			identifier: greater.alwaysTrue
+			message: '#^Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects class\-string\<Server\>\|Server, string given\.$#'
+			identifier: argument.type
 			count: 1
-			path: index.php
+			path: tests/integration/GetBaseUrlTest.php
 
 		-
-			message: '#^Comparison operation "\>" between 900\|1250\|int\<1800, max\> and 0 is always true\.$#'
-			identifier: greater.alwaysTrue
+			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
 			count: 1
-			path: index.php
+			path: tests/integration/LogDeploymentScriptTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Reference\\\\CarModel'' and ElanRegistry\\Reference\\CarModel will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/integration/reference/CarModelTest.php
+
+		-
+			message: '#^Variable \$matches in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: tests/unit/admin/ProcessAdminSettingsTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{icon\: ''fa\-car'', url\: ''/test'', buttonText\: ''View''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{title\: ''Title'', icon\: ''fa\-car'', buttonText\: ''View''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{title\: ''Title'', icon\: ''fa\-car'', url\: ''/test''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{title\: ''Title'', url\: ''/test'', buttonText\: ''View''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$config of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderPortalHeader\(\) expects array\{title\: string, description\: string, titleIcon\?\: string, headerClass\?\: string, leadText\?\: string, isAdmin\?\: bool\}, array\{description\: ''Desc''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$config of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderPortalHeader\(\) expects array\{title\: string, description\: string, titleIcon\?\: string, headerClass\?\: string, leadText\?\: string, isAdmin\?\: bool\}, array\{title\: ''Title''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$links of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderNavFooter\(\) expects list\<array\{label\: string, url\: string, icon\?\: string, btnClass\?\: string\}\>, array\{array\{label\: ''Home''\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Parameter \#1 \$links of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderNavFooter\(\) expects list\<array\{label\: string, url\: string, icon\?\: string, btnClass\?\: string\}\>, array\{array\{url\: ''/''\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/unit/classes/DocumentPortalTemplateTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\AdminContactException'' and ElanRegistry\\Exceptions\\AdminContactException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\AdminOperationException'' and ElanRegistry\\Exceptions\\AdminOperationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\AdminContactException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\AdminOperationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerSearchException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerSearchException'' and ElanRegistry\\Exceptions\\OwnerSearchException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''AdminContactExcepti…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''AdminOperationExcep…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/AdminExceptionsTest.php
+
+		-
+			message: '#^Call to function is_subclass_of\(\) with ''ElanRegistry\\\\Exceptions\\\\CarException'' and ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/CarExceptionHierarchyTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''ElanRegistry…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/CarExceptionHierarchyTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerCreationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerUpdateException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerValidationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerCreationException'' and ElanRegistry\\Exceptions\\OwnerCreationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerUpdateException'' and ElanRegistry\\Exceptions\\OwnerUpdateException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerValidationException'' and ElanRegistry\\Exceptions\\OwnerValidationException will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''ElanRegistry…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionsTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertSame\(\) with arguments ''FileError'', ''FileError'' and ''LOG_CATEGORY_FILE…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/location/LocationServiceCacheTest.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: tests/unit/location/LocationServiceCacheTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Resize'' and ElanRegistry\\Resize will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 2
+			path: tests/unit/uploads/ImageOrientationTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ElanRegistry\\Resize and ''Resize object…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/uploads/ImageOrientationTest.php
+
+		-
+			message: '#^Property ImageOrientationTest\:\:\$testImageDir is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: tests/unit/uploads/ImageOrientationTest.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>website" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
@@ -233,48 +425,6 @@ parameters:
 			identifier: variable.undefined
 			count: 4
 			path: usersc/includes/example_admin_user_system_settings_post.php
-
-		-
-			message: '#^Variable \$act might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/includes/user_manager_columns.php
-
-		-
-			message: '#^Variable \$maxUsers might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/includes/user_manager_columns.php
-
-		-
-			message: '#^Variable \$uCount might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/includes/user_manager_columns.php
-
-		-
-			message: '#^Loose comparison using \=\= between true and true will always evaluate to true\.$#'
-			identifier: equal.alwaysTrue
-			count: 1
-			path: usersc/join.php
-
-		-
-			message: '#^Variable \$email on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.variable
-			count: 1
-			path: usersc/join.php
-
-		-
-			message: '#^Variable \$errors might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/join.php
-
-		-
-			message: '#^Variable \$username on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.variable
-			count: 1
-			path: usersc/join.php
 
 		-
 			message: '#^Variable \$lang might not be defined\.$#'
@@ -335,18 +485,6 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: usersc/oauth_server/login_scripts/default_script.php
-
-		-
-			message: '#^If condition is always false\.$#'
-			identifier: if.alwaysFalse
-			count: 2
-			path: usersc/scripts/after_user_deletion.php
-
-		-
-			message: '#^Variable \$id might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/scripts/after_user_deletion.php
 
 		-
 			message: '#^Variable \$o might not be defined\.$#'

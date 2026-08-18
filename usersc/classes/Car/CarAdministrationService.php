@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ElanRegistry\Car;
 
 use ElanRegistry\AppConstants;
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarException;
@@ -28,7 +29,30 @@ use ElanRegistry\Car\CarValidator;
  */
 class CarAdministrationService
 {
+    /**
+     * Columns on `cars` that mirror the current owner's identity, and must
+     * therefore be overwritten wholesale on an ownership change — including
+     * being cleared when the new owner has no value. See
+     * withBlankedFieldsRestored(). `user_id` and `join_date` are excluded:
+     * they are never blank on a valid target.
+     *
+     * @var list<string>
+     */
+    private const OWNER_IDENTITY_FIELDS = [
+        'email', 'fname', 'lname', 'city', 'state', 'country', 'lat', 'lon', 'website',
+    ];
+
     private const OPERATION_MERGE = 'MERGE';
+
+    /**
+     * The `noowner` system account's unroutable address, kept in sync with
+     * RegisterNoownerAccount::EMAIL. Used only to distinguish the expected
+     * blanking case from a real account with a malformed email — see
+     * contactableEmail(). Duplicated as a literal rather than imported: the
+     * migration is not autoloaded, and this const going stale can at worst add
+     * a spurious log line, never change behavior.
+     */
+    private const SYSTEM_ACCOUNT_EMAIL = 'noowner@invalid';
 
     /**
      * Delete a car and all associated records
@@ -81,6 +105,7 @@ class CarAdministrationService
      * @param string $operationType Operation type (e.g., 'NEWOWNER', 'TRANSFER')
      * @param int $adminUserId ID of the admin performing the transfer
      * @param CarRepository $repo Repository for database operations
+     * @param DatabaseInterface $db Database instance used to look up the target owner
      * @return true Always returns true; throws on any failure.
      * @throws CarValidationException If target user is invalid
      * @throws CarDatabaseException If database operation fails
@@ -91,9 +116,10 @@ class CarAdministrationService
         string $reason,
         string $operationType,
         int $adminUserId,
-        CarRepository $repo
+        CarRepository $repo,
+        DatabaseInterface $db
     ): true {
-        $targetUser = (new Owner($newUserId))->data();
+        $targetUser = (new Owner($newUserId, $db))->data();
         if (!$targetUser) {
             logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_TRANSFER, 'Target user not found - cannot transfer ownership to user ID: ' . $newUserId);
             throw new CarValidationException('Unable to transfer ownership: the target user account is not valid.');
@@ -101,13 +127,22 @@ class CarAdministrationService
 
         $carId = (int) $carData->id;
 
+        // System accounts (notably `noowner`, the GDPR reassignment target) carry a
+        // deliberately unroutable address so they can never be reached by password
+        // reset or passwordless login — see RegisterNoownerAccount. Denormalizing
+        // that address onto the car and its history rows would both fail
+        // CarValidator's format check and store a junk contact address on every
+        // reassigned car. A car with no reachable owner correctly has no owner
+        // email; contact flows resolve the owner through `user_id`, not this column.
+        $targetEmail = $this->contactableEmail($targetUser->email ?? '', $adminUserId, $carId);
+
         try {
             $repo->beginTransaction();
 
             $ownerFields = [
                 'mtime'     => date(AppConstants::DATETIME_FORMAT),
                 'user_id'   => $targetUser->id,
-                'email'     => $targetUser->email    ?? '',
+                'email'     => $targetEmail,
                 'fname'     => $targetUser->fname    ?? '',
                 'lname'     => $targetUser->lname    ?? '',
                 'join_date' => $targetUser->join_date ?? date(AppConstants::DATETIME_FORMAT),
@@ -123,7 +158,10 @@ class CarAdministrationService
             // fields present in $ownerFields are checked (email format, website scheme,
             // lat/lon range, city/state/country normalization) without requiring car-
             // intrinsic fields like chassis/model/year that are not being updated here.
-            $ownerFields = (new CarValidator())->validateAndSanitizeFields($ownerFields, false);
+            $ownerFields = $this->withBlankedFieldsRestored(
+                $ownerFields,
+                (new CarValidator())->validateAndSanitizeFields($ownerFields, false)
+            );
 
             $updateSuccess = $repo->updateCar($carId, $ownerFields);
             if (!$updateSuccess) {
@@ -151,7 +189,7 @@ class CarAdministrationService
                 'solddate'     => $carData->solddate ?? null,
                 'image'        => $carData->image ?? '',
                 'user_id'      => $targetUser->id,
-                'email'        => $targetUser->email ?? '',
+                'email'        => $targetEmail,
                 'fname'        => $targetUser->fname ?? '',
                 'lname'        => $targetUser->lname ?? '',
                 'join_date'    => $targetUser->join_date ?? null,
@@ -267,5 +305,68 @@ class CarAdministrationService
             logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_MERGE, 'Car merge failed: ' . $e->getMessage());
             throw new CarMergeException('Operation failed - check system logs for technical details.');
         }
+    }
+
+    /**
+     * Reduce an owner email to what may legitimately be denormalized onto a car
+     * or its history row: a real, deliverable address, or nothing at all.
+     *
+     * Anything that fails FILTER_VALIDATE_EMAIL is stored as an empty string
+     * rather than propagated. This is the same filter CarValidator applies,
+     * checked here so a system-account target blanks the field instead of
+     * aborting the whole transfer.
+     *
+     * The expected case is a system account's unroutable sentinel (`noowner`),
+     * where blanking is the intended outcome and needs no attention. Any *other*
+     * unparseable address means a real account is carrying a malformed
+     * `users.email` — dropping that silently would erase a legitimate owner's
+     * contact details with no record, so it is logged. Blanking still wins over
+     * throwing: this path runs inside the GDPR reassignment transaction in
+     * usersc/scripts/after_user_deletion.php, where an exception would roll back
+     * the entire deletion and leave the deleted owner's PII on their former cars.
+     */
+    private function contactableEmail(string $email, int $adminUserId, int $carId): string
+    {
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) !== false) {
+            return $email;
+        }
+
+        if ($email !== '' && $email !== self::SYSTEM_ACCOUNT_EMAIL) {
+            logger(
+                $adminUserId,
+                LogCategories::LOG_CATEGORY_CAR_TRANSFER,
+                'Target owner email failed validation and was not copied to car ' . $carId
+                . '; the account carries a malformed users.email that needs correcting'
+            );
+        }
+
+        return '';
+    }
+
+    /**
+     * Re-add owner fields that CarValidator dropped for being empty.
+     *
+     * validateAndSanitizeFields() only copies a field into its result when the
+     * value is non-empty, which is right for a user-submitted edit form (an
+     * omitted field should leave the stored value alone) but wrong for an
+     * ownership change: these columns are a denormalized copy of *the current
+     * owner*, so a new owner with no city must clear the old owner's city
+     * rather than inherit it. Without this, transferring a car — including the
+     * GDPR reassignment in usersc/scripts/after_user_deletion.php — left the
+     * previous owner's email, location and website on the row.
+     *
+     * @param array<string, mixed> $submitted Owner fields as assembled above.
+     * @param array<string, mixed> $validated CarValidator's filtered output.
+     * @return array<string, mixed>
+     */
+    private function withBlankedFieldsRestored(array $submitted, array $validated): array
+    {
+        foreach (self::OWNER_IDENTITY_FIELDS as $field) {
+            if (!array_key_exists($field, $validated) && array_key_exists($field, $submitted)) {
+                $validated[$field] = $submitted[$field];
+            }
+        }
+
+        return $validated;
     }
 }

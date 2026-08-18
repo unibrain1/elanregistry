@@ -18,7 +18,6 @@ final class TestInfrastructureValidationTest extends IntegrationTestCase
     public function testPhpVersion(): void
     {
         $version = PHP_VERSION;
-        $this->assertNotEmpty($version);
         $this->assertStringStartsWith('8.', $version, 'Should be running PHP 8.x');
     }
 
@@ -45,7 +44,7 @@ final class TestInfrastructureValidationTest extends IntegrationTestCase
 
         $this->assertDirectoryExists($testsDir . '/unit');
         $this->assertDirectoryExists($testsDir . '/integration');
-        $this->assertDirectoryExists($testsDir . '/regression');
+        $this->assertDirectoryExists($testsDir . '/unit/regression');
         $this->assertDirectoryExists($testsDir . '/playwright');
     }
 

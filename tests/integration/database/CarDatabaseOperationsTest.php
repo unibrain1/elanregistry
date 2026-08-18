@@ -5,7 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../IntegrationTestCase.php';
 
 use ElanRegistry\Car\Car;
+use ElanRegistry\Exceptions\CarCreationException;
+use ElanRegistry\Exceptions\CarNotFoundException;
+use ElanRegistry\Exceptions\CarValidationException;
+use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Input;
+use ElanRegistry\LogCategories;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -15,7 +20,7 @@ use PHPUnit\Framework\Attributes\Group;
  * triggers, and audit trails. These tests verify that the database layer
  * works correctly with the Car class.
  *
- * Uses real database fixtures (user ID 1, car IDs 1-2).
+ * Uses fixtures created via IntegrationTestCase::createTestUser()/createTestCar().
  */
 #[Group('integration')]
 final class CarDatabaseOperationsTest extends IntegrationTestCase
@@ -28,20 +33,10 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
+        $this->testUserId = $this->createTestUser();
+
         // Set up authenticated user context for tests
-        global $user;
-        $user = new User();
-        $user->find(1);  // Load user ID 1
-
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
-
-        $this->testUserId = 1;
+        $this->loginAsTestUser($this->testUserId);
 
         // Create unique test car for this test
         try {
@@ -51,11 +46,6 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         } catch (RuntimeException $e) {
             $this->markTestSkipped('Could not create test car: ' . $e->getMessage());
         }
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
     }
 
     /**
@@ -163,7 +153,7 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     public function testCarTransferUpdatesRelationships(): void
     {
         $car = new Car($this->testCarId);
-        $targetUserId = 10;  // Use existing user ID (FredHansen)
+        $targetUserId = $this->createTestUser();
 
         // Verify original owner
         $origRelation = $this->db->query(
@@ -172,10 +162,9 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         )->first();
         $this->assertSame($this->testUserId, (int) $origRelation->user_id);
 
-        // Transfer car
-        $result = $car->transfer($targetUserId, 'Integration test transfer', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        // Transfer car — return type is literal `true` (throws on any failure), so no
+        // assertion is needed on the return value itself; the DB checks below are what matter.
+        $car->transfer($targetUserId, 'Integration test transfer', 'NEWOWNER', $this->testUserId);
 
         // Verify owner was updated
         $newRelation = $this->db->query(
@@ -192,11 +181,10 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     public function testCarTransferCreatesHistoryRecord(): void
     {
         $car = new Car($this->testCarId);
+        $targetUserId = $this->createTestUser();
 
-        // Transfer car to existing user ID 10 (FredHansen)
-        $result = $car->transfer(10, 'Integration test transfer history', 'NEWOWNER', $this->testUserId);
-
-        $this->assertTrue($result);
+        // Return type is literal `true` (throws on any failure); the history check below is the real assertion.
+        $car->transfer($targetUserId, 'Integration test transfer history', 'NEWOWNER', $this->testUserId);
 
         // Verify history record exists
         $historyQuery = $this->db->query(
@@ -469,5 +457,337 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
             $afterSecondSave,
             'DB must contain the original plain-text value after two saves'
         );
+    }
+
+    /**
+     * Test car creation logs exactly one CarActions entry for the owner
+     */
+    #[Group('integration')]
+    public function testCreateCarLogsCreationToCarActionsCategory(): void
+    {
+        $carData = [
+            'token' => Token::generate(),
+            'user_id' => $this->testUserId,
+            'year' => '1971',
+            'model' => 'Sprint|FHC|36',
+            'series' => 'Sprint',
+            'variant' => 'FHC',
+            'type' => '36',
+            'chassis' => 'LOG' . substr(uniqid(), -9),
+            'color' => 'Log Test Yellow',
+        ];
+
+        $car = new Car();
+        $result = $car->create($carData);
+        $this->assertTrue($result);
+        $carId = (int) $car->data()->id;
+        $this->trackCarId($carId);
+
+        $lognotePattern = "Car ID {$carId} created%";
+
+        $count = $this->countMatchingLogs(LogCategories::LOG_CATEGORY_CAR_ACTIONS, $lognotePattern);
+        $this->assertSame(1, $count, 'Car::create() must log exactly one CarActions entry for this car');
+
+        $logRow = $this->db->query(
+            'SELECT user_id FROM logs WHERE logtype = ? AND lognote LIKE ? LIMIT 1',
+            [LogCategories::LOG_CATEGORY_CAR_ACTIONS, $lognotePattern]
+        )->first();
+        $this->assertSame($this->testUserId, (int) $logRow->user_id, 'Log entry must be attributed to the owner');
+    }
+
+    /**
+     * Test create() leaves the Car instance holding the persisted record's data
+     *
+     * create() re-reads the row via find() after insert, so data() is the round-tripped
+     * database record — asserting every submitted business field on it verifies the values
+     * were actually stored, not merely that a row appeared.
+     */
+    #[Group('integration')]
+    public function testCreateCarReturnsPersistedCarDetails(): void
+    {
+        $carData = [
+            'token' => Token::generate(),
+            'user_id' => $this->testUserId,
+            'year' => '1969',
+            'model' => 'S4|FHC|36',
+            'series' => 'S4',
+            'variant' => 'FHC',
+            'type' => '36',
+            'chassis' => 'RTN' . substr(uniqid(), -9),  // Keep within 15 char limit
+            'color' => 'Persisted Green',
+            'engine' => 'ENG' . substr(uniqid(), -9),   // Keep within 15 char limit
+        ];
+
+        $car = new Car();
+        $result = $car->create($carData);
+
+        $this->assertTrue($result);
+
+        $created = $car->data();
+        $this->trackCarId((int) $created->id);
+
+        $this->assertGreaterThan(0, (int) $created->id, 'Created car must have a database ID');
+        $this->assertSame($this->testUserId, (int) $created->user_id, 'Created car must belong to the submitting owner');
+        $this->assertSame((int) $carData['year'], (int) $created->year);
+        $this->assertSame($carData['model'], $created->model);
+        $this->assertSame($carData['series'], $created->series);
+        $this->assertSame($carData['variant'], $created->variant);
+        $this->assertSame($carData['type'], $created->type);
+        $this->assertSame($carData['chassis'], $created->chassis);
+        $this->assertSame($carData['color'], $created->color);
+        $this->assertSame($carData['engine'], $created->engine);
+    }
+
+    /**
+     * Test create() with an empty fields array throws CarCreationException
+     */
+    #[Group('integration')]
+    public function testCreateCarFailsWithEmptyFields(): void
+    {
+        $this->expectException(CarCreationException::class);
+        $this->expectExceptionMessage('No data provided for car creation');
+
+        (new Car())->create([]);
+    }
+
+    /**
+     * Test create() with an invalid CSRF token throws CarCreationException
+     */
+    #[Group('integration')]
+    public function testCreateCarFailsWithInvalidCsrfToken(): void
+    {
+        $this->expectException(CarCreationException::class);
+        $this->expectExceptionMessage('Invalid CSRF token provided');
+
+        (new Car())->create([
+            'token'   => 'not-a-valid-token',
+            'user_id' => $this->testUserId,
+            'year'    => '1971',
+            'model'   => 'Sprint|FHC|36',
+            'chassis' => 'CSRF' . substr(uniqid(), -8),
+        ]);
+    }
+
+    /**
+     * Test create() with images that fail JSON encoding throws ImageProcessingException
+     */
+    #[Group('integration')]
+    public function testCreateCarFailsWithImageEncodingError(): void
+    {
+        $this->expectException(ImageProcessingException::class);
+        $this->expectExceptionMessage('Error processing car images: Failed to encode images as JSON');
+
+        (new Car())->create([
+            'token'   => Token::generate(),
+            'user_id' => $this->testUserId,
+            'year'    => '1971',
+            'model'   => 'Sprint|FHC|36',
+            'chassis' => 'IMG' . substr(uniqid(), -9),
+            // Malformed UTF-8 makes json_encode() return false in CarImageProcessor::encodeImages().
+            'images'  => ["\xB1\x31"],
+        ]);
+    }
+
+    /**
+     * Test update with an invalid CSRF token throws CarValidationException and does not persist
+     */
+    #[Group('integration')]
+    public function testUpdateCarFailsWithInvalidCsrfToken(): void
+    {
+        try {
+            (new Car($this->testCarId))->update([
+                'id'    => $this->testCarId,
+                'token' => 'not-a-valid-token',
+                'color' => 'Should Not Persist',
+            ]);
+            $this->fail('Expected CarValidationException for an invalid CSRF token');
+        } catch (CarValidationException $e) {
+            $this->assertSame('Invalid CSRF token provided', $e->getMessage());
+        }
+
+        $row = $this->db->query('SELECT color FROM cars WHERE id = ?', [$this->testCarId])->first();
+        $this->assertNotSame('Should Not Persist', $row->color, 'Rejected update must not reach the database');
+    }
+
+    /**
+     * Test update with an invalid car ID throws CarValidationException and does not persist
+     */
+    #[Group('integration')]
+    public function testUpdateCarFailsWithInvalidId(): void
+    {
+        try {
+            (new Car($this->testCarId))->update([
+                'id'    => 0,
+                'token' => Token::generate(),
+                'color' => 'Should Not Persist',
+            ]);
+            $this->fail('Expected CarValidationException for an invalid car ID');
+        } catch (CarValidationException $e) {
+            $this->assertSame('Invalid car ID provided for update', $e->getMessage());
+        }
+
+        $row = $this->db->query('SELECT color FROM cars WHERE id = ?', [$this->testCarId])->first();
+        $this->assertNotSame('Should Not Persist', $row->color, 'Rejected update must not reach the database');
+    }
+
+    /**
+     * Test update() with an empty fields array throws CarValidationException
+     */
+    #[Group('integration')]
+    public function testUpdateCarFailsWithEmptyFields(): void
+    {
+        $this->expectException(CarValidationException::class);
+        $this->expectExceptionMessage('No data or ID provided for car update');
+
+        (new Car($this->testCarId))->update([]);
+    }
+
+    /**
+     * Test update() with fields but no id key throws CarValidationException
+     */
+    #[Group('integration')]
+    public function testUpdateCarFailsWithMissingId(): void
+    {
+        $this->expectException(CarValidationException::class);
+        $this->expectExceptionMessage('No data or ID provided for car update');
+
+        (new Car($this->testCarId))->update([
+            'token' => Token::generate(),
+            'color' => 'Should Not Persist',
+        ]);
+    }
+
+    /**
+     * Test update with only id+token (no other fields) succeeds and leaves other fields unchanged.
+     *
+     * Doesn't assert mtime: Car::update() always stamps mtime, and array_filter() never
+     * strips it, so mtime is what makes this "no-op" update reach the DB as a non-empty
+     * SET at all — but mtime has only second-level precision, and a fast test's
+     * create+update can land in the same second, so asserting it changed would be flaky.
+     */
+    #[Group('integration')]
+    public function testUpdateCarWithNoChangesSucceeds(): void
+    {
+        $car = new Car($this->testCarId);
+        $originalColor = $car->data()->color;
+        $originalYear = $car->data()->year;
+
+        $result = $car->update([
+            'id'    => $this->testCarId,
+            'token' => Token::generate(),
+        ]);
+
+        $this->assertTrue($result, 'Car::update() with only id+token must still succeed');
+
+        $row = $this->db->query('SELECT color, year FROM cars WHERE id = ?', [$this->testCarId])->first();
+        $this->assertEquals($originalColor, $row->color, 'color must be unchanged when no fields are updated');
+        $this->assertEquals($originalYear, $row->year, 'year must be unchanged when no fields are updated');
+    }
+
+    /**
+     * Test purchasedate persists through update()
+     */
+    #[Group('integration')]
+    public function testUpdateCarPersistsPurchaseDate(): void
+    {
+        $car = new Car($this->testCarId);
+        $purchaseDate = '2020-05-15';
+
+        $result = $car->update([
+            'id'           => $this->testCarId,
+            'token'        => Token::generate(),
+            'purchasedate' => $purchaseDate,
+        ]);
+
+        $this->assertTrue($result);
+
+        $row = $this->db->query('SELECT purchasedate FROM cars WHERE id = ?', [$this->testCarId])->first();
+        $this->assertStringStartsWith($purchaseDate, $row->purchasedate);
+    }
+
+    /**
+     * Test factory() returns matching elan_factory_info data when chassis matches
+     */
+    #[Group('integration')]
+    public function testFactoryReturnsFactoryDataWhenChassisMatches(): void
+    {
+        $chassis = 'F' . substr(uniqid(), -4); // 5 chars, matches elan_factory_info.serial varchar(5)
+        $carId = $this->createTestCar($this->testUserId, ['chassis' => $chassis]);
+
+        $factoryRowId = null;
+        try {
+            $inserted = $this->db->insert('elan_factory_info', [
+                'year'         => '1971',
+                'month'        => '03',
+                'batch'        => '002',
+                'type'         => '',
+                'serial'       => $chassis,
+                'suffix'       => 'a',
+                'engineletter' => '',
+                'enginenumber' => '',
+                'gearbox'      => '',
+                'color'        => '',
+                'builddate'    => '1971-03-01',
+                'note'         => '',
+            ]);
+            $this->assertTrue($inserted, 'Could not insert test factory row: ' . $this->db->errorString());
+            $factoryRowId = (int) $this->db->lastId();
+
+            $car = new Car($carId);
+            $factory = $car->factory();
+
+            $this->assertNotNull($factory, 'Expected factory() to return matching elan_factory_info row');
+            $this->assertSame($chassis, $factory->serial);
+            $this->assertSame('a (S4 FHC UK Market)', $factory->suffix, 'suffix must have descriptive text appended');
+        } finally {
+            if ($factoryRowId !== null) {
+                $this->db->delete('elan_factory_info', ['id', '=', $factoryRowId]);
+            }
+        }
+    }
+
+    /**
+     * Test factory() returns null when no elan_factory_info row matches the chassis
+     */
+    #[Group('integration')]
+    public function testFactoryReturnsNullWhenNoChassisMatch(): void
+    {
+        // Fixed 'ZZZZZ' tail — CarRepository::getFactoryInfo() falls back to the last
+        // 5 chassis chars, and real elan_factory_info serials are all-numeric (e.g.
+        // '26060'), so a deterministic non-numeric tail can never collide there.
+        $chassis = 'NOFAC' . substr(uniqid(), 0, 5) . 'ZZZZZ';
+        $carId = $this->createTestCar($this->testUserId, ['chassis' => $chassis]);
+
+        // A decoy row with a different serial proves the lookup actually discriminates,
+        // rather than the assertion passing merely because the table is empty.
+        $decoyRowId = null;
+        try {
+            $decoyInserted = $this->db->insert('elan_factory_info', [
+                'year' => '1972', 'month' => '01', 'batch' => '001', 'type' => '',
+                'serial' => 'DECOY', 'suffix' => '', 'engineletter' => '', 'enginenumber' => '',
+                'gearbox' => '', 'color' => '', 'builddate' => '1972-01-01', 'note' => '',
+            ]);
+            $this->assertTrue($decoyInserted, 'Could not insert decoy factory row: ' . $this->db->errorString());
+            $decoyRowId = (int) $this->db->lastId();
+
+            $car = new Car($carId);
+            $this->assertNull($car->factory());
+        } finally {
+            if ($decoyRowId !== null) {
+                $this->db->delete('elan_factory_info', ['id', '=', $decoyRowId]);
+            }
+        }
+    }
+
+    /**
+     * Test removeImage() throws CarNotFoundException when the car doesn't exist
+     */
+    #[Group('integration')]
+    public function testRemoveImageFailsWhenCarNotExists(): void
+    {
+        $this->expectException(CarNotFoundException::class);
+
+        $car = new Car(999999999); // nonexistent id — find() fails, exists() is false
+        $car->removeImage('somefile.jpg');
     }
 }

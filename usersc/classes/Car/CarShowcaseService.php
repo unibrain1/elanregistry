@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry\Car;
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\LogCategories;
 
 /**
@@ -17,16 +18,25 @@ class CarShowcaseService
     private const NEW_FLOOR = 5;
     private const IMAGE_CONDITION = "image <> '' AND image <> '[]' AND JSON_VALID(image) = 1 AND JSON_LENGTH(image) > 0 AND ctime IS NOT NULL";
 
+    private DatabaseInterface $db;
+
+    /**
+     * @param DatabaseInterface|null $db Optional database instance for testing. Defaults to the shared dbi() handle.
+     */
+    public function __construct(?DatabaseInterface $db = null)
+    {
+        $this->db = $db ?? dbi();
+    }
+
     /**
      * Return IDs of all "new" cars: added within NEW_DAYS days OR among the
      * NEW_FLOOR most-recently-added (all cars, regardless of images).
      *
-     * @param object $db UserSpice database object
      * @return list<int>
      */
-    public static function getNewCarIds(object $db): array
+    public function getNewCarIds(): array
     {
-        $db->query("
+        $this->db->query("
             SELECT id FROM cars
             WHERE ctime > (NOW() - INTERVAL " . self::NEW_DAYS . " DAY)
             UNION
@@ -37,12 +47,12 @@ class CarShowcaseService
             ) AS recent
         ");
 
-        if ($db->error()) {
-            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'CarShowcaseService: getNewCarIds query failed: ' . $db->errorString());
+        if ($this->db->error()) {
+            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'CarShowcaseService: getNewCarIds query failed: ' . $this->db->errorString());
             return [];
         }
 
-        $results = $db->results();
+        $results = $this->db->results();
         return array_map(fn($r) => (int) $r->id, $results ?: []);
     }
 
@@ -52,12 +62,11 @@ class CarShowcaseService
      * are eligible. Each item has `id`, `year`, `series`, `variant`, `type`,
      * `ctime`, and `is_new` (bool).
      *
-     * @param object $db UserSpice database object
      * @return array<object>
      */
-    public static function buildShowcasePool(object $db): array
+    public function buildShowcasePool(): array
     {
-        $recent = $db->query("
+        $recent = $this->db->query("
             SELECT id, year, series, variant, type, ctime
             FROM cars
             WHERE " . self::IMAGE_CONDITION . "
@@ -65,15 +74,15 @@ class CarShowcaseService
             LIMIT " . self::RECENT_LIMIT
         )->results();
 
-        if ($db->error()) {
-            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'CarShowcaseService: recent query failed: ' . $db->errorString());
+        if ($this->db->error()) {
+            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'CarShowcaseService: recent query failed: ' . $this->db->errorString());
             return [];
         }
 
         $recentIds = array_map(fn($r) => (int) $r->id, $recent);
         $excludeList = empty($recentIds) ? '0' : implode(',', $recentIds);
 
-        $random = $db->query("
+        $random = $this->db->query("
             SELECT id, year, series, variant, type, ctime
             FROM cars
             WHERE " . self::IMAGE_CONDITION . "
@@ -82,15 +91,29 @@ class CarShowcaseService
             LIMIT " . self::RANDOM_LIMIT
         )->results();
 
-        if ($db->error()) {
-            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'CarShowcaseService: random query failed: ' . $db->errorString());
-            return $recent;
+        if ($this->db->error()) {
+            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'CarShowcaseService: random query failed: ' . $this->db->errorString());
+            return $this->stampIsNew($recent);
         }
 
         $pool = array_merge($recent, $random);
         shuffle($pool);
 
-        $newIds = self::getNewCarIds($db);
+        return $this->stampIsNew($pool);
+    }
+
+    /**
+     * Stamp each car with `is_new` (bool), per getNewCarIds(). Applied to every
+     * pool returned by buildShowcasePool() — including its random-query-error
+     * fallback — so callers can always rely on the property being present, per
+     * this class's documented return shape.
+     *
+     * @param array<object> $pool
+     * @return array<object>
+     */
+    private function stampIsNew(array $pool): array
+    {
+        $newIds = $this->getNewCarIds();
         foreach ($pool as $car) {
             $car->is_new = in_array((int) $car->id, $newIds, true);
         }

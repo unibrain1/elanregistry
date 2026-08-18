@@ -17,24 +17,27 @@ use ElanRegistry\StatisticsDataService;
  */
 class StatisticsApiTest extends IntegrationTestCase
 {
-    private $testCarId;
     private $testUserId;
 
     /**
-     * Set up test database connection and find test data
+     * Set up test database connection and create test fixture data
      */
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireDatabase();
 
-        // Find test car data
-        $car = $this->db->query("SELECT id FROM cars LIMIT 1")->first();
-        $this->testCarId = $car ? $car->id : null;
+        // Create the fixture the statistics assertions rely on, so registry-wide
+        // aggregate queries are true by construction rather than by ambient data.
+        $this->testUserId = $this->createTestUser();
 
-        // Find test user data
-        $user = $this->db->query("SELECT id FROM users WHERE active = 1 LIMIT 1")->first();
-        $this->testUserId = $user ? $user->id : null;
+        // The car ID is not needed by any assertion — the queries below are
+        // registry-wide aggregates. Creating it is what matters; the ID is
+        // tracked by createTestCar() for tearDown() cleanup.
+        $this->createTestCar($this->testUserId, [
+            'country' => 'United States',
+            'state'   => 'California',
+        ]);
     }
 
     // =========================================================================
@@ -64,13 +67,16 @@ class StatisticsApiTest extends IntegrationTestCase
     public function testGeographicTabCountryDistribution(): void
     {
 
-        // Verify country distribution data can be retrieved
+        // Verify country distribution data reflects the fixture car created in setUp()
         $results = $this->db->query(
             "SELECT country, COUNT(*) as count FROM cars
              WHERE country IS NOT NULL AND country != ''
              GROUP BY country ORDER BY count DESC"
         )->results();
         $this->assertNotEmpty($results, "Should have country distribution data");
+
+        $countries = array_map(static fn($row) => $row->country, $results);
+        $this->assertContains('United States', $countries, "Fixture car's country must appear in the distribution");
     }
 
     /**
@@ -79,14 +85,16 @@ class StatisticsApiTest extends IntegrationTestCase
     public function testGeographicTabUsStateDistribution(): void
     {
 
-        // Verify US state distribution data exists
+        // Verify US state distribution data reflects the fixture car created in setUp()
         $results = $this->db->query(
             "SELECT state, COUNT(*) as count FROM cars
              WHERE country = 'United States' AND state IS NOT NULL AND state != ''
              GROUP BY state ORDER BY count DESC"
         )->results();
-        // May be empty if no US cars, but query should work
-        $this->assertIsArray($results, "Should be able to query US states");
+        $this->assertNotEmpty($results, "Should have US state distribution data");
+
+        $states = array_map(static fn($row) => $row->state, $results);
+        $this->assertContains('California', $states, "Fixture car's state must appear in the distribution");
     }
 
     // =========================================================================
@@ -277,9 +285,6 @@ class StatisticsApiTest extends IntegrationTestCase
         $this->assertIsArray($pins);
 
         if (empty($pins)) {
-            if ($this->testUserId === null) {
-                $this->markTestSkipped('No users in test DB — cannot create fixture car for getMapPins() test');
-            }
             $this->createTestCar($this->testUserId, ['lat' => '51.5074', 'lon' => '-0.1278']);
             $pins = $service->getMapPins();
         }

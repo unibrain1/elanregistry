@@ -22,6 +22,8 @@ tests/
 │
 ├── regression/                # Legacy regression suite
 │
+├── Support/                   # Shared test doubles (e.g. FakeDatabase)
+│
 ├── playwright/                # Browser E2E tests
 │   ├── e2e/                   # End-to-end workflows
 │   ├── security/              # Security testing
@@ -29,8 +31,7 @@ tests/
 │   └── ui/                    # UI consistency
 │
 ├── bootstrap-unit.php         # Unit test bootstrap (mocks)
-├── bootstrap-integration.php  # Integration test bootstrap (database)
-└── setup-test-database.php    # Test database fixture loader
+└── bootstrap-integration.php  # Integration test bootstrap (database)
 ```
 
 ## Test Categories
@@ -44,16 +45,31 @@ tests/
 
 **Characteristics:**
 
-- Mock CarModel class for model validation
 - Mock DB class for database operations
 - No UserSpice framework loaded
 - Ideal for TDD and rapid feedback
 
 **Example test suites:**
 
-- `CarCoreTest.php` - Car class core methods
-- `CarValidatorTest.php` - Input validation (with mock CarModel)
+- `CarRepositoryTest.php` - Car database repository methods (real class, mocked DB boundary)
+- `CarValidatorTest.php` - Input validation (model-combination existence is proven in the integration tier — see `CarValidatorModelTest.php`)
 - `FileUploadSecurityTest.php` - Upload security
+
+**Mock/fake audit log:** as of 2026-08-10 (#1556), all 66 files in `tests/unit/`
+have been individually confirmed to exercise real production code, not a
+bootstrap mock/fake standing in for the subject under test.
+Issues #1440, #1441, #1444, #1445, #1446, #1554, and #1566 fixed 14 files
+found by name-based grepping; #1556 read the remaining 52 and found 8 more reimplementation/
+tautology cases, now tracked as #1597–#1604 (targeted at v2.29.2). One
+file (`RobotsTxtPolicyTest.php`) has a different honesty gap: it verifies
+the repo's `robots.txt` rather than what's actually served, and its own
+evaluator is a documented, deliberate simplification (first-matching-group
+only, no tie-break) that isn't fully RFC 9309-compliant even against the
+repo file alone. `tests/integration/RobotsTxtAsServedTest.php` (#1542)
+covers the as-served case with a stricter evaluator instead, living in the
+integration tier because it requires live network access. Before assuming a
+new `tests/unit/` file is clean by default, check whether it predates this
+audit.
 
 ### Integration Tests (`tests/integration/`)
 
@@ -75,12 +91,42 @@ tests/
 - `CarValidatorModelTest.php` - Model validation with real database
 - `FactoryRegistryLinkIntegrationTest.php` - Registry Link feature
 
-### Regression Tests (`tests/regression/`)
+`RobotsTxtAsServedTest.php` in this directory is the one exception to the
+"database only" characterisation: it additionally performs a live outbound
+HTTPS fetch of `https://test.elanregistry.org/robots.txt` (picked up by
+`composer test:integration` and `composer test:full`, but not by
+`composer test:medium`, which runs only `tests/integration/database`), and it
+skips cleanly rather than failing when the network or that host is unreachable.
 
-**Purpose**: Legacy test suite for backward compatibility
-**Speed**: Variable
+### Regression Tests (`tests/unit/regression/`)
+
+**Purpose**: Pin specific bug fixes so they cannot silently regress
+**Speed**: Fast (same as `tests/unit/`)
 **Database**: Mock
 **Run**: `composer test:regression`
+
+Regression tests are ordinary unit tests — they load via the same
+`tests/bootstrap-unit.php` mocks as the rest of `tests/unit/`, and live under
+`tests/unit/regression/` rather than a separate top-level directory. What
+distinguishes them is the `#[Group('regression')]` attribute, which
+`composer test:regression` filters on (`--testsuite=Unit --group regression`
+against `phpunit-unit.xml`).
+
+To add a new one, copy an existing file in `tests/unit/regression/` as a
+model — there is no template file anymore. Include these PHPDoc annotations
+and the group attribute:
+
+- `@issue {NUMBER}` — the GitHub issue number the test pins
+- `@link https://github.com/elan-registry/registry/issues/{NUMBER}`
+- `@category` — a short category (e.g. `security`, `regression`, `infrastructure`)
+- `#[Group('regression')]` on the class, immediately above the class
+  declaration
+
+Name the file `Issue{NUMBER}RegressionTest.php` when it pins a single issue,
+or a descriptive `{Name}RegressionTest.php` (e.g.
+`EncodeAtOutputRegressionTest.php`) when it covers a cross-cutting concern
+that doesn't map to one issue number. A regression test that needs a real
+database belongs in `tests/integration/` instead.
 
 ### Browser Tests (`tests/playwright/`)
 
@@ -98,50 +144,24 @@ tests/
 
 ## Database Fixtures
 
-Integration tests require the `car_models` reference table to be populated.
+Integration tests require the `car_models` reference table (plus `settings`
+and the `noowner` system account) to be populated. This is provisioning's job,
+not the test bootstrap's — see [Test Data Isolation](#test-data-isolation) below.
 
-### Automatic Fixture Loading
-
-The `bootstrap-integration.php` automatically loads reference data from
-`database/2-reference-data.sql` when the `car_models` table is empty:
-
-```php
-// Happens automatically on first integration test run
-// Loads 24 car model records into car_models table
-```
-
-### Manual Fixture Setup
-
-You can manually run the setup script:
+### Provisioning a Test Schema
 
 ```bash
-php tests/setup-test-database.php
+./scripts/provision-schema.sh
 ```
 
-**Output:**
-
-```text
-================================================================================
-ELAN REGISTRY TEST DATABASE SETUP
-================================================================================
-
-✅ Database connection verified
-📊 Current car_models records: 0
-📂 Loading reference data from: /path/to/database/2-reference-data.sql
-🔄 Loading car_models reference data...
-✅ Loaded 24 car_models records successfully
-
-📋 Sample records:
-   - Elan 1500|Roadster|26 (Elan 1500)
-   - S1|Roadster|26 (Elan 1600)
-   - S4|FHC|36 (Coupe S4)
-   - Sprint|FHC|36 (Coupe Sprint)
-   - +2|FHC|50 (Plus 2)
-
-================================================================================
-✅ Test database setup complete.
-================================================================================
-```
+This applies the vendored stock UserSpice structure, runs `composer migrate`
+(which applies the `UpdateSettingsBaselineDefaults`, `RegisterBaselinePermissions`,
+and `RegisterNoownerAccount` migrations' ElanRegistry settings defaults,
+permissions row, and system account), then `phinx seed:run` for
+`CarModelsSeed` (see `database/seeds/`). `tests/bootstrap-integration.php`
+verifies these exist on every test run and aborts with a clear message —
+pointing at `composer migrate`/`composer seed:run` — if they don't, rather
+than silently trying to fix it inline.
 
 ### Fixture Requirements by Test
 
@@ -151,6 +171,69 @@ ELAN REGISTRY TEST DATABASE SETUP
 | `tests/integration/Reference/CarModelTest.php` | Yes | ✅ |
 | `tests/integration/cars/services/CarValidatorModelTest.php` | Yes | ✅ |
 | Other integration tests | No | N/A |
+
+## Test Data Isolation
+
+Integration tests run against a dedicated, isolated test schema (see #1436).
+A **freshly provisioned** schema (`scripts/provision-schema.sh`) starts with no
+ambient cars, users, or other rows. Two different lifecycles apply
+after that:
+
+- **Per-test fixtures** — anything a test creates (via `createTestUser()`,
+  `createTestCar()`, or a direct insert like a `profiles`/`car_transfer_requests`
+  row) is torn down after *that test* in `tearDown()`. Every test starts and
+  ends with none of its own data left behind.
+- **Schema-level reference/config data** — `car_models` is seeded once by
+  `composer seed:run` (`database/seeds/CarModelsSeed.php`), then **persists
+  across every subsequent run** (it is never torn down). The `noowner`
+  system account and `permissions` id=3 row are created once by the
+  `RegisterNoownerAccount` and `RegisterBaselinePermissions` migrations. The
+  `settings` row (id=1) is created by UserSpice's own install wizard rather
+  than a seed. This mirrors a real install, which configures these once, not
+  per test. `tests/bootstrap-integration.php` only *verifies* they exist — it
+  does not create them itself. Re-running `scripts/provision-schema.sh`
+  resets everything, migrations and seeds included.
+
+The `settings` row's ElanRegistry default values are applied by the
+`UpdateSettingsBaselineDefaults` migration
+(`database/migrations/20260817033111_update_settings_baseline_defaults.php`),
+layered over UserSpice's own column defaults. Those values come from the real
+ElanRegistry production configuration (`site_name`, `permission_restriction`,
+`session_manager`, `req_cap`/`req_num`, `email_login`, etc.), plus a few
+standard UserSpice defaults (`min_pw`/`max_pw`/`min_un`/`max_un`) not tied to
+any ElanRegistry-specific value. Don't assume a setting *not* covered by that
+migration matches production — set it explicitly in your test if it does.
+
+Every test must create the fixtures it depends on and must never assume
+pre-existing data exists. Tests that relied on ambient data in the old shared
+dev database (1590+ cars, 1763+ users) will fail or pass for the wrong reason
+against an empty schema.
+
+**Don't** hardcode assumed IDs, grab "whatever exists", or assert on
+registry-wide counts:
+
+```php
+// Assumes car/user 1 exists, or that a row is "just lying around"
+$owner = new Owner($userId = 1);
+$row = $this->db->query('SELECT * FROM cars LIMIT 1')->first();
+$count = $this->db->query('SELECT COUNT(*) AS c FROM cars')->first();
+$this->assertGreaterThan(0, $count->c);
+```
+
+**Do** create the fixtures the test needs, then assert against them:
+
+```php
+$userId = $this->createTestUser();
+$carId = $this->createTestCar($userId, ['chassis' => 'EL12345S']);
+
+$car = $this->db->query('SELECT * FROM cars WHERE id = ?', [$carId])->first();
+$this->assertSame($userId, (int) $car->user_id);
+```
+
+Use `IntegrationTestCase::createTestUser()` and `createTestCar()`
+(`tests/integration/IntegrationTestCase.php`) to create fixture rows — both
+generate unique, non-colliding data and are automatically cleaned up in
+`tearDown()`.
 
 ## Quick Reference
 
@@ -234,6 +317,19 @@ aren't tracked).
 - `/finish-milestone`'s known-broken check does **not** apply to this group — there's nothing to
   resolve or report on, it's a standing, intentional environment split.
 
+## The `regression` Group Exclusion in `test:quick:ci` — Keeping the Two CI Steps Disjoint
+
+A third `--exclude-group` tag exists in `test:quick:ci`, but for a different reason than either
+group above: `regression`. Since `tests/unit/regression/` is a subdirectory of `tests/unit/`,
+`test:quick:ci`'s `Unit` testsuite would otherwise run every regression test a second time —
+`.github/workflows/tests.yml`'s dedicated "Run regression tests" step (`composer
+test:regression:ci`) already covers them via `--group regression`. Excluding the group from
+`test:quick:ci` keeps the two CI steps disjoint, the same way `tests/regression/` and `tests/unit/`
+were disjoint directories before #1559 collapsed them together. `composer test:quick` (no `:ci`
+suffix, the local/dev command) does **not** exclude this group — locally, one full run of
+`tests/unit/` is expected to include everything under it, and running the regression subset
+redundantly costs a developer nothing the way a second CI job would.
+
 ## Writing New Tests
 
 ### Unit Test Example
@@ -255,12 +351,15 @@ final class MyValidatorTest extends TestCase
 
     public function testValidatesInput(): void
     {
-        // Uses mock CarModel automatically
+        // Model-combination validation needs a real car_models row — that
+        // check is only meaningful in the integration tier (see
+        // CarValidatorModelTest.php). Unit tests exercise everything else
+        // validateAndSanitizeFields() does.
         $result = $this->validator->validateAndSanitizeFields([
-            'model' => 'S4|FHC|36', // Valid in mock
+            'chassis' => 'ABC123',
         ], false);
 
-        $this->assertArrayHasKey('model', $result);
+        $this->assertArrayHasKey('chassis', $result);
     }
 }
 ```
@@ -286,7 +385,7 @@ class MyCarModelTest extends TestCase
     protected function setUp(): void
     {
         // Real CarModel with database
-        // car_models table auto-populated by bootstrap
+        // car_models table populated by CarModelsSeed during provisioning
         $this->carModel = new CarModel();
     }
 
@@ -305,25 +404,18 @@ class MyCarModelTest extends TestCase
 **Solution:**
 
 ```bash
-php tests/setup-test-database.php
+./scripts/provision-schema.sh
 ```
 
-Or check bootstrap output for fixture loading errors.
+`composer seed:run` alone targets whatever `.env` (not `.env.test.local`) points
+at — the app/dev database, not the test schema — so it's not a safe substitute
+here.
 
 ### Unit Tests Access Real Database
 
 **Problem**: Unit test is marked `@group integration` but in `tests/unit/`
 
 **Solution**: Move to `tests/integration/` or remove database dependency and use mocks.
-
-### Mock CarModel Doesn't Match Real Data
-
-**Problem**: Unit test fails because mock doesn't have all valid model combinations.
-
-**Solution**: Either:
-
-1. Add the model to mock in `bootstrap-unit.php`
-2. Move test to integration suite if real data is required
 
 ## See Also
 

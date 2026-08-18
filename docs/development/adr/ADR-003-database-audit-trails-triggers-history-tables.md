@@ -355,7 +355,8 @@ point-in-time history.
 
 - **Database Schema and Triggers**:
   [docs/development/DATABASE.md](../DATABASE.md) and
-  [database/1-schema.sql](../../database/1-schema.sql) (Section 5)
+  `database/migrations/` (current schema-of-record; the file cited when this
+  ADR was written has since been removed)
 - **ADR-002 Denormalized Cars Table**:
   [ADR-002](ADR-002-denormalized-cars-table-cached-owner-data.md)
   (explains denormalized owner fields in cars_hist snapshots)
@@ -370,12 +371,10 @@ point-in-time history.
 - **Owner**:
   [Owner.php](../../usersc/classes/Owner.php)
   (location sync operations)
-- **FIX Script 03**:
-  [03-Remove-Duplicate-History.php](../../FIX/_ARCHIVE/03-Remove-Duplicate-History.php)
-  (cleanup for delete double-writes)
-- **FIX Script 08**:
-  [08-Fix-Car-History-Triggers-Username-Column.php](../../FIX/_ARCHIVE/08-Fix-Car-History-Triggers-Username-Column.php)
-  (trigger rebuild example)
+- **FIX Script 03**: `03-Remove-Duplicate-History.php`
+  (cleanup for delete double-writes) — deleted; recoverable from git history
+- **FIX Script 08**: `08-Fix-Car-History-Triggers-Username-Column.php`
+  (trigger rebuild example) — deleted; recoverable from git history
 - **Coding Standards**:
   [CODING_STANDARDS.md](../CODING_STANDARDS.md)
 - **Nygard ADR Format**:

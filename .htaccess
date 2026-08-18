@@ -119,7 +119,7 @@ RewriteCond %{QUERY_STRING} doc=ADD_CAR_GUIDE\.md [NC]
 RewriteRule ^docs/guide-viewer\.php$ /docs/guides/ [R=301,L,QSD]
 
 RewriteCond %{QUERY_STRING} doc=PRIVACY\.md [NC]
-RewriteRule ^docs/guide-viewer\.php$ /app/owner/privacy.php [R=301,L,QSD]
+RewriteRule ^docs/(view|guide-viewer)\.php$ /app/owner/privacy.php [R=301,L,QSD]
 
 # Redirects for migrated pages (#559)
 Redirect 301 /app/cars/identify.php /docs/reference/identification-guide.php

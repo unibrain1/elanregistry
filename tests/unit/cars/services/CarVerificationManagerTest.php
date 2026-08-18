@@ -16,6 +16,14 @@ use PHPUnit\Framework\TestCase;
 #[Group('fast')]
 final class CarVerificationManagerTest extends TestCase
 {
+    /**
+     * Declared type stays CarRepository so the constructor injection below is
+     * accepted without a cast — the intersection with MockObject (needed for
+     * ->expects()/->method()) is expressed via @var, since PHPStan doesn't
+     * infer it from createMock() through a plain property assignment.
+     *
+     * @var CarRepository&\PHPUnit\Framework\MockObject\MockObject
+     */
     private CarRepository $mockRepo;
     private CarVerificationManager $manager;
 

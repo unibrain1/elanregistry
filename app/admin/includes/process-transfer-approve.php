@@ -34,7 +34,7 @@ if ($transferId <= 0) {
         ->send();
 }
 
-$db = DB::getInstance();
+$db = dbi();
 $repo = new CarTransferRepository($db);
 
 try {
@@ -91,7 +91,7 @@ try {
 
     // Send approval notification email with error handling
     try {
-        $emailService = new TransferEmailService(DB::getInstance(), 'email');
+        $emailService = new TransferEmailService($db, 'email');
         $notificationSent = $emailService->sendResponse(
             $transferId,
             true,

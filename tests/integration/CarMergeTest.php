@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Car\CarRepository;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
@@ -21,31 +22,24 @@ final class CarMergeTest extends IntegrationTestCase
 {
     private $testCarId;
     private $testMergeCarId;
+    private $testUserId;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->requireDatabase();
 
+        $this->testUserId = $this->createTestUser();
+
         // Set up authenticated user context for merge operations
-        global $user;
-        $user = new User();
-        $user->find(1);  // Load user ID 1
-
-        // Bypass login() to set the private $_isLoggedIn flag directly via reflection.
-        // setAccessible() is intentionally omitted — it is a no-op since PHP 8.1.
-        $reflection = new ReflectionClass($user);
-        $isLoggedInProperty = $reflection->getProperty('_isLoggedIn');
-        $isLoggedInProperty->setValue($user, true);
-
-        $GLOBALS['user'] = $user;
+        $this->loginAsTestUser($this->testUserId);
 
         // Create unique test cars for this test
         try {
-            $this->testCarId = $this->createTestCar(1, [
+            $this->testCarId = $this->createTestCar($this->testUserId, [
                 'chassis' => 'MG' . uniqid()
             ]);
-            $this->testMergeCarId = $this->createTestCar(1, [
+            $this->testMergeCarId = $this->createTestCar($this->testUserId, [
                 'chassis' => 'MG' . uniqid()
             ]);
         } catch (RuntimeException $e) {
@@ -60,7 +54,7 @@ final class CarMergeTest extends IntegrationTestCase
     public function testMergeCarSuccessWithValidOldCar(): void
     {
         $car = new Car($this->testCarId);
-        $result = $car->merge($this->testMergeCarId, 'Test merge success', 1);
+        $result = $car->merge($this->testMergeCarId, 'Test merge success', $this->testUserId);
 
         $this->assertTrue($result);
     }
@@ -74,7 +68,7 @@ final class CarMergeTest extends IntegrationTestCase
         $this->expectException(CarNotFoundException::class);
 
         $car = new Car(99999);
-        $car->merge($this->testMergeCarId, 'Test merge', 1);
+        $car->merge($this->testMergeCarId, 'Test merge', $this->testUserId);
     }
 
     /**
@@ -86,7 +80,7 @@ final class CarMergeTest extends IntegrationTestCase
         $this->expectException(CarNotFoundException::class);
 
         $car = new Car($this->testCarId);
-        $car->merge(99999, 'Test merge', 1);
+        $car->merge(99999, 'Test merge', $this->testUserId);
     }
 
     /**
@@ -98,7 +92,7 @@ final class CarMergeTest extends IntegrationTestCase
         $this->expectException(CarValidationException::class);
 
         $car = new Car($this->testCarId);
-        $car->merge($this->testCarId, 'Test merge', 1);
+        $car->merge($this->testCarId, 'Test merge', $this->testUserId);
     }
 
     /**
@@ -108,7 +102,7 @@ final class CarMergeTest extends IntegrationTestCase
     public function testMergeTransfersHistoryRecords(): void
     {
         $car = new Car($this->testCarId);
-        $result = $car->merge($this->testMergeCarId, 'Test merge history transfer', 1);
+        $result = $car->merge($this->testMergeCarId, 'Test merge history transfer', $this->testUserId);
 
         $this->assertTrue($result);
 
@@ -129,7 +123,7 @@ final class CarMergeTest extends IntegrationTestCase
         $oldCarId = $this->testMergeCarId;
 
         $car = new Car($this->testCarId);
-        $result = $car->merge($oldCarId, 'Test merge deletes old car', 1);
+        $result = $car->merge($oldCarId, 'Test merge deletes old car', $this->testUserId);
 
         $this->assertTrue($result);
 
@@ -145,7 +139,7 @@ final class CarMergeTest extends IntegrationTestCase
     public function testMergeCreatesAuditTrail(): void
     {
         $car = new Car($this->testCarId);
-        $result = $car->merge($this->testMergeCarId, 'Test merge audit trail', 1);
+        $result = $car->merge($this->testMergeCarId, 'Test merge audit trail', $this->testUserId);
 
         $this->assertTrue($result);
 
@@ -169,7 +163,7 @@ final class CarMergeTest extends IntegrationTestCase
 
         try {
             // Attempt to merge non-existent car
-            $car->merge(99999, 'Test merge', 1);
+            $car->merge(99999, 'Test merge', $this->testUserId);
         } catch (CarNotFoundException $e) {
             // After failed merge, original car should still exist
             $carReloaded = new Car((int) $car->data()->id);
@@ -195,7 +189,7 @@ final class CarMergeTest extends IntegrationTestCase
         // The target car still exists; the source is gone — merge must throw
         $this->expectException(CarNotFoundException::class);
         $car = new Car($this->testCarId);
-        $car->merge($this->testMergeCarId, 'Test merge after source deletion', 1);
+        $car->merge($this->testMergeCarId, 'Test merge after source deletion', $this->testUserId);
     }
 
     /**
@@ -297,12 +291,15 @@ final class CarMergeTest extends IntegrationTestCase
     #[Group('fast')]
     public function testMergeHonorsExplicitActingUserIdWithoutGlobalUser(): void
     {
+        // Car::__construct() needs a global $user (via getSettings()), so construct before
+        // unsetting it — only merge() itself must not fall back to a global $user internally.
+        $car = new Car($this->testCarId);
+
         $savedUser = $GLOBALS['user'] ?? null;
         unset($GLOBALS['user']);
 
         try {
-            $car = new Car($this->testCarId);
-            $result = $car->merge($this->testMergeCarId, 'Explicit actingUserId test', 1);
+            $result = $car->merge($this->testMergeCarId, 'Explicit actingUserId test', $this->testUserId);
             $this->assertTrue($result);
         } finally {
             if ($savedUser !== null) {
