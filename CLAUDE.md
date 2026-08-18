@@ -71,9 +71,9 @@ all other Cloudflare features work normally.
 - `/usersc/` - UserSpice customizations (templates, plugins, overrides)
 - `/usersc/classes/` - Custom application classes (PSR-4: `ElanRegistry\` →
   `usersc/classes/`, `ElanRegistry\Exceptions\` → `usersc/classes/Exceptions/`)
-- `/tests/` - PHPUnit and Playwright tests: `unit/` (mocked, no DB),
-  `integration/` (real DB), `regression/`, `playwright/` (browser),
-  `manual/`
+- `/tests/` - PHPUnit and Playwright tests: `unit/` (no DB; includes
+  `unit/regression/`, tagged `#[Group('regression')]`), `integration/`
+  (real DB), `playwright/` (browser), `manual/`
 
 **Key Integration Points:**
 
