@@ -53,7 +53,8 @@ class OwnerIntegrationTest extends IntegrationTestCase
     }
 
     /**
-     * @param array<string, string> $fields
+     * @param array<string, string|null> $fields Null values are intentional —
+     *        testLatNullPassesThrough() asserts null coordinates are dropped.
      * @return array<string, mixed>
      */
     private function callValidateAndSanitize(array $fields, bool $requireAll = false): array
