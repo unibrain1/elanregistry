@@ -45,9 +45,10 @@ Two separate mechanisms make a green exit code meaningless here, both verified
 against this repo:
 
 1. **An unreachable database exits 0 with no tests run at all.** UserSpice's
-   connection failure calls `die()` (`users/classes/DB.php:130`) during
-   bootstrap, so the process ends before PHPUnit prints any summary. Observed
-   output is two lines — `NOTE: Loaded test environment from .env.test.local`
+   connection failure calls an uncatchable `die()` in `users/classes/DB.php`
+   (gitignored upstream, so grep for it rather than trusting a line number)
+   during bootstrap, so the process ends before PHPUnit prints any summary.
+   Observed output is two lines — `NOTE: Loaded test environment from .env.test.local`
    and `Could not connect to database.  Please check your configuration.` —
    and `$?` is **0**. Not one test executed, and the exit code says success.
 2. **Individually skipped tests also exit 0.**
