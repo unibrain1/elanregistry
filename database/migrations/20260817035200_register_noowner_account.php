@@ -57,15 +57,14 @@ use Phinx\Migration\AbstractMigration;
  * account-deletion cleanup (`app/admin/includes/account-cleanup-helpers.php`),
  * so the GDPR reassignment target cannot itself be deleted.
  *
- * KNOWN GAP, not addressed here: `app/admin/assets/admin-core.js` hardcodes
- * user id 83 for the "Assign to No Owner" reassignment control (also
- * `app/admin/includes/tab-car_mgmt.php`, `app/admin/index.php`). That id is
- * only correct by accident on the existing production database — this
- * migration lets `noowner`'s id fall out of AUTO_INCREMENT, so on any freshly
- * provisioned environment the reassignment control silently targets whichever
- * unrelated account (or no account) holds id 83 instead. Fixing the admin UI
- * to resolve `noowner` by username server-side, like the deletion hook
- * already does, was tracked separately as #1562 (resolved).
+ * Why the id is never hardcoded: this migration lets `noowner`'s id fall out
+ * of AUTO_INCREMENT, so it differs per environment. The admin "Assign to No
+ * Owner" reassignment control used to hardcode id 83 — correct only by
+ * accident on the existing production database, and on any freshly
+ * provisioned environment it would have targeted whichever unrelated account
+ * held that id. #1562 fixed this: `app/admin/index.php` now resolves the
+ * account by username server-side, as the deletion hook already did. Keep it
+ * that way — never reintroduce a literal id for this account.
  *
  * Idempotent, and self-healing: the account may already exist on environments
  * provisioned before this migration was introduced (created by the seed this
