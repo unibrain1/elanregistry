@@ -10,16 +10,20 @@ Do the following, in order, **separately for each environment** (test, then prod
 1. [ ] **One-time, before the first `composer migrate` after this release** ([#1553](https://github.com/elan-registry/registry/issues/1553)): manually stamp the new `AddElanregistryBaseline` migration into `phinxlog`. Running the migration for real would try to `CREATE TABLE car_models` (and 12 other already-existing tables) and fail — the migration itself checks whether `cars` already exists and refuses to run rather than touching anything, so a missed stamp fails the deploy loudly, it doesn't corrupt the schema. Still, do the stamp first every time:
    1. [ ] **Before** `git push test <branch>`, or **before** `git push prod main` — open phpMyAdmin against that environment's database (test server DB, or prod DB — not your local dev DB, which doesn't need this at all).
    2. [ ] Confirm you're on the right database, and that it isn't already stamped:
+
       ```sql
       SELECT DATABASE();
       SELECT * FROM phinxlog WHERE version = 20260709000000;
       ```
+
       If the second query already returns a row, stop — already stamped, don't insert again.
    3. [ ] Run the stamp:
+
       ```sql
       INSERT INTO phinxlog (version, migration_name, start_time, end_time, breakpoint)
       VALUES (20260709000000, 'AddElanregistryBaseline', NOW(), NOW(), 0);
       ```
+
    4. [ ] Verify: re-run the `SELECT * FROM phinxlog WHERE version = 20260709000000` query — should now return exactly 1 row.
    5. [ ] Now push to that environment: `git push test <branch>` or `git push prod main`. The post-receive hook runs `composer install` and `composer migrate` automatically — `composer migrate` will skip the now-stamped `20260709000000` and apply only whatever else is genuinely pending.
    6. [ ] After the push, confirm via the deploy log or `composer migrate:status` on that server that `20260709000000` shows as already-applied and everything else applied cleanly with nothing pending or errored.
@@ -48,7 +52,6 @@ Do the following, in order, **separately for each environment** (test, then prod
 - **Backup data-loss detection** ([#1502](https://github.com/elan-registry/registry/issues/1502)): The backup routine no longer reports "Healthy" when a table dump silently loses its data — failures now surface for real.
 - **Admin User Manager XSS** ([#1499](https://github.com/elan-registry/registry/issues/1499)): Closed a stored-XSS vector in the admin User Manager's email column.
 - **Admin car-reassignment "No Owner" hardcoded ID** ([#1562](https://github.com/elan-registry/registry/issues/1562)): The "No Owner" option in the admin car-reassignment tool no longer hardcodes user id `83`. The id was only correct by accident on production; on any freshly-provisioned environment it could silently transfer a car to an unrelated account or throw an error. The "No Owner" checkbox now sends a flag, and the server resolves the actual `noowner` account id itself.
-
 - **Fresh installs had no page permissions** ([#1671](https://github.com/elan-registry/registry/issues/1671)): A newly provisioned environment started with empty `pages` and `permission_page_matches` tables, because UserSpice only registers a page when an Administrator visits it — impossible before an admin exists. Provisioning now seeds base pages and permissions itself. Existing test and prod environments are already populated and are unaffected.
 
 ### Improvements
