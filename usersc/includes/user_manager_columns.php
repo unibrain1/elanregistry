@@ -37,6 +37,29 @@ $user_manager_columns = [
 // rows will render double-encoded here (e.g. O'Brien -> O&#039;Brien on screen). This
 // is a known cosmetic tradeoff, not a security regression — escaping stays because
 // ElanRegistry-side writes use ElanRegistry\Input::raw() and store unescaped text.
+//
+// INCLUDE CONTRACT: $act, $uCount and $maxUsers come from the including scope —
+// this file is never executed standalone. Both known loaders set all three
+// before loading it:
+//   - users/views/_admin_users.php (upstream UserSpice; assigns them near the
+//     top, then includes this file behind a file_exists() guard, falling back
+//     to users/includes/user_manager_columns.php when it is absent). Grep it
+//     for the three assignments rather than trusting line numbers — upstream
+//     drifts on upgrade.
+//   - tests/unit/security/UserManagerColumnsXssTest::loadColumnDataClosure(),
+//     which require()s this file with all three seeded as parameters.
+// PHPStan analyses this file standalone and cannot see either, hence the
+// ignores below.
+//
+// Prefer fixing a future caller over adding ??= defaults here: a default lets a
+// caller that forgot to set these render silently wrong instead of failing
+// loudly. $act is the site-wide email-activation setting, not per-user status,
+// so defaulting it to 0 hides the verified-email icon even for users whose
+// email_verified is 1; a defaulted $uCount/$maxUsers pair silently decides
+// whether the perms column renders at all.
+/**
+ * @phpstan-ignore variable.undefined, variable.undefined, variable.undefined
+ */
 $user_manager_column_data = function($user, $column) use ($act, $uCount, $maxUsers) {
     switch($column) {
         case 'id':

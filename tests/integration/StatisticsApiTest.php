@@ -17,7 +17,6 @@ use ElanRegistry\StatisticsDataService;
  */
 class StatisticsApiTest extends IntegrationTestCase
 {
-    private $testCarId;
     private $testUserId;
 
     /**
@@ -31,7 +30,11 @@ class StatisticsApiTest extends IntegrationTestCase
         // Create the fixture the statistics assertions rely on, so registry-wide
         // aggregate queries are true by construction rather than by ambient data.
         $this->testUserId = $this->createTestUser();
-        $this->testCarId = $this->createTestCar($this->testUserId, [
+
+        // The car ID is not needed by any assertion — the queries below are
+        // registry-wide aggregates. Creating it is what matters; the ID is
+        // tracked by createTestCar() for tearDown() cleanup.
+        $this->createTestCar($this->testUserId, [
             'country' => 'United States',
             'state'   => 'California',
         ]);

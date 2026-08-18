@@ -193,18 +193,6 @@ parameters:
 			path: tests/integration/LogDeploymentScriptTest.php
 
 		-
-			message: '#^Parameter \#1 \$fields of method OwnerIntegrationTest\:\:callValidateAndSanitize\(\) expects array\<string, string\>, array\<string, null\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: tests/integration/OwnerIntegrationTest.php
-
-		-
-			message: '#^Property StatisticsApiTest\:\:\$testCarId is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: tests/integration/StatisticsApiTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Reference\\\\CarModel'' and ElanRegistry\\Reference\\CarModel will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 1
@@ -437,24 +425,6 @@ parameters:
 			identifier: variable.undefined
 			count: 4
 			path: usersc/includes/example_admin_user_system_settings_post.php
-
-		-
-			message: '#^Variable \$act might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/includes/user_manager_columns.php
-
-		-
-			message: '#^Variable \$maxUsers might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/includes/user_manager_columns.php
-
-		-
-			message: '#^Variable \$uCount might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/includes/user_manager_columns.php
 
 		-
 			message: '#^Variable \$lang might not be defined\.$#'
