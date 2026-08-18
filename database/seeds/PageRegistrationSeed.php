@@ -62,10 +62,10 @@ use Phinx\Seed\AbstractSeed;
  * - `users/modules/**` and `users/views/**` are includes/partials consumed by
  *   another page (e.g. `users/admin.php`), not independently routable pages
  *   in their own right.
- * - `app/admin/scripts/fix/_ARCHIVE/**` and `_TEMPLATE_Fix-Script.php` are
- *   retired/template fix scripts. `21-Fix-Page-Permissions.php` already
- *   skips `_TEMPLATE_` paths when reconciling; this seed skips both so it
- *   never registers dead or non-runnable scripts as live pages.
+ * - `_TEMPLATE_Fix-Script.php` is scaffolding, not a runnable script.
+ *   `21-Fix-Page-Permissions.php` already skips `_TEMPLATE_` paths when
+ *   reconciling; this seed skips them too so it never registers a
+ *   non-runnable script as a live page.
  *
  * `usersc/login.php` and `usersc/join.php` are public-by-design mirrors of
  * `users/login.php` / `users/join.php` (see
@@ -146,7 +146,6 @@ final class PageRegistrationSeed extends AbstractSeed
         'users/modules/',
         'users/views/',
         'users/helpers/',
-        'app/admin/scripts/fix/_ARCHIVE/',
         '_TEMPLATE_',
     ];
 

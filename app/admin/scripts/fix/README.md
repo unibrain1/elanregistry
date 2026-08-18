@@ -112,12 +112,13 @@ All FIX scripts include these standard features:
 - **Documentation**: Comprehensive inline comments
 - **Consistent Formatting**: Following project coding standards
 
-## 📦 **Archiving Scripts**
+## 📦 **Removing Completed Scripts**
 
 When scripts are no longer needed:
 
-1. Move completed/obsolete scripts to `_ARCHIVE/` directory
-2. Archive preserves work for future reference without cluttering active scripts
+1. Delete them with `git rm` — git history is the permanent record
+2. See [FIX_SCRIPTS.md](../../../../docs/development/FIX_SCRIPTS.md) for the
+   full removal process and how to recover a deleted script
 
 ## 🚨 **Important Notes**
 

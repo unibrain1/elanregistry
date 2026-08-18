@@ -60,7 +60,6 @@ parameters:
     excludePaths:
         - */vendor/*
         - */node_modules/*
-        - */_ARCHIVE/*
         - users/
         # Excluded because its placeholder code generates errors that can never be fixed;
         # keeping it out of scope prevents those errors from entering the baseline.
