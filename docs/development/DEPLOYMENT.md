@@ -285,6 +285,13 @@ schema natively; their databases predate Phinx and were never migrated through i
 baseline migration for real against either would try to `CREATE TABLE car_models` (and 12 other
 already-existing tables) and fail immediately.
 
+**Take a full database backup through the host's phpMyAdmin before you begin** (Export → Custom →
+all tables → SQL, structure and data). `git push` triggers the post-receive hook, which runs
+`composer migrate` immediately — once you push there is no window to intervene, so the backup and
+the stamp below must both be done first. A phpMyAdmin export is the rollback path if a migration
+behaves unexpectedly against real data; the application's own backup feature runs against the same
+database being changed and is not a substitute.
+
 **Before the next `composer migrate` runs on dev or prod** (once, the first time this migration is
 ever deployed there — not a repeatable step), manually mark it as already-applied instead of running
 it:

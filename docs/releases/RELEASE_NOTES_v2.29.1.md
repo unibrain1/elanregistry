@@ -3,11 +3,31 @@
 **Release Date:** [DATE]
 **Type:** Patch Release — Honest Tests: Make the Harness Tell the Truth
 
-## Required Actions After Deployment
+## Required Actions BEFORE Deployment
 
-Do the following, in order, **separately for each environment** (test, then prod):
+Do the following, in order, **separately for each environment** (test, then prod).
 
-1. [ ] **One-time, before the first `composer migrate` after this release** ([#1553](https://github.com/elan-registry/registry/issues/1553)): manually stamp the new `AddElanregistryBaseline` migration into `phinxlog`. Running the migration for real would try to `CREATE TABLE car_models` (and 12 other already-existing tables) and fail — the migration itself checks whether `cars` already exists and refuses to run rather than touching anything, so a missed stamp fails the deploy loudly, it doesn't corrupt the schema. Still, do the stamp first every time:
+Steps 1 and 2 must both be completed **before** you push. Pushing runs the
+post-receive hook, which runs `composer install` and `composer migrate`
+immediately — there is no window to intervene afterwards.
+
+1. [ ] **Take a full database backup via phpMyAdmin, before anything else.**
+   This release applies seven migrations, including ones that drop columns
+   (`DropUsersLegacyColumns`) and write to `settings`, `pages`,
+   `permission_page_matches` and `users`. A backup taken through the host's
+   phpMyAdmin is the rollback path if a migration behaves unexpectedly on real
+   data — the application's own backup feature is not a substitute here, since
+   it runs on the very database you are about to change.
+   1. [ ] Open phpMyAdmin against that environment's database via the host
+          control panel (test server DB, or prod DB — not your local dev DB).
+   2. [ ] Confirm you are on the correct database: `SELECT DATABASE();`
+   3. [ ] Export → **Custom** → select **all tables** → Format: SQL → include
+          "Add DROP TABLE" and structure **and** data → Go.
+   4. [ ] Save the `.sql` file locally, and confirm it is a plausible size —
+          not a few KB, which would mean a truncated or structure-only export.
+   5. [ ] Note the filename and timestamp here: ______________________
+
+2. [ ] **One-time, before the first `composer migrate` after this release** ([#1553](https://github.com/elan-registry/registry/issues/1553)): manually stamp the new `AddElanregistryBaseline` migration into `phinxlog`. Running the migration for real would try to `CREATE TABLE car_models` (and 12 other already-existing tables) and fail — the migration itself checks whether `cars` already exists and refuses to run rather than touching anything, so a missed stamp fails the deploy loudly, it doesn't corrupt the schema. Still, do the stamp first every time:
    1. [ ] **Before** `git push test <branch>`, or **before** `git push prod main` — open phpMyAdmin against that environment's database (test server DB, or prod DB — not your local dev DB, which doesn't need this at all).
    2. [ ] Confirm you're on the right database, and that it isn't already stamped:
 
@@ -30,10 +50,14 @@ Do the following, in order, **separately for each environment** (test, then prod
 
    See `docs/development/DEPLOYMENT.md` → "One-Time: Stamping the ElanRegistry Baseline Migration" for the same procedure in context.
 
-2. [ ] **After the push completes** ([#1495](https://github.com/elan-registry/registry/issues/1495)): confirm the UserSpice framework update took effect on that environment.
+3. [ ] **After the push completes** ([#1495](https://github.com/elan-registry/registry/issues/1495)): confirm the UserSpice framework update took effect on that environment.
    1. [ ] Log in as admin on that environment.
    2. [ ] Go to Admin > Check for Updates.
    3. [ ] Confirm the reported UserSpice version is 6.1.4 or newer.
+
+Once the deploy is complete, work through the post-deploy manual verification
+checklist for this release to confirm the user- and admin-facing changes on
+that environment.
 
 ## User-Facing Changes
 
