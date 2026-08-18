@@ -22,7 +22,102 @@ Available: `code` | `errors` | `comments` | `tests` | `simplify` | `all` (defaul
 
 ---
 
-## Step 1: Build the full branch diff
+## Step 1: Run the verification suite
+
+Run this **first**, before launching any agent — a failing suite short-circuits
+the review before spending agent tokens on a branch that is already broken.
+
+```bash
+composer test:full          # unit + ALL integration (~70s)
+composer check:docs         # under a second
+vendor/bin/phpstan analyse --no-progress --memory-limit=512M   # ~1s cached
+```
+
+`test:full` runs unconditionally. There is no path-based escalation and no
+opt-in: `tests/integration/` — real-database behavior (triggers, audit-trail
+writes, migrations, backups, geocoding, admin endpoints) — is run by no other
+automated step, not the pre-commit hook and not CI. If this command does not
+run it, nothing does.
+
+### Do not trust the exit code — parse the summary line
+
+Two separate mechanisms make a green exit code meaningless here, both verified
+against this repo:
+
+1. **An unreachable database exits 0 with no tests run at all.** UserSpice's
+   connection failure calls an uncatchable `die()` in `users/classes/DB.php`
+   (gitignored upstream, so grep for it rather than trusting a line number)
+   during bootstrap, so the process ends before PHPUnit prints any summary.
+   Observed output is two lines — `NOTE: Loaded test environment from .env.test.local`
+   and `Could not connect to database.  Please check your configuration.` —
+   and `$?` is **0**. Not one test executed, and the exit code says success.
+2. **Individually skipped tests also exit 0.**
+   `IntegrationTestCase::requireDatabase()` calls `markTestSkipped()`, and
+   neither `phpunit-unit.xml` nor `phpunit-integration.xml` sets
+   `failOnSkipped`, `failOnWarning`, or `failOnRisky`.
+
+A green exit code therefore does not mean the suite ran. Counting summary
+lines is the only reliable check.
+
+Judge the run on its parsed summary line instead. The line is ANSI-colored, so
+strip escapes before matching:
+
+```bash
+composer test:full 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E '^(OK|OK, but|FAILURES|ERRORS|WARNINGS|Tests:)'
+```
+
+`test:full` is two PHPUnit invocations, so it prints **two** summary lines —
+one per suite. There is no combined total; expect output like:
+
+```text
+OK (N tests, M assertions)     <- unit
+OK (N tests, M assertions)     <- integration
+```
+
+Both suites contain test files, so a healthy run reports two `OK` lines each
+with a **non-zero** test count. Treat that as a property to re-check, not an
+axiom — nothing in the tooling enforces it. Anything else is Blocking:
+
+| Summary | Verdict |
+| --- | --- |
+| Two `OK (N tests, M assertions)` lines, both `N > 0` | Pass — record both counts |
+| Either `OK` line with `N` of 0 | **Blocking** for the whole run, not just that suite — it reported success having run nothing |
+| `No tests executed!` | **Blocking** — exits 0 if the suite is empty, 1 if a filter matched nothing; either way nothing ran |
+| Only one `OK` line | **Blocking** — a suite died before reporting |
+| No summary line at all | **Blocking** — bootstrap `die()`d before PHPUnit reported |
+| `OK, but there were issues!` | **Blocking** |
+| Any `Skipped:`, `Incomplete:`, `Risky:`, or `Warnings:` count | **Blocking** |
+| `FAILURES!` / `ERRORS!` / non-zero exit | **Blocking** |
+
+Unexpected skips and warnings are treated exactly as errors are. A skipped
+suite reported as a pass is the specific failure this step exists to prevent.
+
+Counting the `OK` lines is what catches an integration suite that never ran:
+if the DB is unreachable the unit line still prints `OK`, and reading only the
+first line would look identical to a clean run. Checking that each `N` is
+non-zero is what catches the other shape of the same problem — a suite that
+reported success having executed nothing.
+
+### A suite that cannot start is a Blocking finding, not an excuse
+
+`tests/bootstrap-integration.php` has a number of preconditions that abort with
+`exit(1)` and an actionable message. Some examples, not a complete list — a
+missing framework, a missing or unparseable `.env.test.local`, a connection
+that turns out to be the dev database, missing reference data (via
+`abortBootstrap()` / `abortMissingSeed()`). All are self-announcing: treat any
+such abort as Blocking, whether or not it appears above.
+
+The dangerous case is the one that is not: an unreachable or nonexistent
+schema produces `Could not connect to database.` and **exits 0**. Only the
+missing summary line reveals it.
+
+Report whichever message appeared **verbatim** as Blocking. Do not reinterpret
+it as an environment gap and do not proceed. "The DB wasn't up" is a reason
+the review could not be completed, not a reason to call it clean.
+
+---
+
+## Step 2: Build the full branch diff
 
 Find the milestone base branch (or fall back to `main`):
 
@@ -56,7 +151,7 @@ file looks like now in its entirety.
 
 ---
 
-## Step 2: Determine applicable review agents
+## Step 3: Determine applicable review agents
 
 Based on `$ARGUMENTS` (default: all applicable):
 
@@ -72,13 +167,18 @@ If `$ARGUMENTS` is empty or `all`, run all applicable agents based on the change
 file types (skip test analyzer if no test files changed; skip comment analyzer if
 no comments/docs added).
 
+The `tests` agent *reads* test files and reasons about coverage; Step 1 is what
+*executes* them. Neither substitutes for the other — a clean test-analyzer
+report says nothing about whether the suite passes. Step 1 runs regardless of
+which aspects `$ARGUMENTS` selects.
+
 ---
 
-## Step 3: Launch review agents
+## Step 4: Launch review agents
 
 Provide **each agent** with:
 
-1. **The full branch diff** (from Step 1)
+1. **The full branch diff** (from Step 2)
 2. **The full content of every changed file** (read each file in full)
 3. **This instruction appended to the agent prompt**:
 
@@ -95,7 +195,7 @@ after other agents complete.
 
 ---
 
-## Step 4: Aggregate and triage findings
+## Step 5: Aggregate and triage findings
 
 Collect all agent findings and categorize them:
 
@@ -111,6 +211,18 @@ Output a triage table:
 ## Local Review — Branch: <branch-name>
 ## Diff scope: <merge-base>..<HEAD> (<N> commits, <M> files)
 
+### Suites executed
+| Suite | Command | Result |
+|-------|---------|--------|
+| Unit | composer test:full | OK (N tests, M assertions) |
+| Integration | composer test:full | OK (N tests, M assertions) |
+| Docs | composer check:docs | Documentation checks passed. |
+| Static analysis | vendor/bin/phpstan analyse | No errors |
+
+State actual counts, never "passed" alone. If a suite did not run, say so
+here and why — this table is how the reviewer tells what was and was not
+executed.
+
 ### Blocking (must fix)
 | Agent | File:Line | Issue |
 |-------|-----------|-------|
@@ -125,7 +237,7 @@ Output a triage table:
 
 ---
 
-## Step 5: Handle findings
+## Step 6: Handle findings
 
 **If there are Blocking items:**
 
@@ -146,7 +258,13 @@ Output a triage table:
 
 **If the review is clean:**
 
+This branch is only reachable when Step 1 produced a clean summary line for
+every suite — no failures, and no unexpected skips, warnings, incomplete, or
+risky tests. Never report "clean" over a suite that did not run, could not
+start, or skipped.
+
 - Report: "Local review clean — no blocking issues, no open recommendations."
+  Include the Suites executed table so the claim is backed by real counts.
 - Proceed to `/commit-push-pr` or `/commit`
 
 ---
@@ -158,3 +276,17 @@ Output a triage table:
 - The `simplify` aspect runs only after all other aspects pass — don't use it
   to mask unfixed issues.
 - To review only specific aspects: `/review-pr code errors`
+- **A green PHPUnit exit code does not mean the suite ran.** An unreachable
+  database exits 0 having run zero tests (UserSpice `die()`s in bootstrap
+  before PHPUnit reports), and skips, warnings, incomplete, and risky tests
+  all exit 0 under the current configs. Step 1 counts summary lines for this
+  reason; keep it that way if the step is ever refactored.
+- Step 1 is the only automated step anywhere that runs `tests/integration/`.
+  The pre-commit hook (`.githooks/pre-commit`) runs
+  `vendor/bin/phpunit --testsuite=Unit --exclude-group known-broken` and a
+  full-project PHPStan, but each only when the commit stages matching files —
+  a docs-only commit runs neither. `.githooks/pre-push` runs no tests at all.
+  CI's `tests.yml` runs `test:quick:ci` + `test:regression:ci` (unit only, no
+  MySQL service). Whether CI should also run integration tests is a separate
+  open question — it does not today.
+- `$ARGUMENTS` selects which review *agents* run. It never skips Step 1.
