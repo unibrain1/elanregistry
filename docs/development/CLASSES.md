@@ -463,7 +463,7 @@ $emailService = new TransferEmailService(
 use ElanRegistry\Transfer\TransferEmailService;
 
 $emailService = new TransferEmailService(
-    DB::getInstance(),
+    dbi(),
     'email',
     $abs_us_root . $us_url_root
 );
@@ -767,12 +767,13 @@ Standard pattern for data management classes:
 
 ```php
 class MyDomainClass {
-    private $_db;
+    private DatabaseInterface $_db;
     private $_data;
 
-    // Load existing record
-    public function __construct(?int $id = null) {
-        $this->_db = DB::getInstance();
+    // Load existing record. The $db seam lets tests inject a double;
+    // it defaults to the shared dbi() connection in production.
+    public function __construct(?int $id = null, ?DatabaseInterface $db = null) {
+        $this->_db = $db ?? dbi();
         if ($id) {
             $this->find($id);
         }

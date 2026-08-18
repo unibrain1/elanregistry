@@ -86,6 +86,8 @@ that environment.
 ### Behavior Changes
 
 - **Backup dump failure handling** ([#1502](https://github.com/elan-registry/registry/issues/1502)): A single table's backup failure now aborts the entire backup with no file written (previously wrote a file with an error comment while reporting success). Custom scripts calling `BackupManager::createSchemaBackup()` or `createManualBackup()` must now handle the thrown `BackupException`.
+- **Backups now cover every table** ([#1714](https://github.com/elan-registry/registry/issues/1714)): Backups discover all base tables at runtime instead of dumping a hardcoded list of six, which is what makes them actually restorable. Two consequences worth knowing: backup files are substantially larger, and their contents now include UserSpice's authentication tables (`us_totp_secrets`, `us_passkeys`, `us_oauth_server_tokens`, `users_session`) alongside owner PII. Those tables are empty today because MFA and OAuth are disabled — but if either is enabled later, backup files become credential-bearing automatically, with no further code change. The `backups/` directory remains blocked from web access by `.htaccess`, and retention is bounded at 7/30 days.
+- **DataTables upgraded to 3.x** ([#1578](https://github.com/elan-registry/registry/pull/1578)): `datatables.net-bs5` moved from 2.3.8 to 3.0.1, a major version bump. No application code changed for it and the test suite passes, but this touches every sortable/filterable table in the site and the admin panel — worth a deliberate look at the car listing and admin tables after deploying.
 
 ## Issues Resolved
 
