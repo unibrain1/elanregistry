@@ -53,9 +53,10 @@ class BackupManager {
      */
     public function createSchemaBackup(string $operation, array $tables = []): string {
         try {
-            // Default tables for schema operations
+            // Default to every table. A schema backup is taken before a risky schema
+            // operation, which is precisely when a partial backup is worth least.
             if (empty($tables)) {
-                $tables = ['settings', 'users', 'cars', 'profiles'];
+                $tables = $this->getAllTables();
             }
 
             $scriptName = 'schema-' . strtolower(str_replace([' ', '_'], '-', $operation));
@@ -82,16 +83,18 @@ class BackupManager {
      */
     public function createManualBackup(string $reason, array $tables = [], array $metadata = []): string {
         try {
-            // Default to all critical tables if none specified
+            // Default to every table if none specified
             if (empty($tables)) {
-                $tables = $this->getCriticalTables();
+                $tables = $this->getAllTables();
             }
 
             $scriptName = 'manual-' . strtolower(str_replace([' ', '_'], '-', $reason));
             $backupPath = $this->createStandardizedBackup($scriptName, $tables, 'manual', 'development');
 
-            // Log with enhanced metadata
-            $logMessage = "Manual backup created: {$reason}";
+            // Log with enhanced metadata. The table count is recorded here rather than
+            // at the call site because $tables is only authoritative after the default
+            // above resolves — a caller passing [] has no list to log.
+            $logMessage = "Manual backup created: {$reason} | Tables: " . count($tables);
             if (!empty($metadata)) {
                 $logMessage .= ' | Metadata: ' . json_encode($metadata);
             }
@@ -330,17 +333,75 @@ class BackupManager {
     }
 
     /**
-     * Get list of critical tables for backup
+     * Every base table in the connected schema, discovered at runtime.
+     *
+     * This deliberately replaces three hardcoded table lists — this method's own, a
+     * separate default inside createSchemaBackup(), and a copy in
+     * app/admin/includes/system/backup-operations.php. Two of them drifted:
+     * #1696 corrected a stale `car_history` name here but could not see the duplicate
+     * in the admin endpoint, which then broke every manual backup once #1696 also made
+     * generateTableDump() fail loudly on a missing table (#1714). A list that is derived
+     * rather than written cannot drift, and a table added by a future migration is
+     * backed up without anyone remembering to update anything.
+     *
+     * No exclusions: a backup that omits tables cannot fully restore the database.
+     * DATABASE() scopes discovery to the connected schema, so this can never reach
+     * another database on the same server. TABLE_TYPE = 'BASE TABLE' excludes views;
+     * the schema has none today, so that filter is currently untested. Note nothing
+     * here dumps view definitions either — if a view is ever added, decide deliberately
+     * how it should be captured rather than assuming this covers it.
+     *
+     * ORDER BY keeps dump output deterministic so successive backups diff cleanly.
+     *
+     * GDPR note: dumping every table makes a backup a broad personal-data store —
+     * it now also captures users_session, us_ip_list, logs and audit alongside the
+     * users/profiles rows backups already held. Account deletion purges live rows
+     * but does not rewrite existing backup files, so an erasure request completes
+     * once the covering backups age out rather than immediately. That window is
+     * bounded and self-purging (BACKUP_RETENTION_* in usersc/includes/config.php:
+     * 7 days automated, 30 manual/rollback), and backups/ is blocked at the web
+     * layer by .htaccess. Accepted deliberately: a backup that omits tables cannot
+     * restore the database, which defeats the point of taking one.
+     *
+     * @return string[] Base table names, alphabetically ordered
+     * @throws BackupException If the schema query fails — a partial or empty table
+     *                         list would silently produce an incomplete backup
      */
-    private function getCriticalTables(): array {
-        return [
-            'users',
-            'cars',
-            'profiles',
-            'settings',
-            'cars_hist',
-            'fix_script_runs'
-        ];
+    private function getAllTables(): array {
+        $result = $this->db->query(
+            "SELECT TABLE_NAME FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+             ORDER BY TABLE_NAME"
+        );
+
+        // UserSpice swallows DB errors into a flag rather than throwing, so an empty
+        // result is indistinguishable from a failed query without this check.
+        if ($this->db->error()) {
+            ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, "Failed to enumerate tables for backup: " . $this->db->errorString());
+            throw new BackupException("Cannot determine which tables to back up: " . $this->db->errorString());
+        }
+
+        $tables = array_map(
+            static fn(object $row): string => $row->TABLE_NAME,
+            $result->results()
+        );
+
+        // A schema with zero base tables means the connection is pointed somewhere
+        // unexpected. Backing up nothing would succeed and look like a valid backup.
+        if ($tables === []) {
+            ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR, "Table enumeration returned no base tables");
+            throw new BackupException("Cannot back up: the connected schema reports no tables");
+        }
+
+        // Record the names, not just a count. backup-operations.php used to log its
+        // (hand-maintained, and wrong) list before every manual backup; logging the
+        // discovered list here keeps that "what did this actually cover" visibility
+        // without a second list to drift. A backup pointed at an unexpected schema
+        // shows up here rather than only inside the .sql file.
+        ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_DEBUG,
+            'Tables discovered for backup (' . count($tables) . '): ' . implode(', ', $tables));
+
+        return $tables;
     }
 
     /**
@@ -517,22 +578,62 @@ class BackupManager {
 
             $backupPath = $backupDir . $filename;
 
-            // Create backup content with metadata
-            $backupContent = $this->generateBackupMetadata($scriptName, $type, $environment, $tables);
+            // Stream each table straight to disk rather than concatenating the whole
+            // database into one string first. Backing up every table (#1714) made the
+            // old accumulate-then-write approach exceed PHP's default 128M
+            // memory_limit — measured at a 132M peak against this schema, where the
+            // largest single table is ~16M of INSERT text. Writing incrementally keeps
+            // the peak at roughly one table's worth regardless of database size.
+            //
+            // Written to a temp file and renamed only on success, so the "no partial
+            // backup file" guarantee the catch block below relies on still holds: a
+            // failure part-way through leaves the temp file, which is removed, and no
+            // file ever appears at $backupPath unless every table dumped.
+            $tempPath = $backupPath . '.partial';
 
-            // Add table dumps
-            if (!empty($tables)) {
-                foreach ($tables as $table) {
-                    $backupContent .= $this->generateTableDump($table);
-                }
+            $handle = fopen($tempPath, 'wb');
+            if ($handle === false) {
+                throw new BackupException("Failed to open backup file for writing: $tempPath");
             }
 
-            // Write backup file
-            if (!file_put_contents($backupPath, $backupContent)) {
-                throw new BackupException("Failed to write backup file: $backupPath");
+            try {
+                $this->writeChunk($handle, $tempPath, $this->generateBackupMetadata($scriptName, $type, $environment, $tables));
+
+                foreach ($tables as $table) {
+                    // generateTableDump() throws on a missing table or a failed query;
+                    // letting that propagate is what aborts the whole backup.
+                    $this->writeChunk($handle, $tempPath, $this->generateTableDump($table));
+                }
+            } finally {
+                // fclose() flushes PHP's write buffer, so a disk-full condition can
+                // surface here rather than at fwrite() — discarding its return value
+                // would let the last chunk vanish and still promote the file to a
+                // valid-looking backup. $closeFailed is checked after the finally so
+                // a genuine dump exception (already in flight) wins over this one.
+                $closeFailed = !fclose($handle);
+            }
+
+            if ($closeFailed) {
+                throw new BackupException("Failed to flush backup file to disk: $tempPath");
+            }
+
+            if (!rename($tempPath, $backupPath)) {
+                throw new BackupException("Failed to finalize backup file: $backupPath");
             }
 
         } catch (\Throwable $e) {
+            // Remove the partial file if one was started, so an aborted attempt never
+            // leaves an artifact that could later be mistaken for a usable backup.
+            // Log a cleanup failure rather than discarding it: a permissions problem
+            // that leaves .partial files behind forever would otherwise be invisible,
+            // since cleanupOldBackups() only sweeps them once past the full retention
+            // window (7-30 days). The @ suppresses the warning for the benign race
+            // where another process already removed the file.
+            if (isset($tempPath) && is_file($tempPath) && !@unlink($tempPath)) {
+                ($this->logger)(1, LogCategories::LOG_CATEGORY_BACKUP_ERROR,
+                    "Failed to remove partial backup file after aborted attempt: {$tempPath}");
+            }
+
             // Single choke point for "a backup was attempted and did not complete" —
             // unwritable directory, failed table dump, and failed file write alike.
             // Catches \Throwable, not just BackupException: a connection-level fault
@@ -564,6 +665,29 @@ class BackupManager {
         }
 
         return $backupPath;
+    }
+
+    /**
+     * Append one chunk to the open backup file, failing loudly on a short write.
+     *
+     * fwrite() returns the number of bytes written rather than throwing, and a full
+     * disk yields a short write, not false. Silently accepting that would produce a
+     * truncated backup reporting success — the failure mode this class exists to
+     * prevent — so a byte count that does not match aborts the whole backup.
+     *
+     * @param resource $handle Open write handle for $path
+     * @param string $path Destination path, for the error message only
+     * @param string $chunk Content to append
+     * @throws BackupException If the write fails or is short
+     */
+    private function writeChunk($handle, string $path, string $chunk): void {
+        $expected = strlen($chunk);
+        $written = fwrite($handle, $chunk);
+
+        if ($written === false || $written !== $expected) {
+            $actual = $written === false ? 'failed' : "{$written} of {$expected} bytes";
+            throw new BackupException("Failed writing backup file {$path}: {$actual}");
+        }
     }
 
     /**
@@ -756,6 +880,14 @@ class BackupManager {
                 continue;
             }
 
+            // Bare '*' rather than the '*.sql' used by the stats and listing methods.
+            // That is deliberate on both counts: statistics must never count a
+            // half-written file as a backup, but cleanup should eventually sweep the
+            // .partial litter a hard-killed backup leaves behind (a SIGKILL or OOM
+            // runs no catch block). Such a file is only removed once past the type's
+            // normal retention window, so debris can linger for up to 30 days —
+            // acceptable for a rare crash path, but do not narrow this to '*.sql' or
+            // nothing will ever clean it up.
             $files = glob($typeDir . '*');
             $cleanupSummary[$type]['scanned'] = count($files);
 

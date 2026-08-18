@@ -441,7 +441,8 @@ Once the user has explicitly approved the plan, execute using agents strategical
    ```text
    Implementation complete for issue #ISSUE_NUMBER. Next steps:
 
-   0. Update test plan  — Add test scenarios to plans/test-plan-<milestone>.md
+   0. Update test plan  — Add test scenarios to test-plan-<milestone>.md in the
+                          local Plans directory (path in .claude.local.md)
    1. /simplify         — Review and clean up the code (optional)
    2. /review-pr        — Run the multi-agent local review (RECOMMENDED before
                           push; uses your Max/Pro subscription so CI can stay

@@ -353,3 +353,18 @@ ID.
 - Cleanup orphaned profiles and relationships
 - Reassign ownerless cars to `noowner`
 - Real-time progress reporting
+
+**Backups hold personal data** (#1714): `BackupManager` dumps every base table in
+the schema, so a backup captures `users`, `profiles`, `users_session`,
+`us_ip_list`, `logs` and `audit`. Deletion purges live rows but does not rewrite
+existing backup files, so an erasure request is fully satisfied only once the
+backups covering that user age out. That window is bounded and self-purging —
+`BACKUP_RETENTION_*` in `usersc/includes/config.php` sets 7 days for automated
+backups and 30 for manual/rollback. `backups/` is blocked from web access by
+`.htaccess`, and no code path restores from a backup file (account restore reads
+the in-database `deleted_accounts_archive` table instead).
+
+Backing up everything is deliberate: a backup that omits tables cannot restore
+the database. Before narrowing the set, note that #1714 was caused by two of
+three hardcoded table lists drifting apart — derive any subset, never
+hand-maintain one.

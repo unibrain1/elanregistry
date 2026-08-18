@@ -28,7 +28,6 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[Group('integration')]
 #[Group('migration')]
-#[Group('regression')]
 final class RegisterNoownerAccountMigrationTest extends IntegrationTestCase
 {
     private const USERNAME = 'noowner';
@@ -83,7 +82,6 @@ final class RegisterNoownerAccountMigrationTest extends IntegrationTestCase
      * than a random hash (impossible vs. merely improbable).
      */
     #[Group('integration')]
-    #[Group('regression')]
     public function test_noownerHasNullPasswordSoPasswordLoginIsImpossible(): void
     {
         $this->assertNull(
@@ -110,7 +108,6 @@ final class RegisterNoownerAccountMigrationTest extends IntegrationTestCase
      * only automated thing standing between that and production.
      */
     #[Group('integration')]
-    #[Group('regression')]
     public function test_noownerEmailIsUnroutableSoNeitherRecoveryPathCanReachIt(): void
     {
         $email = $this->fetchNoowner()->email;
@@ -144,7 +141,6 @@ final class RegisterNoownerAccountMigrationTest extends IntegrationTestCase
      * point the deletion hook starts orphaning cars.
      */
     #[Group('integration')]
-    #[Group('regression')]
     public function test_noownerIsProtectedFromAccountCleanup(): void
     {
         $this->assertSame(
@@ -161,7 +157,6 @@ final class RegisterNoownerAccountMigrationTest extends IntegrationTestCase
      * guaranteed to carry the locked-down security columns above.
      */
     #[Group('integration')]
-    #[Group('regression')]
     public function test_exactlyOneNoownerAccountExists(): void
     {
         $count = $this->db->query(
