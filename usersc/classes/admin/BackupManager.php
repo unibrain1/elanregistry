@@ -47,7 +47,7 @@ class BackupManager {
      * Create backup before schema operations
      *
      * @param string $operation Operation name (e.g., "Schema Maintenance")
-     * @param array $tables Array of table names to backup (defaults to critical tables)
+     * @param array $tables Array of table names to backup (defaults to every base table in the schema)
      * @return string Path to the created backup file
      * @throws BackupException If backup creation fails
      */
@@ -76,7 +76,7 @@ class BackupManager {
      * Create manual backup with enhanced metadata
      *
      * @param string $reason Reason for backup (becomes part of filename)
-     * @param array $tables Array of table names to backup (defaults to critical tables)
+     * @param array $tables Array of table names to backup (defaults to every base table in the schema)
      * @param array $metadata Optional metadata for enhanced logging
      * @return string Path to the created backup file
      * @throws BackupException If backup creation fails
@@ -352,6 +352,16 @@ class BackupManager {
      * how it should be captured rather than assuming this covers it.
      *
      * ORDER BY keeps dump output deterministic so successive backups diff cleanly.
+     *
+     * Credential note: "every table" also means UserSpice's auth tables —
+     * us_totp_secrets, us_passkeys, us_oauth_server_tokens,
+     * us_oauth_client_login_tokens and users_session. A backup file is therefore a
+     * credential store, not merely a PII store, and warrants stronger handling than
+     * its .htaccess block if it is ever copied off the server. As of #1714 the four
+     * MFA/OAuth features are disabled (settings.passkeys/totp/oauth_server/oauth all
+     * 0) and their tables hold zero rows, so only session rows are live today —
+     * but enabling any of them silently widens what every backup captures. Revisit
+     * this if one is turned on.
      *
      * GDPR note: dumping every table makes a backup a broad personal-data store —
      * it now also captures users_session, us_ip_list, logs and audit alongside the
@@ -704,6 +714,12 @@ class BackupManager {
         $tableList = implode(', ', $tables);
 
         $retentionDays = $this->getRetentionDays($type);
+
+        // Always 'yes' in practice since #1714: both entry points resolve an empty
+        // $tables to getAllTables(), which throws rather than returning []. Kept as a
+        // computed value rather than a literal because this header is a contract with
+        // whoever reads the .sql file — if a future caller ever reaches here with no
+        // tables, the metadata must say so instead of claiming a restorable backup.
         $rollbackReady = !empty($tables) ? 'yes' : 'no';
 
         return "-- BACKUP METADATA\n" .

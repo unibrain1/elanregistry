@@ -654,6 +654,46 @@ final class BackupManagerTest extends TestCase
     }
 
     /**
+     * Verify an aborted backup leaves no `.partial` temp file behind.
+     *
+     * Since #1714 the dump is streamed to `{backupPath}.partial` and renamed only
+     * once every table has written, so a failure part-way through leaves a temp file
+     * that the outer catch must remove. Every other failure-path assertion in this
+     * class globs `*.sql`, which a leftover `.partial` would slip straight past —
+     * so a regression in that cleanup unlink() would go unnoticed while still
+     * accumulating litter in the backup directory. This asserts on a bare `*` glob
+     * for that reason: nothing at all should remain.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    #[Group('unit')]
+    public function testAbortedBackupLeavesNoPartialTempFile(): void
+    {
+        $mockDb = $this->createMockDatabase('SELECT * FROM `cars`');
+        $backupManager = new BackupManager($mockDb, $this->testBackupDir, 1);
+
+        try {
+            $backupManager->createManualBackup('Partial Cleanup', ['cars']);
+            $this->fail('Expected BackupException was not thrown');
+        } catch (BackupException $e) {
+            // The abort itself is asserted by testTableDumpDataQueryFailureAbortsBackup();
+            // this test is only interested in what it left on disk.
+        }
+
+        $this->assertSame(
+            [],
+            glob($this->testBackupDir . 'manual/*.partial'),
+            'An aborted backup must not leave a .partial temp file behind'
+        );
+        $this->assertSame(
+            [],
+            glob($this->testBackupDir . 'manual/*'),
+            'An aborted backup must leave the backup directory empty, not merely free of .sql files'
+        );
+    }
+
+    /**
      * Verify that a failed structure query (SHOW CREATE TABLE) during table dumping
      * aborts the whole backup and leaves no partial backup file on disk.
      *
