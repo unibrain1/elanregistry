@@ -127,7 +127,7 @@ $owner->syncLocationToCars();
 // Also writes LOCATION_SYNC audit record to cars_hist
 ```
 
-#### 4. Bulk Repair (Archive)
+#### 4. Bulk Repair (Historical)
 
 One-time FIX scripts (`20-Backfill-Location-Coordinates.php`,
 `04-Regeocode-Null-Coordinates.php`) were used for initial bulk repair of

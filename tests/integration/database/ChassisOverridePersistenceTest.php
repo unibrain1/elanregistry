@@ -17,8 +17,8 @@ use PHPUnit\Framework\Attributes\Group;
  * - The cars_update DB trigger captures chassis_override into cars_hist
  *
  * Requires the chassis_override column to be present in both the `cars` and
- * `cars_hist` tables. Run fix script 07-Chassis-Override-Schema-Backfill.php
- * first if the column is missing.
+ * `cars_hist` tables. Run `composer migrate` first if the column is missing —
+ * the baseline migration creates it on both tables.
  */
 #[Group('integration')]
 #[Group('chassis-override')]
@@ -45,7 +45,7 @@ final class ChassisOverridePersistenceTest extends IntegrationTestCase
 
         if (!$columnCheck || $columnCheck->count() === 0) {
             $this->markTestSkipped(
-                'chassis_override column not yet available — run fix script 07-Chassis-Override-Schema-Backfill.php'
+                'chassis_override column not yet available — run `composer migrate`'
             );
         }
 
@@ -176,7 +176,7 @@ final class ChassisOverridePersistenceTest extends IntegrationTestCase
 
         if (!$histColCheck || $histColCheck->count() === 0) {
             $this->markTestSkipped(
-                'chassis_override column not present in cars_hist — run fix script 07-Chassis-Override-Schema-Backfill.php'
+                'chassis_override column not present in cars_hist — run `composer migrate`'
             );
         }
 

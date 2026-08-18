@@ -127,16 +127,26 @@ new milestone branch is created.
 
 ### Recovery
 
-To restore a deleted script from git history:
+To restore a deleted script from git history, find the commit that **deleted**
+it, then read the file from that commit's parent:
 
 ```bash
-git log --all --oneline -- app/admin/scripts/fix/<filename>.php
-git show <commit>^:app/admin/scripts/fix/<filename>.php > recovered-script.php
+# 1. Find the deleting commit (the leading * matches whichever directory the
+#    script lived in, and prints the path to use in step 2)
+git log --all --full-history --diff-filter=D --format='%h %s' --name-only \
+  -- '*<filename>.php'
+
+# 2. Recover it — note the `^`: the file does not exist *at* the deleting
+#    commit, only in its parent
+git show <commit>^:<path-from-step-1> > recovered-script.php
 ```
 
-Scripts deleted before v2.29.1 lived under `app/admin/scripts/fix/_ARCHIVE/`
-(and, before the v2.20.0 restructuring, under `FIX/_ARCHIVE/`) — use that path
-in the `git log` command when recovering one of those.
+Match the script's **final** state this way rather than searching for its
+current path directly. Scripts deleted in v2.29.1 had been moved to
+`app/admin/scripts/fix/_ARCHIVE/` first (and, before the v2.20.0
+restructuring, `FIX/_ARCHIVE/`), and several were edited *after* that move — so
+a `git log` on the pre-archive path stops at the move commit and recovers a
+stale version.
 
 ## See Also
 
