@@ -263,6 +263,37 @@ git add docs/releases/
 git commit -m "docs: mark issue #$ARGUMENTS as resolved in release notes"
 ```
 
+### Step 7.5: Mark the issue complete in the sprint plan
+
+Look for a sprint plan matching this milestone in the sibling `Plans/` repo
+(see `Web/ElanRegistry/CLAUDE.md`):
+
+```bash
+ls ../Plans/sprints/<version>.md
+```
+
+(where `<version>` is the same one used in Step 7, e.g. `v2.29.3`.)
+
+**If no matching file exists:** skip this step silently.
+
+**If found:** read its sequence line (e.g. `**#1591 → #1547 → #1438 →
+#1439**`) and check whether issue `#$ARGUMENTS` appears in it.
+
+- **If present and not already marked complete:** prefix the issue's number
+  with a checkmark, e.g. `#1591` → `✅#1591`. Preserve the rest of the line
+  (arrows, other issue numbers, formatting) exactly. Write the change to
+  `../Plans/sprints/<version>.md`.
+- **If present and already marked complete:** skip, nothing to do.
+- **If issue `#$ARGUMENTS` does not appear in the sequence line at all**
+  (e.g. an unplanned bugfix not part of the tracked sprint): make no edit to
+  the file. Note in the Step 9 summary that this issue wasn't part of the
+  tracked sequence.
+
+This edit is made directly in the `Plans/` repo's working tree — a separate
+git repository from this one. Do not commit it; leave it for the user to
+review and commit there per that repo's own workflow (same convention as the
+`/start-milestone` sprint-plan update).
+
 ### Step 8: Return to the milestone branch
 
 ```bash
@@ -302,10 +333,19 @@ gh api "repos/elan-registry/registry/issues?milestone=${MILESTONE_NUM}&state=ope
 
 Suggest next steps:
 
-- If open issues remain: "Run `/start-issue <next-issue>` to begin the next
-  issue in this milestone"
-- If no open issues remain: "All issues in this milestone are complete. Run
-  `/finish-milestone $ARGUMENTS` to create the milestone PR"
+- **If a sprint plan was found and used in Step 7.5:** walk its sequence
+  line left-to-right and recommend the first issue number not marked with
+  ✅. Cross-check it's still in the open-issues list from above (it may have
+  been closed/consolidated outside this flow); if not, fall back to the next
+  unmarked entry that is. Say: "Run `/start-issue <next-issue>` — next in the
+  sprint plan sequence." If every issue in the sequence is now ✅ but other
+  open issues remain (untracked by the plan), list them separately.
+- **If no sprint plan was found/used, or the finished issue wasn't in its
+  sequence:** fall back to today's behavior —
+  - If open issues remain: "Run `/start-issue <next-issue>` to begin the next
+    issue in this milestone"
+  - If no open issues remain: "All issues in this milestone are complete. Run
+    `/finish-milestone $ARGUMENTS` to create the milestone PR"
 
 ## Important
 
@@ -324,3 +364,6 @@ Suggest next steps:
 - This command closes the issue directly. The `Closes #NNN` keyword in the
   milestone PR body (created by `/finish-milestone`) serves as a backup for
   any issues that weren't closed here.
+- `Plans/` is a separate private repo, sibling to this one (see
+  `Web/ElanRegistry/CLAUDE.md`). Sprint plan files are deleted once a
+  milestone is released — a missing file is normal, not an error.
