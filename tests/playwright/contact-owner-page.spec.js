@@ -16,7 +16,7 @@
 // contact form) and the empty($carResults) redirect path (a nonexistent
 // car_id never renders the form).
 //
-// Requires local MAMP at http://localhost:9999/elan-registry
+// Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');

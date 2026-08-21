@@ -5,13 +5,13 @@
 // mock data — deterministic and fast, no live Photon/Nominatim dependency,
 // unlike the integration-level check in tests/playwright/e2e/not-logged-in.spec.js.
 //
-// Requires local MAMP at http://localhost:9999/elan-registry
+// Requires local MAMP — see playwright.config.js's baseURL
 
 const { test, expect } = require('@playwright/test');
 
 test.describe('LocationPicker.filterAndRankResults() — dedupe key (#1400)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/users/join.php');
+    await page.goto('users/join.php');
   });
 
   test('keeps same-named cities in different states as distinct results', async ({ page }) => {

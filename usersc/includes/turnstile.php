@@ -34,7 +34,10 @@ function isTurnstileEnabled(): bool
  * Render the Cloudflare Turnstile widget into the current form.
  *
  * Outputs a .cf-turnstile div wrapped in a Bootstrap .d-flex.justify-content-center.my-2
- * flex container, followed by the Turnstile api.js script tag.
+ * flex container, followed by the Turnstile api.js script tag. The div carries
+ * data-error-callback="elanTurnstileError" and data-expired-callback="elanTurnstileExpired"
+ * attributes; pages that don't define those JS functions globally are unaffected
+ * (Cloudflare no-ops silently on an undefined callback name).
  * No-ops silently when Turnstile is disabled (off mode or plain HTTP).
  *
  * @return void
@@ -46,9 +49,15 @@ function addTurnstile(): void
     }
     $siteKey = htmlspecialchars($_ENV['TURNSTILE_SITE_KEY'], ENT_QUOTES, 'UTF-8');
     echo '<div class="d-flex justify-content-center my-2">' . "\n";
-    echo '    <div class="cf-turnstile" data-sitekey="' . $siteKey . '" data-appearance="always"></div>' . "\n";
+    echo '    <div class="cf-turnstile" data-sitekey="' . $siteKey . '" data-appearance="always" data-error-callback="elanTurnstileError" data-expired-callback="elanTurnstileExpired"></div>' . "\n";
     echo '</div>' . "\n";
-    echo '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>' . "\n";
+    // onerror covers the script failing to load at all (network block, DNS
+    // failure) — the case data-error-callback cannot see, since that only
+    // fires once Turnstile's own JS is already running. Only wired when
+    // elanTurnstileNotLoaded is defined (join page only), same guard pattern
+    // as the data-*-callback attributes above.
+    echo '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer'
+        . ' onerror="if (typeof elanTurnstileNotLoaded === \'function\') { elanTurnstileNotLoaded(); }"></script>' . "\n";
 }
 
 /**

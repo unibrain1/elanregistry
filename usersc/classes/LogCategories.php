@@ -172,6 +172,15 @@ class LogCategories
      */
     public const LOG_CATEGORY_LOGIN_METHOD = 'LoginMethod';
 
+    /**
+     * Registration attempt failed or was rejected — CSRF failure, rate-limit
+     * block, server-side validation failure (incl. Turnstile rejection), or
+     * a client-side-blocked submission reported via the join-failure-report
+     * beacon. Differentiate failure type via the `stage` metadata key.
+     * @since v2.29.2 (Issue #1690)
+     */
+    public const LOG_CATEGORY_REGISTRATION_FAILED = 'RegistrationFailed';
+
     // ========== PASSKEY AUTHENTICATION CATEGORIES ==========
 
     /**

@@ -319,6 +319,7 @@ export default [
                 history: "readonly",
                 Event: "readonly",
                 CustomEvent: "readonly",
+                ErrorEvent: "readonly",
                 HTMLElement: "readonly",
                 NodeList: "readonly",
                 Blob: "readonly",

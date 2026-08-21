@@ -19,7 +19,7 @@
 // this: if the endpoint responds with a rate-limit message the test skips
 // rather than failing with a misleading assertion error.
 //
-// Requires local MAMP at http://localhost:9999/elan-registry
+// Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');

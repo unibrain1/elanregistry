@@ -125,6 +125,19 @@ $rateLimits = [
         'total_window' => 3600
     ],
 
+    // Client-side join-failure beacon (#1690) — deliberately its own,
+    // higher-ceiling config rather than sharing registration_attempt's tight
+    // 5/hr IP bucket. A shared bucket would let beacon calls (Turnstile
+    // retries, GPS failures, JS exceptions — none of them a real
+    // registration attempt) exhaust the cap for every visitor behind a
+    // shared/NAT IP before any of them could actually submit the form.
+    'join_failure_beacon' => [
+        'ip_max' => 30,
+        'ip_window' => 3600,
+        'total_max' => 100,
+        'total_window' => 3600
+    ],
+
     'email_verification' => [
         'ip_max' => 5,
         'ip_window' => 3600,

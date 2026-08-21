@@ -29,6 +29,10 @@
          * @param {string} options.csrfToken CSRF token for AJAX requests
          * @param {string} options.urlRoot URL root for AJAX endpoints (default: '/')
          * @param {Function} options.onSelect Callback when location selected
+         * @param {Function} options.onGPSError Callback(error) when the GPS lookup fails —
+         *        the widget itself has no server-reporting opinion; callers on pages where
+         *        an unreported failure matters (e.g. a required-field registration blocker)
+         *        can hook in their own beacon/logging here. Optional, no-op by default.
          * @param {boolean} options.showGPS Show GPS button (default: true)
          * @param {boolean} options.required Is location required (default: true)
          */
@@ -38,6 +42,7 @@
                 csrfToken: '',
                 urlRoot: '/',
                 onSelect: null,
+                onGPSError: null,
                 showGPS: true,
                 required: true
             }, options);
@@ -392,6 +397,10 @@
         async handleGPSClick() {
             if (!navigator.geolocation) {
                 this.showError('Geolocation is not supported by your browser');
+                // A webview lacking the Geolocation API entirely is a real
+                // registration blocker (location is required) — report it the
+                // same as any other GPS failure rather than returning silently.
+                this.callOnGPSError({ code: 0, message: 'geolocation_unsupported' });
                 return;
             }
 
@@ -410,21 +419,59 @@
             } catch (error) {
                 console.error('GPS error:', error);
 
-                let message = 'Unable to get your location. ';
-                if (error.code === 1) {
-                    message += 'Please enable location permissions.';
-                } else if (error.code === 2) {
-                    message += 'Location unavailable.';
-                } else if (error.code === 3) {
-                    message += 'Request timed out.';
-                } else {
-                    message += 'Please try manual search instead.';
+                // A GeolocationPositionError (raw permission/unavailable/timeout
+                // failure) has a numeric .code and no specific message shown yet —
+                // build one here. A rethrown reverseGeocode() failure has already
+                // shown its own specific message (and no .code), so don't
+                // overwrite it with the generic fallback text.
+                if (typeof error.code === 'number') {
+                    let message = 'Unable to get your location. ';
+                    if (error.code === 1) {
+                        message += 'Please enable location permissions.';
+                    } else if (error.code === 2) {
+                        message += 'Location unavailable.';
+                    } else if (error.code === 3) {
+                        message += 'Request timed out.';
+                    } else {
+                        message += 'Please try manual search instead.';
+                    }
+                    this.showError(message);
                 }
 
-                this.showError(message);
+                this.callOnGPSError(error);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
+            }
+        }
+
+        /**
+         * Invoke the caller-supplied onGPSError callback, if any, guarded
+         * against it throwing — this is caller-supplied code (see
+         * onGPSError's own doc comment on the constructor above), and a
+         * throw here must not escape into a new, differently-shaped
+         * unhandled rejection on top of the GPS failure it was invoked to
+         * report.
+         *
+         * On the join page today, this callback's only job is calling
+         * window.elanReportJoinFailure() (join.php's onGPSError), whose own
+         * body cannot throw synchronously (see app/assets/js/
+         * join-form-beacon.js — its only calls are document.querySelector,
+         * URLSearchParams, and fetch(), none of which throw for this
+         * input). If a throw ever DOES reach here, it degrades to a
+         * console.error only — no server-side trace — which is an accepted
+         * gap given the above, not a live path #1690 needs to guard against
+         * today. If onGPSError is ever changed to do something riskier,
+         * revisit whether console.error alone is still sufficient.
+         */
+        callOnGPSError(error) {
+            if (typeof this.options.onGPSError !== 'function') {
+                return;
+            }
+            try {
+                this.options.onGPSError(error);
+            } catch (callbackError) {
+                console.error('LocationPicker: onGPSError callback threw', callbackError);
             }
         }
 
@@ -476,6 +523,12 @@
             } catch (error) {
                 console.error('Reverse geocoding error:', error);
                 this.showError('Unable to determine address from GPS coordinates. Please try manual search.');
+                // Rethrow so the caller's own catch (handleGPSClick(), which reports
+                // via onGPSError) sees this too — a reverse-geocode failure blocks
+                // the required location field exactly like a raw geolocation error
+                // does, and swallowing it here would leave it just as unreported
+                // server-side as the original #1690 bug (#1690 follow-up hardening).
+                throw error;
             } finally {
                 this.showLoading(false);
             }
