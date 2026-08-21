@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
  */
 #[Group('regression')]
 #[Group('fast')]
-final class Issue1690JoinFormBeaconContractTest extends TestCase
+final class Issue1690JoinFormBeaconRegressionTest extends TestCase
 {
     private const BEACON_JS_PATH = __DIR__ . '/../../../app/assets/js/join-form-beacon.js';
     private const TURNSTILE_PHP_PATH = __DIR__ . '/../../../usersc/includes/turnstile.php';
