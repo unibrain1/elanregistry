@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
                            placeholder="your.email@example.com"
                            value="<?php if (!$form_valid && !empty($_POST)) echo htmlspecialchars($email); ?>" 
                            required autocomplete="email">
-                    <span class="input-group-text field-status-icon d-none" id="email-status-icon">
+                    <span class="input-group-text field-status-icon d-none" id="email-status-icon" aria-hidden="true">
                       <i class="fas"></i>
                     </span>
                     <div class="invalid-feedback">Please provide a valid email address.</div>
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
                            placeholder="First name"
                            value="<?php if (!$form_valid && !empty($_POST)) echo htmlspecialchars($fname); ?>" 
                            required autocomplete="given-name">
-                    <span class="input-group-text field-status-icon d-none" id="fname-status-icon">
+                    <span class="input-group-text field-status-icon d-none" id="fname-status-icon" aria-hidden="true">
                       <i class="fas"></i>
                     </span>
                     <div class="invalid-feedback">Please enter your first name.</div>
@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
                            placeholder="Last name"
                            value="<?php if (!$form_valid && !empty($_POST)) echo htmlspecialchars($lname); ?>" 
                            required autocomplete="family-name">
-                    <span class="input-group-text field-status-icon d-none" id="lname-status-icon">
+                    <span class="input-group-text field-status-icon d-none" id="lname-status-icon" aria-hidden="true">
                       <i class="fas"></i>
                     </span>
                     <div class="invalid-feedback">Please enter your last name.</div>
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       <button type="button" class="btn btn-outline-secondary password-toggle" data-target="password" tabindex="-1">
                         <i class="fas fa-eye"></i>
                       </button>
-                      <span class="input-group-text field-status-icon d-none" id="password-status-icon">
+                      <span class="input-group-text field-status-icon d-none" id="password-status-icon" aria-hidden="true">
                         <i class="fas"></i>
                       </span>
                       <div class="invalid-feedback">Please enter a password.</div>
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       <button type="button" class="btn btn-outline-secondary password-toggle" data-target="confirm" tabindex="-1">
                         <i class="fas fa-eye"></i>
                       </button>
-                      <span class="input-group-text field-status-icon d-none" id="confirm-status-icon">
+                      <span class="input-group-text field-status-icon d-none" id="confirm-status-icon" aria-hidden="true">
                         <i class="fas"></i>
                       </span>
                       <div class="invalid-feedback">Please confirm your password.</div>
