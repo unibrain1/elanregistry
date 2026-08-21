@@ -35,20 +35,46 @@ function isTurnstileEnabled(): bool
  *
  * Outputs a .cf-turnstile div wrapped in a Bootstrap .d-flex.justify-content-center.my-2
  * flex container, followed by the Turnstile api.js script tag.
+ *
+ * When $withFailureCallbacks is true, the div also carries
+ * data-error-callback="elanTurnstileError" and data-expired-callback="elanTurnstileExpired"
+ * attributes, and the script tag's onerror wires up elanTurnstileNotLoaded. Those
+ * three globals are defined only by app/assets/js/join-form-beacon.js, loaded
+ * solely by usersc/views/_join.php — pass true only from the join page's own
+ * call site (usersc/plugins/hooker/hooks/join_form_turnstile.php). Passing true
+ * from a page that doesn't load join-form-beacon.js would have Cloudflare's
+ * widget invoke undefined window functions; whether that's actually tolerated
+ * by Cloudflare's widget isn't verifiable in this repo (the CDN script isn't
+ * vendored here), so this is opt-in rather than assumed-safe everywhere.
  * No-ops silently when Turnstile is disabled (off mode or plain HTTP).
  *
+ * @param bool $withFailureCallbacks Wire the join page's failure-reporting
+ *        callbacks. Defaults to false — safe for login/forgot-password.
  * @return void
  */
-function addTurnstile(): void
+function addTurnstile(bool $withFailureCallbacks = false): void
 {
     if (!isTurnstileEnabled()) {
         return;
     }
     $siteKey = htmlspecialchars($_ENV['TURNSTILE_SITE_KEY'], ENT_QUOTES, 'UTF-8');
+    $callbackAttrs = $withFailureCallbacks
+        ? ' data-error-callback="elanTurnstileError" data-expired-callback="elanTurnstileExpired"'
+        : '';
     echo '<div class="d-flex justify-content-center my-2">' . "\n";
-    echo '    <div class="cf-turnstile" data-sitekey="' . $siteKey . '" data-appearance="always"></div>' . "\n";
+    echo '    <div class="cf-turnstile" data-sitekey="' . $siteKey . '" data-appearance="always"' . $callbackAttrs . '></div>' . "\n";
     echo '</div>' . "\n";
-    echo '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>' . "\n";
+    // onerror covers the script failing to load at all (network block, DNS
+    // failure) — the case data-error-callback cannot see, since that only
+    // fires once Turnstile's own JS is already running. Only wired when
+    // $withFailureCallbacks is true (join page only), same gate as the
+    // data-*-callback attributes above — elanTurnstileNotLoaded is likewise
+    // only defined by join-form-beacon.js.
+    $onerror = $withFailureCallbacks
+        ? ' onerror="if (typeof elanTurnstileNotLoaded === \'function\') { elanTurnstileNotLoaded(); }"'
+        : '';
+    echo '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer'
+        . $onerror . '></script>' . "\n";
 }
 
 /**

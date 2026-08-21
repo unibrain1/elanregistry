@@ -7,7 +7,7 @@
 // generic site title rendered instead). This confirms the actual rendered
 // <title> now reflects the page-specific title for each tab.
 //
-// Requires local MAMP at http://localhost:9999/elan-registry
+// Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');

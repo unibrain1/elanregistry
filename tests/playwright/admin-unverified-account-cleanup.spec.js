@@ -3,13 +3,13 @@
 // Behavioral tests for the Account Cleanup tab on the admin index page.
 // Covers: threshold form, CSRF token, DataTables auto-load, confirmation modal.
 //
-// Requires local MAMP at http://localhost:9999/elan-registry
+// Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 // See: app/admin/index.php?tab=account-cleanup
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');
 
-const ADMIN_URL = 'http://localhost:9999/elan-registry/app/admin/index.php?tab=account-cleanup';
+const ADMIN_URL = 'http://localhost:9999/ElanRegistry/Registry/app/admin/index.php?tab=account-cleanup';
 
 test.describe('Admin Account Cleanup Tab', () => {
     test.beforeEach(async ({ page }) => {

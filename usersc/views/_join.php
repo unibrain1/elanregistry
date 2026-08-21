@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <h2 class="mb-0 card-header-er-primary-text"><i class="fas fa-user-plus"></i> <strong>Create Your Account</strong></h2>
         </div>
         <div class="card-body">
-          <form class="needs-validation" action="" method="POST" id="payment-form" novalidate>
+          <form class="needs-validation" action="" method="POST" id="join-form" novalidate>
 
             <!-- Account Information Section -->
             <div class="form-section mb-4">
@@ -111,6 +111,9 @@ document.addEventListener('DOMContentLoaded', function() {
                            placeholder="your.email@example.com"
                            value="<?php if (!$form_valid && !empty($_POST)) echo htmlspecialchars($email); ?>" 
                            required autocomplete="email">
+                    <span class="input-group-text field-status-icon d-none" id="email-status-icon" aria-hidden="true">
+                      <i class="fas"></i>
+                    </span>
                     <div class="invalid-feedback">Please provide a valid email address.</div>
                   </div>
                   <div class="form-text text-muted">
@@ -136,6 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
                            placeholder="First name"
                            value="<?php if (!$form_valid && !empty($_POST)) echo htmlspecialchars($fname); ?>" 
                            required autocomplete="given-name">
+                    <span class="input-group-text field-status-icon d-none" id="fname-status-icon" aria-hidden="true">
+                      <i class="fas"></i>
+                    </span>
                     <div class="invalid-feedback">Please enter your first name.</div>
                   </div>
                 </div>
@@ -148,6 +154,9 @@ document.addEventListener('DOMContentLoaded', function() {
                            placeholder="Last name"
                            value="<?php if (!$form_valid && !empty($_POST)) echo htmlspecialchars($lname); ?>" 
                            required autocomplete="family-name">
+                    <span class="input-group-text field-status-icon d-none" id="lname-status-icon" aria-hidden="true">
+                      <i class="fas"></i>
+                    </span>
                     <div class="invalid-feedback">Please enter your last name.</div>
                   </div>
                 </div>
@@ -197,6 +206,9 @@ document.addEventListener('DOMContentLoaded', function() {
                       <button type="button" class="btn btn-outline-secondary password-toggle" data-target="password" tabindex="-1">
                         <i class="fas fa-eye"></i>
                       </button>
+                      <span class="input-group-text field-status-icon d-none" id="password-status-icon" aria-hidden="true">
+                        <i class="fas"></i>
+                      </span>
                       <div class="invalid-feedback">Please enter a password.</div>
                     </div>
                   </div>
@@ -210,6 +222,9 @@ document.addEventListener('DOMContentLoaded', function() {
                       <button type="button" class="btn btn-outline-secondary password-toggle" data-target="confirm" tabindex="-1">
                         <i class="fas fa-eye"></i>
                       </button>
+                      <span class="input-group-text field-status-icon d-none" id="confirm-status-icon" aria-hidden="true">
+                        <i class="fas"></i>
+                      </span>
                       <div class="invalid-feedback">Please confirm your password.</div>
                     </div>
                   </div>
@@ -220,6 +235,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <!-- Form Hooks and Additional Fields -->
             <?php includeHook($hooks, 'form'); ?>
+
+            <div id="turnstile-status-message" class="alert alert-warning d-none" role="alert"></div>
 
             <!-- CSRF Protection -->
             <input type="hidden" value="<?= Token::generate(); ?>" name="csrf">
@@ -282,6 +299,21 @@ document.addEventListener('DOMContentLoaded', function() {
   cursor: pointer;
 }
 
+/* Per-field status border (#1690) — wraps the whole input-group so the
+   border reads as one continuous outline instead of fighting Bootstrap's
+   individual child-element borders. */
+.input-group.field-status-valid {
+  outline: 2px solid var(--bs-success);
+  outline-offset: 1px;
+  border-radius: var(--bs-border-radius);
+}
+
+.input-group.field-status-invalid {
+  outline: 2px solid var(--bs-danger);
+  outline-offset: 1px;
+  border-radius: var(--bs-border-radius);
+}
+
 .password-toggle:hover {
   background-color: var(--bs-light);
 }
@@ -297,6 +329,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <script nonce="<?= htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+window.elanUrlRoot = '<?= $us_url_root ?>';
+
 document.addEventListener('DOMContentLoaded', function() {
   // Enhanced password visibility toggle
   document.querySelectorAll('.password-toggle').forEach(function(button) {
@@ -318,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Form validation feedback
-  const form = document.getElementById('payment-form');
+  const form = document.getElementById('join-form');
   if (form) {
     form.addEventListener('submit', function(event) {
       if (!form.checkValidity()) {
@@ -345,5 +379,33 @@ document.addEventListener('DOMContentLoaded', function() {
     password.addEventListener('input', validatePasswordMatch);
     confirm.addEventListener('input', validatePasswordMatch);
   }
+
+  // Per-field status icons — visible immediately for required fields (red X
+  // when empty/invalid, green check once valid), not just after interaction,
+  // so an unfilled required field is never silently blank (#1690).
+  var trackedFields = ['email', 'fname', 'lname', 'password', 'confirm'];
+  trackedFields.forEach(function (id) {
+    var input = document.getElementById(id);
+    var icon = document.getElementById(id + '-status-icon');
+    var group = input ? input.closest('.input-group') : null;
+    if (!input || !icon) return;
+    function updateIcon() {
+      var isValid = input.checkValidity();
+      icon.classList.remove('d-none');
+      icon.querySelector('i').className = 'fas ' + (isValid ? 'fa-check-circle text-success' : 'fa-times-circle text-danger');
+      if (group) {
+        group.classList.toggle('field-status-valid', isValid);
+        group.classList.toggle('field-status-invalid', !isValid);
+      }
+    }
+    if (input.required) {
+      updateIcon();
+    }
+    input.addEventListener('input', updateIcon);
+    input.addEventListener('blur', updateIcon);
+  });
 });
 </script>
+
+<!-- Join Form Beacon Script -->
+<script src="<?=$us_url_root?>app/assets/js/join-form-beacon.min.js?v=<?= ASSET_VERSION ?>"></script>

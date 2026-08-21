@@ -16,7 +16,7 @@
 // field via jQuery DOM manipulation in page.evaluate() rather than calling the
 // function directly.
 //
-// Requires local MAMP at http://localhost:9999/elan-registry
+// Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');
