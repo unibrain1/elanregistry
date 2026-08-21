@@ -84,10 +84,10 @@ parameters:
     ignoreErrors:
         # UserSpice framework classes loaded at runtime via init.php — not autoloadable
         -
-            message: '#(unknown|Instantiated) class (DB|Token|Input|User|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)#'
+            message: '#(unknown|Instantiated) class (DB|Token|Input|User|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|RateLimit)#'
             reportUnmatched: false
         -
-            message: '#invalid (return )?type (DB|Token|Input|User|Redirect|Session|Cookie)#'
+            message: '#invalid (return )?type (DB|Token|Input|User|Redirect|Session|Cookie|RateLimit)#'
             reportUnmatched: false
 
         # Method-call-shape errors on the same runtime-loaded classes above. Since
@@ -108,13 +108,16 @@ parameters:
         # lives in a file excluded from PHPStan's scan (#1566), so \User resolves to
         # "unknown class" instead — already covered by the block above, not this one.
         -
-            message: '#Call to an undefined method (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)::\w+\(\)#'
+            message: '#Call to an undefined method (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|RateLimit)::\w+\(\)#'
             reportUnmatched: false
         -
-            message: '#(Static m|M)ethod (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)::\w+\(\) invoked with#'
+            message: '#(Static m|M)ethod (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|RateLimit)::\w+\(\) invoked with#'
             reportUnmatched: false
         -
-            message: '#of (method|class) (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu)(::|\s)#'
+            message: '#of (method|class) (DB|Token|Input|Redirect|Session|Cookie|Server|Validate|TOTPHandler|Config|Menu|RateLimit)(::|\s)#'
+            reportUnmatched: false
+        -
+            message: '#Call to method \w+\(\) on an unknown class RateLimit#'
             reportUnmatched: false
 
         # UserSpice framework functions loaded at runtime via init.php

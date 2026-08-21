@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace ElanRegistry;
 
 use ElanRegistry\Exceptions\LocationServiceException;
+use ElanRegistry\RateLimit\RateLimiterAdapter;
 
 /**
  * LocationService - Modern location collection using OpenStreetMap services
@@ -19,7 +20,8 @@ use ElanRegistry\Exceptions\LocationServiceException;
  * - English language preference (accept-language=en) for consistent results
  * - Prevents multilingual names like "België / Belgique / Belgien"
  * - Server-side caching (5-minute TTL) to reduce API calls
- * - Rate limiting (10 requests/minute per user) to prevent abuse
+ * - Rate limiting (10 requests/minute — keyed by user ID when logged in,
+ *   by IP address for anonymous callers) to prevent abuse
  * - Automatic fallback strategy: Photon → Nominatim → cached results
  *
  * @package ElanRegistry
@@ -48,19 +50,25 @@ class LocationService
     private const CACHE_TTL = 300;
 
     /**
-     * @var int Rate limit: max requests per minute per user
-     */
-    private const RATE_LIMIT_PER_MINUTE = 10;
-
-    /**
      * @var string Contact URL sent in User-Agent headers — always the live registry site
      */
     private const USER_AGENT_CONTACT = 'https://elanregistry.org';
 
     /**
+     * @var string Rate-limit action key shared by searchLocation() and reverseGeocode()
+     *             (configured in usersc/includes/rate_limits.php)
+     */
+    private const RATE_LIMIT_ACTION = 'location_search';
+
+    /**
      * @var string|null Cached version string (read once per process from the VERSION file)
      */
     private static ?string $cachedVersion = null;
+
+    /**
+     * @var RateLimiterInterface Rate limiter used by searchLocation() and reverseGeocode()
+     */
+    private readonly RateLimiterInterface $rateLimiter;
 
     /**
      * Build the User-Agent string for geocoding API requests.
@@ -102,9 +110,56 @@ class LocationService
 
     /**
      * Constructor
+     *
+     * @param RateLimiterInterface|null $rateLimiter Rate limiter to use; defaults to
+     *                                                the real `RateLimiterAdapter`. Passing
+     *                                                a fake here lets unit tests avoid the
+     *                                                real database-backed rate limiter.
      */
-    public function __construct()
+    public function __construct(?RateLimiterInterface $rateLimiter = null)
     {
+        $this->rateLimiter = $rateLimiter ?? new RateLimiterAdapter();
+    }
+
+    /**
+     * Check whether an action is allowed, failing open (allowing the request)
+     * if the underlying rate limiter throws.
+     *
+     * The real `RateLimiterAdapter` delegates to `checkRateLimit()`, which
+     * lazily constructs `\RateLimit` on first use — that constructor opens a
+     * database connection and can throw. Failing open here matches the
+     * existing fail-open behavior on cache errors elsewhere in this class:
+     * a broken rate limiter should not take down location search entirely.
+     *
+     * @param string $action Rate-limit action key
+     * @param int|null $userId User ID, or null for an anonymous caller
+     * @return bool True if allowed (including when the rate limiter itself fails)
+     */
+    private function rateLimiterAllows(string $action, ?int $userId): bool
+    {
+        try {
+            return $this->rateLimiter->allow($action, $userId);
+        } catch (\Throwable $e) {
+            logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limiter check failed, failing open: ' . $e->getMessage());
+            return true;
+        }
+    }
+
+    /**
+     * Record a rate-limit attempt, swallowing any failure from the underlying
+     * rate limiter. See `rateLimiterAllows()` for why this fails open.
+     *
+     * @param string $action Rate-limit action key
+     * @param bool $success Whether the attempt succeeded
+     * @param int|null $userId User ID, or null for an anonymous caller
+     */
+    private function recordRateLimiterAttempt(string $action, bool $success, ?int $userId): void
+    {
+        try {
+            $this->rateLimiter->record($action, $success, $userId);
+        } catch (\Throwable $e) {
+            logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limiter record failed: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -114,23 +169,17 @@ class LocationService
      * Results are cached for 5 minutes to reduce API calls.
      *
      * @param string $query Search term (e.g., "Portland", "London", "Tokyo")
-     * @param int $userId User ID for rate limiting
+     * @param int|null $userId User ID for rate limiting, or null for an anonymous caller
      * @param int $limit Maximum number of results (default: 8)
      * @return array Array of location results with coordinates
      * @throws LocationServiceException If rate limit exceeded or all services fail
      */
-    public function searchLocation(string $query, int $userId, int $limit = 8): array
+    public function searchLocation(string $query, ?int $userId, int $limit = 8): array
     {
         // Validate input
         $query = trim($query);
         if (strlen($query) < 2) {
             throw new LocationServiceException('Search query must be at least 2 characters');
-        }
-
-        // Check rate limit
-        if (!$this->checkRateLimit($userId)) {
-            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for location search');
-            throw new LocationServiceException('Rate limit exceeded. Please try again in a moment.');
         }
 
         // Check cache first
@@ -140,12 +189,19 @@ class LocationService
             return $cached;
         }
 
+        // Check rate limit
+        if (!$this->rateLimiterAllows(self::RATE_LIMIT_ACTION, $userId)) {
+            $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
+            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for location search');
+            throw new LocationServiceException('Rate limit exceeded. Please try again in a moment.');
+        }
+
         // Try Photon API first
         try {
             $results = $this->searchPhoton($query, $limit);
             if (!empty($results)) {
                 $this->setCache($cacheKey, $results);
-                $this->logRateLimitRequest($userId);
+                $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, true, $userId);
                 return $results;
             }
         } catch (LocationServiceException $e) {
@@ -157,14 +213,17 @@ class LocationService
             $results = $this->searchNominatim($query, $limit);
             if (!empty($results)) {
                 $this->setCache($cacheKey, $results);
-                $this->logRateLimitRequest($userId);
+                $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, true, $userId);
                 return $results;
             }
         } catch (LocationServiceException $e) {
             logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Nominatim API failed: ' . $e->getMessage());
         }
 
-        // All services failed
+        // All services failed — record as a failed attempt so a genuine
+        // upstream outage still caps retry storms, rather than letting every
+        // request during the outage go uncounted against the budget.
+        $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
         logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'All location search services failed for query: ' . $query);
         throw new LocationServiceException('Location search temporarily unavailable. Please try again later.');
     }
@@ -177,21 +236,15 @@ class LocationService
      *
      * @param float $lat Latitude (-90 to 90)
      * @param float $lon Longitude (-180 to 180)
-     * @param int $userId User ID for rate limiting
+     * @param int|null $userId User ID for rate limiting, or null for an anonymous caller
      * @return array Address components (city, state, country, lat, lon)
      * @throws LocationServiceException If coordinates invalid or service fails
      */
-    public function reverseGeocode(float $lat, float $lon, int $userId): array
+    public function reverseGeocode(float $lat, float $lon, ?int $userId): array
     {
         // Validate coordinates
         if (!$this->validateCoordinates($lat, $lon)) {
             throw new LocationServiceException('Invalid coordinates: lat must be -90 to 90, lon must be -180 to 180');
-        }
-
-        // Check rate limit
-        if (!$this->checkRateLimit($userId)) {
-            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for reverse geocoding');
-            throw new LocationServiceException('Rate limit exceeded. Please try again in a moment.');
         }
 
         // Check cache
@@ -201,19 +254,31 @@ class LocationService
             return $cached;
         }
 
+        // Check rate limit
+        if (!$this->rateLimiterAllows(self::RATE_LIMIT_ACTION, $userId)) {
+            $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
+            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for reverse geocoding');
+            throw new LocationServiceException('Rate limit exceeded. Please try again in a moment.');
+        }
+
         // Call Nominatim reverse geocoding
         try {
             $result = $this->reverseGeocodeNominatim($lat, $lon);
             if (!empty($result)) {
                 $this->setCache($cacheKey, $result);
-                $this->logRateLimitRequest($userId);
+                $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, true, $userId);
                 return $result;
             }
         } catch (LocationServiceException $e) {
+            // Record as a failed attempt — see the matching comment in
+            // searchLocation() for why a genuine upstream failure still
+            // counts against the caller's budget.
+            $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
             logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Nominatim reverse geocoding failed: ' . $e->getMessage());
             throw new LocationServiceException('Reverse geocoding temporarily unavailable. Please try again later.');
         }
 
+        $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
         throw new LocationServiceException('Could not determine address from coordinates');
     }
 
@@ -465,48 +530,6 @@ class LocationService
                 'LocationService: file_get_contents fallback failed: ' . ($lastError['message'] ?? 'unknown error'));
         }
         return $response;
-    }
-
-    /**
-     * Check if user is within rate limit
-     *
-     * @param int $userId User ID
-     * @return bool True if within limit
-     */
-    private function checkRateLimit(int $userId): bool
-    {
-        $cacheKey = 'rate_limit_' . $userId;
-        $requests = $this->getCache($cacheKey) ?? [];
-
-        // Remove requests older than 1 minute
-        $oneMinuteAgo = time() - 60;
-        $requests = array_filter($requests, function ($timestamp) use ($oneMinuteAgo) {
-            return $timestamp > $oneMinuteAgo;
-        });
-
-        return count($requests) < self::RATE_LIMIT_PER_MINUTE;
-    }
-
-    /**
-     * Log a rate limit request
-     *
-     * @param int $userId User ID
-     */
-    private function logRateLimitRequest(int $userId): void
-    {
-        $cacheKey = 'rate_limit_' . $userId;
-        $requests = $this->getCache($cacheKey) ?? [];
-
-        // Add current timestamp
-        $requests[] = time();
-
-        // Remove requests older than 1 minute
-        $oneMinuteAgo = time() - 60;
-        $requests = array_filter($requests, function ($timestamp) use ($oneMinuteAgo) {
-            return $timestamp > $oneMinuteAgo;
-        });
-
-        $this->setCache($cacheKey, $requests, 60);
     }
 
     /**
