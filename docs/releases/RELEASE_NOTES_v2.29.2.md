@@ -15,7 +15,7 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 
 ### Improvements
 
-- **Join form webview fix** ([#1690](https://github.com/elan-registry/registry/issues/1690)): One-line description of the fix — TBD as work completes.
+- **Join form webview fix** ([#1690](https://github.com/elan-registry/registry/issues/1690)): Every failed/blocked join attempt (CSRF, rate limit, validation, or a client-side-only block like Turnstile failing to load/render or GPS lookup errors) is now logged server-side, with visible per-field status indicators and a Turnstile failure message on the form itself.
 - **Location rate-limiting rewrite** ([#1582](https://github.com/elan-registry/registry/issues/1582)): One-line description of the fix — TBD as work completes.
 - **Docs embed 404 fix** ([#1594](https://github.com/elan-registry/registry/issues/1594)): One-line description of the fix — TBD as work completes.
 
