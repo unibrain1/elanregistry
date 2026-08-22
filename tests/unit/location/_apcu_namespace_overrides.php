@@ -26,6 +26,14 @@ namespace ElanRegistry;
  * file) regardless of whether the real environment's apcu extension is
  * loaded, loaded-but-disabled, or absent entirely.
  *
+ * $GLOBALS['mockCurlInitMissing'] (issue #1621) reuses this same
+ * function_exists() override to simulate "cURL extension not loaded" for
+ * LocationService::makeHttpRequest(), which gates its cURL vs.
+ * file_get_contents() branch on function_exists('curl_init'). It shares this
+ * file rather than getting its own override because PHP forbids two files
+ * from declaring the same namespaced function (see below) — this file is the
+ * single source of truth for ElanRegistry\function_exists().
+ *
  * IMPORTANT: PHP has no per-file function scoping — once this file is
  * require_once'd, these three ElanRegistry\* symbols are declared for the
  * rest of the PHPUnit process, not just this test file. Only one override
@@ -40,6 +48,9 @@ if (!\function_exists(__NAMESPACE__ . '\\function_exists')) {
     {
         if (($GLOBALS['mockApcuSimulateFailure'] ?? false) && \in_array($name, ['apcu_fetch', 'apcu_store'], true)) {
             return true;
+        }
+        if (($GLOBALS['mockCurlInitMissing'] ?? false) && $name === 'curl_init') {
+            return false;
         }
         return \function_exists($name);
     }
