@@ -170,6 +170,40 @@ final class LocationServiceRateLimitTest extends TestCase
         }
     }
 
+    /**
+     * Same as above but for an anonymous caller ($userId = null) — the actual
+     * subject of #1582 (anonymous callers were the ones sharing a single
+     * global bucket). Confirms the blocked path, the record() call, and the
+     * internal logger() calls (which now coalesce null to 0 per
+     * CODING_STANDARDS.md) all work correctly when $userId is null, not just
+     * when it's a concrete int.
+     */
+    #[Group('fast')]
+    public function test_searchLocation_throwsAndRecordsFailure_whenRateLimiterBlocks_forAnonymousCaller(): void
+    {
+        $fake = new FakeRateLimiter(allow: false);
+        $service = new LocationService($fake);
+
+        $query = 'ratelimit-block-anon-test-' . uniqid('', true);
+
+        $this->expectException(LocationServiceException::class);
+
+        try {
+            $service->searchLocation($query, null);
+        } finally {
+            $this->assertSame(
+                [['action' => 'location_search', 'success' => false, 'userId' => null]],
+                $fake->recordCalls,
+                'record() must be called exactly once, with success=false and userId=null, for an anonymous caller.'
+            );
+            $this->assertSame(
+                [['action' => 'location_search', 'userId' => null]],
+                $fake->allowCalls,
+                'allow() must be called exactly once with userId=null for an anonymous caller.'
+            );
+        }
+    }
+
     // =========================================================================
     // Test 2: cache hit — rate limiter never consulted, even if it would block
     // =========================================================================

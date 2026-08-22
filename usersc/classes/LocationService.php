@@ -192,7 +192,7 @@ class LocationService
         // Check rate limit
         if (!$this->rateLimiterAllows(self::RATE_LIMIT_ACTION, $userId)) {
             $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
-            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for location search');
+            logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for location search');
             throw new LocationServiceException('Rate limit exceeded. Please try again in a moment.');
         }
 
@@ -205,7 +205,7 @@ class LocationService
                 return $results;
             }
         } catch (LocationServiceException $e) {
-            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Photon API failed: ' . $e->getMessage());
+            logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Photon API failed: ' . $e->getMessage());
         }
 
         // Fallback to Nominatim
@@ -217,14 +217,14 @@ class LocationService
                 return $results;
             }
         } catch (LocationServiceException $e) {
-            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Nominatim API failed: ' . $e->getMessage());
+            logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Nominatim API failed: ' . $e->getMessage());
         }
 
         // All services failed — record as a failed attempt so a genuine
         // upstream outage still caps retry storms, rather than letting every
         // request during the outage go uncounted against the budget.
         $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
-        logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'All location search services failed for query: ' . $query);
+        logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'All location search services failed for query: ' . $query);
         throw new LocationServiceException('Location search temporarily unavailable. Please try again later.');
     }
 
@@ -257,7 +257,7 @@ class LocationService
         // Check rate limit
         if (!$this->rateLimiterAllows(self::RATE_LIMIT_ACTION, $userId)) {
             $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
-            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for reverse geocoding');
+            logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Rate limit exceeded for reverse geocoding');
             throw new LocationServiceException('Rate limit exceeded. Please try again in a moment.');
         }
 
@@ -274,7 +274,7 @@ class LocationService
             // searchLocation() for why a genuine upstream failure still
             // counts against the caller's budget.
             $this->recordRateLimiterAttempt(self::RATE_LIMIT_ACTION, false, $userId);
-            logger($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Nominatim reverse geocoding failed: ' . $e->getMessage());
+            logger($userId ?? 0, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Nominatim reverse geocoding failed: ' . $e->getMessage());
             throw new LocationServiceException('Reverse geocoding temporarily unavailable. Please try again later.');
         }
 
