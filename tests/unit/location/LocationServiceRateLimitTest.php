@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_curl_namespace_overrides.php';
+require_once __DIR__ . '/_apcu_namespace_overrides.php';
 
 use ElanRegistry\Exceptions\LocationServiceException;
 use ElanRegistry\LocationService;
@@ -83,7 +84,11 @@ final class LocationServiceRateLimitTest extends TestCase
             $GLOBALS['us_url_root'],
             $GLOBALS['mockCurlResponse'],
             $GLOBALS['mockCurlFailure'],
-            $GLOBALS['mockCurlHttpCode']
+            $GLOBALS['mockCurlHttpCode'],
+            $GLOBALS['mockCurlInitMissing'],
+            $GLOBALS['mockFileGetContentsFailure'],
+            $GLOBALS['mockCurlFailureForUrlSubstring'],
+            $GLOBALS['mockCurlResponseByUrlSubstring']
         );
 
         $this->removeDirectory($this->tempRoot);
@@ -125,6 +130,27 @@ final class LocationServiceRateLimitTest extends TestCase
                 ],
             ],
         ]) ?: '{}';
+    }
+
+    /**
+     * A valid, minimal Nominatim API JSON response for a single result, used
+     * to drive the mocked cURL success path for the asymmetric-fallback test
+     * (issue #1621) where Photon fails and Nominatim must still succeed.
+     */
+    private function nominatimSuccessBody(): string
+    {
+        return json_encode([
+            [
+                'address' => [
+                    'city' => 'Portland',
+                    'state' => 'Oregon',
+                    'country' => 'United States',
+                ],
+                'lat' => '45.5231',
+                'lon' => '-122.6765',
+                'display_name' => 'Portland, Oregon, United States',
+            ],
+        ]) ?: '[]';
     }
 
     // =========================================================================
@@ -354,6 +380,181 @@ final class LocationServiceRateLimitTest extends TestCase
                     . 'way that could miscount a failure as a success.'
             );
         }
+    }
+
+    // =========================================================================
+    // Tests 6-9 (issue #1621): makeHttpRequest() fallback branches and
+    // searchLocation()'s "all services failed" throw, including the
+    // asymmetric-fallback case where only one upstream service fails. These
+    // branches were flagged as uncovered by a test-coverage audit tracked in
+    // #1621; #1582's rate-limiter refactor (which this file already covers
+    // above) was a prerequisite and has since merged.
+    // =========================================================================
+
+    /**
+     * makeHttpRequest()'s cURL-failure branch (curl_exec() returns false) is
+     * already indirectly exercised by Test 5 above via reverseGeocode(). This
+     * test drives the same branch through searchLocation() instead, which is
+     * the specific call path issue #1621's acceptance criteria target, and
+     * pins down the exact "all services failed" exception message thrown once
+     * both Photon and Nominatim fail identically.
+     */
+    #[Group('fast')]
+    public function test_searchLocation_throwsAllServicesFailed_whenCurlExecFails(): void
+    {
+        $query = 'httpfallback-curlfail-test-' . uniqid('', true);
+        $GLOBALS['mockCurlFailure'] = true;
+
+        $fake = new FakeRateLimiter(allow: true);
+        $service = new LocationService($fake);
+
+        try {
+            $service->searchLocation($query, 21);
+            $this->fail('Expected LocationServiceException was not thrown.');
+        } catch (LocationServiceException $e) {
+            $this->assertSame(
+                'Location search temporarily unavailable. Please try again later.',
+                $e->getMessage(),
+                'A cURL failure on every upstream service must surface the "all services failed" message.'
+            );
+        }
+
+        $this->assertSame(
+            [['action' => 'location_search', 'success' => false, 'userId' => 21]],
+            $fake->recordCalls,
+            'record() must be called exactly once, with success=false, once all upstream services fail.'
+        );
+    }
+
+    /**
+     * makeHttpRequest()'s non-200 branch: curl_exec() succeeds (returns a
+     * response body) but curl_getinfo(CURLINFO_HTTP_CODE) reports a non-200
+     * status. No existing test sets mockCurlHttpCode without also implying a
+     * 200 success, so this branch was genuinely uncovered before #1621.
+     */
+    #[Group('fast')]
+    public function test_searchLocation_throwsAllServicesFailed_whenUpstreamReturnsNon200(): void
+    {
+        $query = 'httpfallback-non200-test-' . uniqid('', true);
+        // mockCurlResponse must be set for the curl_getinfo() override to
+        // read mockCurlHttpCode at all — otherwise it assumes 200.
+        $GLOBALS['mockCurlResponse'] = 'irrelevant body for a non-200 response';
+        $GLOBALS['mockCurlHttpCode'] = 500;
+
+        $fake = new FakeRateLimiter(allow: true);
+        $service = new LocationService($fake);
+
+        try {
+            $service->searchLocation($query, 22);
+            $this->fail('Expected LocationServiceException was not thrown.');
+        } catch (LocationServiceException $e) {
+            $this->assertSame(
+                'Location search temporarily unavailable. Please try again later.',
+                $e->getMessage(),
+                'A non-200 HTTP status from every upstream service must surface the "all services failed" message.'
+            );
+        }
+
+        $this->assertSame(
+            [['action' => 'location_search', 'success' => false, 'userId' => 22]],
+            $fake->recordCalls,
+            'record() must be called exactly once, with success=false, when every upstream service returns non-200.'
+        );
+    }
+
+    /**
+     * makeHttpRequest()'s file_get_contents() fallback branch, taken only
+     * when function_exists('curl_init') is false. Simulated via
+     * $GLOBALS['mockCurlInitMissing'] (see _apcu_namespace_overrides.php,
+     * the single ElanRegistry\function_exists() override shared across this
+     * suite — PHP forbids redeclaring the same namespaced function from a
+     * second file) together with $GLOBALS['mockFileGetContentsFailure'] (see
+     * _curl_namespace_overrides.php), which makes the file_get_contents()
+     * override return false deterministically.
+     *
+     * Deliberately does NOT rely on the sandboxed test environment lacking
+     * outbound network access: CI runners are not guaranteed to be
+     * network-isolated, and a real HTTP call that happened to succeed but
+     * resolve to zero results would still reach the same "all services
+     * failed" throw via a completely different path (empty results, not a
+     * failed request) — passing the test for the wrong reason. The explicit
+     * mockFileGetContentsFailure flag removes that ambiguity.
+     */
+    #[Group('fast')]
+    public function test_searchLocation_throwsAllServicesFailed_whenCurlUnavailable_fileGetContentsFallback(): void
+    {
+        $query = 'httpfallback-nocurl-test-' . uniqid('', true);
+        $GLOBALS['mockCurlInitMissing'] = true;
+        $GLOBALS['mockFileGetContentsFailure'] = true;
+
+        $fake = new FakeRateLimiter(allow: true);
+        $service = new LocationService($fake);
+
+        try {
+            $service->searchLocation($query, 23);
+            $this->fail('Expected LocationServiceException was not thrown.');
+        } catch (LocationServiceException $e) {
+            $this->assertSame(
+                'Location search temporarily unavailable. Please try again later.',
+                $e->getMessage(),
+                'file_get_contents() failing for every upstream service must surface the '
+                    . '"all services failed" message, proving the fallback branch was reached '
+                    . 'and its failure path handled cleanly.'
+            );
+        }
+
+        $this->assertSame(
+            [['action' => 'location_search', 'success' => false, 'userId' => 23]],
+            $fake->recordCalls,
+            'record() must be called exactly once, with success=false, when the file_get_contents() '
+                . 'fallback fails for every upstream service.'
+        );
+    }
+
+    /**
+     * The asymmetric-fallback case: Photon fails via one of the branches
+     * covered above (cURL failure, chosen arbitrarily as representative),
+     * but Nominatim then succeeds. Tests 6-8 only ever fail both providers
+     * identically, which would still pass even if a regression broke the
+     * catch-and-fallthrough in searchLocation() (LocationService.php:207-209)
+     * so it stopped trying Nominatim at all — this test specifically proves
+     * the fallback still delivers a successful result when only the primary
+     * provider is down, using the per-URL cURL mock
+     * (_curl_namespace_overrides.php's mockCurlFailureForUrlSubstring /
+     * mockCurlResponseByUrlSubstring) to give Photon and Nominatim distinct
+     * mocked behavior in the same test.
+     */
+    #[Group('fast')]
+    public function test_searchLocation_succeedsViaNominatim_whenPhotonFails(): void
+    {
+        $query = 'httpfallback-asymmetric-test-' . uniqid('', true);
+        $GLOBALS['mockCurlFailureForUrlSubstring'] = 'photon.komoot.io';
+        $GLOBALS['mockCurlResponseByUrlSubstring'] = [
+            'nominatim.openstreetmap.org' => $this->nominatimSuccessBody(),
+        ];
+        $GLOBALS['mockCurlHttpCode'] = 200;
+
+        $fake = new FakeRateLimiter(allow: true);
+        $service = new LocationService($fake);
+
+        $result = $service->searchLocation($query, 24);
+
+        $this->assertNotEmpty(
+            $result,
+            'searchLocation() must still return results via the Nominatim fallback when only Photon fails.'
+        );
+        $this->assertSame(
+            'nominatim',
+            $result[0]['source'] ?? null,
+            'The successful result must come from Nominatim (formatNominatimResults() tags source), '
+                . 'confirming the fallback — not a lucky Photon retry — produced it.'
+        );
+        $this->assertSame(
+            [['action' => 'location_search', 'success' => true, 'userId' => 24]],
+            $fake->recordCalls,
+            'A successful fallback to Nominatim must record success=true, exactly once, '
+                . 'even though the primary provider failed first.'
+        );
     }
 }
 
