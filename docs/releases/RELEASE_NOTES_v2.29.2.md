@@ -26,12 +26,10 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 
 ## Admin-Facing Changes
 
-- **DI-by-default CI guardrail** ([#1515](https://github.com/elan-registry/registry/issues/1515)): One-line description — TBD as work completes.
 - **Rate limit log cleanup maintenance script** ([#1582](https://github.com/elan-registry/registry/issues/1582)): New repeatable admin maintenance script (`app/admin/scripts/maintenance/25-Cleanup-Rate-Limits.php`) purges `us_rate_limits` rows older than 24 hours — same operation already available from the Rate Limiting Control Center's cleanup modal, now runnable on demand without visiting that page.
 
 ## Issues Resolved
 
-- [#1515](https://github.com/elan-registry/registry/issues/1515) — ci: add DI-by-default convention guardrail
 - [#1582](https://github.com/elan-registry/registry/issues/1582) — fix: location rate-limiting — per-requester buckets, dead lat/lon guard, and us_rate_limits retention
 - [#1594](https://github.com/elan-registry/registry/issues/1594) — fix: embed.php hardcodes subdir=reference, 404ing every document outside reference/ (plus old-case filenames)
 - [#1621](https://github.com/elan-registry/registry/issues/1621) — test: LocationService HTTP fallback branches (cURL failure, non-200, all-services-failed) untested

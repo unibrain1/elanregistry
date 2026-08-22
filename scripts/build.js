@@ -62,12 +62,56 @@ Promise.all([
   fs.copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl.css', 'usersc/css/maplibre-gl.css');
   console.log('Copied MapLibre GL JS assets.');
 
+  // Copy Chart.js self-hosted asset
+  fs.copyFileSync('node_modules/chart.js/dist/chart.umd.min.js', 'usersc/js/chart.umd.min.js');
+  console.log('Copied Chart.js asset.');
+
+  // DataTables: each -bs5 package is a thin Bootstrap 5 styling wrapper —
+  // the functional code lives in the corresponding non-bs5 core package.
+  // Concatenate core + bs5 wrapper per extension (each is a self-contained
+  // UMD IIFE, safe to concatenate) so app pages keep loading one script tag
+  // per extension. Only Core, FixedHeader, and Responsive are used in app
+  // JS (see ADR-011) — Buttons/ColVis are intentionally excluded.
+  const concatFiles = (sources, dest) =>
+    fs.writeFileSync(dest, sources.map(src => fs.readFileSync(src, 'utf8')).join(''));
+
+  concatFiles(
+    [
+      'node_modules/datatables.net/js/dataTables.min.js',
+      'node_modules/datatables.net-bs5/js/dataTables.bootstrap5.min.js',
+    ],
+    'usersc/js/datatables.min.js'
+  );
+  concatFiles(
+    [
+      'node_modules/datatables.net-fixedheader/js/dataTables.fixedHeader.min.js',
+      'node_modules/datatables.net-fixedheader-bs5/js/fixedHeader.bootstrap5.min.js',
+    ],
+    'usersc/js/datatables-fixedheader.min.js'
+  );
+  concatFiles(
+    [
+      'node_modules/datatables.net-responsive/js/dataTables.responsive.min.js',
+      'node_modules/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js',
+    ],
+    'usersc/js/datatables-responsive.min.js'
+  );
+  concatFiles(
+    [
+      'node_modules/datatables.net-bs5/css/dataTables.bootstrap5.min.css',
+      'node_modules/datatables.net-fixedheader-bs5/css/fixedHeader.bootstrap5.min.css',
+      'node_modules/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css',
+    ],
+    'usersc/css/datatables.min.css'
+  );
+  console.log('Vendored DataTables (core, fixedheader, responsive) assets.');
+
   // Generate VersaTiles Colorful style JSON
   const { colorful } = await import('@versatiles/style');
   const style = colorful({ baseUrl: 'https://tiles.versatiles.org', language: 'en' });
   fs.writeFileSync('usersc/js/versatiles-colorful.json', JSON.stringify(style));
   console.log('Generated usersc/js/versatiles-colorful.json');
 }).catch((err) => {
-  console.error('Build failed:', err?.message ?? err);
+  console.error('Build failed:', err?.stack ?? err?.message ?? err);
   process.exit(1);
 });
