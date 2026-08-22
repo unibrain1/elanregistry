@@ -8,8 +8,11 @@
 - Run `21-Fix-Page-Permissions.php` on test then prod to register the new
   `app/admin/scripts/maintenance/25-Cleanup-Rate-Limits.php` maintenance
   script's path in UserSpice's permission table (#1582).
-- [To be filled in for remaining issues — likely includes a manual removal
-  of the orphaned `embed.php` from prod for #1594.]
+- Manually delete the orphaned `docs/embed.php` from the production
+  filesystem (#1594) — it was removed from git in `f70b54b9` but never from
+  the deployed server, so it kept running and rebuilding bad redirect URLs on
+  every hit. This fix stops the 404s at `pdf-viewer.php` regardless, but the
+  orphaned file should still be cleaned up since it has no reason to exist.
 
 ## User-Facing Changes
 
@@ -19,7 +22,7 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 
 - **Join form webview fix** ([#1690](https://github.com/elan-registry/registry/issues/1690)): Every failed/blocked join attempt (CSRF, rate limit, validation, or a client-side-only block like Turnstile failing to load/render or GPS lookup errors) is now logged server-side, with visible per-field status indicators and a Turnstile failure message on the form itself.
 - **Location rate-limiting rewrite** ([#1582](https://github.com/elan-registry/registry/issues/1582)): Location search and reverse-geocoding (used during registration) now rate-limit each visitor independently by IP address instead of sharing one global bucket across every anonymous visitor site-wide — fixes a live bug where unrelated traffic could exhaust the shared bucket and block a real registrant. Also fixes a dead input guard that let missing/garbage coordinates silently reach the third-party geocoding API uncounted.
-- **Docs embed 404 fix** ([#1594](https://github.com/elan-registry/registry/issues/1594)): One-line description of the fix — TBD as work completes.
+- **PDF viewer wrong-subdir and case-sensitive 404 fix** ([#1594](https://github.com/elan-registry/registry/issues/1594)): `docs/pdf-viewer.php` now resolves a requested document across both allowlisted subdirectories (`reference`, `stories`) with a case-insensitive filename match and 301-redirects to the canonical URL when the requested subdir or filename case doesn't match what's on disk — fixes 404s for documents outside `reference/` and for pre-rename uppercase filenames, both from an orphaned `docs/embed.php` still running on production (see Required Actions).
 
 ## Admin-Facing Changes
 

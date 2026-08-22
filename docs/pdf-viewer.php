@@ -187,7 +187,51 @@ if ($requested_doc !== '') {
 
         // Check if file actually exists
         $file_path = $abs_us_root . $us_url_root . $asset_base . $document;
-        if (empty($error_message) && !empty($document) && !file_exists($file_path)) {
+        if ($error_message === '' && $document !== '' && $asset_subdir !== '' && !file_exists($file_path)) {
+            // #1594: an orphaned docs/embed.php still runs on production (deleted
+            // from git, but not from disk) and always links here with
+            // subdir=reference, without normalizing filename case. That sends us
+            // a subdir/case combination that doesn't match the file on disk even
+            // though the document exists under a different allowlisted subdir or
+            // with different case. Search the allowlisted subdirs case-insensitively
+            // before giving up, and 301 to the resolved location so bookmarks/search
+            // engines pick up the canonical URL. The common case (direct path
+            // exists) never reaches this branch, so it costs nothing when links are
+            // already correct.
+            $resolved_subdir   = '';
+            $resolved_document = '';
+            foreach ($allowed_subdirs as $candidate_subdir) {
+                // Scoped to $allowed_extensions (not '*') so the search only ever
+                // considers files $document could already match — reference/assets/
+                // also holds non-PDF companions (.png/.txt) for each document.
+                $candidate_dir = $abs_us_root . $us_url_root . 'docs/' . $candidate_subdir . '/assets/';
+                $glob_result   = glob($candidate_dir . '*.{' . implode(',', $allowed_extensions) . '}', GLOB_BRACE);
+                if ($glob_result === false) {
+                    // glob() returning false means the directory couldn't be read
+                    // (permissions/disk issue) — distinct from "no matches" and
+                    // worth its own log line so this doesn't silently masquerade
+                    // as a plain "document not found" if it ever happens.
+                    logger(0, LogCategories::LOG_CATEGORY_FILE_ERROR, 'glob() failed reading ' . $candidate_dir);
+                    continue;
+                }
+                foreach ($glob_result as $candidate_path) {
+                    if (strcasecmp(basename($candidate_path), $document) === 0) {
+                        $resolved_subdir   = $candidate_subdir;
+                        $resolved_document = basename($candidate_path);
+                        break 2;
+                    }
+                }
+            }
+
+            if ($resolved_subdir !== '' && ($resolved_subdir !== $asset_subdir || $resolved_document !== $document)) {
+                Redirect::sanitized(
+                    $us_url_root . 'docs/pdf-viewer.php',
+                    ['subdir' => $resolved_subdir, 'doc' => $resolved_document],
+                    301
+                );
+                exit; // Redirect::sanitized() already exits internally; explicit for defense in depth.
+            }
+
             logger(0, LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND, 'Non-existent document requested: ' . $document);
             http_response_code(404);
             $error_message = 'Document not found.';
