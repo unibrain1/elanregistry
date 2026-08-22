@@ -391,4 +391,6 @@ $renderSection(
 </div>
 
 <script src="<?= $us_url_root ?>usersc/js/datatables.min.js"></script>
+<script src="<?= $us_url_root ?>usersc/js/datatables-fixedheader.min.js"></script>
+<script src="<?= $us_url_root ?>usersc/js/datatables-responsive.min.js"></script>
 <script src="<?= $us_url_root ?>app/admin/assets/js/tab-account-cleanup.min.js?v=<?= ASSET_VERSION ?>"></script>

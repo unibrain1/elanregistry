@@ -106,6 +106,8 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
 ?>
 
 <script src="<?=$us_url_root?>usersc/js/datatables.min.js"></script>
+<script src="<?=$us_url_root?>usersc/js/datatables-fixedheader.min.js"></script>
+<script src="<?=$us_url_root?>usersc/js/datatables-responsive.min.js"></script>
 <link rel="stylesheet" href="<?=$us_url_root?>usersc/css/datatables.min.css">
 
 <?php include 'includes/elan-config-island.php'; ?>

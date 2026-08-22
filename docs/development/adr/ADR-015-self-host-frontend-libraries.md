@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+**Superseded** by [ADR-017](ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md)
 
 **Supersedes:** [ADR-006](ADR-006-use-database-stored-cdn-urls-for-frontend-dependencies.md)
 
@@ -52,26 +52,25 @@ jQuery UI) continue to be loaded from their existing self-hosted locations in
 
 | Library | Version | Vendored Path |
 | --- | --- | --- |
-| DataTables JS (BS5 bundle) | dt-2.3.8, Buttons 3.2.6, ColVis 3.2.6, FixedHeader 4.0.6, Responsive 3.0.8 | `usersc/js/datatables.min.js` |
-| DataTables CSS (BS5 bundle) | dt-2.3.8, Buttons 3.2.6, ColVis 3.2.6, FixedHeader 4.0.6, Responsive 3.0.8 | `usersc/css/datatables.min.css` |
+| DataTables JS (Core + BS5 style) | 2.3.8 | `usersc/js/datatables.min.js` |
+| DataTables CSS (Core + FixedHeader + Responsive BS5 styles) | 2.3.8 / 4.0.6 / 3.0.8 | `usersc/css/datatables.min.css` |
+| DataTables FixedHeader JS (+ BS5 style) | 4.0.6 | `usersc/js/datatables-fixedheader.min.js` |
+| DataTables Responsive JS (+ BS5 style) | 3.0.8 | `usersc/js/datatables-responsive.min.js` |
 | Dropzone JS | 5.7.6 | `usersc/js/dropzone.min.js` |
 | Dropzone CSS | 5.7.6 | `usersc/css/dropzone.min.css` |
 | Chart.js | 4.5.1 | `usersc/js/chart.umd.min.js` |
 | jQuery UI | 1.12.1 | `usersc/js/jquery-ui.min.js` |
-| flatpickr JS | 4.6.13 | `usersc/js/flatpickr.min.js` |
-| flatpickr CSS | 4.6.13 | `usersc/css/flatpickr.min.css` |
 | MapLibre GL JS | 4.7.1 | `usersc/js/maplibre-gl.min.js` + `usersc/css/maplibre-gl.css` (replaces Google Maps, v2.22.0) |
 
-> **Dependabot version drift note (v2.29.1):** `package.json` pins
-> `datatables.net-bs5` at `^3.0.1` (bumped from `2.3.8` by a Dependabot PR),
-> but the table above still accurately reflects the vendored/served bundle at
-> `dt-2.3.8` — `scripts/build.js` never reads or re-generates the DataTables
-> bundle from `node_modules`, so the version bump is inert at runtime today.
-> `package.json`'s pinned version and this table can drift like this because
-> nothing enforces them staying in sync; a future re-vendor of DataTables
-> from `node_modules` will jump straight from 2.x to 3.x (a major version)
-> unless this is caught first. Update this table's DataTables row alongside
-> the next intentional re-vendor.
+> **Historical record — superseded by [ADR-017](ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md).**
+> This table was accurate at the time this ADR was written but is no longer
+> maintained: it never matched reality for Dropzone and jQuery UI (neither
+> ever had a file present on disk despite being listed here as vendored);
+> the `flatpickr CSS` row that appeared above (removed from this table in
+> #1725) *did* exist on disk but was never actually loaded anywhere in the
+> app; and DataTables drifted from its declared `package.json` version once
+> Dependabot began bumping it (all three discovered and corrected in #1725). See
+> ADR-017 for the current, verified inventory.
 
 <!-- -->
 
@@ -123,7 +122,13 @@ variable for the path:
 
 ```php
 <script src="<?=$us_url_root?>usersc/js/datatables.min.js"></script>
+<script src="<?=$us_url_root?>usersc/js/datatables-fixedheader.min.js"></script>
+<script src="<?=$us_url_root?>usersc/js/datatables-responsive.min.js"></script>
 ```
+
+DataTables Core must load before the FixedHeader/Responsive extension scripts
+— they are jQuery plugins that register onto the `DataTable` object Core
+creates.
 
 No database lookup is performed. The `elan_*_cdn` columns in the `settings`
 table are no longer referenced by the application.
