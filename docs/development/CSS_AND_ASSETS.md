@@ -10,7 +10,7 @@ usersc/templates/customizer/assets/child_themes/elanregistry/
 └── consolidated.min.css      # Production (generated — do not edit directly)
 ```
 
-App-specific JS/CSS (DataTables, Dropzone, Chart.js) is vendored at `usersc/js/` and `usersc/css/`.
+App-specific JS/CSS (DataTables, Chart.js) is vendored at `usersc/js/` and `usersc/css/`.
 First-party JS/CSS for pages lives at `app/assets/js/` and `app/assets/css/`.
 
 ## Build Process
