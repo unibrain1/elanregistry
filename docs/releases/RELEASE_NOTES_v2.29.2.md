@@ -30,6 +30,7 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 
 ## Technical Changes
 
+- **LocationService test coverage** ([#1621](https://github.com/elan-registry/registry/issues/1621)): `LocationService`'s HTTP fallback branches (cURL failure, non-200 responses, and the all-services-failed path) are now unit-tested, closing a gap left by #1582's rewrite of the class.
 - **Automated frontend vendoring for DataTables/Chart.js** ([#1725](https://github.com/elan-registry/registry/issues/1725)): `package.json` had drifted from the actual served DataTables bundle (declared `3.0.1`, served `2.3.8`) since nothing rebuilt the hand-copied vendored file. `scripts/build.js` now builds DataTables (Core/FixedHeader/Responsive) and Chart.js from npm the same way it already does for FilePond/MapLibre GL, and a new CI check fails the build if the committed vendored files ever drift from a fresh build again. Also removes confirmed-dead jQuery UI/Dropzone/flatpickr code and 3 unused `settings` columns found during the audit. See [ADR-017](https://github.com/elan-registry/registry/blob/main/docs/development/adr/ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md) (supersedes ADR-015).
 - **Stale Dependabot config removed** ([#1731](https://github.com/elan-registry/registry/issues/1731)): `.github/dependabot.yml` still watched a `/usersc` composer.json that was consolidated into the root manifest by #1317.
 

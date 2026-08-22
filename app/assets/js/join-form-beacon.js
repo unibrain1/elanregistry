@@ -85,7 +85,7 @@
     };
 
     // Covers the api.js <script> tag itself failing to fetch (network block,
-    // DNS failure) — wired via that tag's onerror attribute in turnstile.php.
+    // DNS failure).
     window.elanTurnstileNotLoaded = function () {
         reportJoinFailure('turnstile_not_loaded', 'script failed to load');
         var msg = document.getElementById('turnstile-status-message');
@@ -94,6 +94,19 @@
             msg.classList.remove('d-none');
         }
     };
+
+    // Wired here via addEventListener rather than an inline onerror="..."
+    // attribute on the tag itself (usersc/includes/turnstile.php) — this
+    // site's CSP has no 'unsafe-inline'/script-src-attr exception, so an
+    // inline event-handler attribute is silently blocked by the browser and
+    // never fires. A same-origin script attaching the listener isn't subject
+    // to that restriction. Also covered, with a delay, by the render-poll
+    // below — this listener just reports the failure immediately instead of
+    // waiting up to 20s for the poll to notice the widget never rendered.
+    var turnstileScript = document.getElementById('elan-turnstile-script');
+    if (turnstileScript) {
+        turnstileScript.addEventListener('error', window.elanTurnstileNotLoaded);
+    }
 
     // Covers the case api.js loads and executes successfully but the widget
     // never actually renders (e.g. blocked by a CSP the browser silently

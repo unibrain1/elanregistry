@@ -8,9 +8,9 @@ use PHPUnit\Framework\TestCase;
 /**
  * Confirms the cross-file JS naming contract between
  * app/assets/js/join-form-beacon.js and the PHP files that reference its
- * globals by string (usersc/includes/turnstile.php's data-*-callback /
- * onerror attributes, usersc/join.php's onGPSError callback,
- * usersc/views/_join.php's #join-form id).
+ * globals by string (usersc/includes/turnstile.php's data-*-callback
+ * attributes and elan-turnstile-script id, usersc/join.php's onGPSError
+ * callback, usersc/views/_join.php's #join-form id).
  *
  * These are string-matched names across independently-edited files with no
  * compiler/linker to catch a drift — a rename on either side breaks the
@@ -74,7 +74,7 @@ final class Issue1690JoinFormBeaconRegressionTest extends TestCase
         );
     }
 
-    public function testBeaconDefinesElanTurnstileNotLoadedAndTurnstilePhpReferencesIt(): void
+    public function testBeaconDefinesElanTurnstileNotLoadedAndAttachesItToTheScriptTagId(): void
     {
         $beaconSource = $this->readFile(self::BEACON_JS_PATH);
         $turnstileSource = $this->readFile(self::TURNSTILE_PHP_PATH);
@@ -84,11 +84,30 @@ final class Issue1690JoinFormBeaconRegressionTest extends TestCase
             $beaconSource,
             'join-form-beacon.js must define window.elanTurnstileNotLoaded'
         );
+
+        // Wired via a same-origin addEventListener('error', ...) on the
+        // script tag's id, not an inline onerror="..." attribute — this
+        // site's CSP has no 'unsafe-inline'/script-src-attr exception, so an
+        // inline event-handler attribute is silently blocked and never
+        // fires (see turnstile.php's docblock).
         $this->assertStringContainsString(
-            'elanTurnstileNotLoaded',
+            "id=\"elan-turnstile-script\"",
             $turnstileSource,
-            'turnstile.php\'s script-tag onerror handler must reference the exact name '
-                . 'join-form-beacon.js defines — a mismatch means a blocked/failed script load is silently unreported'
+            'turnstile.php\'s script tag must carry the exact id join-form-beacon.js queries for — '
+                . 'a mismatch means a blocked/failed script load is never wired to a listener at all'
+        );
+        $this->assertStringContainsString(
+            "getElementById('elan-turnstile-script')",
+            $beaconSource,
+            'join-form-beacon.js must query for the exact id turnstile.php sets — a mismatch means '
+                . 'the addEventListener never attaches and a blocked/failed script load goes unreported '
+                . 'until the render-poll fallback catches it up to 20s later'
+        );
+        $this->assertStringNotContainsString(
+            "' onerror=\"",
+            $turnstileSource,
+            'turnstile.php must not echo an inline onerror="..." attribute into the Turnstile script tag — '
+                . 'this site\'s CSP silently blocks inline event-handler attributes, so it would never fire'
         );
     }
 
