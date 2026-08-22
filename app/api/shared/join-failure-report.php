@@ -40,7 +40,20 @@ if (!Token::check(Input::get('csrf'))) {
 // JS exceptions — none of them a real registration attempt) exhaust the cap
 // for every visitor behind a shared/NAT IP before any of them could submit
 // the form. See usersc/includes/rate_limits.php for the current values.
-if (!checkRateLimit('join_failure_beacon')) {
+//
+// checkRateLimit() lazily constructs \RateLimit on first call per request,
+// whose constructor opens a database connection and can throw — the same
+// failure mode LocationService::rateLimiterAllows() already documents and
+// fails open around. This endpoint's whole purpose is to never lose a
+// server-side trace of a failed join attempt, so a DB hiccup here must not
+// turn into an uncaught fatal; fail open (treat as allowed) and log instead.
+try {
+    $rateLimitAllowed = checkRateLimit('join_failure_beacon');
+} catch (\Throwable $e) {
+    logger(0, LogCategories::LOG_CATEGORY_REGISTRATION_FAILED, 'join-failure-report: rate limit check failed, failing open: ' . $e->getMessage());
+    $rateLimitAllowed = true;
+}
+if (!$rateLimitAllowed) {
     ApiResponse::error(getRateLimitErrorMessage('join_failure_beacon'), 429)->send();
 }
 

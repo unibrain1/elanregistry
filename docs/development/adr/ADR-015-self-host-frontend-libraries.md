@@ -44,9 +44,8 @@ The application required a frontend dependency strategy that:
 Replace database-driven CDN configuration with vendored local files committed
 to the repository under `usersc/js/` and `usersc/css/`. Library versions are
 pinned in `package.json` to enable Dependabot security alerts. Global
-libraries already managed by UserSpice (jQuery, Font Awesome, DataTables CSS,
-jQuery UI) continue to be loaded from their existing self-hosted locations in
-`users/`.
+libraries already managed by UserSpice (jQuery, Font Awesome, DataTables CSS)
+continue to be loaded from their existing self-hosted locations in `users/`.
 
 ### Libraries Vendored
 
@@ -59,7 +58,6 @@ jQuery UI) continue to be loaded from their existing self-hosted locations in
 | Dropzone JS | 5.7.6 | `usersc/js/dropzone.min.js` |
 | Dropzone CSS | 5.7.6 | `usersc/css/dropzone.min.css` |
 | Chart.js | 4.5.1 | `usersc/js/chart.umd.min.js` |
-| jQuery UI | 1.12.1 | `usersc/js/jquery-ui.min.js` |
 | MapLibre GL JS | 4.7.1 | `usersc/js/maplibre-gl.min.js` + `usersc/css/maplibre-gl.css` (replaces Google Maps, v2.22.0) |
 
 > **Historical record — superseded by [ADR-017](ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md).**
@@ -102,7 +100,9 @@ jQuery UI) continue to be loaded from their existing self-hosted locations in
 ### Libraries Eliminated
 
 - **Bootstrap Datepicker** — replaced by flatpickr (`dateFormat: 'Y-m-d'`) as part of #619.
-  flatpickr has no jQuery dependency and survives the planned jQuery UI removal in #726.
+  flatpickr had no jQuery dependency, so it survived the later jQuery UI
+  removal — but flatpickr itself was never actually loaded anywhere in the
+  app and was removed entirely in #1725 (see ADR-017).
 
 ### Libraries Already Self-Hosted (UserSpice-Managed)
 

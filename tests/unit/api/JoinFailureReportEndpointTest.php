@@ -68,7 +68,7 @@ final class JoinFailureReportEndpointTest extends TestCase
         $csrfPos = strpos($source, '!Token::check(Input::get(\'csrf\'))');
         $this->assertNotFalse($csrfPos, 'Could not locate the CSRF check');
 
-        $rateLimitPos = strpos($source, "!checkRateLimit('join_failure_beacon')");
+        $rateLimitPos = strpos($source, "checkRateLimit('join_failure_beacon')");
         $this->assertNotFalse($rateLimitPos, 'Could not locate the rate-limit check');
 
         $this->assertLessThan(
@@ -85,7 +85,7 @@ final class JoinFailureReportEndpointTest extends TestCase
         $csrfPos = strpos($source, '!Token::check(Input::get(\'csrf\'))');
         $this->assertNotFalse($csrfPos);
 
-        $rateLimitPos = strpos($source, "!checkRateLimit('join_failure_beacon')");
+        $rateLimitPos = strpos($source, "checkRateLimit('join_failure_beacon')");
         $this->assertNotFalse($rateLimitPos);
 
         $csrfBranch = substr($source, $csrfPos, $rateLimitPos - $csrfPos);
@@ -119,7 +119,7 @@ final class JoinFailureReportEndpointTest extends TestCase
     {
         $source = $this->endpointSource();
 
-        $rateLimitPos = strpos($source, "!checkRateLimit('join_failure_beacon')");
+        $rateLimitPos = strpos($source, "checkRateLimit('join_failure_beacon')");
         $this->assertNotFalse($rateLimitPos);
 
         $reasonPos = strpos($source, '$allowedReasons');
@@ -131,6 +131,41 @@ final class JoinFailureReportEndpointTest extends TestCase
             'ApiResponse::error(getRateLimitErrorMessage(\'join_failure_beacon\'), 429)',
             $rateLimitBranch,
             'A rate-limited request must return HTTP 429 via ApiResponse::error()'
+        );
+
+        $this->assertStringContainsString(
+            '!$rateLimitAllowed',
+            $rateLimitBranch,
+            'The 429 response must be gated on the rate-limit result, not the raw checkRateLimit() call — '
+                . 'the raw call is wrapped in try/catch so a thrown error fails open instead of fataling '
+                . '(see LocationService::rateLimiterAllows() for the same documented pattern)'
+        );
+    }
+
+    public function testRateLimitCheckFailsOpenOnThrow(): void
+    {
+        $source = $this->endpointSource();
+
+        $rateLimitPos = strpos($source, "checkRateLimit('join_failure_beacon')");
+        $this->assertNotFalse($rateLimitPos, 'Could not locate the rate-limit check');
+
+        $reasonPos = strpos($source, '$allowedReasons');
+        $this->assertNotFalse($reasonPos, 'Could not locate the reason-normalization block');
+
+        $rateLimitBranch = substr($source, $rateLimitPos - 400, $reasonPos - $rateLimitPos + 400);
+
+        $this->assertStringContainsString(
+            'try {',
+            $rateLimitBranch,
+            'checkRateLimit() opens a lazily-constructed \RateLimit, whose constructor can throw on a '
+                . 'DB connection failure — this endpoint must not let that become an uncaught fatal'
+        );
+        $this->assertStringContainsString('catch (\Throwable $e)', $rateLimitBranch);
+        $this->assertStringContainsString(
+            '$rateLimitAllowed = true;',
+            $rateLimitBranch,
+            'A thrown rate-limiter error must fail open (treat the request as allowed), matching '
+                . 'LocationService::rateLimiterAllows()\'s documented fail-open behavior'
         );
     }
 
