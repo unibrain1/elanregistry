@@ -50,4 +50,42 @@ final class RateLimitConfigTest extends TestCase
         $this->assertSame(3, $rateLimits['registration_recovery_email']['email_max']);
         $this->assertSame(3600, $rateLimits['registration_recovery_email']['email_window']);
     }
+
+    /**
+     * The 'location_search' rate-limit entry (issue #1582) must be configured
+     * in usersc/includes/rate_limits.php — LocationService::searchLocation()
+     * and ::reverseGeocode() both call checkRateLimit('location_search', ...)
+     * via the RateLimiterAdapter and will silently no-op (fail open) if it is
+     * missing, since LocationService's rate-limiter wrapper methods swallow
+     * any \Throwable from a misconfigured/missing action.
+     */
+    public function testLocationSearchActionIsConfigured(): void
+    {
+        $projectRoot = dirname(__DIR__, 3);
+
+        /** @var array<string, array<string, int>> $rateLimits */
+        $rateLimits = [];
+        require $projectRoot . '/usersc/includes/rate_limits.php';
+
+        $this->assertIsArray($rateLimits);
+        $this->assertArrayHasKey(
+            'location_search',
+            $rateLimits,
+            'location_search must be configured in usersc/includes/rate_limits.php '
+                . '(the project override, which wholesale-replaces the framework defaults) — '
+                . 'LocationService calls checkRateLimit() with this action name and will silently '
+                . 'no-op (fail open) if it is missing.'
+        );
+        // Mirrors the project's actual active location_search limits
+        // (usersc/includes/rate_limits.php). ip_max is PHP_INT_MAX only to
+        // satisfy the validator's required-key check and to disable the
+        // failed-attempts-only IP sub-limit — total_max is still keyed by
+        // identifier (IP, for anonymous callers) and is the limit that
+        // actually governs anonymous traffic, shared by searchLocation() and
+        // reverseGeocode() under the same 'location_search' action key.
+        $this->assertSame(PHP_INT_MAX, $rateLimits['location_search']['ip_max']);
+        $this->assertSame(60, $rateLimits['location_search']['ip_window']);
+        $this->assertSame(10, $rateLimits['location_search']['total_max']);
+        $this->assertSame(60, $rateLimits['location_search']['total_window']);
+    }
 }

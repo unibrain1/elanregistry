@@ -209,6 +209,22 @@ $rateLimits = [
         'total_max'    => 10,
         'total_window' => 60,
     ],
+
+    // Location search/reverse-geocode autocomplete (#1582). Shared by both
+    // LocationService::searchLocation() and reverseGeocode() — there is no
+    // separate location_reverse action. ip_max is set to PHP_INT_MAX only to
+    // satisfy the validator's required-key check and to disable the
+    // failed-attempts-only IP sub-limit — it does NOT disable per-IP scoping.
+    // total_max is the limit that actually governs anonymous traffic, and
+    // RateLimit::check() keys total_max by identifier (IP, for an anonymous
+    // caller) just like ip_max, so this remains a genuine per-visitor bucket,
+    // not a shared global one — see tests/integration/LocationRateLimitIsolationTest.php.
+    'location_search' => [
+        'ip_max'       => PHP_INT_MAX,
+        'ip_window'    => 60,
+        'total_max'    => 10,
+        'total_window' => 60,
+    ],
 ];
 
 //You can also override individual limits with custom values.

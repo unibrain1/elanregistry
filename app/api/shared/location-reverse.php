@@ -27,13 +27,14 @@ if ($method !== 'POST') {
     ApiResponse::error('Method not allowed', 405)->send();
 }
 
-// Get user ID (0 for anonymous users during registration)
-$userId = $user->isLoggedIn() ? (int)$user->data()->id : 0;
+// Get user ID (null for anonymous users during registration)
+$userId = $user->isLoggedIn() ? (int)$user->data()->id : null;
+$logUserId = $userId ?? 0;
 
 // Verify CSRF token (required for all requests)
 if (!Token::check(Input::get('csrf'))) {
     ApiResponse::forbidden('Invalid CSRF token')
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_SECURITY, 'Invalid CSRF token in location reverse')
+        ->withLogging($logUserId, LogCategories::LOG_CATEGORY_SECURITY, 'Invalid CSRF token in location reverse')
         ->send();
 }
 
@@ -42,7 +43,7 @@ try {
     $lat = Input::get('lat');
     $lon = Input::get('lon');
 
-    if ($lat === null || $lon === null) {
+    if (!is_numeric($lat) || !is_numeric($lon)) {
         throw new LocationServiceException('Latitude and longitude are required');
     }
 
@@ -57,18 +58,17 @@ try {
     // Return result
     ApiResponse::success('Reverse geocoding completed')
         ->withData('location', $result)
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_LOCATION_REVERSE, "Reverse geocoding: lat=$lat, lon=$lon")
         ->send();
 
 } catch (LocationServiceException $e) {
     // Location service specific error (rate limit, API failure, invalid coordinates)
     ApiResponse::error($e->getMessage(), 400)
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_LOCATION_REVERSE, 'Reverse geocoding failed: ' . $e->getMessage())
+        ->withLogging($logUserId, LogCategories::LOG_CATEGORY_LOCATION_REVERSE, 'Reverse geocoding failed: ' . $e->getMessage())
         ->send();
 
 } catch (\Throwable $e) {
     // Catch-all for unexpected errors (database, file system, etc.)
     ApiResponse::serverError('An error occurred while reverse geocoding coordinates')
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Reverse geocoding error: ' . $e->getMessage())
+        ->withLogging($logUserId, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Reverse geocoding error: ' . $e->getMessage())
         ->send();
 }
