@@ -28,6 +28,11 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 
 - **Rate limit log cleanup maintenance script** ([#1582](https://github.com/elan-registry/registry/issues/1582)): New repeatable admin maintenance script (`app/admin/scripts/maintenance/25-Cleanup-Rate-Limits.php`) purges `us_rate_limits` rows older than 24 hours — same operation already available from the Rate Limiting Control Center's cleanup modal, now runnable on demand without visiting that page.
 
+## Technical Changes
+
+- **Automated frontend vendoring for DataTables/Chart.js** ([#1725](https://github.com/elan-registry/registry/issues/1725)): `package.json` had drifted from the actual served DataTables bundle (declared `3.0.1`, served `2.3.8`) since nothing rebuilt the hand-copied vendored file. `scripts/build.js` now builds DataTables (Core/FixedHeader/Responsive) and Chart.js from npm the same way it already does for FilePond/MapLibre GL, and a new CI check fails the build if the committed vendored files ever drift from a fresh build again. Also removes confirmed-dead jQuery UI/Dropzone/flatpickr code and 3 unused `settings` columns found during the audit. See [ADR-017](https://github.com/elan-registry/registry/blob/main/docs/development/adr/ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md) (supersedes ADR-015).
+- **Stale Dependabot config removed** ([#1731](https://github.com/elan-registry/registry/issues/1731)): `.github/dependabot.yml` still watched a `/usersc` composer.json that was consolidated into the root manifest by #1317.
+
 ## Issues Resolved
 
 - [#1582](https://github.com/elan-registry/registry/issues/1582) — fix: location rate-limiting — per-requester buckets, dead lat/lon guard, and us_rate_limits retention
@@ -35,3 +40,4 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 - [#1621](https://github.com/elan-registry/registry/issues/1621) — test: LocationService HTTP fallback branches (cURL failure, non-200, all-services-failed) untested
 - [#1690](https://github.com/elan-registry/registry/issues/1690) — fix: join form submit silently fails on iOS/Google-App webview — no POST, no error, no server-side record
 - [#1725](https://github.com/elan-registry/registry/issues/1725) — tech-debt: revisit ADR-015 — vendored frontend library versions can drift from package.json
+- [#1731](https://github.com/elan-registry/registry/issues/1731) — chore: remove stale /usersc composer-ecosystem entry from dependabot.yml
