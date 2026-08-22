@@ -24,8 +24,9 @@ We follow the [Michael Nygard ADR template](https://cognitect.com/blog/2011/11/1
 | [ADR-012](ADR-012-adopt-brevo-for-transactional-email-delivery.md) | Adopt Brevo (Sendinblue) for Transactional Email Delivery | In Review | Low |
 | [ADR-013](ADR-013-pdf-reference-library-storage.md) | Store PDF Reference Library on A2 Hosting with Database-Driven Metadata | Superseded (by issue #715) | Medium |
 | [ADR-014](ADR-014-replace-secure-env-php-with-phpdotenv.md) | Replace johnathanmiller/secure-env-php with vlucas/phpdotenv | Accepted | High |
-| [ADR-015](ADR-015-self-host-frontend-libraries.md) | Self-Host Frontend Libraries via Source-Controlled Assets | Accepted | High |
+| [ADR-015](ADR-015-self-host-frontend-libraries.md) | Self-Host Frontend Libraries via Source-Controlled Assets | Superseded (by ADR-017) | High |
 | [ADR-016](ADR-016-file-based-navigation-customizer-template.md) | File-Based Navigation for Customizer Template | Accepted | Medium |
+| [ADR-017](ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md) | Automate Frontend Vendoring via npm Build Pipeline | Accepted | Medium |
 
 ## Statuses
 

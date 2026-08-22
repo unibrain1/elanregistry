@@ -484,13 +484,10 @@ ul.us_menu.dark > li.active > a {
   color: var(--er-on-accent) !important;
 }
 
-/* Form focus — Bootstrap hardcodes #86b7fe focus border at component scope;
-   flatpickr also overrides focus on .flatpickr-input — !important required for both. */
+/* Form focus — Bootstrap hardcodes #86b7fe focus border at component scope. */
 .form-control:focus,
 .form-select:focus,
-.form-check-input:focus,
-.flatpickr-input:focus,
-.flatpickr-input.active {
+.form-check-input:focus {
   border-color: var(--er-primary) !important;
   box-shadow: 0 0 0 0.25rem rgba(var(--er-primary-rgb), 0.25) !important;
 }

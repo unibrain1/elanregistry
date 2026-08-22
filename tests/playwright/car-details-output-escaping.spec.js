@@ -7,7 +7,7 @@
 // output. These fields were "accidentally safe" before the encode-at-output reform
 // because Input::sanitize() pre-encoded values at storage time.
 //
-// Requires local MAMP at http://localhost:9999/elan-registry
+// Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 
 const { test, expect } = require('@playwright/test');
 

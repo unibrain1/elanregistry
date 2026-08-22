@@ -487,18 +487,6 @@ parameters:
 			path: usersc/oauth_server/login_scripts/default_script.php
 
 		-
-			message: '#^Variable \$o might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/scripts/datepicker.php
-
-		-
-			message: '#^Variable \$o might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/scripts/datetimepicker.php
-
-		-
 			message: '#^Variable \$theNewId might not be defined\.$#'
 			identifier: variable.undefined
 			count: 5

@@ -84,12 +84,18 @@ if ($act == 1 || $settings->no_passwords == 1) {
 if (Input::existsPost()) {
     $token = Input::get('csrf');
     if (!Token::check($token)) {
+        logger(0, LogCategories::LOG_CATEGORY_REGISTRATION_FAILED,
+            'join.php: Registration blocked — CSRF token check failed',
+            ['stage' => 'csrf', 'user_agent' => $user_agent ?? '']);
         include $abs_us_root.$us_url_root.'usersc/scripts/token_error.php';
     }
 
     // Check rate limit for registration attempts before processing
     if (!checkRateLimit('registration_attempt')) {
         $errors[] = getRateLimitErrorMessage('registration_attempt');
+        logger(0, LogCategories::LOG_CATEGORY_REGISTRATION_FAILED,
+            'join.php: Registration blocked — rate limit exceeded',
+            ['stage' => 'rate_limit', 'user_agent' => $user_agent ?? '']);
         usError(getRateLimitErrorMessage('registration_attempt'));
         Redirect::to(currentPage());
         exit;
@@ -305,8 +311,13 @@ if (Input::existsPost()) {
         ]);
 
         // Log the failure — generic message avoids confirming whether the email exists
-        logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
-            'join.php: Registration failed — ' . count($validation->_errors ?? []) . ' validation error(s)');
+        logger(0, LogCategories::LOG_CATEGORY_REGISTRATION_FAILED,
+            'join.php: Registration failed — ' . count($validation->_errors ?? []) . ' validation error(s)',
+            [
+                'stage'        => 'validation',
+                'error_count'  => count($validation->_errors ?? []),
+                'user_agent'   => $user_agent ?? '',
+            ]);
 
         // Silently notify the existing account holder if this email is already taken (#1406) —
         // the generic failure message below is shown regardless of whether this fires; the
@@ -421,7 +432,17 @@ includeHook($hooks, 'bottom');
                 csrfToken: '<?=Token::generate()?>',
                 urlRoot: urlRoot,
                 showGPS: true,
-                required: true
+                required: true,
+                // Location is a required field — a GPS failure here can block
+                // registration the same way a blocked submit does, and would
+                // otherwise be just as invisible server-side. Reuses the join
+                // page's own failure beacon (#1690) rather than adding a
+                // second reporting path. See app/assets/js/join-form-beacon.js.
+                onGPSError: function (error) {
+                    if (typeof window.elanReportJoinFailure === 'function') {
+                        window.elanReportJoinFailure('location_gps_failed', 'code=' + (error && error.code));
+                    }
+                }
             });
         }
 

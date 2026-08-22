@@ -741,6 +741,27 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
       to: `/docs/pdf-viewer.php?subdir=stories&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
       label: 'pdf-viewer.php legacy subdir=stories/assets → subdir=stories',
     },
+    // #1594: case-insensitive, cross-subdir document resolution. An orphaned
+    // docs/embed.php still lives on production disk (deleted from git) and
+    // always links with subdir=reference, without normalizing filename case —
+    // so requests can arrive with the right filename but wrong subdir, the
+    // right subdir but wrong case, or both wrong at once. All three should
+    // 301 to the canonical subdir + on-disk exact case.
+    {
+      from: `/docs/pdf-viewer.php?subdir=reference&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
+      to: `/docs/pdf-viewer.php?subdir=stories&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
+      label: 'pdf-viewer.php #1594 correct filename/case but wrong subdir (reference → stories)',
+    },
+    {
+      from: '/docs/pdf-viewer.php?subdir=reference&doc=Elan_S1_S2_Coupe_Masterpartslist.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'pdf-viewer.php #1594 correct subdir but wrong filename case',
+    },
+    {
+      from: '/docs/pdf-viewer.php?subdir=stories&doc=Elan_S1_S2_Coupe_Masterpartslist.pdf',
+      to: '/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf',
+      label: 'pdf-viewer.php #1594 wrong subdir AND wrong filename case',
+    },
   ];
 
   redirects.forEach(({ from, to, label }) => {
@@ -757,11 +778,15 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
   });
 
   test('200: pdf-viewer.php valid subdir and existing document', async ({ page }) => {
-    const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
-      { waitUntil: 'networkidle' }
-    );
+    const targetUrl = `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf`;
+    const response = await page.goto(targetUrl, { waitUntil: 'networkidle' });
     expect(response?.status()).toBe(200);
+
+    // #1594 regression: the case-insensitive/cross-subdir resolution step
+    // only runs when the direct subdir+doc path does not exist on disk — an
+    // already-canonical request like this one must never be bounced through
+    // the glob/301 path.
+    expect(page.url()).toBe(targetUrl);
 
     // Also discriminate on the error text, not just the status: a real render
     // and any 200-status error branch would both pass a bare status check
@@ -802,6 +827,13 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(404);
+
+    // #1594: this filename matches nothing in the case-insensitive glob scan
+    // across allowlisted subdirs either, so this also proves the new
+    // resolution loop falls through cleanly to the original 404 rather than
+    // erroring out along the way.
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).toContain('Document not found.');
   });
 
   test('404: pdf-viewer.php omitted subdir with existing document — regression for wrong-directory file_exists() fallback', async ({ page }) => {

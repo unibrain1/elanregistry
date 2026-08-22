@@ -25,13 +25,14 @@ if ($method !== 'POST') {
     ApiResponse::error('Method not allowed', 405)->send();
 }
 
-// Get user ID (0 for anonymous users during registration)
-$userId = $user->isLoggedIn() ? (int)$user->data()->id : 0;
+// Get user ID (null for anonymous users during registration)
+$userId = $user->isLoggedIn() ? (int)$user->data()->id : null;
+$logUserId = $userId ?? 0;
 
 // Verify CSRF token (required for all requests)
 if (!Token::check(Input::get('csrf'))) {
     ApiResponse::forbidden('Invalid CSRF token')
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_SECURITY, 'Invalid CSRF token in location search')
+        ->withLogging($logUserId, LogCategories::LOG_CATEGORY_SECURITY, 'Invalid CSRF token in location search')
         ->send();
 }
 
@@ -61,18 +62,17 @@ try {
     ApiResponse::success('Search completed')
         ->withData('results', $results)
         ->withData('count', count($results))
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Location search: ' . $query)
         ->send();
 
 } catch (LocationServiceException $e) {
     // Location service specific error (rate limit, API failure, etc.)
     ApiResponse::error($e->getMessage(), 400)
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Location search failed: ' . $e->getMessage())
+        ->withLogging($logUserId, LogCategories::LOG_CATEGORY_LOCATION_SERVICE, 'Location search failed: ' . $e->getMessage())
         ->send();
 
 } catch (\Throwable $e) {
     // Catch-all for unexpected errors (database, file system, etc.)
     ApiResponse::serverError('An error occurred while searching locations')
-        ->withLogging($userId, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Location search error: ' . $e->getMessage())
+        ->withLogging($logUserId, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Location search error: ' . $e->getMessage())
         ->send();
 }
