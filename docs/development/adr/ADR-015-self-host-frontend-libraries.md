@@ -60,15 +60,16 @@ jQuery UI) continue to be loaded from their existing self-hosted locations in
 | Dropzone CSS | 5.7.6 | `usersc/css/dropzone.min.css` |
 | Chart.js | 4.5.1 | `usersc/js/chart.umd.min.js` |
 | jQuery UI | 1.12.1 | `usersc/js/jquery-ui.min.js` |
-| flatpickr CSS | 4.6.13 | `usersc/css/flatpickr.min.css` |
 | MapLibre GL JS | 4.7.1 | `usersc/js/maplibre-gl.min.js` + `usersc/css/maplibre-gl.css` (replaces Google Maps, v2.22.0) |
 
 > **Historical record — superseded by [ADR-017](ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md).**
 > This table was accurate at the time this ADR was written but is no longer
 > maintained: it never matched reality for Dropzone and jQuery UI (neither
-> ever had a file present on disk despite being listed here as vendored),
-> and DataTables drifted from its declared `package.json` version once
-> Dependabot began bumping it (both discovered and corrected in #1725). See
+> ever had a file present on disk despite being listed here as vendored);
+> the `flatpickr CSS` row that appeared above (removed from this table in
+> #1725) *did* exist on disk but was never actually loaded anywhere in the
+> app; and DataTables drifted from its declared `package.json` version once
+> Dependabot began bumping it (all three discovered and corrected in #1725). See
 > ADR-017 for the current, verified inventory.
 
 <!-- -->
