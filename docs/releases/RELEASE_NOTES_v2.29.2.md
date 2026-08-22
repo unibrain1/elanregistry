@@ -26,10 +26,6 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 - **DI-by-default CI guardrail** ([#1515](https://github.com/elan-registry/registry/issues/1515)): One-line description — TBD as work completes.
 - **Rate limit log cleanup maintenance script** ([#1582](https://github.com/elan-registry/registry/issues/1582)): New repeatable admin maintenance script (`app/admin/scripts/maintenance/25-Cleanup-Rate-Limits.php`) purges `us_rate_limits` rows older than 24 hours — same operation already available from the Rate Limiting Control Center's cleanup modal, now runnable on demand without visiting that page.
 
-## Technical Changes
-
-- **LocationService HTTP fallback test coverage** ([#1621](https://github.com/elan-registry/registry/issues/1621)): Added unit tests for previously-uncovered branches of `LocationService::makeHttpRequest()` (cURL failure, non-200 HTTP status, `file_get_contents` fallback when the cURL extension is unavailable) and `searchLocation()`'s "all services failed" throw. Test-only — no production behavior changes.
-
 ## Issues Resolved
 
 - [#1515](https://github.com/elan-registry/registry/issues/1515) — ci: add DI-by-default convention guardrail
