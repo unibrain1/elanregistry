@@ -85,18 +85,94 @@ gh pr view <pr-number> --json isDraft --repo elan-registry/registry -q .isDraft
    gh run watch <run-id> --repo elan-registry/registry
    ```
 
-3. Report the review result. If the review posted **Blocking** findings, stop
+3. **The run completing is not proof a review was posted** — a job can
+   report success while the action silently skipped (e.g. the workflow-file-
+   match guard) or exhausted its turns before calling `gh pr comment`. Verify
+   the actual comment exists before trusting the result:
+
+   ```bash
+   gh api "repos/elan-registry/registry/issues/<pr-number>/comments" \
+     --jq '[.[] | select(.body | test("#{1,6}\\s+Strengths|\\*\\*Strengths\\*\\*"))] | length'
+   ```
+
+   (Same "Strengths"-heading pattern the workflow's own gate step uses to
+   confirm a real review landed — see #1724.) If the run completed but no
+   matching comment exists, treat this the same as a failed trigger: report
+   it to the user and do not proceed to marking the PR ready.
+
+4. Report the review result. If the review posted **Blocking** findings, stop
    here and tell the user to fix them before proceeding.
 
-4. Once the review is clean (no Blocking items), mark the PR as ready. This
-   is the moment watchers are notified — immediately followed by merge:
+5. Once the review is clean (no Blocking items) and item 3 above confirmed a
+   comment was actually posted, mark the PR as ready. This is the moment
+   watchers are notified — immediately followed by merge:
 
    ```bash
    gh pr ready <pr-number> --repo elan-registry/registry
    ```
 
-**If the PR is already ready (not a draft):** skip to Step 3 — the Claude
-review already ran when the PR was pushed.
+**If the PR is already ready (not a draft):** proceed to Step 2.6 to verify
+the review that should have run on push, before moving to Step 3.
+
+### Step 2.6: Verify the pushed-PR review actually posted (non-draft path)
+
+Skip this step if Step 2.5 already ran (draft PR path) — it already verified
+comment presence before marking the PR ready.
+
+For a PR that was already ready-for-review when pushed,
+`pr-to-milestone-review` is expected to have run automatically on the
+`opened` event. **Do not assume this happened — the same event can be
+silently suppressed by GitHub's abuse/rate throttle (see #1724), and even a
+"successful" job run does not guarantee a comment was posted** (e.g. the
+action's workflow-file-match guard can skip execution without failing the
+job — see `claude-code-review.yml`'s header comment block).
+
+Check for the actual review comment, not job status:
+
+```bash
+gh api "repos/elan-registry/registry/issues/<pr-number>/comments" \
+  --jq '[.[] | select(.body | test("#{1,6}\\s+Strengths|\\*\\*Strengths\\*\\*"))] | length'
+```
+
+Poll every ~15s for up to ~2 minutes (`pr-to-milestone-review` is the
+lightweight Sonnet job, faster than the milestone-level Fable review).
+
+**If a matching comment is found:** proceed to Step 3 as normal. This step
+doesn't inspect the comment for Blocking findings the way Step 2.5 does —
+`claude-code-review.yml`'s own gate step already hard-fails the "Claude Code
+Review" CI check when Blocking findings are posted, and Step 3/4 below stop
+on any failed check. That downstream check is where Blocking findings on a
+non-draft PR actually get caught.
+
+**If no matching comment appears after the poll window:**
+
+1. Check whether a run was even triggered:
+
+   ```bash
+   HEAD_SHA=$(gh pr view <pr-number> --json headRefOid -q .headRefOid --repo elan-registry/registry)
+   gh run list --workflow=claude-code-review.yml --repo elan-registry/registry \
+     --json databaseId,headSha,status,conclusion,event \
+     --jq --arg sha "$HEAD_SHA" '[.[] | select(.headSha == $sha)]'
+   ```
+
+2. Re-trigger via the same mechanism Step 2.5 uses for drafts:
+
+   ```bash
+   gh workflow run claude-code-review.yml \
+     --ref main \
+     --field pr_number=<pr-number> \
+     --repo elan-registry/registry
+   ```
+
+3. Wait for the new run and re-check for the comment the same way. If it
+   still doesn't appear and the PR's diff touches
+   `.github/workflows/claude-code-review.yml`, this is the self-referential
+   workflow-file skip case — report it distinctly; re-triggering will not
+   fix it until the workflow file change is merged to `main`.
+
+4. Report to the user that recovery was needed and what happened — never
+   silently proceed to Step 3 without a confirmed comment or an explicit,
+   reported reason recovery isn't applicable.
 
 ### Step 3: Monitor CI checks
 
@@ -276,8 +352,7 @@ ls ../Plans/sprints/<version>.md
 
 **If no matching file exists:** skip this step silently.
 
-**If found:** read its sequence line (e.g. `**#1591 → #1547 → #1438 →
-#1439**`) and check whether issue `#$ARGUMENTS` appears in it.
+**If found:** read its sequence line (e.g. `**#1591 → #1547 → #1438 → #1439**`) and check whether issue `#$ARGUMENTS` appears in it.
 
 - **If present and not already marked complete:** prefix the issue's number
   with a checkmark, e.g. `#1591` → `✅#1591`. Preserve the rest of the line
@@ -313,6 +388,9 @@ Output a summary:
 
 - Issue #`<number>` — closed
 - PR #`<pr-number>` — squash-merged into `<milestone-branch>`
+- CI review status (from Step 2.5 or 2.6): "posted normally" / "no run was
+  triggered — re-triggered, now posted" / "ran but posted nothing —
+  self-referential workflow-file change" / etc. — never omit this line
 - Documentation — `composer check:docs` result, and any doc updated in this PR
   (or "no doc impact"). Note any **wiki** page needing a separate
   `/publish-wiki` run.
@@ -349,6 +427,12 @@ Suggest next steps:
 
 ## Important
 
+- **Never trust a completed CI review run without confirming its comment
+  posted.** A job `conclusion: success` does not prove `gh pr comment` was
+  called — GitHub's abuse/rate throttle can suppress the triggering event
+  entirely, and the action's own workflow-file-match guard (or turn
+  exhaustion) can complete a job while posting nothing. Steps 2.5 and 2.6
+  verify actual comment presence, not job status (see #1724).
 - **Never force-merge if checks are failing.** Always investigate and report
   first.
 - **Never merge with new PHPStan baseline entries on touched files.** CI's
