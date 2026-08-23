@@ -63,13 +63,17 @@ jobs:
     runs-on: ubuntu-latest
 
     # mysql:8.0 service container: a dedicated, ephemeral test schema for this
-    # job run only, never reachable outside the runner. MYSQL_ALLOW_EMPTY_PASSWORD
-    # is safe here for the same reason (no external network exposure).
+    # job run only, never reachable outside the runner. The root password below
+    # is not a secret — it only ever exists inside this ephemeral container,
+    # never reachable outside the runner — but it must be non-empty:
+    # scripts/provision-schema.sh's read_env() deliberately treats an empty
+    # value the same as a missing key (a common real-world misconfiguration
+    # guard), so an empty DB_PASS in .env.test.local aborts provisioning.
     services:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_ROOT_PASSWORD: ci_root_password
           MYSQL_DATABASE: elanregi_spice_test
         ports:
           - 3306:3306
@@ -115,7 +119,7 @@ jobs:
           DB_HOST=127.0.0.1
           DB_PORT=3306
           DB_USER=root
-          DB_PASS=
+          DB_PASS=ci_root_password
           DB_NAME=elanregi_spice_test
           EOF
 
