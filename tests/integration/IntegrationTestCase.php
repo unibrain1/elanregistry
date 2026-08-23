@@ -89,6 +89,26 @@ abstract class IntegrationTestCase extends TestCase
         $this->restoreGlobalUser();
 
         if ($this->databaseConnected) {
+            // Defense-in-depth: the whole integration suite shares one DB connection
+            // (phpunit-integration.xml's processIsolation="false"), so a test that opens
+            // a transaction and then fails an assertion before its own rollback runs
+            // (see CarMergeTest.php's testCarRepositoryTransactionRollbackPreservesCarAndOwnerAssignment
+            // for a real instance of this bug, fixed via try/finally) leaks that open
+            // transaction into every subsequent test in the process, corrupting their
+            // reads/writes in ways that look unrelated to the actual leaking test. Every
+            // individual transaction-using test should already guard itself with
+            // try/finally; this is a second, process-wide safety net so a future
+            // unguarded beginTransaction() fails loudly here instead of silently
+            // poisoning whichever test happens to run next.
+            // instanceof guard: a few tests (e.g. IntegrationTestCaseAuthHelperTest)
+            // deliberately swap $this->db for a bare test stub that only implements
+            // query()/delete(), to probe tearDown()'s own cleanup-ordering behavior —
+            // this check must not assume $this->db is always a full DbAdapter.
+            if ($this->db instanceof DbAdapter && $this->db->inTransaction()) {
+                fwrite(STDERR, "WARNING: tearDown() found an open transaction left by this test — rolling back to avoid poisoning subsequent tests.\n");
+                $this->db->rollBack();
+            }
+
             foreach ($this->createdCarIds as $carId) {
                 try {
                     $this->db->query("DELETE FROM car_transfer_requests WHERE existing_car_id = ?", [$carId]);
