@@ -57,8 +57,39 @@ Promise.all([
   }
   console.log(`Copied ${vendorFiles.length} vendor files.`);
 
-  // Copy MapLibre GL JS self-hosted assets
-  fs.copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl.js', 'usersc/js/maplibre-gl.min.js');
+  // Bundle MapLibre GL JS as a flat global (6.x ships ESM-only, no UMD
+  // bundle) plus its co-located worker file and CSS.
+  await esbuild.build({
+    entryPoints: ['scripts/maplibre-entry.mjs'],
+    bundle: true,
+    format: 'iife',
+    globalName: 'maplibregl',
+    minify: true,
+    outfile: 'usersc/js/maplibre-gl.min.js',
+  });
+  // .js (not .mjs) — some servers (e.g. MAMP/Apache with no .mjs MIME
+  // mapping, or serving .mjs with X-Content-Type-Options: nosniff and no
+  // Content-Type) silently hang Chrome's `type: 'module'` Worker constructor
+  // forever (map never renders, no console error). MapLibre's worker bundle
+  // itself imports a second sibling chunk (maplibre-gl-shared.mjs) — that
+  // chunk must be copied under the same .js rename, and the worker's own
+  // import statement rewritten to match, or the worker's internal module
+  // import 404s.
+  const workerSrc = fs.readFileSync('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs', 'utf8');
+  const rewrittenWorkerSrc = workerSrc.replace(/\.\/([\w-]+)\.mjs/g, './$1.js');
+  // Only relative-import syntax matters here (`./name.mjs`) — the source also
+  // contains a harmless standalone ".mjs" string (dead default-worker-URL
+  // fallback code) and a `//# sourceMappingURL=....mjs.map` comment, neither
+  // of which is an actual sibling-chunk import, so don't flag those.
+  if (/\.\/[\w-]+\.mjs/.test(rewrittenWorkerSrc)) {
+    throw new Error(
+      'maplibre-gl-worker.mjs still references a .mjs sibling chunk after rewrite — ' +
+      'MapLibre likely changed its worker chunk layout; update scripts/build.js to vendor ' +
+      'the new chunk(s) under .js names (see git history for why .mjs breaks on MAMP/Apache).'
+    );
+  }
+  fs.writeFileSync('usersc/js/maplibre-gl-worker.js', rewrittenWorkerSrc);
+  fs.copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs', 'usersc/js/maplibre-gl-shared.js');
   fs.copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl.css', 'usersc/css/maplibre-gl.css');
   console.log('Copied MapLibre GL JS assets.');
 
