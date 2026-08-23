@@ -246,18 +246,26 @@ final class CarMergeTest extends IntegrationTestCase
         // Simulate a mid-merge abort: steps 1 and 2 run, but step 3 (deleteCar) never fires
         $repo = new CarRepository($this->db);
         $repo->beginTransaction();
-        $this->assertTrue(
-            $repo->transferHistory($this->testCarId, $this->testMergeCarId),
-            'Precondition: transferHistory must succeed within transaction'
-        );
-        // Mid-transaction: hist rows must now point to the merge target (visible within same connection)
-        $histMid = $this->db->query(
-            'SELECT * FROM cars_hist WHERE car_id = ?',
-            [$this->testMergeCarId]
-        )->count();
-        $this->assertGreaterThan(0, $histMid, 'mid-transaction: transferHistory must have moved hist rows to merge target');
-
-        $repo->rollback();
+        try {
+            $this->assertTrue(
+                $repo->transferHistory($this->testCarId, $this->testMergeCarId),
+                'Precondition: transferHistory must succeed within transaction'
+            );
+            // Mid-transaction: hist rows must now point to the merge target (visible within same connection)
+            $histMid = $this->db->query(
+                'SELECT * FROM cars_hist WHERE car_id = ?',
+                [$this->testMergeCarId]
+            )->count();
+            $this->assertGreaterThan(0, $histMid, 'mid-transaction: transferHistory must have moved hist rows to merge target');
+        } finally {
+            // Never leak an open transaction into the next test if an assertion above
+            // fails — the suite shares one connection across all 481 tests
+            // (phpunit-integration.xml's processIsolation="false"), so an unrolled-back
+            // transaction here silently corrupts whichever test runs next.
+            if ($this->db->inTransaction()) {
+                $repo->rollback();
+            }
+        }
 
         // Assertions: every in-transaction change must be fully reverted
 
