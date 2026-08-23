@@ -146,6 +146,24 @@ non-draft PR actually get caught.
 
 **If no matching comment appears after the poll window:**
 
+0. **First, check whether the PR opted out of review.** `pr-to-milestone-review`
+   deliberately skips on titles containing `[skip-review]` or `[WIP]` (see
+   `claude-code-review.yml`'s `if:` condition) — no comment is the *correct*,
+   by-design outcome there, not a failure:
+
+   ```bash
+   gh pr view <pr-number> --json title -q .title --repo elan-registry/registry
+   ```
+
+   If the title contains `[skip-review]` or `[WIP]`, **stop here** — report
+   "review intentionally skipped per title tag" and proceed to Step 3. Do
+   NOT re-trigger: the `gh workflow run` recovery below fires via
+   `workflow_dispatch`, whose `if:` condition has **no title check at all**
+   — running it on an opted-out PR would force a real review the author
+   explicitly declined, which could itself surface unwanted Blocking
+   findings. Only proceed to the numbered recovery steps below if the title
+   does not carry either tag.
+
 1. Check whether a run was even triggered:
 
    ```bash

@@ -494,8 +494,25 @@ the lightweight Sonnet per-push reviews). If a matching comment appears,
 **the review ran successfully** — note this in the Step 12 summary and move
 on.
 
-**If no matching comment appears after the poll window**, determine which
-failure mode this is before recovering:
+**If no matching comment appears after the poll window**, first check
+whether the PR opted out of review — `milestone-review` deliberately skips on
+titles containing `[skip-review]` (see `claude-code-review.yml`'s `if:`
+condition, which applies even to the label-triggered event):
+
+```bash
+gh pr view "$PR_NUM" --json title -q .title --repo elan-registry/registry
+```
+
+If the title contains `[skip-review]`, no comment is the **correct**,
+by-design outcome, not a failure — report "review intentionally skipped per
+title tag" and proceed to Step 12. (Applying the `deep-review` label in this
+case is harmless — the job's `if:` still blocks on the title tag even for
+the labeled event, so it would silently no-op rather than force a review —
+but doing so anyway just wastes a poll cycle for no benefit; skip straight to
+reporting instead.)
+
+If the title carries neither tag, determine which failure mode this is
+before recovering:
 
 ```bash
 HEAD_SHA=$(gh pr view "$PR_NUM" --json headRefOid -q .headRefOid --repo elan-registry/registry)
@@ -525,7 +542,13 @@ gh run list --workflow=claude-code-review.yml --repo elan-registry/registry \
   effect once merged to `main`. Report this to the user distinctly (do not
   silently re-trigger). If the diff does not touch that file, treat it the
   same as "never triggered" above (apply the `deep-review` label, re-poll)
-  since the cause is likely agent turn-exhaustion rather than the file guard.
+  since `claude-code-review.yml` already has a fallback-post step for
+  turn-exhaustion (it posts Claude's last result text directly — see the
+  workflow's own comment referencing PR #1529), so a run that completed with
+  zero comment and an untouched workflow file more likely means that
+  fallback step itself failed to post (e.g. a `gh pr comment` / API error,
+  or an empty execution file) than plain turn-exhaustion. Either way the
+  recovery action is the same — re-trigger and re-poll.
 
 **Never report this step as complete without a confirmed comment or an
 explicit, reported reason recovery isn't applicable.** This verify-then-
