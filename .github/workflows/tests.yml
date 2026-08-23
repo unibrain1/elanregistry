@@ -57,3 +57,82 @@ jobs:
         # — a Regression test tagged known-broken must be excluded here too or
         # the escape hatch silently wouldn't apply to it.
         run: composer test:regression:ci
+
+  integration:
+    name: PHPUnit Integration
+    runs-on: ubuntu-latest
+
+    # mysql:8.0 service container: a dedicated, ephemeral test schema for this
+    # job run only, never reachable outside the runner. MYSQL_ALLOW_EMPTY_PASSWORD
+    # is safe here for the same reason (no external network exposure).
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: elanregi_spice_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Write .env.test.local for CI
+        # bootstrap-integration.php requires this file to exist (by design, it
+        # never falls back to .env/.env.local — see that file's header comment)
+        # and refuses to run against a database named elanregi_spice, so the
+        # CI-only schema name below also serves that safety check.
+        run: |
+          cat > .env.test.local <<EOF
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_USER=root
+          DB_PASS=
+          DB_NAME=elanregi_spice_test
+          EOF
+
+      - name: Provision test schema
+        # Same script used by local developers (docs/development/ENVIRONMENT.md)
+        # — applies the vendored UserSpice base schema, runs migrations, runs
+        # seeds. CI-portable by design: mysql/composer resolve via $PATH, no
+        # hardcoded install paths.
+        run: scripts/provision-schema.sh
+
+      - name: Run integration tests (non-bypassable)
+        # REQUIRE_TEST_DB=1 turns IntegrationTestCase::requireDatabase()'s
+        # graceful local skip into a hard failure, so a broken/unreachable
+        # service container fails this job instead of reporting a false-green
+        # "all tests skipped" run (#1439). failOnEmptyTestSuite in
+        # phpunit-integration.xml is a second, independent safety net for the
+        # same failure mode.
+        env:
+          REQUIRE_TEST_DB: "1"
+        run: composer test:integration

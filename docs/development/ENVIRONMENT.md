@@ -210,6 +210,18 @@ database, the test suite requires a dedicated test schema:
 
 After the initial setup, tests can be re-run safely and repeatedly against the test schema without risking the development database.
 
+**Non-bypassable gate (#1439):** pushing changes under `app/`, `usersc/classes/`,
+or `tests/integration/` runs the full integration suite via `.githooks/pre-push`
+(requires `./scripts/setup-git-hooks.sh` to have been run once) and **blocks the
+push** on any failure, including an unreachable test database — set up
+`.env.test.local` per this section before you first touch those paths, or every
+relevant push will fail at `tests/bootstrap-integration.php`'s connectivity check.
+Bypass with `git push --no-verify` if you understand the risk. CI runs the same
+suite in `.github/workflows/tests.yml`'s `integration` job against a `mysql:8.0`
+service container, provisioned with the same `scripts/provision-schema.sh` used
+locally — with `REQUIRE_TEST_DB=1`, so a broken CI database fails the job rather
+than skipping it green.
+
 ### Production Deployment
 
 ```bash

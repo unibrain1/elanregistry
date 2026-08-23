@@ -14,7 +14,7 @@ Internal tooling, CI, and vendored-dependency changes with no user-facing or
 admin-facing behavior change.
 
 - **Integration suite no longer silently exits 0 with no output when the test DB is unreachable** ([#1591](https://github.com/elan-registry/registry/issues/1591))
-- **WIP: Integration suite is now a non-bypassable gate — locally at pre-push and in CI via a MySQL service container** ([#1439](https://github.com/elan-registry/registry/issues/1439))
+- **Integration suite is now a non-bypassable gate — locally at pre-push (full suite, gated on changed paths) and in CI via a `mysql:8.0` service container that hard-fails (not skips) on an unreachable database** ([#1439](https://github.com/elan-registry/registry/issues/1439))
 - **WIP: `/finish-milestone` now verifies the CI deep-review actually ran instead of assuming it did** ([#1724](https://github.com/elan-registry/registry/issues/1724))
 - **WIP: DataTables vendored bundle rebuilt for coordinated bs5/fixedheader/responsive version bump** ([#1741](https://github.com/elan-registry/registry/issues/1741))
 - **WIP: MapLibre GL vendored bundle rebuilt for 4.7.1 to 6.4.1 bump** ([#1742](https://github.com/elan-registry/registry/issues/1742))

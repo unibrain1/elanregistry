@@ -1,26 +1,131 @@
 #!/bin/bash
 
 #
-# Pre-push hook: non-blocking reminder to run /review-pr before pushing
-# a feature branch.
+# Pre-push hook:
+#   1. BLOCKING integration-test gate (#1439) — see below.
+#   2. Non-blocking reminder to run /review-pr before pushing a feature branch.
 #
-# Rationale: CI runs a lightweight Sonnet-backed review on PRs targeting
-# milestone branches and relies on the author having done a deep multi-agent
-# review locally. Running /review-pr on your Claude Max/Pro subscription
-# catches issues before CI cycles burn tokens on every push.
+# Rationale for the reminder: CI runs a lightweight Sonnet-backed review on
+# PRs targeting milestone branches and relies on the author having done a
+# deep multi-agent review locally. Running /review-pr on your Claude Max/Pro
+# subscription catches issues before CI cycles burn tokens on every push.
 #
-# This hook NEVER blocks a push. It only prints a reminder on the first
-# push of a branch that looks like feature / issue work (issue/*,
-# claude/*, feat/*, fix/*, chore/*, refactor/*) when the remote branch
-# does not yet exist. Set SKIP_REVIEW_PR_REMINDER=1 to silence it.
+# The reminder section NEVER blocks a push. It only prints on the first push
+# of a branch that looks like feature / issue work (issue/*, claude/*,
+# feat/*, fix/*, chore/*, refactor/*) when the remote branch does not yet
+# exist. Set SKIP_REVIEW_PR_REMINDER=1 to silence it.
 #
+# The integration-gate section DOES block a push — see its comment block
+# below for scope and the --no-verify escape hatch.
+#
+
+# Read ref updates from stdin ONCE, into a variable. git pipes the ref list
+# to pre-push hooks as a one-shot stream — a shell pipe cannot be rewound
+# once read, so with two sections each needing the full ref list (the gate
+# below, and the reminder that already existed), the list has to be captured
+# up front and each section loops over the saved copy instead of stdin
+# directly.
+ref_updates="$(cat)"
+
+# =============================================================================
+# 1. Integration-test gate (#1439)
+#
+# Only runs when the push touches files matching
+# ^(app|usersc/classes|tests/integration)/.*\.php$ — those are the paths the
+# integration suite actually exercises. Pushes that touch none of them skip
+# this section entirely (fast path).
+#
+# Runs the FULL integration suite (composer test:integration, ~2 min locally)
+# against the dedicated test schema configured in .env.test.local.
+# tests/bootstrap-integration.php already fails loudly (exit 1) if that
+# database is unreachable or misconfigured (#1591) — this hook does not
+# duplicate that preflight check, it just blocks the push on ANY non-zero
+# exit code from composer test:integration, whether that's an unreachable DB
+# or an actual test failure. Both are "block the push" per the issue's
+# acceptance criteria.
+#
+# Escape hatch: `git push --no-verify` skips this hook entirely (standard git
+# behavior — no extra code needed here).
+# =============================================================================
+
+integration_gate_paths='^(app|usersc/classes|tests/integration)/.*\.php$'
+gate_failed=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    # Skip deletes
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+
+    if [ "$remote_sha" != "0000000000000000000000000000000000000000" ]; then
+        # Updating an existing remote ref — diff against its current tip.
+        base="$remote_sha"
+    else
+        # New ref (first push of this branch, e.g. right after /start-issue's
+        # `git checkout -b` + `git push -u`). At the moment this hook runs,
+        # the branch may not have an upstream configured yet — '@{u}' fails
+        # to resolve in that case. Falling back to diffing local_sha against
+        # itself (empty diff) would silently skip the gate on exactly the
+        # case this issue (#1439) exists to cover: the first push of new
+        # feature work. Fall back through:
+        #   1. the branch's configured upstream, if any ('@{u}')
+        #   2. origin/main (this repo's default branch — issue branches
+        #      always trace back to it through their milestone branch, so
+        #      the merge-base reliably isolates just this branch's commits)
+        #   3. local_sha itself, only if both above fail to resolve (e.g. no
+        #      'origin' remote at all) — printed loudly so it's never a
+        #      silent gap.
+        if base="$(git merge-base "$local_sha" '@{u}' 2>/dev/null)"; then
+            :
+        elif base="$(git merge-base "$local_sha" origin/main 2>/dev/null)"; then
+            :
+        else
+            echo "  WARNING: could not resolve a merge-base for '$local_ref' (no upstream, no origin/main)." >&2
+            echo "  Integration gate cannot determine changed files and will be SKIPPED for this ref." >&2
+            base="$local_sha"
+        fi
+    fi
+
+    changed_files="$(git diff --name-only "$base" "$local_sha")"
+
+    if ! printf '%s\n' "$changed_files" | grep -qE "$integration_gate_paths"; then
+        continue
+    fi
+
+    branch="${local_ref#refs/heads/}"
+    cat <<EOF
+
+  Integration-test gate: push to '$branch' touches app/, usersc/classes/, or
+  tests/integration/. Running the full integration suite before allowing this
+  push (composer test:integration, ~2 min against the test schema)...
+
+EOF
+
+    if ! composer test:integration; then
+        cat <<EOF
+
+  BLOCKED: integration suite failed (or the test database was unreachable —
+  check the output above). Push aborted.
+
+  Fix the failure, or bypass with: git push --no-verify
+
+EOF
+        gate_failed=1
+    fi
+done <<< "$ref_updates"
+
+if [ "$gate_failed" -eq 1 ]; then
+    exit 1
+fi
+
+# =============================================================================
+# 2. Non-blocking /review-pr reminder (pre-existing behavior, unchanged)
+# =============================================================================
 
 if [ -n "${SKIP_REVIEW_PR_REMINDER:-}" ]; then
     exit 0
 fi
 
-# Read ref updates from stdin. git always pipes ref data to pre-push hooks;
-# the while loop exits cleanly on EOF if there is nothing to process.
 reminder_shown=0
 while read -r local_ref local_sha remote_ref remote_sha; do
     # Skip deletes
@@ -58,6 +163,6 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 EOF
         reminder_shown=1
     fi
-done
+done <<< "$ref_updates"
 
 exit 0
