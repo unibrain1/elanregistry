@@ -74,25 +74,32 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         continue
     fi
 
+    branch="${local_ref#refs/heads/}"
+
     if [ "$remote_sha" != "0000000000000000000000000000000000000000" ]; then
         # Updating an existing remote ref — diff against its current tip.
         base="$remote_sha"
     else
         # New ref (first push of this branch, e.g. right after /start-issue's
         # `git checkout -b` + `git push -u`). At the moment this hook runs,
-        # the branch may not have an upstream configured yet — '@{u}' fails
-        # to resolve in that case. Falling back to diffing local_sha against
-        # itself (empty diff) would silently skip the gate on exactly the
-        # case this issue (#1439) exists to cover: the first push of new
-        # feature work. Fall back through:
-        #   1. the branch's configured upstream, if any ('@{u}')
+        # the branch may not have an upstream configured yet — the tracking
+        # lookup below fails to resolve in that case. Falling back to diffing
+        # local_sha against itself (empty diff) would silently skip the gate
+        # on exactly the case this issue (#1439) exists to cover: the first
+        # push of new feature work. Fall back through:
+        #   1. the pushed branch's own configured upstream, if any. Uses
+        #      "$branch@{upstream}" — the *named* branch being pushed, not
+        #      bare '@{u}', which resolves against whatever's currently
+        #      checked out and would silently compute the wrong base for an
+        #      explicit `git push origin some-other-branch:some-other-branch`
+        #      run from a different branch.
         #   2. origin/main (this repo's default branch — issue branches
         #      always trace back to it through their milestone branch, so
         #      the merge-base reliably isolates just this branch's commits)
         #   3. local_sha itself, only if both above fail to resolve (e.g. no
         #      'origin' remote at all) — printed loudly so it's never a
         #      silent gap.
-        if base="$(git merge-base "$local_sha" '@{u}' 2>/dev/null)"; then
+        if base="$(git merge-base "$local_sha" "${branch}@{upstream}" 2>/dev/null)"; then
             :
         elif base="$(git merge-base "$local_sha" origin/main 2>/dev/null)"; then
             :
@@ -109,7 +116,6 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         continue
     fi
 
-    branch="${local_ref#refs/heads/}"
     cat <<EOF
 
   Integration-test gate: push to '$branch' touches app/, usersc/classes/, or
