@@ -77,6 +77,49 @@ if ($configuredDbName === 'elanregi_spice') {
     exit(1);
 }
 
+// Fail loudly, before anything else, if the test database is unreachable (#1591).
+//
+// Without this check, an unreachable DB is caught only inside the try/catch around
+// users/init.php below — but the actual connection failure happens inside upstream
+// users/classes/DB.php's constructor, which calls die() on a PDOException instead of
+// throwing. die() is not a \Throwable, so it is never caught by that try/catch; it
+// terminates the PHP process immediately, before the output buffer started below is
+// ever flushed, and before PHPUnit's runner (or IntegrationTestCase::requireDatabase()'s
+// own honest per-test skip) ever gets control. The net effect without this guard: the
+// whole process silently exits 0 with no output — indistinguishable from "all tests
+// passed." A short, bounded probe here, using the exact same DSN shape DB.php itself
+// builds, catches that case before it can ever reach DB.php's die().
+//
+// Resolve host/user/pass/name via a throwaway Dotenv::createImmutable()->safeLoad()
+// of the root .env first — mirroring exactly what users/init.php does at its own
+// Dotenv call below — rather than reading raw $_ENV directly. Without this, any
+// DB_* key that .env.test.local omits (relying on root .env to backfill it, same as
+// init.php allows) would read as empty here, produce a bogus connection failure, and
+// abort a configuration that init.php itself would have connected successfully.
+// safeLoad() only fills in keys $_ENV doesn't already have, so this cannot override
+// anything .env.test.local already set above.
+\Dotenv\Dotenv::createImmutable($projectRoot)->safeLoad();
+$probeHost = $_ENV['DB_HOST'] ?? '(not set)';
+$probeName = $_ENV['DB_NAME'] ?? '(not set)';
+try {
+    new PDO(
+        'mysql:host=' . ($_ENV['DB_HOST'] ?? '') . ';dbname=' . ($_ENV['DB_NAME'] ?? '') . ';charset=utf8mb4',
+        $_ENV['DB_USER'] ?? '',
+        $_ENV['DB_PASS'] ?? '',
+        [PDO::ATTR_TIMEOUT => 3]
+    );
+} catch (\PDOException $e) {
+    abortBootstrap(
+        "ERROR: Could not connect to the test database at {$probeHost}"
+            . " (database: {$probeName}).",
+        "PDO error: {$e->getMessage()}",
+        "Check that MAMP/MySQL is running and .env.test.local's DB_HOST/DB_USER/",
+        "DB_PASS/DB_NAME are correct. Aborting rather than letting the connection",
+        "attempt fall through to users/classes/DB.php's die(), which would exit 0",
+        "with no output and look like a passing test run."
+    );
+}
+
 // Suppress UserSpice initialization errors (especially database connection errors)
 // Integration tests will handle the missing database gracefully via IntegrationTestCase
 set_error_handler(function ($errno, $errstr, $errfile, $errline) {
@@ -191,8 +234,12 @@ try {
 /**
  * Write each message line to STDERR and exit(1).
  *
- * Used by the reference-data verification block below (via abortMissingSeed())
- * to fail loudly rather than let tests run against a silently broken environment.
+ * Called directly by the DB-connectivity probe above (#1591) and by the
+ * reference-data verification block below (via abortMissingSeed()) to fail
+ * loudly rather than let tests run against a silently broken environment.
+ * Declared as a plain top-level function, so it is hoisted and callable from
+ * the earlier probe despite being defined after it — do not move this
+ * function inside a conditional or class scope without checking that call site.
  *
  * @param string ...$lines Message lines, printed in order (no trailing "\n" needed).
  */
