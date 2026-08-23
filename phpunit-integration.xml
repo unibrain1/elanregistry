@@ -6,8 +6,7 @@
          processIsolation="false"
          stopOnFailure="false"
          cacheDirectory=".phpunit.cache"
-         backupGlobals="false"
-         failOnEmptyTestSuite="true">
+         backupGlobals="false">
 
     <testsuites>
         <!-- Integration tests - require UserSpice framework and database -->

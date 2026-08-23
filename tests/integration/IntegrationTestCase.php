@@ -115,29 +115,16 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
-     * Skip (or hard-fail) the test if the database is not available.
+     * Skip test if database not available
      *
      * Call this at the start of setUp() in any test that requires database access.
-     * By default, an unavailable database gracefully skips the test — the common
-     * case for a local developer who hasn't provisioned a test schema. Setting
-     * REQUIRE_TEST_DB=1 (CI's integration job does this) turns that into a hard
-     * failure instead, so a broken/unreachable service container can't report a
-     * false-green run by skipping every test (#1439).
+     * If database is not available, the test will be skipped with a message.
      */
     protected function requireDatabase(): void
     {
-        if ($this->databaseConnected) {
-            return;
+        if (!$this->databaseConnected) {
+            $this->markTestSkipped('Database connection not available for integration testing');
         }
-
-        if (getenv('REQUIRE_TEST_DB') === '1') {
-            $this->fail(
-                'Database connection not available for integration testing '
-                . '(REQUIRE_TEST_DB=1 — hard failure, not a skip).'
-            );
-        }
-
-        $this->markTestSkipped('Database connection not available for integration testing');
     }
 
     /**

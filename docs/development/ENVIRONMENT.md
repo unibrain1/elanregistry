@@ -215,11 +215,7 @@ integration-suite-relevant code on any failure, including an unreachable test
 database — set up `.env.test.local` per this section *before* you first touch
 those paths, or the push will fail at `tests/bootstrap-integration.php`'s
 connectivity check. See `scripts/README.md`'s "Git Hooks Management" section
-for exactly which paths trigger it and the bypass flag. CI runs the same
-suite in `.github/workflows/tests.yml`'s `integration` job against a
-`mysql:8.0` service container, provisioned with the same
-`scripts/provision-schema.sh` used locally, and hard-fails (rather than
-skipping green) if that database is unreachable.
+for exactly which paths trigger it and the bypass flag.
 
 ### Production Deployment
 
