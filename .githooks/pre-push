@@ -16,7 +16,7 @@
 # exist. Set SKIP_REVIEW_PR_REMINDER=1 to silence it.
 #
 # The integration-gate section DOES block a push — see its comment block
-# below for scope and the --no-verify escape hatch.
+# below for scope, the remote restriction, and the --no-verify escape hatch.
 #
 
 # Read ref updates from stdin ONCE, into a variable. git pipes the ref list
@@ -27,8 +27,20 @@
 # directly.
 ref_updates="$(cat)"
 
+# git passes the pushed-to remote's name as $1 (its URL as $2) — separate
+# from the per-ref stdin data above.
+remote_name="${1:-}"
+
 # =============================================================================
 # 1. Integration-test gate (#1439)
+#
+# Restricted to the `origin` remote (GitHub) only. This repo also has `prod`
+# and `test` deploy remotes (see Registry/CLAUDE.md) — `git push prod main` /
+# `git push test main` deploy already-CI-verified, already-merged `main`
+# code, not new work. Running a ~2 min blocking suite (and hard-failing the
+# whole push if the *local* test schema happens to be unreachable at that
+# exact moment — see #1591) on a deploy would tie deploy success to local
+# dev-machine state that has nothing to do with the code being deployed.
 #
 # Only runs when the push touches files matching
 # ^(app|usersc/classes|tests/integration)/.*\.php$ — those are the paths the
@@ -54,6 +66,11 @@ gate_failed=0
 while read -r local_ref local_sha remote_ref remote_sha; do
     # Skip deletes
     if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+
+    # Restricted to origin — see the comment block above this loop.
+    if [ "$remote_name" != "origin" ]; then
         continue
     fi
 

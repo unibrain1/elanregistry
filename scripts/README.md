@@ -52,13 +52,16 @@ quality checks. Run once per developer after cloning the repo.
 
 **Pre-push hook steps** (`.githooks/pre-push`, #1439):
 
-1. **Blocking integration-test gate** — if the push touches any file under
-   `app/`, `usersc/classes/`, or `tests/integration/`, runs the full
-   `composer test:integration` suite (~1-2 min, requires a working
-   `.env.test.local` — see `docs/development/ENVIRONMENT.md`) and blocks the
-   push (exits non-zero) on any test failure or an unreachable test database.
-   Pushes that touch none of those paths skip this step entirely. Bypass
-   with `git push --no-verify` (also skips step 2 below).
+1. **Blocking integration-test gate** — only on the `origin` remote (GitHub);
+   `prod`/`test` deploy pushes always skip it, since those deploy
+   already-CI-verified `main` and shouldn't depend on local dev-machine test-DB
+   state. If the push touches any file under `app/`, `usersc/classes/`, or
+   `tests/integration/`, runs the full `composer test:integration` suite
+   (~1-2 min, requires a working `.env.test.local` — see
+   `docs/development/ENVIRONMENT.md`) and blocks the push (exits non-zero) on
+   any test failure or an unreachable test database. Pushes that touch none
+   of those paths skip this step entirely. Bypass with `git push --no-verify`
+   (also skips step 2 below).
 2. **Non-blocking `/review-pr` reminder** — on the first push of a
    feature/issue-style branch (`issue/*`, `claude/*`, `feat/*`, `fix/*`,
    `chore/*`, `refactor/*`), prints a reminder to run `/review-pr` locally
