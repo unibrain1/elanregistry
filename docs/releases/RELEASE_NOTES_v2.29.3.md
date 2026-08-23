@@ -18,7 +18,7 @@ admin-facing behavior change.
 - **`/finish-milestone`/`/finish-issue` now verify the CI deep-review posted a comment, instead of assuming it ran** ([#1724](https://github.com/elan-registry/registry/issues/1724))
 - **DataTables vendored bundle rebuilt for coordinated bs5/fixedheader/responsive version bump** ([#1741](https://github.com/elan-registry/registry/issues/1741))
 - **MapLibre GL vendored bundle rebuilt for 4.7.1 to 6.4.1 bump** ([#1742](https://github.com/elan-registry/registry/issues/1742))
-- **WIP: @versatiles/style vendored output rebuilt for 5.13.0 to 5.13.1 bump** ([#1743](https://github.com/elan-registry/registry/issues/1743))
+- **@versatiles/style vendored output rebuilt for 5.13.0 to 5.13.1 bump** ([#1743](https://github.com/elan-registry/registry/issues/1743))
 - **WIP: Remaining dead `elan_*_cdn`/`fun` settings columns dropped** ([#1734](https://github.com/elan-registry/registry/issues/1734))
 
 ## Issues Resolved
