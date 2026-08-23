@@ -15,7 +15,7 @@ admin-facing behavior change.
 
 - **Integration suite no longer silently exits 0 with no output when the test DB is unreachable** ([#1591](https://github.com/elan-registry/registry/issues/1591))
 - **Integration suite is now a non-bypassable gate at pre-push** ([#1439](https://github.com/elan-registry/registry/issues/1439))
-- **WIP: `/finish-milestone` now verifies the CI deep-review actually ran instead of assuming it did** ([#1724](https://github.com/elan-registry/registry/issues/1724))
+- **`/finish-milestone`/`/finish-issue` now verify the CI deep-review posted a comment, instead of assuming it ran** ([#1724](https://github.com/elan-registry/registry/issues/1724))
 - **WIP: DataTables vendored bundle rebuilt for coordinated bs5/fixedheader/responsive version bump** ([#1741](https://github.com/elan-registry/registry/issues/1741))
 - **WIP: MapLibre GL vendored bundle rebuilt for 4.7.1 to 6.4.1 bump** ([#1742](https://github.com/elan-registry/registry/issues/1742))
 - **WIP: @versatiles/style vendored output rebuilt for 5.13.0 to 5.13.1 bump** ([#1743](https://github.com/elan-registry/registry/issues/1743))
