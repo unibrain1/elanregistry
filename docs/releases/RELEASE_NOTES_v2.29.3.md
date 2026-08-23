@@ -14,7 +14,6 @@ Internal tooling, CI, and vendored-dependency changes with no user-facing or
 admin-facing behavior change.
 
 - **Integration suite no longer silently exits 0 with no output when the test DB is unreachable** ([#1591](https://github.com/elan-registry/registry/issues/1591))
-- **WIP: `car_transfer_requests` FK/schema drift resolved** ([#1547](https://github.com/elan-registry/registry/issues/1547))
 - **WIP: Integration suite is now a non-bypassable gate — locally at pre-push and in CI via a MySQL service container** ([#1439](https://github.com/elan-registry/registry/issues/1439))
 - **WIP: `/finish-milestone` now verifies the CI deep-review actually ran instead of assuming it did** ([#1724](https://github.com/elan-registry/registry/issues/1724))
 - **WIP: DataTables vendored bundle rebuilt for coordinated bs5/fixedheader/responsive version bump** ([#1741](https://github.com/elan-registry/registry/issues/1741))
@@ -25,7 +24,6 @@ admin-facing behavior change.
 ## Issues Resolved
 
 - [#1439](https://github.com/elan-registry/registry/issues/1439) — ci: run integration suite against MySQL service container (non-bypassable gate)
-- [#1547](https://github.com/elan-registry/registry/issues/1547) — bug: car_transfer_requests.existing_car_id FK ON DELETE CASCADE never applied (schema/migration drift)
 - [#1591](https://github.com/elan-registry/registry/issues/1591) — test: integration suite exits 0 with no output when DB is unreachable
 - [#1724](https://github.com/elan-registry/registry/issues/1724) — ci: a milestone PR can merge with its deep review never having run, undetected
 - [#1734](https://github.com/elan-registry/registry/issues/1734) — tech-debt: drop remaining dead elan_*_cdn settings columns (jquery, bootstrap, popper, fontawesome, bootswatch, datatables, datepicker, chartjs) and `fun`
