@@ -161,9 +161,11 @@ if (Input::existsPost()) {
                     $result = email($toEmail, $subject, $body);
 
                     if ($result !== true) {
-                        $resultStr = is_string($result) ? InputSanitizer::stripHeaderInjectionChars($result) : 'unknown delivery error';
+                        // email() returns PHPMailer::send()'s bool result — never a string —
+                        // so a failed send is always $result === false. There is no delivery
+                        // message to sanitize/log here.
                         $errors[] = 'Failed to send email. Please try again.';
-                        logger($adminUserId, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Admin contact SEND FAILED to {$toEmail}: {$resultStr}");
+                        logger($adminUserId, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Admin contact SEND FAILED to {$toEmail}");
                     } else {
                         $successes[] = $ownerId === 'Multiple'
                             ? 'Administrator message sent successfully to duplicate accounts at ' . $toEmail

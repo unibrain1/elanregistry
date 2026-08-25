@@ -126,7 +126,6 @@ class AdminContactSanitizationTest extends TestCase
             'owner email' => ['owner email', '$ownerData->email'],
             'admin email' => ['admin email', '$adminData->email'],
             'quality issue' => ['quality issue', '$qualityIssue'],
-            'delivery error message' => ['delivery error message', '$result'],
         ];
     }
 
@@ -137,16 +136,16 @@ class AdminContactSanitizationTest extends TestCase
      * would leave the count unchanged and this test green — it must be
      * caught by review, not by this count.
      */
-    public function testProductionSanitizationPatternAppliesExactlyFourTimes(): void
+    public function testProductionSanitizationPatternAppliesExactlyThreeTimes(): void
     {
         $content = $this->readProcessAdminContactSource();
 
         $sanitizationCount = substr_count($content, 'InputSanitizer::stripHeaderInjectionChars(');
         $this->assertSame(
-            4,
+            3,
             $sanitizationCount,
-            'process-admin-contact.php should apply InputSanitizer::stripHeaderInjectionChars() exactly 4 times ' .
-            '(owner email, admin email, quality issue, delivery error message) — update this count deliberately ' .
+            'process-admin-contact.php should apply InputSanitizer::stripHeaderInjectionChars() exactly 3 times ' .
+            '(owner email, admin email, quality issue) — update this count deliberately ' .
             'when adding or removing a sanitized call site (#660)'
         );
     }
