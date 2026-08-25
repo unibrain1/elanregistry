@@ -15,6 +15,18 @@
         </testsuite>
     </testsuites>
 
+    <groups>
+        <!-- live-network: makes real outbound HTTP calls to third-party geocoding
+             providers (LocationServiceTest.php, issue #1759), excluded from the
+             default run so a local integration run never blocks on transient
+             network issues, rate limits, or upstream downtime. See
+             LocationServiceTest.php's class docblock for the explicit-run
+             command. -->
+        <exclude>
+            <group>live-network</group>
+        </exclude>
+    </groups>
+
     <php>
         <env name="TESTING" value="true"/>
         <env name="INTEGRATION_TEST_SUITE" value="true"/>

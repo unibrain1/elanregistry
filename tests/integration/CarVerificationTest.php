@@ -109,10 +109,14 @@ final class CarVerificationTest extends IntegrationTestCase
     #[Group('fast')]
     public function testMarkVerifiedUpdatesTimestamp(): void
     {
+        // Seed a deterministic past timestamp so no wall-clock wait is needed to
+        // guarantee markVerified()'s new value differs from it.
+        $this->db->update('cars', $this->testCarId, [
+            'last_verified' => date('Y-m-d H:i:s', strtotime('-1 hour')),
+        ]);
+
         $car = new Car($this->testCarId);
         $originalTimestamp = $car->data()->last_verified;
-
-        sleep(1); // Wait 1 second to ensure timestamp difference
 
         $result = $car->markVerified();
 

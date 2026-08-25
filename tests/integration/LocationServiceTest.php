@@ -21,6 +21,33 @@ use PHPUnit\Framework\Attributes\Group;
  * - Error handling
  *
  * Tests assume user ID 1 for rate limiting and logging context.
+ *
+ * LIVE-NETWORK TESTS (issue #1759)
+ * ---------------------------------
+ * Methods tagged #[Group('live-network')] make real outbound HTTP calls to
+ * Photon/Nominatim and assert on live third-party response content (real
+ * city names, real coordinate ranges, real multi-state disambiguation).
+ * They are excluded from the default `composer test:integration` /
+ * `test:full` run via the `<groups><exclude>` block in
+ * phpunit-integration.xml, so a local integration run never blocks on
+ * transient network issues, rate limits, or upstream downtime. (The
+ * integration suite requires a live DB and is not run in CI — see
+ * .github/workflows/tests.yml — so this exclusion benefits local dev runs.)
+ *
+ * These are intentionally NOT mocked: LocationService has no injectable HTTP
+ * client (it calls curl_init/curl_exec/file_get_contents unqualified), and
+ * mocking the transport would only prove LocationService parses a canned fixture
+ * correctly — duplicating what tests/unit/location/LocationServiceRateLimitTest.php
+ * already verifies with tests/unit/location/_curl_namespace_overrides.php.
+ * The entire point of these specific tests is validating actual live
+ * compatibility with the upstream providers.
+ *
+ * The remaining methods (input validation, coordinate math, class structure)
+ * make no network calls and are deterministic — they run in every default
+ * integration pass with no group tag needed.
+ *
+ * Run the live-network group explicitly:
+ *   vendor/bin/phpunit -c phpunit-integration.xml --group live-network
  */
 #[Group('Integration')]
 #[Group('Geocoding')]
@@ -53,6 +80,7 @@ class LocationServiceTest extends IntegrationTestCase
      * Test forward geocoding with valid address
      * Tests: Portland, Oregon, United States → coordinates via Photon/Nominatim
      */
+    #[Group('live-network')]
     public function testForwardGeocodingPortland(): void
     {
 
@@ -89,6 +117,7 @@ class LocationServiceTest extends IntegrationTestCase
     /**
      * Test forward geocoding with London, UK
      */
+    #[Group('live-network')]
     public function testForwardGeocodingLondon(): void
     {
 
@@ -115,6 +144,7 @@ class LocationServiceTest extends IntegrationTestCase
      * Test reverse geocoding with valid coordinates
      * Tests: 45.52°N, 122.68°W (Portland, OR) → address
      */
+    #[Group('live-network')]
     public function testReverseGeocodingPortland(): void
     {
 
@@ -147,6 +177,7 @@ class LocationServiceTest extends IntegrationTestCase
     /**
      * Test reverse geocoding with London coordinates
      */
+    #[Group('live-network')]
     public function testReverseGeocodingLondon(): void
     {
 
@@ -233,6 +264,7 @@ class LocationServiceTest extends IntegrationTestCase
     /**
      * Test coordinate precision (should be 4 decimal places)
      */
+    #[Group('live-network')]
     public function testCoordinatePrecision(): void
     {
 
@@ -276,6 +308,7 @@ class LocationServiceTest extends IntegrationTestCase
      * fail rather than skip, and may need a higher limit or a different
      * query term.
      */
+    #[Group('live-network')]
     public function testForwardGeocodingDisambiguatesSameNameCities(): void
     {
 
@@ -312,6 +345,7 @@ class LocationServiceTest extends IntegrationTestCase
     /**
      * Test that search returns expected result structure
      */
+    #[Group('live-network')]
     public function testSearchResultStructure(): void
     {
 

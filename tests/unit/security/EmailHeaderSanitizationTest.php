@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\InputSanitizer;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Unit tests for email header field sanitization — issue #1322 (Bug B).
+ * Unit tests for email header field sanitization — issue #1322 (Bug B), updated
+ * for #1759 to call the real InputSanitizer::stripHeaderInjectionChars() helper
+ * instead of a mirrored inline regex.
  *
  * ROOT CAUSE
  * ----------
@@ -15,8 +18,8 @@ use PHPUnit\Framework\Attributes\Group;
  * This introduced two vulnerabilities:
  *   1. lname was included, leaking the sender's full surname into reply-to headers
  *      and the email template, violating the first-name-only privacy contract.
- *   2. $fromName was not passed through preg_replace('/[\r\n\t]/', '', ...), so a
- *      CR/LF sequence in the database fname or lname value could inject additional
+ *   2. $fromName was not passed through header-char stripping, so a CR/LF
+ *      sequence in the database fname or lname value could inject additional
  *      MIME headers via PHPMailer's addReplyTo() call.
  *
  * TESTING GAP
@@ -27,30 +30,25 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * PREVENTION
  * ----------
- * These tests pin the exact string-derivation contract from send-owner-email.php
- * lines 113-116 so that any future change to $toName or $fromName construction
- * is caught immediately without requiring an end-to-end email send.
+ * These tests pin the exact string-derivation contract from send-owner-email.php's
+ * $toEmail/$toName/$fromEmail/$fromName derivation block so that any future
+ * change to $toName or $fromName construction is caught immediately without
+ * requiring an end-to-end email send.
  *
- * The behavioral tests below validate a mirrored copy of the derivation
- * expressions in isolation, covering input/output edge cases (CR, LF, tabs,
- * clean values, null, lname-exclusion). Those behavioral tests are backed by
- * a source-inspection guard (see the source-inspection guard section below)
- * that reads the real send-owner-email.php source and asserts the exact
- * derivation is unchanged, so a production regression would be caught even
- * though the file itself cannot be executed directly in a unit test (it
- * requires full framework bootstrap).
+ * The behavioral tests below call the real ElanRegistry\InputSanitizer::
+ * stripHeaderInjectionChars() helper directly (not a mirrored copy), covering
+ * input/output edge cases (CR, LF, tabs, clean values, null, lname-exclusion).
+ * Those behavioral tests are backed by a source-inspection guard (see the
+ * source-inspection guard section below) that reads the real
+ * send-owner-email.php source and asserts the exact derivation is unchanged,
+ * so a production regression would be caught even though the file itself
+ * cannot be executed directly in a unit test (it requires full framework
+ * bootstrap).
  */
 #[Group('fast')]
 final class EmailHeaderSanitizationTest extends TestCase
 {
     private const SEND_OWNER_EMAIL_FILE = 'app/api/contact/send-owner-email.php';
-
-    /**
-     * Mirrors the pattern in send-owner-email.php — kept as one constant so
-     * the mirror in the behavioral tests and the source-inspection guard
-     * below can't drift apart.
-     */
-    private const HEADER_STRIP_PATTERN = '/[\r\n\t]/';
 
     private string $rootDir = '';
 
@@ -102,7 +100,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromName_CrLfInFname_IsStripped(): void
     {
         $fromData = (object)['fname' => "Alice\r\nBcc: attacker@evil.com", 'lname' => 'Smith'];
-        $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         // The line-break characters are gone — the value is now a single line
         $this->assertStringNotContainsString("\r", $fromName);
@@ -118,7 +116,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromName_CrAloneInFname_IsStripped(): void
     {
         $fromData = (object)['fname' => "Alice\rSmith", 'lname' => 'Last'];
-        $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         $this->assertStringNotContainsString("\r", $fromName);
         $this->assertSame('AliceSmith', $fromName);
@@ -130,7 +128,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromName_TabInFname_IsStripped(): void
     {
         $fromData = (object)['fname' => "Alice\tTab", 'lname' => 'Last'];
-        $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         $this->assertStringNotContainsString("\t", $fromName);
         $this->assertSame('AliceTab', $fromName);
@@ -145,7 +143,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromName_DoesNotContainLname(): void
     {
         $fromData = (object)['fname' => 'Alice', 'lname' => 'Smith'];
-        $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         $this->assertSame('Alice', $fromName);
         $this->assertStringNotContainsString('Smith', $fromName);
@@ -157,7 +155,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromName_CleanFname_IsPreservedUnchanged(): void
     {
         $fromData = (object)['fname' => 'Alice', 'lname' => 'Smith'];
-        $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         $this->assertSame('Alice', $fromName);
     }
@@ -168,7 +166,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromName_EmptyFname_YieldsEmptyString(): void
     {
         $fromData = (object)['fname' => '', 'lname' => 'Smith'];
-        $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         $this->assertSame('', $fromName);
     }
@@ -182,7 +180,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromName_NullFname_YieldsEmptyString(): void
     {
         $fromData = (object)['fname' => null, 'lname' => 'Smith'];
-        $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         $this->assertSame('', $fromName);
     }
@@ -257,7 +255,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    // $fromEmail — preg_replace stripping (regression guard)
+    // $fromEmail — header-char stripping (regression guard)
     // Replicates send-owner-email.php:115
     // ------------------------------------------------------------------
 
@@ -271,7 +269,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromEmail_CrLfInEmail_IsStripped(): void
     {
         $fromData  = (object)['email' => "alice@example.com\r\nBcc: attacker@evil.com"];
-        $fromEmail = preg_replace('/[\r\n\t]/', '', $fromData->email);
+        $fromEmail = InputSanitizer::stripHeaderInjectionChars($fromData->email);
 
         $this->assertStringNotContainsString("\r", $fromEmail);
         $this->assertStringNotContainsString("\n", $fromEmail);
@@ -285,7 +283,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testFromEmail_CleanEmail_IsPreservedUnchanged(): void
     {
         $fromData  = (object)['email' => 'alice@example.com'];
-        $fromEmail = preg_replace('/[\r\n\t]/', '', $fromData->email);
+        $fromEmail = InputSanitizer::stripHeaderInjectionChars($fromData->email);
 
         $this->assertSame('alice@example.com', $fromEmail);
     }
@@ -306,7 +304,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testToEmail_CrLfInEmail_IsStripped(): void
     {
         $toData  = (object)['email' => "bob@example.com\r\nX-Injected: header"];
-        $toEmail = preg_replace('/[\r\n\t]/', '', $toData->email);
+        $toEmail = InputSanitizer::stripHeaderInjectionChars($toData->email);
 
         $this->assertStringNotContainsString("\r", $toEmail);
         $this->assertStringNotContainsString("\n", $toEmail);
@@ -320,7 +318,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     public function testToEmail_CleanEmail_IsPreservedUnchanged(): void
     {
         $toData  = (object)['email' => 'bob@example.com'];
-        $toEmail = preg_replace('/[\r\n\t]/', '', $toData->email);
+        $toEmail = InputSanitizer::stripHeaderInjectionChars($toData->email);
 
         $this->assertSame('bob@example.com', $toEmail);
     }
@@ -342,10 +340,10 @@ final class EmailHeaderSanitizationTest extends TestCase
         $fromData = (object)['fname' => 'Alice', 'lname' => 'Smith',  'email' => 'alice@example.com'];
 
         // Replicate send-owner-email.php:113-116 verbatim
-        $toEmail   = preg_replace('/[\r\n\t]/', '', $toData->email);
+        $toEmail   = InputSanitizer::stripHeaderInjectionChars($toData->email);
         $toName    = (string)($toData->fname ?? '');
-        $fromEmail = preg_replace('/[\r\n\t]/', '', $fromData->email);
-        $fromName  = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
+        $fromEmail = InputSanitizer::stripHeaderInjectionChars($fromData->email);
+        $fromName  = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
 
         $this->assertSame('bob@example.com',   $toEmail);
         $this->assertSame('Bob',               $toName);
@@ -362,20 +360,20 @@ final class EmailHeaderSanitizationTest extends TestCase
     // -------------------------------------------------------------------------
 
     /**
-     * Pins $toEmail = preg_replace('/[\r\n\t]/', '', $toData->email); in the
-     * real send-owner-email.php source (line 113).
+     * Pins $toEmail = InputSanitizer::stripHeaderInjectionChars($toData->email);
+     * in the real send-owner-email.php source.
      */
     public function testProductionToEmail_StripsCrLfTabFromEmail(): void
     {
         $line = $this->extractAssignmentLine($this->readSendOwnerEmailSource(), 'toEmail');
 
-        $this->assertStringContainsString("preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''", $line);
+        $this->assertStringContainsString('InputSanitizer::stripHeaderInjectionChars(', $line);
         $this->assertStringContainsString('$toData->email', $line);
     }
 
     /**
      * Pins $toName = (string)($toData->fname ?? ''); in the real
-     * send-owner-email.php source (line 114) — and confirms it is NOT
+     * send-owner-email.php source — and confirms it is NOT
      * stripped or lname-derived. $toName flows into the HTML template
      * greeting only (XSS-safe via htmlspecialchars() at render), not into
      * any header, so this asymmetry with the other three fields is
@@ -392,28 +390,28 @@ final class EmailHeaderSanitizationTest extends TestCase
             '$toName must derive from fname only — including lname would leak the recipient surname (#1322)'
         );
         $this->assertStringNotContainsString(
-            'preg_replace',
+            'InputSanitizer::stripHeaderInjectionChars',
             $line,
             '$toName is intentionally unstripped — it is template-display-only (htmlspecialchars() at render), ' .
-            'not header-bound; adding preg_replace here would be an unnecessary behavior change'
+            'not header-bound; adding stripHeaderInjectionChars() here would be an unnecessary behavior change'
         );
     }
 
     /**
-     * Pins $fromEmail = preg_replace('/[\r\n\t]/', '', $fromData->email); in
-     * the real send-owner-email.php source (line 115).
+     * Pins $fromEmail = InputSanitizer::stripHeaderInjectionChars($fromData->email);
+     * in the real send-owner-email.php source.
      */
     public function testProductionFromEmail_StripsCrLfTabFromEmail(): void
     {
         $line = $this->extractAssignmentLine($this->readSendOwnerEmailSource(), 'fromEmail');
 
-        $this->assertStringContainsString("preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''", $line);
+        $this->assertStringContainsString('InputSanitizer::stripHeaderInjectionChars(', $line);
         $this->assertStringContainsString('$fromData->email', $line);
     }
 
     /**
-     * Pins $fromName = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));
-     * in the real send-owner-email.php source (line 116) — and confirms
+     * Pins $fromName = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));
+     * in the real send-owner-email.php source — and confirms
      * lname is not included. This is the direct regression guard for the
      * original #1322 bug, where the surname leaked into reply-to headers
      * via addReplyTo().
@@ -422,7 +420,7 @@ final class EmailHeaderSanitizationTest extends TestCase
     {
         $line = $this->extractAssignmentLine($this->readSendOwnerEmailSource(), 'fromName');
 
-        $this->assertStringContainsString("preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''", $line);
+        $this->assertStringContainsString('InputSanitizer::stripHeaderInjectionChars(', $line);
         $this->assertStringContainsString("(string)(\$fromData->fname ?? '')", $line);
         $this->assertStringNotContainsString(
             'lname',
@@ -455,11 +453,11 @@ final class EmailHeaderSanitizationTest extends TestCase
         );
         $derivationBlock = $matches[0];
 
-        $stripCount = substr_count($derivationBlock, "preg_replace('" . self::HEADER_STRIP_PATTERN . "', ''");
+        $stripCount = substr_count($derivationBlock, 'InputSanitizer::stripHeaderInjectionChars(');
         $this->assertSame(
             3,
             $stripCount,
-            'send-owner-email.php should apply the header-char sanitization pattern exactly 3 times ' .
+            'send-owner-email.php should apply InputSanitizer::stripHeaderInjectionChars() exactly 3 times ' .
             'within the toEmail/toName/fromEmail/fromName derivation block (toEmail, fromEmail, fromName ' .
             '— deliberately NOT toName) — update this count deliberately when adding or removing a ' .
             'sanitized call site (#1600)'

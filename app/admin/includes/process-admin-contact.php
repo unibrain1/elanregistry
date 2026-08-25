@@ -4,6 +4,7 @@ declare(strict_types=1);
 use ElanRegistry\Car\Car;
 use ElanRegistry\Exceptions\AdminContactException;
 use ElanRegistry\Input;
+use ElanRegistry\InputSanitizer;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 
@@ -104,11 +105,11 @@ if (Input::existsPost()) {
                 }
 
                 // Prepare email data — strip CR, LF, and tab from all header-bound values (#660)
-                $toEmail = preg_replace('/[\r\n\t]/', '', $ownerData->email);
+                $toEmail = InputSanitizer::stripHeaderInjectionChars($ownerData->email);
                 $toName = trim($ownerData->fname . ' ' . $ownerData->lname);
-                $fromEmail = preg_replace('/[\r\n\t]/', '', $adminData->email);
+                $fromEmail = InputSanitizer::stripHeaderInjectionChars($adminData->email);
                 $fromName = trim($adminData->fname . ' ' . $adminData->lname);
-                $qualityIssue = preg_replace('/[\r\n\t]/', '', (string)($qualityIssue ?? ''));
+                $qualityIssue = InputSanitizer::stripHeaderInjectionChars((string)($qualityIssue ?? ''));
 
                 $subject = '[ELANREGISTRY] Administrator Message';
                 if ($qualityIssue) {
@@ -160,7 +161,7 @@ if (Input::existsPost()) {
                     $result = email($toEmail, $subject, $body);
 
                     if ($result !== true) {
-                        $resultStr = is_string($result) ? preg_replace('/[\r\n\t]/', '', $result) : 'unknown delivery error';
+                        $resultStr = is_string($result) ? InputSanitizer::stripHeaderInjectionChars($result) : 'unknown delivery error';
                         $errors[] = 'Failed to send email. Please try again.';
                         logger($adminUserId, LogCategories::LOG_CATEGORY_EMAIL_ERROR, "Admin contact SEND FAILED to {$toEmail}: {$resultStr}");
                     } else {

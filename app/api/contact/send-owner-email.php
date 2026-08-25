@@ -4,6 +4,7 @@ declare(strict_types=1);
 use ElanRegistry\ApiResponse;
 use ElanRegistry\Car\Car;
 use ElanRegistry\Input;
+use ElanRegistry\InputSanitizer;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 
@@ -51,7 +52,7 @@ $action = Input::get('action');
 $message = Input::raw('message'); // raw — output-escaped in _member_to_owner.php at the render layer
 
 if ($action !== 'send_message' || !Input::get('to_user_id')) {
-    $safeAction = preg_replace('/[\r\n\t]/', '', (string)$action);
+    $safeAction = InputSanitizer::stripHeaderInjectionChars((string)$action);
     logger($logUserId ?? 0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, 'send-owner-email.php: missing parameters — action=' . $safeAction);
     ApiResponse::error('Invalid parameters', 400)->send();
 }
@@ -110,10 +111,10 @@ if (!$fromOwner->data() || !$toOwner->data()) {
 $toData   = $toOwner->data();
 $fromData = $fromOwner->data();
 
-$toEmail   = preg_replace('/[\r\n\t]/', '', $toData->email);
+$toEmail   = InputSanitizer::stripHeaderInjectionChars($toData->email);
 $toName    = (string)($toData->fname ?? '');                                        // first name only — flows to HTML template, not headers
-$fromEmail = preg_replace('/[\r\n\t]/', '', $fromData->email);
-$fromName  = preg_replace('/[\r\n\t]/', '', (string)($fromData->fname ?? ''));     // strip header-injection chars — reply_name is a display-name header value
+$fromEmail = InputSanitizer::stripHeaderInjectionChars($fromData->email);
+$fromName  = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));     // strip header-injection chars — reply_name is a display-name header value
 
 if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
     ApiResponse::serverError()
@@ -173,13 +174,13 @@ if ($body === '') {
 // $fromEmail comes from the database but we guard anyway).
 $fromEmailValid = filter_var($fromEmail, FILTER_VALIDATE_EMAIL);
 if (!$fromEmailValid) {
-    logger($logUserId ?? 0, LogCategories::LOG_CATEGORY_ELAN_REGISTRY, "send-owner-email.php invalid fromEmail for reply-to: " . preg_replace('/[\r\n\t]/', '', $fromEmail));
+    logger($logUserId ?? 0, LogCategories::LOG_CATEGORY_ELAN_REGISTRY, "send-owner-email.php invalid fromEmail for reply-to: " . InputSanitizer::stripHeaderInjectionChars($fromEmail));
 }
 $replyOpts = $fromEmailValid ? ['replyTo' => $fromEmail, 'reply_name' => $fromName] : [];
 
 $result = email($toEmail, $subject, $body, $replyOpts);
-$safeFromLog = preg_replace('/[\r\n\t]/', '', $fromEmail);
-$safeToLog   = preg_replace('/[\r\n\t]/', '', $toEmail);
+$safeFromLog = InputSanitizer::stripHeaderInjectionChars($fromEmail);
+$safeToLog   = InputSanitizer::stripHeaderInjectionChars($toEmail);
 
 if ($result !== true) {
     ApiResponse::serverError()
