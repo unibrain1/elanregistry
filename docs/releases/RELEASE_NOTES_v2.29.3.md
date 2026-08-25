@@ -20,6 +20,7 @@ admin-facing behavior change.
 - **MapLibre GL vendored bundle rebuilt for 4.7.1 to 6.4.1 bump** ([#1742](https://github.com/elan-registry/registry/issues/1742))
 - **@versatiles/style vendored output rebuilt for 5.13.0 to 5.13.1 bump** ([#1743](https://github.com/elan-registry/registry/issues/1743))
 - **WIP: Remaining dead `elan_*_cdn`/`fun` settings columns dropped** ([#1734](https://github.com/elan-registry/registry/issues/1734))
+- **WIP: Playwright `baseURL` corrected to match actual local MAMP path** ([#1623](https://github.com/elan-registry/registry/issues/1623))
 
 ## Issues Resolved
 
