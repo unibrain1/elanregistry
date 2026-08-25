@@ -21,6 +21,7 @@ admin-facing behavior change.
 - **@versatiles/style vendored output rebuilt for 5.13.0 to 5.13.1 bump** ([#1743](https://github.com/elan-registry/registry/issues/1743))
 - **Remaining dead `elan_*_cdn`/`fun` settings columns dropped** ([#1734](https://github.com/elan-registry/registry/issues/1734))
 - **WIP: Playwright `baseURL` corrected to match actual local MAMP path** ([#1623](https://github.com/elan-registry/registry/issues/1623))
+- **Pre-push integration-test gate no longer runs the full suite on empty/first pushes of new issue branches** ([#1751](https://github.com/elan-registry/registry/issues/1751))
 
 ## Issues Resolved
 
@@ -31,3 +32,4 @@ admin-facing behavior change.
 - [#1741](https://github.com/elan-registry/registry/issues/1741) — chore: rebuild DataTables vendored bundle for coordinated bs5/fixedheader/responsive version bump
 - [#1742](https://github.com/elan-registry/registry/issues/1742) — chore: rebuild vendored MapLibre GL bundle for maplibre-gl 4.7.1 to 6.4.1 bump
 - [#1743](https://github.com/elan-registry/registry/issues/1743) — chore: rebuild vendored @versatiles/style output for 5.13.0 to 5.13.1 bump
+- [#1751](https://github.com/elan-registry/registry/issues/1751) — ci: pre-push integration-test gate runs full suite on empty issue-branch pushes (wrong merge-base fallback)
