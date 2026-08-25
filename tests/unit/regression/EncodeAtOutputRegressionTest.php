@@ -83,6 +83,23 @@ final class EncodeAtOutputRegressionTest extends RegressionTestCase
     }
 
     /**
+     * A literal "0" value must not be silently discarded for any covered field.
+     *
+     * The updater functions changed from a truthy guard (where PHP treats "0" as
+     * falsy) to an explicit !== null && !== '' check. This verifies "0" is
+     * treated as a valid value across every field.
+     */
+    #[DataProvider('zeroValueFieldProvider')]
+    public function testLiteralZeroIsNotDiscarded(string $field): void
+    {
+        $_POST[$field] = '0';
+
+        $result = Input::raw($field);
+
+        $this->assertSame('0', $result, "Input::raw('{$field}') must return \"0\" unchanged");
+    }
+
+    /**
      * Re-saving a value retrieved via Input::raw() must not accumulate encoding
      * across any covered field — the storage layer must be fully idempotent.
      */
@@ -233,6 +250,19 @@ final class EncodeAtOutputRegressionTest extends RegressionTestCase
             $cases["{$field} — ampersand"]    = [$field, "Tom & Jerry",      '&amp;'];
             $cases["{$field} — apostrophe"]   = [$field, "O'Brien",          '&#039;'];
             $cases["{$field} — angle bracket"] = [$field, "<elan>",          '&lt;'];
+        }
+        return $cases;
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function zeroValueFieldProvider(): array
+    {
+        $fields = self::TESTED_FIELDS;
+        $cases = [];
+        foreach ($fields as $field) {
+            $cases[$field] = [$field];
         }
         return $cases;
     }
