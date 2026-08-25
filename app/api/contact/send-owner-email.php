@@ -52,7 +52,15 @@ $action = Input::get('action');
 $message = Input::raw('message'); // raw — output-escaped in _member_to_owner.php at the render layer
 
 if ($action !== 'send_message' || !Input::get('to_user_id')) {
-    $safeAction = InputSanitizer::stripHeaderInjectionChars((string)$action);
+    // Guard against InputSanitizer::stripHeaderInjectionChars() throwing (PCRE engine
+    // failure) — this call site is before the file's first try/catch, so an uncaught
+    // exception here would escape as a raw error page instead of the ApiResponse JSON
+    // contract this endpoint promises.
+    try {
+        $safeAction = InputSanitizer::stripHeaderInjectionChars((string)$action);
+    } catch (\Throwable $e) {
+        $safeAction = '[unsanitizable]';
+    }
     logger($logUserId ?? 0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, 'send-owner-email.php: missing parameters — action=' . $safeAction);
     ApiResponse::error('Invalid parameters', 400)->send();
 }
@@ -111,10 +119,19 @@ if (!$fromOwner->data() || !$toOwner->data()) {
 $toData   = $toOwner->data();
 $fromData = $fromOwner->data();
 
-$toEmail   = InputSanitizer::stripHeaderInjectionChars($toData->email);
-$toName    = (string)($toData->fname ?? '');                                        // first name only — flows to HTML template, not headers
-$fromEmail = InputSanitizer::stripHeaderInjectionChars($fromData->email);
-$fromName  = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));     // strip header-injection chars — reply_name is a display-name header value
+// InputSanitizer::stripHeaderInjectionChars() can throw on a PCRE engine failure;
+// catch it here rather than let it escape as a raw error page instead of the
+// ApiResponse JSON contract this endpoint promises.
+try {
+    $toEmail   = InputSanitizer::stripHeaderInjectionChars($toData->email);
+    $fromEmail = InputSanitizer::stripHeaderInjectionChars($fromData->email);
+    $fromName  = InputSanitizer::stripHeaderInjectionChars((string)($fromData->fname ?? ''));     // strip header-injection chars — reply_name is a display-name header value
+} catch (\Throwable $e) {
+    ApiResponse::serverError()
+        ->withLogging($logUserId ?? 0, LogCategories::LOG_CATEGORY_EMAIL_ERROR, 'send-owner-email.php: exception sanitizing header-bound values: ' . $e->getMessage())
+        ->send();
+}
+$toName = (string)($toData->fname ?? '');                                        // first name only — flows to HTML template, not headers
 
 if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
     ApiResponse::serverError()
@@ -174,13 +191,26 @@ if ($body === '') {
 // $fromEmail comes from the database but we guard anyway).
 $fromEmailValid = filter_var($fromEmail, FILTER_VALIDATE_EMAIL);
 if (!$fromEmailValid) {
-    logger($logUserId ?? 0, LogCategories::LOG_CATEGORY_ELAN_REGISTRY, "send-owner-email.php invalid fromEmail for reply-to: " . InputSanitizer::stripHeaderInjectionChars($fromEmail));
+    // $fromEmail already passed through stripHeaderInjectionChars() once above without
+    // throwing, so re-stripping it here (already CR/LF/tab-free) cannot fail — but guard
+    // anyway for consistency with the other call sites in this file.
+    try {
+        $safeFromEmailLog = InputSanitizer::stripHeaderInjectionChars($fromEmail);
+    } catch (\Throwable $e) {
+        $safeFromEmailLog = '[unsanitizable]';
+    }
+    logger($logUserId ?? 0, LogCategories::LOG_CATEGORY_ELAN_REGISTRY, "send-owner-email.php invalid fromEmail for reply-to: " . $safeFromEmailLog);
 }
 $replyOpts = $fromEmailValid ? ['replyTo' => $fromEmail, 'reply_name' => $fromName] : [];
 
 $result = email($toEmail, $subject, $body, $replyOpts);
-$safeFromLog = InputSanitizer::stripHeaderInjectionChars($fromEmail);
-$safeToLog   = InputSanitizer::stripHeaderInjectionChars($toEmail);
+try {
+    $safeFromLog = InputSanitizer::stripHeaderInjectionChars($fromEmail);
+    $safeToLog   = InputSanitizer::stripHeaderInjectionChars($toEmail);
+} catch (\Throwable $e) {
+    $safeFromLog = '[unsanitizable]';
+    $safeToLog   = '[unsanitizable]';
+}
 
 if ($result !== true) {
     ApiResponse::serverError()
