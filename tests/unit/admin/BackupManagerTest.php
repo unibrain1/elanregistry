@@ -66,20 +66,6 @@ final class BackupManagerTest extends TestCase
     }
 
     /**
-     * Test BackupManager instantiation
-     *
-     * @return void
-     */
-    #[Group('fast')]
-    public function testInstantiation(): void
-    {
-        // $this->backupManager is typed BackupManager (non-nullable) and assigned in
-        // setUp(); reaching this line without a fatal error already proves the
-        // constructor succeeded, so there's nothing further to assert here.
-        $this->expectNotToPerformAssertions();
-    }
-
-    /**
      * Test createSchemaBackup creates a backup file
      *
      * @return void

@@ -17,7 +17,7 @@ use PHPUnit\Framework\Attributes\Group;
  * Tests assert presence/absence of a specific user ID in results; they never
  * assert row counts because the live database contains other accounts.
  *
- * @see FindUnverifiedOwnerlessAccountsTest  (unit tests — SQL-agnostic)
+ * @see OwnerlessAccountsFinderTest  (unit tests — SQL-agnostic)
  */
 #[Group('integration')]
 #[Group('admin')]

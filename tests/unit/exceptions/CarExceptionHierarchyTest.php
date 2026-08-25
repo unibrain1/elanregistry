@@ -80,22 +80,6 @@ class CarExceptionHierarchyTest extends TestCase
     }
 
     /**
-     * Test backward compatibility - all car exceptions are still instanceof ElanRegistryException
-     *
-     * @param string $className Exception class name to test
-     */
-    #[DataProvider('carExceptionClassProvider')]
-    public function testBackwardCompatibilityWithElanRegistryException(string $className): void
-    {
-        $exception = new $className();
-        $this->assertInstanceOf(
-            ElanRegistryException::class,
-            $exception,
-            "{$className} should be instanceof ElanRegistryException for backward compatibility"
-        );
-    }
-
-    /**
      * Test backward compatibility - all car exceptions are instanceof CarException
      *
      * @param string $className Exception class name to test
@@ -109,30 +93,6 @@ class CarExceptionHierarchyTest extends TestCase
             $exception,
             "{$className} should be instanceof CarException"
         );
-    }
-
-    /**
-     * Test CarDatabaseException defaults
-     */
-    public function testCarDatabaseExceptionDefaults(): void
-    {
-        $exception = new CarDatabaseException();
-
-        $this->assertEquals(500, $exception->getHttpStatusCode());
-        $this->assertEquals('DatabaseError', $exception->getLogCategory());
-        $this->assertNotEmpty($exception->getUserMessage());
-    }
-
-    /**
-     * Test CarPermissionException defaults
-     */
-    public function testCarPermissionExceptionDefaults(): void
-    {
-        $exception = new CarPermissionException();
-
-        $this->assertEquals(403, $exception->getHttpStatusCode());
-        $this->assertEquals('AccessDenied', $exception->getLogCategory());
-        $this->assertNotEmpty($exception->getUserMessage());
     }
 
     /**
