@@ -43,12 +43,18 @@ quality checks. Run once per developer after cloning the repo.
 - Verifies installation and tests required tools (PHP, Composer, npx)
 - Checks that vendor/ and node_modules/ are present
 
-**Pre-commit hook steps:**
+**Pre-commit hook steps** (`.githooks/pre-commit`):
 
-1. PHP coding standards validation (security, types, PHPDoc)
-2. Markdown linting for documentation consistency
-3. Regression test validation (issue linking)
-4. Fast unit tests when critical files are modified
+1. PHP coding standards validation (security, types, PHPDoc, and — for
+   `tests/unit/regression/*.php` — issue-linking traceability, checked via
+   `checkRegressionTestStructure()` inside this same step, not a separate one)
+2. Markdown linting for formatting
+3. Unit tests (if critical files changed) — runs concurrently with step 4
+4. PHPStan static analysis (if PHP files changed) — runs concurrently with step 3
+5. JavaScript linting (if JS files changed and ESLint is available)
+6. Documentation consistency (`composer check:docs`, if PHP or Markdown files
+   are staged) — dead links, stale indexes, ADR drift, dead symbols
+7. Minify first-party JS/CSS (if source files changed and Node is available)
 
 **Pre-push hook steps** (`.githooks/pre-push`, #1439):
 
