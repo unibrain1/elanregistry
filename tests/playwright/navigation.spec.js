@@ -1,6 +1,7 @@
 // tests/playwright/navigation.test.js
 const { test, expect } = require('@playwright/test');
 const { navigateAndWait, testRedirect, handleAuthRequired } = require('./auth-helper.js');
+const { CAR_ID_STANDARD } = require('./fixtures.js');
 
 test.describe('Navigation and File Reorganization', () => {
   test('homepage loads successfully', async ({ page }) => {
@@ -24,7 +25,7 @@ test.describe('Navigation and File Reorganization', () => {
 
   test('car details page loads (reorganized)', async ({ page }) => {
     // Navigate to car details page
-    await navigateAndWait(page, 'app/owner/cars/details.php?car_id=1');
+    await navigateAndWait(page, `app/owner/cars/details.php?car_id=${CAR_ID_STANDARD}`);
 
     // Handle authentication requirement or verify content
     await handleAuthRequired(
@@ -36,7 +37,7 @@ test.describe('Navigation and File Reorganization', () => {
     );
 
     // Test backward compatibility redirect
-    await testRedirect(page, 'app/car_details.php?car_id=1', 'app/owner/cars/details.php');
+    await testRedirect(page, `app/car_details.php?car_id=${CAR_ID_STANDARD}`, 'app/owner/cars/details.php');
   });
 
   test('car form page loads (reorganized)', async ({ page }) => {

@@ -1,5 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
+const { CAR_ID_WITH_HISTORY } = require('./fixtures.js');
+const { assertNoGoogleMapsRequests } = require('./auth-helper.js');
 
 test.describe('Maps and Charts', () => {
 
@@ -48,15 +50,20 @@ test.describe('Maps and Charts', () => {
       return { lastLabel: labels[labels.length - 1], labelCount: labels.length, dataPointCount: data.length };
     });
     expect(chartState).not.toBeNull();
+    // 91-day window is hardcoded client-side (app/assets/js/statistics.js
+    // createRecentActivityChart: `for (let i = 90; i >= 0; i--)`) — no shared
+    // constant to import, so this exact value tracks that loop bound directly.
     expect(chartState.labelCount).toBe(91);
     expect(chartState.dataPointCount).toBe(91);
-    const today = new Date();
-    const expectedLabel = today.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-    expect(chartState.lastLabel).toBe(expectedLabel);
+    // Label format is `en-GB` day/short-month (e.g. "25 Aug" — en-GB orders
+    // day before month); match the pattern rather than requiring an exact
+    // locale string so the assertion doesn't depend on the test runner and
+    // server agreeing on timezone/locale.
+    expect(chartState.lastLabel).toMatch(/^\d{1,2} [A-Za-z]{3}$/);
   });
 
   test('car details page map renders with MapLibre GL JS', async ({ page }) => {
-    await page.goto('app/owner/cars/details.php?car_id=1091');
+    await page.goto(`app/owner/cars/details.php?car_id=${CAR_ID_WITH_HISTORY}`);
     await page.waitForLoadState('networkidle');
 
     // Map renders only when the car has GPS coordinates; otherwise the location
@@ -174,23 +181,7 @@ test.describe('Maps and Charts', () => {
   });
 
   test('no requests to Google Maps domains on statistics page', async ({ page }) => {
-    const googleMapsRequests = [];
-    page.on('request', request => {
-      const url = request.url();
-      try {
-        const hostname = new URL(url).hostname;
-        if (hostname === 'maps.googleapis.com' || hostname.endsWith('.maps.googleapis.com') ||
-            hostname === 'maps.gstatic.com' || hostname.endsWith('.maps.gstatic.com')) {
-          googleMapsRequests.push(url);
-        }
-      } catch (_) { /* ignore non-URL strings */ }
-    });
-
-    await page.goto('app/owner/reports/statistics.php');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
-
-    expect(googleMapsRequests).toHaveLength(0);
+    await assertNoGoogleMapsRequests(page, 'app/owner/reports/statistics.php', 'statistics page');
   });
 
 });

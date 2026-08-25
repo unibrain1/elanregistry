@@ -116,12 +116,15 @@ test.describe('Elan Registry - Car Update Functionality (Logged In)', () => {
     await page.screenshot({ path: 'screenshots/car-update-result.png', fullPage: true });
     console.log('✓ Screenshot saved to screenshots/car-update-result.png');
 
-    // Verify success - check for success message or redirect
-    // Adjust this based on what the page shows after successful update
-    const bodyText = await page.textContent('body');
-    expect(bodyText.length).toBeGreaterThan(0);
+    // Verify no error alert appeared (UserSpice renders failures via usError() -> .alert-danger)
+    await expect(page.locator('.alert-danger')).toHaveCount(0);
 
-    console.log('✓ Car update process completed successfully');
+    // Verify the save round-tripped: edit.php reloads $cardetails from DB after a
+    // successful update and re-renders it into this same textarea.
+    const commentFieldAfterSave = page.locator('textarea[name*="comment"], textarea[id*="comment"], textarea[placeholder*="comment" i]').first();
+    await expect(commentFieldAfterSave).toHaveValue(testNote);
+
+    console.log('✓ Car update verified: no error alert, comment value persisted');
   });
 });
 

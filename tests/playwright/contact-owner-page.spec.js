@@ -20,6 +20,7 @@
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');
+const { CAR_ID_STANDARD, CAR_ID_NONEXISTENT } = require('./fixtures.js');
 
 test.describe('Contact owner page — DatabaseInterface migration (#1585)', () => {
 
@@ -30,7 +31,7 @@ test.describe('Contact owner page — DatabaseInterface migration (#1585)', () =
   test('valid car_id renders the contact-owner form', async ({ page }) => {
     // car_id=1 is used as a stable local fixture elsewhere in this suite
     // (car-edit-text-save.spec.js, csp-validation.spec.js, ui-consistency.spec.js).
-    await page.goto('app/owner/contact/owner.php?car_id=1', { waitUntil: 'domcontentloaded' });
+    await page.goto(`app/owner/contact/owner.php?car_id=${CAR_ID_STANDARD}`, { waitUntil: 'domcontentloaded' });
 
     const currentUrl = page.url();
     if (currentUrl.includes('login') || currentUrl.includes('Please Log In')) {
@@ -47,7 +48,7 @@ test.describe('Contact owner page — DatabaseInterface migration (#1585)', () =
     // get('users', ...)->results() both succeeded and the form rendered.
     await expect(page.locator('h2:has-text("Contact Owner")')).toBeVisible();
     await expect(page.locator('textarea[name="message"]')).toBeVisible();
-    await expect(page.locator('input[name="car_id"]')).toHaveValue('1');
+    await expect(page.locator('input[name="car_id"]')).toHaveValue(String(CAR_ID_STANDARD));
     await expect(page.locator('input[name="to_user_id"]')).toHaveCount(1);
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
@@ -55,7 +56,7 @@ test.describe('Contact owner page — DatabaseInterface migration (#1585)', () =
   test('nonexistent car_id never renders the contact form', async ({ page }) => {
     // No car with this id can exist — exercises the empty($carResults) guard,
     // which redirects to '/' rather than rendering the form.
-    await page.goto('app/owner/contact/owner.php?car_id=999999999', { waitUntil: 'domcontentloaded' });
+    await page.goto(`app/owner/contact/owner.php?car_id=${CAR_ID_NONEXISTENT}`, { waitUntil: 'domcontentloaded' });
 
     const currentUrl = page.url();
     if (currentUrl.includes('login') || currentUrl.includes('Please Log In')) {

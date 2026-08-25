@@ -54,7 +54,11 @@ test.describe('Factory Page - Registry Link Feature', () => {
   });
 
   test('should display matched chassis with "View Car" button', async ({ page, context }) => {
-    // Note: This test assumes test data exists. In production, skip if not available.
+    // Matched-chassis rows require the full elan_factory_info dataset
+    // (ElanFactoryInfoSeed, 9,762 rows via `scripts/provision-schema.sh
+    // --full`) — default provisioning only inserts a couple of rows and does
+    // not guarantee a chassis match exists. Skip rather than assume, same
+    // caution as the pagination test below.
 
     await page.goto('/app/owner/cars/factory.php');
 
@@ -70,20 +74,22 @@ test.describe('Factory Page - Registry Link Feature', () => {
     const viewButtons = page.locator('.registry-link-container .btn-primary');
     const viewButtonCount = await viewButtons.count();
 
-    if (viewButtonCount > 0) {
-      console.log(`✓ Found ${viewButtonCount} "View Car" button(s)`);
+    test.skip(viewButtonCount === 0, 'No matched chassis in fixture data — requires provision-schema.sh --full');
 
-      // Verify first button has correct content
-      const firstButton = viewButtons.first();
-      const text = await firstButton.textContent();
-      expect(text).toContain('View Car');
-      console.log(`✓ First button text: "${text.trim()}"`);
-    } else {
-      console.log('⚠ No "View Car" buttons found (might not have matching cars in test data)');
-    }
+    console.log(`✓ Found ${viewButtonCount} "View Car" button(s)`);
+
+    // Verify first button has correct content
+    const firstButton = viewButtons.first();
+    const text = await firstButton.textContent();
+    expect(text).toContain('View Car');
+    console.log(`✓ First button text: "${text.trim()}"`);
   });
 
   test('should display unmatched chassis with informational message', async ({ page }) => {
+    // Unmatched-chassis rows depend on the same environment-variable fixture
+    // data as the matched-chassis test above — see its comment. Skip rather
+    // than assume.
+
     await page.goto('/app/owner/cars/factory.php');
 
     // Wait for table to load
@@ -97,16 +103,14 @@ test.describe('Factory Page - Registry Link Feature', () => {
     const messages = page.locator('.registry-link-container .text-muted, .registry-link-container .text-secondary');
     const messageCount = await messages.count();
 
-    if (messageCount > 0) {
-      console.log(`✓ Found ${messageCount} informational message(s)`);
+    test.skip(messageCount === 0, 'No unmatched chassis in fixture data — requires provision-schema.sh --full');
 
-      // Check message content
-      const firstMsg = messages.first();
-      const text = await firstMsg.textContent();
-      console.log(`✓ Message example: "${text.trim()}"`);
-    } else {
-      console.log('⚠ No informational messages found (all might be matched)');
-    }
+    console.log(`✓ Found ${messageCount} informational message(s)`);
+
+    // Check message content
+    const firstMsg = messages.first();
+    const text = await firstMsg.textContent();
+    console.log(`✓ Message example: "${text.trim()}"`);
   });
 
   test('should handle null/missing chassis gracefully', async ({ page }) => {
@@ -121,11 +125,8 @@ test.describe('Factory Page - Registry Link Feature', () => {
     const checkFailedElements = page.locator(':text("Check failed")');
     const failedCount = await checkFailedElements.count();
 
-    if (failedCount === 0) {
-      console.log('✓ No "Check failed" errors visible');
-    } else {
-      console.log(`⚠ Found ${failedCount} "Check failed" error(s)`);
-    }
+    expect(failedCount).toBe(0);
+    console.log('✓ No "Check failed" errors visible');
   });
 
   test('should maintain Registry Link functionality across pagination', async ({ page }) => {
@@ -136,7 +137,14 @@ test.describe('Factory Page - Registry Link Feature', () => {
     await page.waitForSelector('.registry-link-container', { timeout: 10000 });
     console.log('✓ Page 1 loaded');
 
-    // Check if pagination exists
+    // TODO(#1760): Whether pagination appears depends on how many rows are in
+    // elan_factory_info, which is environment-dependent — the full production
+    // dataset (9,762 rows, ElanFactoryInfoSeed) is only loaded with
+    // `scripts/provision-schema.sh --full`; default provisioning and the
+    // PHPUnit integration fixtures insert only a couple of rows, well under
+    // the pageLength of 25 (see app/assets/js/factory-list.min.js). This
+    // outer condition cannot be made unconditional without confirming the
+    // local/CI DB is always provisioned with --full.
     const nextButton = page.locator('.paginate_button.next:not(.disabled)');
     const isNextAvailable = await nextButton.isVisible();
 
@@ -157,11 +165,8 @@ test.describe('Factory Page - Registry Link Feature', () => {
       // Verify no "Check failed" errors on page 2
       const checkFailed = page.locator(':text("Check failed")');
       const failedCount = await checkFailed.count();
-      if (failedCount === 0) {
-        console.log('✓ No "Check failed" errors on page 2');
-      } else {
-        console.log(`⚠ Found ${failedCount} "Check failed" errors on page 2`);
-      }
+      expect(failedCount).toBe(0);
+      console.log('✓ No "Check failed" errors on page 2');
     } else {
       console.log('⚠ Only 1 page of data, skipping pagination test');
     }
