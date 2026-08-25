@@ -62,18 +62,11 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
         $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
             'security_token'        => $securityToken,
             'expires_at'            => $expiresAt,
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
             'submitted_year'        => $car->year,
             'submitted_type'        => $car->type,
             'submitted_chassis'     => $car->chassis,
             'submitted_color'       => $car->color,
             'submitted_engine'      => $car->engine,
-            'submitted_comments'    => 'Test transfer request',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
         ]);
 
         $request = $this->db->query(
@@ -94,27 +87,7 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
-
-        $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
-            'expires_at'            => $expiresAt,
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-        ]);
+        $this->createTransferRequest($this->testCarId, $this->testUserId);
 
         $result = $this->db->query(
             "SELECT COUNT(*) as count FROM car_transfer_requests
@@ -138,25 +111,7 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-        ]);
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId);
 
         $result = $this->db->update('car_transfer_requests', $requestId, [
             'status'         => 'completed',
@@ -183,26 +138,7 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
             $this->markTestSkipped('Database not available');
         }
 
-        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', 'test-' . time()),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-            'status'                => 'denied',
-        ]);
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, ['status' => 'denied']);
 
         $result = $this->db->query(
             "SELECT * FROM car_transfer_requests WHERE id = ? AND status = 'pending'",
@@ -228,25 +164,7 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
         $carBefore = $this->db->query("SELECT user_id FROM cars WHERE id = ?", [$this->testCarId])->first();
         $ownerBefore = $carBefore->user_id;
 
-        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-        ]);
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId);
 
         $result = $this->db->update('car_transfer_requests', $requestId, [
             'status'         => 'denied',
@@ -303,25 +221,7 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-        ]);
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId);
 
         // First admin claims the request atomically.
         // AND status = 'pending' is the TOCTOU gate: only a pending row matches.
@@ -367,26 +267,9 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
         // Insert the request already in 'completed' state to simulate a row that
         // has already been approved by another admin.
         $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-            'status'                => 'completed',
-            'completed_date'        => date('Y-m-d H:i:s'),
-            'admin_notes'           => 'First admin',
+            'status'         => 'completed',
+            'completed_date' => date('Y-m-d H:i:s'),
+            'admin_notes'    => 'First admin',
         ]);
 
         // A second admin attempting to approve the same request calls updateStatus().
@@ -410,25 +293,7 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-        ]);
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId);
 
         // Simulate the outer transaction that process-transfer-approve.php begins.
         $this->db->beginTransaction();
@@ -461,26 +326,7 @@ final class CarTransferWorkflowTest extends TransferIntegrationTestCase
             $this->markTestSkipped('Database or test data not available');
         }
 
-        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, [
-            'security_token'        => hash('sha256', $this->testCarId . $this->testUserId . time() . rand()),
-            'expires_at'            => date('Y-m-d H:i:s', strtotime('+30 days')),
-            'submitted_model'       => 'Test Model',
-            'submitted_series'      => 'Test Series',
-            'submitted_variant'     => 'Test Variant',
-            'submitted_year'        => 2024,
-            'submitted_type'        => 'S1H',
-            'submitted_chassis'     => 'TESTX',
-            'submitted_color'       => 'Red',
-            'submitted_engine'      => 'Test Engine',
-            'submitted_comments'    => 'Test comment',
-            'submitted_email'       => 'test@example.com',
-            'submitted_fname'       => 'Test',
-            'submitted_lname'       => 'User',
-            'submitted_city'        => 'Test City',
-            'submitted_state'       => 'Test State',
-            'submitted_country'     => 'Test Country',
-            'status'                => 'completed',
-        ]);
+        $requestId = $this->createTransferRequest($this->testCarId, $this->testUserId, ['status' => 'completed']);
 
         $result = $this->db->query(
             "SELECT * FROM car_transfer_requests WHERE id = ? AND status = 'pending'",

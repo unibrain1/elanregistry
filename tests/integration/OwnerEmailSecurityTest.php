@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\InputSanitizer;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -116,8 +117,9 @@ final class OwnerEmailSecurityTest extends IntegrationTestCase
         $fromOwnerResult = $this->db->query('SELECT fname, lname, email FROM users WHERE id = ?', [$fromUserId]);
         $fromData        = $fromOwnerResult->first();
 
-        // Replicate send-owner-email.php:116
-        $fromName = preg_replace('/[\r\n\t]/', '', $fromData->fname);
+        // Call the real helper send-owner-email.php uses — not a mirrored regex —
+        // so this test can't silently drift from production behavior (#1759).
+        $fromName = InputSanitizer::stripHeaderInjectionChars($fromData->fname);
 
         $this->assertSame('Alice', $fromName, '$fromName must equal fname only');
         $this->assertStringNotContainsString('Smith', $fromName, '$fromName must not include lname');
