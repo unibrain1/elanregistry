@@ -71,17 +71,24 @@ gate_failed=0
 # the true parent will show 0+ commits ahead; origin/main, being further back
 # in history, will show many more.
 #
-# Only candidates that are true ancestors of $1 are considered (verified via
-# `git merge-base --is-ancestor candidate target`) — this excludes a
-# sibling/descendant branch that happens to share $1's tip or later history
-# (e.g. a stale/scratch milestone branch someone cut FROM the issue branch
-# after diverging from it). A commit-count comparison alone can't tell a true
-# ancestor with zero commits ahead (e.g. $1 is a genuinely fresh branch with
-# no commits yet) apart from such a sibling — both show count=0 — so the
-# ancestor check is required first; count only breaks ties among confirmed
-# ancestors (#1751 review). Picking a non-ancestor sibling would silently
-# zero out (or under-report) the diff and defeat the gate exactly like the
-# bug this function fixes, just via a different trigger.
+# A candidate is rejected only when $1 (the pushed branch) is itself an
+# ancestor of that candidate — i.e. the candidate was cut FROM $1's own tip
+# (a stale/scratch milestone branch someone branched off the issue branch
+# after diverging from it) rather than being a real, independent parent. This
+# is checked as `! git merge-base --is-ancestor target candidate`, NOT the
+# reverse: requiring the candidate to be an ancestor of $1 would also reject
+# a milestone branch that has legitimately moved on since $1 forked from it
+# (e.g. the developer worked another issue in the meantime, which merged into
+# the milestone branch, before finally pushing $1 for the first time) — that
+# milestone branch is still $1's true logical parent even though $1's tip
+# isn't reachable from it anymore (PR #1767 review). A commit-count
+# comparison alone can't tell a true ancestor with zero commits ahead (e.g.
+# $1 is a genuinely fresh branch with no commits yet) apart from a diverged
+# sibling — both show count=0 — so the ancestor-direction check is required
+# first; count only breaks ties among confirmed candidates (#1751 review).
+# Picking a sibling cut from $1's own tip would silently zero out (or
+# under-report) the diff and defeat the gate exactly like the bug this
+# function fixes, just via a different trigger.
 #
 # Echoes the winning base SHA on success, and the winning candidate + commit
 # count to stderr for diagnosability. Returns non-zero (echoes nothing) if no
@@ -94,10 +101,10 @@ _pick_closest_base() {
     while IFS= read -r candidate; do
         [ -z "$candidate" ] && continue
         base="$(git merge-base "$target" "$candidate" 2>/dev/null)" || continue
-        # Reject candidates that are not true ancestors of $target — see the
-        # function comment above for why count alone can't distinguish a
-        # true (possibly zero-commits-ahead) parent from a diverged sibling.
-        git merge-base --is-ancestor "$candidate" "$target" 2>/dev/null || continue
+        # Reject only candidates cut FROM $target's own tip (i.e. $target is
+        # an ancestor of $candidate) — see the function comment above for why
+        # this direction, not the reverse, is the correct discriminator.
+        git merge-base --is-ancestor "$target" "$candidate" 2>/dev/null && continue
         count="$(git rev-list --count "$base".."$target" 2>/dev/null)" || continue
         case "$count" in
             ''|*[!0-9]*)
@@ -154,12 +161,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         #      _pick_closest_base above) — issue/bug/feature branches fork
         #      from a milestone branch, not main (#1751), so origin/main
         #      alone would pick up that milestone's entire accumulated diff.
-        #      _pick_closest_base picks whichever confirmed-ancestor
-        #      candidate has the fewest commits ahead (candidates that are
-        #      not true ancestors of local_sha — e.g. a stale milestone
-        #      branch cut from this same branch after it diverged — are
-        #      excluded first, since they'd otherwise zero out the diff),
-        #      which reliably isolates just this branch's own commits
+        #      _pick_closest_base picks whichever candidate has the fewest
+        #      commits ahead, excluding only candidates cut FROM local_sha's
+        #      own tip (e.g. a stale milestone branch someone branched off
+        #      this same branch after diverging from it, which would
+        #      otherwise zero out the diff) — a milestone branch that has
+        #      simply moved on since local_sha forked from it is still a
+        #      valid, rankable candidate, which reliably isolates just this
+        #      branch's own commits
         #      regardless of which branch it actually forked from.
         #   3. local_sha itself, only if both above fail to resolve (e.g. no
         #      'origin' remote at all) — printed loudly so it's never a
