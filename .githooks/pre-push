@@ -63,6 +63,70 @@ remote_name="${1:-}"
 integration_gate_paths='^(app|usersc/classes|tests/integration)/.*\.php$'
 gate_failed=0
 
+# Picks the closest true parent branch for a brand-new ref with no upstream
+# (see the "New ref" comment block below for why this exists). Issue/bug/
+# feature branches fork from a local `milestone/*` branch, not `main` — so
+# among all candidate ancestors, the correct parent is whichever one has the
+# FEWEST commits between its merge-base and $1. A milestone branch that is
+# the true parent will show 0+ commits ahead; origin/main, being further back
+# in history, will show many more.
+#
+# A candidate is rejected only when $1 (the pushed branch) is itself an
+# ancestor of that candidate — i.e. the candidate was cut FROM $1's own tip
+# (a stale/scratch milestone branch someone branched off the issue branch
+# after diverging from it) rather than being a real, independent parent. This
+# is checked as `! git merge-base --is-ancestor target candidate`, NOT the
+# reverse: requiring the candidate to be an ancestor of $1 would also reject
+# a milestone branch that has legitimately moved on since $1 forked from it
+# (e.g. the developer worked another issue in the meantime, which merged into
+# the milestone branch, before finally pushing $1 for the first time) — that
+# milestone branch is still $1's true logical parent even though $1's tip
+# isn't reachable from it anymore (PR #1767 review). A commit-count
+# comparison alone can't tell a true ancestor with zero commits ahead (e.g.
+# $1 is a genuinely fresh branch with no commits yet) apart from a diverged
+# sibling — both show count=0 — so the ancestor-direction check is required
+# first; count only breaks ties among confirmed candidates (#1751 review).
+# Picking a sibling cut from $1's own tip would silently zero out (or
+# under-report) the diff and defeat the gate exactly like the bug this
+# function fixes, just via a different trigger.
+#
+# Echoes the winning base SHA on success, and the winning candidate + commit
+# count to stderr for diagnosability. Returns non-zero (echoes nothing) if no
+# candidate resolves at all.
+_pick_closest_base() {
+    local target="$1"
+    local best_base="" best_count="" best_candidate=""
+    local candidate base count
+
+    while IFS= read -r candidate; do
+        [ -z "$candidate" ] && continue
+        base="$(git merge-base "$target" "$candidate" 2>/dev/null)" || continue
+        # Reject only candidates cut FROM $target's own tip (i.e. $target is
+        # an ancestor of $candidate) — see the function comment above for why
+        # this direction, not the reverse, is the correct discriminator.
+        git merge-base --is-ancestor "$target" "$candidate" 2>/dev/null && continue
+        count="$(git rev-list --count "$base".."$target" 2>/dev/null)" || continue
+        case "$count" in
+            ''|*[!0-9]*)
+                echo "  WARNING: unexpected 'git rev-list --count' output for candidate '$candidate': '$count' — skipping it." >&2
+                continue
+                ;;
+        esac
+        if [ -z "$best_count" ] || [ "$count" -lt "$best_count" ]; then
+            best_base="$base"
+            best_count="$count"
+            best_candidate="$candidate"
+        fi
+    done <<< "$(git for-each-ref --format='%(refname:short)' 'refs/heads/milestone/*' 2>/dev/null; echo 'origin/main')"
+
+    if [ -n "$best_base" ]; then
+        echo "  (merge-base resolved via closest branch: $best_candidate, $best_count commit(s) ahead)" >&2
+        printf '%s\n' "$best_base"
+        return 0
+    fi
+    return 1
+}
+
 while read -r local_ref local_sha remote_ref remote_sha; do
     # Skip deletes
     if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
@@ -93,15 +157,25 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         #      checked out and would silently compute the wrong base for an
         #      explicit `git push origin some-other-branch:some-other-branch`
         #      run from a different branch.
-        #   2. origin/main (this repo's default branch — issue branches
-        #      always trace back to it through their milestone branch, so
-        #      the merge-base reliably isolates just this branch's commits)
+        #   2. the closest local `milestone/*` branch or origin/main (see
+        #      _pick_closest_base above) — issue/bug/feature branches fork
+        #      from a milestone branch, not main (#1751), so origin/main
+        #      alone would pick up that milestone's entire accumulated diff.
+        #      _pick_closest_base picks whichever candidate has the fewest
+        #      commits ahead, excluding only candidates cut FROM local_sha's
+        #      own tip (e.g. a stale milestone branch someone branched off
+        #      this same branch after diverging from it, which would
+        #      otherwise zero out the diff) — a milestone branch that has
+        #      simply moved on since local_sha forked from it is still a
+        #      valid, rankable candidate, which reliably isolates just this
+        #      branch's own commits
+        #      regardless of which branch it actually forked from.
         #   3. local_sha itself, only if both above fail to resolve (e.g. no
         #      'origin' remote at all) — printed loudly so it's never a
         #      silent gap.
         if base="$(git merge-base "$local_sha" "${branch}@{upstream}" 2>/dev/null)"; then
             :
-        elif base="$(git merge-base "$local_sha" origin/main 2>/dev/null)"; then
+        elif base="$(_pick_closest_base "$local_sha")"; then
             :
         else
             echo "  WARNING: could not resolve a merge-base for '$local_ref' (no upstream, no origin/main)." >&2
