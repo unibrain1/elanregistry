@@ -159,6 +159,68 @@ async function waitForDataTables(page, timeout = 10000) {
   return searchBox;
 }
 
+/**
+ * Assert no requests to Google Maps domains fire when loading a page.
+ * MapLibre GL JS (self-hosted tiles) replaced Google Maps; this guards against
+ * regressions that reintroduce a Google Maps dependency.
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {string} path - Path to navigate to (without baseURL)
+ * @param {string} [label] - Optional label for the assertion message
+ */
+async function assertNoGoogleMapsRequests(page, path, label = path) {
+  const googleMapsRequests = [];
+  page.on('request', (request) => {
+    const url = request.url();
+    try {
+      const hostname = new URL(url).hostname;
+      if (hostname === 'maps.googleapis.com' || hostname.endsWith('.maps.googleapis.com') ||
+          hostname === 'maps.gstatic.com' || hostname.endsWith('.maps.gstatic.com')) {
+        googleMapsRequests.push(url);
+      }
+    } catch (_) { /* ignore non-URL strings */ }
+  });
+
+  await page.goto(path);
+  await page.waitForLoadState('networkidle');
+
+  expect(googleMapsRequests, `No Google Maps requests on ${label}`).toHaveLength(0);
+}
+
+/**
+ * Assert a page's <title> and meta description match expected values.
+ * The <title> tag appends " {site_name}" after $pageTitle (see
+ * users/template/header1_must_include.php), so the title check is a partial
+ * (contains) match via a regex built from expectedTitle. og:title/twitter:title
+ * mirror $pageTitle exactly, with no site-name suffix (see
+ * usersc/includes/head_tags.php), so those (and the description equivalents)
+ * are exact matches.
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {{expectedTitle: string, expectedDescription?: string, checkSocialMeta?: boolean}} opts
+ */
+async function assertPageTitle(page, { expectedTitle, expectedDescription, checkSocialMeta = false }) {
+  const escapedTitle = expectedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await expect(page).toHaveTitle(new RegExp(escapedTitle));
+
+  if (expectedDescription) {
+    const description = await page.locator('meta[name="description"]').getAttribute('content');
+    expect(description).toBe(expectedDescription);
+  }
+
+  if (checkSocialMeta) {
+    const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
+    expect(ogTitle).toBe(expectedTitle);
+    const twitterTitle = await page.locator('meta[name="twitter:title"]').getAttribute('content');
+    expect(twitterTitle).toBe(expectedTitle);
+
+    if (expectedDescription) {
+      const ogDescription = await page.locator('meta[property="og:description"]').getAttribute('content');
+      expect(ogDescription).toBe(expectedDescription);
+      const twitterDescription = await page.locator('meta[name="twitter:description"]').getAttribute('content');
+      expect(twitterDescription).toBe(expectedDescription);
+    }
+  }
+}
+
 const NO_CARDS_ERROR = 'No cards found on page';
 
 /**
@@ -202,5 +264,7 @@ module.exports = {
   testRedirect,
   waitForDataTables,
   getFirstCard,
-  validateCardStructure
+  validateCardStructure,
+  assertNoGoogleMapsRequests,
+  assertPageTitle
 };

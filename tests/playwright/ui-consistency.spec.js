@@ -1,12 +1,13 @@
 // tests/playwright/ui-consistency.test.js
 const { test, expect } = require('@playwright/test');
 const { navigateAndWait, validateCardStructure, NO_CARDS_ERROR } = require('./auth-helper.js');
+const { CAR_ID_STANDARD } = require('./fixtures.js');
 
 test.describe('UI Consistency After Style Refactoring', () => {
   test('consistent card layouts across pages', async ({ page }) => {
     const pages = [
       'app/owner/cars/index.php',
-      'app/owner/cars/details.php?car_id=1',
+      `app/owner/cars/details.php?car_id=${CAR_ID_STANDARD}`,
       'app/owner/reports/statistics.php',
       'app/owner/contact/index.php'
     ];
@@ -81,14 +82,14 @@ test.describe('UI Consistency After Style Refactoring', () => {
     // Check for Bootstrap button classes
     const buttons = page.locator('button, input[type="button"], input[type="submit"], .btn');
     const buttonCount = await buttons.count();
-    
-    if (buttonCount > 0) {
-      const firstButton = buttons.first();
-      const classList = await firstButton.getAttribute('class');
-      
-      // Should have Bootstrap button classes
-      expect(classList).toMatch(/btn/);
-    }
+
+    expect(buttonCount).toBeGreaterThan(0);
+
+    const firstButton = buttons.first();
+    const classList = await firstButton.getAttribute('class');
+
+    // Should have Bootstrap button classes
+    expect(classList).toMatch(/btn/);
   });
 
   test('color scheme consistency', async ({ page }) => {
@@ -97,11 +98,11 @@ test.describe('UI Consistency After Style Refactoring', () => {
     // Check for consistent color usage
     const cards = page.locator('.card-header');
     const cardCount = await cards.count();
-    
-    if (cardCount > 0) {
-      // Just ensure cards render properly
-      await expect(cards.first()).toBeVisible();
-    }
+
+    expect(cardCount).toBeGreaterThan(0);
+
+    // Just ensure cards render properly
+    await expect(cards.first()).toBeVisible();
   });
 
   test('JavaScript files load without errors', async ({ page }) => {
@@ -135,17 +136,17 @@ test.describe('UI Consistency After Style Refactoring', () => {
     // Check that example images load
     const images = page.locator('img');
     const imageCount = await images.count();
-    
-    if (imageCount > 0) {
-      // Check first few images
-      for (let i = 0; i < Math.min(3, imageCount); i++) {
-        const img = images.nth(i);
-        const src = await img.getAttribute('src');
-        
-        if (src && !src.startsWith('data:')) {
-          // Make sure src is not empty and points to a valid path
-          expect(src).toBeTruthy();
-        }
+
+    expect(imageCount).toBeGreaterThan(0);
+
+    // Check first few images
+    for (let i = 0; i < Math.min(3, imageCount); i++) {
+      const img = images.nth(i);
+      const src = await img.getAttribute('src');
+
+      if (src && !src.startsWith('data:')) {
+        // Make sure src is not empty and points to a valid path
+        expect(src).toBeTruthy();
       }
     }
   });
@@ -162,10 +163,9 @@ test.describe('UI Consistency After Style Refactoring', () => {
       // Check for consistent form styling
       const formGroups = page.locator('.form-group, .mb-3, .form-control');
       const formCount = await formGroups.count();
-      
-      if (formCount > 0) {
-        await expect(formGroups.first()).toBeVisible();
-      }
+
+      expect(formCount).toBeGreaterThan(0);
+      await expect(formGroups.first()).toBeVisible();
     }
   });
 });

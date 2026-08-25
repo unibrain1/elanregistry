@@ -20,3 +20,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/includes/server_globals.php';
 
 // Load Cloudflare Turnstile CAPTCHA functions
 require_once $abs_us_root . $us_url_root . 'usersc/includes/turnstile.php';
+
+// Apply local/dev rate-limit relaxation (survives Rate Limiting Dashboard
+// regeneration, which fully overwrites usersc/includes/rate_limits.php).
+require_once $abs_us_root . $us_url_root . 'usersc/includes/rate_limits_dev_override.php';

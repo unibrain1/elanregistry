@@ -51,6 +51,20 @@ The Elan Registry uses **vlucas/phpdotenv** v5 for environment variable loading 
 - `DB_NAME` - Database name (e.g., `elanregi_spice`). For development, use the dev database.
   For integration tests, use a separate dedicated test schema (see "Test Database Isolation" below)
 
+### Local Development Environment Flag
+
+**Usage**: `usersc/includes/rate_limits_dev_override.php`
+
+- `US_ENVIRONMENT` — set to `development` in `.env` (git-ignored, local-only)
+  to multiply every rate-limit `_max` threshold 100x, so local browser/Playwright
+  testing doesn't trip `login_attempt`'s circuit breaker. Defaults to
+  `production` (no-op) when unset. **Never set this in a deployed `.env`.**
+
+  This logic deliberately lives in a separate file, not in
+  `usersc/includes/rate_limits.php` — that file is fully regenerated
+  (overwritten, not merged) by the in-app Rate Limiting Dashboard on every
+  save, which would silently delete any code appended there.
+
 ### Cloudflare Turnstile CAPTCHA
 
 **Usage**: `usersc/includes/turnstile.php`

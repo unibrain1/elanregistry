@@ -10,8 +10,9 @@
 // Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 
 const { test, expect } = require('@playwright/test');
+const { CAR_ID_WITH_HISTORY } = require('./fixtures.js');
 
-const DETAILS_URL = 'app/owner/cars/details.php?car_id=1091';
+const DETAILS_URL = `app/owner/cars/details.php?car_id=${CAR_ID_WITH_HISTORY}`;
 
 test.describe('Car details — output escaping (issue #840)', () => {
 
