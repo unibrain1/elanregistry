@@ -36,8 +36,12 @@ if (!isset($rateLimits) || !is_array($rateLimits)) {
 
 foreach ($rateLimits as $action => &$limits) {
     foreach ($limits as $key => &$value) {
-        if (strpos($key, '_max') !== false) {
-            $value = (int)($value * 100); // Massively increase limits for development
+        // Skip values already at (or past) PHP_INT_MAX — e.g. admin_ajax_*/
+        // location_search's deliberately-unlimited ip_max. Multiplying by
+        // 100 would overflow to a float and truncate back to 0 (fully
+        // blocking, the opposite of "relax"), not silently stay unlimited.
+        if (strpos($key, '_max') !== false && $value < PHP_INT_MAX) {
+            $value = (int)min($value * 100, PHP_INT_MAX); // Massively increase limits for development
         }
     }
 }

@@ -148,12 +148,15 @@ $rateLimits['statistics_request']['user_window'] = 300;
 $rateLimits['statistics_request']['total_max'] = 100;
 $rateLimits['statistics_request']['total_window'] = 300;
 
-$rateLimits['admin_ajax_search']['ip_max'] = 50;
+// ip_max is PHP_INT_MAX by design: authenticated admin sessions are tracked
+// reliably, so per-IP failure counting doesn't apply — total_max is what
+// actually governs admin AJAX volume.
+$rateLimits['admin_ajax_search']['ip_max'] = PHP_INT_MAX;
 $rateLimits['admin_ajax_search']['ip_window'] = 300;
 $rateLimits['admin_ajax_search']['total_max'] = 100;
 $rateLimits['admin_ajax_search']['total_window'] = 300;
 
-$rateLimits['admin_ajax_write']['ip_max'] = 50;
+$rateLimits['admin_ajax_write']['ip_max'] = PHP_INT_MAX;
 $rateLimits['admin_ajax_write']['ip_window'] = 300;
 $rateLimits['admin_ajax_write']['total_max'] = 100;
 $rateLimits['admin_ajax_write']['total_window'] = 300;
