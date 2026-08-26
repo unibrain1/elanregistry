@@ -319,6 +319,29 @@ also requires no API key.
 - **Network Security**: Restrict database access to application server
 - **Connection Security**: Use SSL/TLS when possible
 
+## PHP Error Logging
+
+PHP errors, warnings, and fatals are logged to per-environment files on
+test and production. mod_php is the confirmed PHP SAPI on both servers.
+
+- **Test**: `/home/unibrain/php_error/test.elanregistry.org-php-error.log`
+- **Production**: `/home/unibrain/php_error/elanregistry.org-php-error.log`
+
+The destination is resolved at Apache request-time in the root `.htaccess`
+via an `HTTP_HOST`-conditional `RewriteRule` that sets an environment
+variable consumed by `php_value error_log %{ENV:PHP_ERROR_LOG}` — not by
+deploy-time templating, since `.htaccess` is committed once and deployed
+identically everywhere. See `.htaccess` (search `PHP_ERROR_LOG`) for the
+block.
+
+The block is wrapped in `<IfModule mod_php.c>`, so it silently becomes a
+no-op if the server ever moves off mod_php (e.g. to PHP-FPM) — Apache skips
+unrecognized `IfModule` bodies without error. If error logs stop appearing
+after a server/PHP change, verify mod_php is still the active SAPI.
+
+Local MAMP development is unaffected and continues to use PHP's default
+error log location.
+
 ## Troubleshooting
 
 **Environment Loading Issues**:

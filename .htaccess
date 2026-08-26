@@ -76,6 +76,17 @@ RewriteRule ^FIX/(?!index\.php$|[0-9]+-.*\.php$|[A-Za-z]+-.*\.php$) - [F,L]
 RewriteRule ^vendor/ - [F,L]
 RewriteRule ^backups/ - [F,L]
 
+# PHP error log destination per environment (#1768)
+# Resolved at request-time via HTTP_HOST since .htaccess is deployed
+# identically to every environment (no deploy-time templating exists).
+<IfModule mod_php.c>
+    RewriteCond %{HTTP_HOST} ^test\.elanregistry\.org [NC]
+    RewriteRule .* - [E=PHP_ERROR_LOG:/home/unibrain/php_error/test.elanregistry.org-php-error.log]
+    RewriteCond %{HTTP_HOST} !^test\.elanregistry\.org [NC]
+    RewriteRule .* - [E=PHP_ERROR_LOG:/home/unibrain/php_error/elanregistry.org-php-error.log]
+    php_value error_log %{ENV:PHP_ERROR_LOG}
+</IfModule>
+
 # Test subdomain: serve a blocking robots.txt without affecting production (#1369)
 # NOTE: Cloudflare fetches robots.txt directly from origin, bypassing Apache rewrites.
 # The test server must have robots-test.txt deployed as robots.txt directly.
