@@ -637,7 +637,7 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                         echo "<script nonce=\"" . htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') . "\">
                             setTimeout(function() {
                                 addLogMessage('🔄 Automatically continuing to next batch...');
-                                window.location.href = {$next_url_js};
+                                window.location.replace({$next_url_js});
                             }, 2000);
                         </script>";
 
