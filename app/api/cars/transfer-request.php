@@ -6,6 +6,7 @@ use ElanRegistry\ApiResponse;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarTransferException;
 use ElanRegistry\Input;
+use ElanRegistry\Car\CarRepository;
 use ElanRegistry\Car\CarValidator;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\LogCategories;
@@ -93,27 +94,23 @@ try {
         throw new CarTransferException('Type must be 3 characters or less');
     }
 
-    $db = DB::getInstance();
     $repo = new CarTransferRepository(dbi());
 
     // Find the existing car
-    $existingCarQuery = $db->query(
-        'SELECT id, user_id FROM cars WHERE year = ? AND type = ? AND chassis = ?',
-        [$year, $type, $chassis]
-    );
-
-    if ($existingCarQuery->error()) {
+    try {
+        $result = (new CarRepository(dbi()))->findByChassisKey($year, $type, $chassis);
+    } catch (CarDatabaseException $e) {
         throw CarTransferException::withUserMessage(
-            'transfer-request: DB error on chassis lookup for chassis=' . $chassis . ': ' . $db->errorString(),
+            'transfer-request: DB error on chassis lookup for chassis=' . $chassis . ': ' . $e->getMessage(),
             'Unable to verify chassis at this time. Please try again.'
         );
     }
 
-    if ($existingCarQuery->count() === 0) {
+    if ($result === null) {
         throw new CarTransferException('No car found with this chassis number');
     }
 
-    $existingCar = $existingCarQuery->first();
+    $existingCar = $result;
 
     // Check if user is trying to transfer to themselves
     if ($existingCar->user_id == $user->data()->id) {

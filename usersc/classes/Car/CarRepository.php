@@ -219,6 +219,31 @@ class CarRepository
     }
 
     /**
+     * Find a car by its composite chassis key (year, type, chassis).
+     *
+     * @param string $year Model year
+     * @param string $type Type code (from CarValidator::parseModel())
+     * @param string $chassis Chassis number
+     * @return object|null Car data (id, user_id) or null if not found
+     * @throws CarDatabaseException If the query fails
+     */
+    public function findByChassisKey(string $year, string $type, string $chassis): ?object
+    {
+        $result = $this->db->query(
+            'SELECT id, user_id FROM cars WHERE year = ? AND type = ? AND chassis = ?',
+            [$year, $type, $chassis]
+        );
+        if ($this->db->error()) {
+            throw new CarDatabaseException(
+                "CarRepository::findByChassisKey failed for year={$year} type={$type} chassis={$chassis}: "
+                . $this->db->errorString()
+            );
+        }
+        $row = $result->first();
+        return is_object($row) ? $row : null;
+    }
+
+    /**
      * Find a car by verification code
      *
      * @param string $code Verification code
