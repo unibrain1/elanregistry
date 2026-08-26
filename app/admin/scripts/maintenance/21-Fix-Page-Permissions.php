@@ -1071,8 +1071,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
 function abortProcess() {
                     if (confirm('Are you sure you want to abort? No changes will be made.')) {
-                        if (window.opener) { window.opener.location.reload(); window.close(); }
-                        else { window.location.href = '../../index.php?tab=maintenance'; }
+                        window.close();
                     }
                 }
 
@@ -1085,8 +1084,7 @@ function abortProcess() {
                         case 'abortProcess': abortProcess(); break;
                         case 'startProcessing': startProcessing(); break;
                         case 'returnToMenu':
-                            if (window.opener) { window.opener.location.reload(); window.close(); }
-                            else { window.location.href = '../../index.php?tab=maintenance'; }
+                            window.close();
                             break;
                     }
                 });

@@ -26,4 +26,4 @@ TBD — filled in as issues are completed.
 - WIP: [#1771](https://github.com/elan-registry/registry/issues/1771) — tech-debt: revisit ADR-017 vendoring decision now that Node is available on prod
 - WIP: [#1775](https://github.com/elan-registry/registry/issues/1775) — fix: script #25 (Cleanup Rate Limits) never records completion in fix_script_runs
 - WIP: [#1776](https://github.com/elan-registry/registry/issues/1776) — fix: investigate why script #21 (Fix Page Permissions) Last Run doesn't update in production despite correct insert code
-- WIP: [#1777](https://github.com/elan-registry/registry/issues/1777) — fix: maintenance/fix-script "Close Window" button navigates away instead of closing the popup window
+- [#1777](https://github.com/elan-registry/registry/issues/1777) — fix: maintenance/fix-script "Close Window"/"Return to Menu"/"Abort" buttons navigated away instead of closing the popup window (modern browsers default `target="_blank"` links to `noopener`, breaking the old `window.opener` check). Fixed in the shared button helper plus two inline duplicates in scripts #21 and #24.

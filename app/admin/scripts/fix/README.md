@@ -81,9 +81,10 @@ Multiple `.htaccess` files work together to secure FIX scripts:
 - Provide detailed error reporting and logging
 - Include rollback capabilities for destructive operations
 - Generate comprehensive completion reports
-- **Return Button**: Use window-aware JavaScript:
-  `onclick="if(window.opener){window.opener.location.reload();
-  window.close();} else {window.location.href='index.php';}"`
+- **Return Button**: Use the shared `admin_script_close_button()` helper
+  from `fix-script-core.php` — it closes the popup window via
+  `window.close()`, handled once for every script (see the function's
+  docblock for why this works and what not to change without re-checking)
 
 ## 📊 **Script Features**
 
