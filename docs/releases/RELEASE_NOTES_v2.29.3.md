@@ -5,8 +5,12 @@
 
 ## Required Actions After Deployment
 
-[To be filled in as issues are completed — likely includes confirming the
-new CI integration-test service container is healthy on its first run.]
+None. Run the standard `composer migrate` deploy step to apply the settings-column
+drop migration ([#1734](https://github.com/elan-registry/registry/issues/1734)) —
+no manual data backfill or config change is needed beyond that. The new
+pre-push integration-test gate ([#1439](https://github.com/elan-registry/registry/issues/1439))
+and CI service container run in local/CI environments only and require no
+production or test-server action.
 
 ## Technical Changes
 
