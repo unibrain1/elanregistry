@@ -364,13 +364,17 @@ if ($method === 'POST' && isset($_POST['action'])) {
 
             logger($user->data()->id, LogCategories::LOG_CATEGORY_PERMISSION_FIX, "Analysis completed, found {$totalIssues} issues");
 
+            $recordingWarning = null;
             if ($totalIssues === 0) {
-                admin_script_record_completion(__FILE__, (int) $user->data()->id);
+                admin_script_record_completion(__FILE__, (int) $user->data()->id, function (string $msg) use (&$recordingWarning) {
+                    $recordingWarning = $msg;
+                });
             }
 
             echo json_encode([
                 'success' => true,
                 'totalIssues' => $totalIssues,
+                'recordingWarning' => $recordingWarning,
                 'counts' => [
                     'set_public' => count($issues['set_public']),
                     'set_private_admin' => count($issues['set_private_admin']),
@@ -777,11 +781,15 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                         }
 
                         if (data.totalIssues === 0) {
+                            const recordingWarningHtml = data.recordingWarning
+                                ? `<div class="alert alert-warning mt-2 mb-0">${escapeHtml(data.recordingWarning)}</div>`
+                                : '';
                             resultsElement.innerHTML = `
                                 <div class="alert alert-success">
                                     <h4><i class="fa fa-check-circle"></i> No Permission Issues Found!</h4>
                                     <p>All page permissions are correctly configured.</p>
                                 </div>
+                                ${recordingWarningHtml}
                                 <div class="text-center">
                                     <button data-action="returnToMenu" class="btn btn-outline-primary">
                                         <i class="fa fa-arrow-left"></i> Return to FIX Menu

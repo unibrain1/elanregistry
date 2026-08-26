@@ -151,7 +151,15 @@ function admin_script_record_completion(
         logger($userId, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,
             'Could not record fix_script_runs completion for ' . basename($scriptFile) . ': ' . $e->getMessage());
         if ($onFailure !== null) {
-            $onFailure('⚠️ Could not record script completion in fix_script_runs table');
+            try {
+                $onFailure('⚠️ Could not record script completion in fix_script_runs table');
+            } catch (\Throwable $callbackError) {
+                // Swallowed deliberately: this function's contract is "never throws", so a
+                // buggy caller-supplied callback must not escape and crash the calling script.
+                logger($userId, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,
+                    'admin_script_record_completion onFailure callback itself threw for '
+                    . basename($scriptFile) . ': ' . $callbackError->getMessage());
+            }
         }
     }
 }
