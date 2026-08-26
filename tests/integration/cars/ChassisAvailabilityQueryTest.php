@@ -10,21 +10,23 @@ use PHPUnit\Framework\Attributes\Group;
  * Integration coverage for the chassis-uniqueness query in
  * app/api/cars/chassis-availability.php.
  *
- * That endpoint's uniqueness check is inline SQL, not a reusable class
- * method, so this test runs the exact same query against real fixture rows
- * as a characterization test of its composite-key (year + type + chassis)
- * advisory uniqueness check — the schema has no UNIQUE constraint on these
- * columns (only a non-unique idx_cars_chassis index), so "taken" is purely
- * application-level. The query text itself is pinned to production by the
- * unit-tier ChassisAvailabilityQuerySourceTest.php (this class needs a real
- * DB and the integration tier isn't part of CI, so the drift guard lives
- * where CI actually runs it). Existing Playwright coverage
+ * That endpoint's uniqueness check delegates to
+ * CarRepository::findByChassisKey(), so this test runs the exact same query
+ * against real fixture rows as a characterization test of its composite-key
+ * (year + type + chassis) advisory uniqueness check — the schema has no
+ * UNIQUE constraint on these columns (only a non-unique idx_cars_chassis
+ * index), so "taken" is purely application-level. The query text itself is
+ * pinned to production by the unit-tier
+ * tests/unit/cars/services/CarRepositoryTest.php's
+ * testFindByChassisKey* tests (this class needs a real DB and the
+ * integration tier isn't part of CI, so the drift guard lives where CI
+ * actually runs it). Existing Playwright coverage
  * (tests/playwright/chassis-availability-error.spec.js,
  * tests/playwright/ajax-endpoints.spec.js) only exercises the endpoint's
  * error paths — this fills the happy-path gap found during #1604.
  *
  * @see app/api/cars/chassis-availability.php
- * @see tests/unit/cars/ChassisAvailabilityQuerySourceTest.php
+ * @see tests/unit/cars/services/CarRepositoryTest.php
  */
 #[Group('integration')]
 #[Group('chassis')]

@@ -591,4 +591,68 @@ final class CarRepositoryTest extends TestCase
         $this->assertCount(1, $result);
         $this->assertSame(1, $result[0]->id);
     }
+
+    // =========================================================================
+    // findByChassisKey() tests (issue #1764)
+    // =========================================================================
+
+    /**
+     * findByChassisKey() returns the car object (id, user_id) when a matching
+     * row is found.
+     */
+    public function testFindByChassisKeyReturnsObjectWhenFound(): void
+    {
+        $car = (object) ['id' => 1, 'user_id' => 42];
+
+        $db = $this->makeDbMock();
+        $db->expects($this->once())
+            ->method('query')
+            ->with(
+                'SELECT id, user_id FROM cars WHERE year = ? AND type = ? AND chassis = ?',
+                ['1973', '36', 'TEST001']
+            )
+            ->willReturnSelf();
+        $db->method('error')->willReturn(false);
+        $db->method('first')->willReturn($car);
+
+        $repo = new CarRepository($db);
+        $result = $repo->findByChassisKey('1973', '36', 'TEST001');
+
+        $this->assertIsObject($result);
+        $this->assertSame(1, $result->id);
+        $this->assertSame(42, $result->user_id);
+    }
+
+    /**
+     * findByChassisKey() returns null when no matching row exists (real \DB
+     * returns [] from first() rather than null when zero rows match).
+     */
+    public function testFindByChassisKeyReturnsNullWhenNotFound(): void
+    {
+        $db = $this->makeDbMock();
+        $db->expects($this->once())->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(false);
+        $db->method('first')->willReturn([]);
+
+        $repo = new CarRepository($db);
+
+        $this->assertNull($repo->findByChassisKey('1973', '36', 'NOMATCH'));
+    }
+
+    /**
+     * findByChassisKey() throws CarDatabaseException when the query itself fails.
+     */
+    public function testFindByChassisKeyThrowsCarDatabaseExceptionOnQueryError(): void
+    {
+        $db = $this->makeDbMock();
+        $db->expects($this->once())->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(true);
+        $db->method('errorString')->willReturn('Connection lost');
+
+        $repo = new CarRepository($db);
+
+        $this->expectException(CarDatabaseException::class);
+        $this->expectExceptionMessageMatches('/findByChassisKey failed/');
+        $repo->findByChassisKey('1973', '36', 'TEST001');
+    }
 }
