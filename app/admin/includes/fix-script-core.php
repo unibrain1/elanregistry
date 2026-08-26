@@ -69,10 +69,20 @@ function admin_script_start_form(
 
 /**
  * Returns the HTML for a "Close Window / Return to Menu" button.
- * Scripts are opened via <a target="_blank"> links (implicit noopener), so window.close()
- * is unreliable. The handler falls back to explicit navigation when window.opener is null.
+ * window.close() works here because the HTML spec allows a script to close
+ * a window whose session history has only one entry — i.e. this page has
+ * never navigated since it was opened — independent of window.opener, which
+ * is unreliable (modern browsers apply implicit noopener to target="_blank"
+ * links by default). Do not add an intermediate redirect or reload before
+ * this button renders without re-verifying closability, since a second
+ * history entry would break the single-entry condition this relies on.
+ * Direct URL access to a fix-script page (no opener at all) still closes
+ * fine under this rule, but the button may not visibly do anything for a
+ * page reached after multiple navigations; acceptable for this admin-only
+ * internal tool.
  *
  * @param string $extraClass  Additional Bootstrap/custom classes to append
+ * @return string HTML for the close button plus its wiring <script> tag
  */
 function admin_script_close_button(string $extraClass = ''): string
 {
@@ -86,8 +96,7 @@ function admin_script_close_button(string $extraClass = ''): string
         . '(function(){if(!window.__adminCloseWired){window.__adminCloseWired=true;'
         . 'document.addEventListener("click",function(e){'
         . 'if(!e.target.closest("[data-action=\'adminScriptClose\']"))return;'
-        . 'if(window.opener){window.opener.location.reload();window.close();}'
-        . 'else{window.location.href="../../index.php?tab=maintenance";}'
+        . 'window.close();'
         . '});}})();'
         . '</script>';
 }
