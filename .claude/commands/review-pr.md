@@ -33,6 +33,29 @@ composer check:docs         # under a second
 vendor/bin/phpstan analyse --no-progress --memory-limit=512M   # ~1s cached
 ```
 
+**A clean `phpstan analyse` run here does NOT mean no baseline debt on
+touched files.** `phpstan.neon` includes `phpstan-baseline.neon`, so this
+run silently suppresses every pre-existing baseline entry — it only ever
+reports *new* errors. Any file this branch modified that still carries old
+baseline entries needs the same explicit check `/finish-issue` Step 4.5 and
+`/execute-plan` Step 6.5 run:
+
+```bash
+for f in $(git diff --name-only $MERGE_BASE..HEAD); do
+  case "$f" in
+    *.php)
+      grep -qF "path: $f" phpstan-baseline.neon 2>/dev/null && echo "BASELINE OVERRIDE: $f"
+      ;;
+  esac
+done
+```
+
+If this branch went through `/execute-plan`, its Step 6.5 should have
+already caught and resolved this — treat any hit here as that step being
+skipped or a change made outside the plan-file workflow, and handle it the
+same way: fix if the flagged lines were touched, or confirm with the user
+before carrying pre-existing debt forward.
+
 `test:full` runs unconditionally. There is no path-based escalation and no
 opt-in: `tests/integration/` — real-database behavior (triggers, audit-trail
 writes, migrations, backups, geocoding, admin endpoints) — is run by no other
@@ -218,6 +241,7 @@ Output a triage table:
 | Integration | composer test:full | OK (N tests, M assertions) |
 | Docs | composer check:docs | Documentation checks passed. |
 | Static analysis | vendor/bin/phpstan analyse | No errors |
+| Baseline hygiene | grep touched files vs phpstan-baseline.neon | Clean / N pre-existing entries found (see Blocking) |
 
 State actual counts, never "passed" alone. If a suite did not run, say so
 here and why — this table is how the reviewer tells what was and was not
