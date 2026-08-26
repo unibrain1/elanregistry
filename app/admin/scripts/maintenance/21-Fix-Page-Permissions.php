@@ -364,6 +364,10 @@ if ($method === 'POST' && isset($_POST['action'])) {
 
             logger($user->data()->id, LogCategories::LOG_CATEGORY_PERMISSION_FIX, "Analysis completed, found {$totalIssues} issues");
 
+            if ($totalIssues === 0) {
+                admin_script_record_completion(__FILE__, (int) $user->data()->id);
+            }
+
             echo json_encode([
                 'success' => true,
                 'totalIssues' => $totalIssues,
@@ -1506,11 +1510,13 @@ function abortProcess() {
                         }
 
                     // Record script completion
-                    try {
-                        $db->query("INSERT INTO fix_script_runs (script_name) VALUES (?)", [basename(__FILE__)]);
+                    $recordingFailed = false;
+                    admin_script_record_completion(__FILE__, (int) $user->data()->id, function (string $msg) use (&$recordingFailed) {
+                        $recordingFailed = true;
+                        outputMessage($msg);
+                    });
+                    if (!$recordingFailed) {
                         outputMessage(($scriptFailed || $hadPerPageFailures) ? "⚠️  Script completion recorded (with errors)" : "✅ Script completion recorded");
-                    } catch (\Throwable $record_e) {
-                        outputMessage("⚠️  Could not record script completion: " . $record_e->getMessage());
                     }
 
                 outputMessage("");

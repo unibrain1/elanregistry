@@ -85,6 +85,7 @@ if (!isAdmin()) {
                                     $removed = (new \RateLimit())->cleanup(24);
                                     logger($user->data()->id, LogCategories::LOG_CATEGORY_DATABASE_MAINTENANCE,
                                         "Rate limit cleanup removed {$removed} record(s) older than 24 hours");
+                                    admin_script_record_completion(__FILE__, (int) $user->data()->id);
                                     ?>
                                     <div class="alert alert-success mb-0">
                                         <i class="fa fa-check-circle"></i> Removed <strong><?= (int) $removed ?></strong> rate limit record(s) older than 24 hours.
