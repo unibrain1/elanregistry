@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\CarRepository;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -11,29 +12,26 @@ use PHPUnit\Framework\Attributes\Group;
  * app/api/cars/chassis-availability.php.
  *
  * That endpoint's uniqueness check delegates to
- * CarRepository::findByChassisKey(), so this test runs the exact same query
- * against real fixture rows as a characterization test of its composite-key
- * (year + type + chassis) advisory uniqueness check — the schema has no
- * UNIQUE constraint on these columns (only a non-unique idx_cars_chassis
- * index), so "taken" is purely application-level. The query text itself is
- * pinned to production by the unit-tier
- * tests/unit/cars/services/CarRepositoryTest.php's
- * testFindByChassisKey* tests (this class needs a real DB and the
- * integration tier isn't part of CI, so the drift guard lives where CI
- * actually runs it). Existing Playwright coverage
- * (tests/playwright/chassis-availability-error.spec.js,
+ * CarRepository::findByChassisKey(), and this test calls that same method
+ * directly against real fixture rows as a characterization test of its
+ * composite-key (year + type + chassis) advisory uniqueness check — the
+ * schema has no UNIQUE constraint on these columns (only a non-unique
+ * idx_cars_chassis index), so "taken" is purely application-level. Because
+ * this test calls the real production method rather than re-embedding a copy
+ * of its SQL, it cannot drift out of sync with CarRepository the way a
+ * separately pinned query string could — any change to findByChassisKey()'s
+ * SELECT list, WHERE clause, or bind order is exercised here automatically.
+ * Existing Playwright coverage (tests/playwright/chassis-availability-error.spec.js,
  * tests/playwright/ajax-endpoints.spec.js) only exercises the endpoint's
  * error paths — this fills the happy-path gap found during #1604.
  *
  * @see app/api/cars/chassis-availability.php
- * @see tests/unit/cars/services/CarRepositoryTest.php
+ * @see usersc/classes/Car/CarRepository.php
  */
 #[Group('integration')]
 #[Group('chassis')]
 final class ChassisAvailabilityQueryTest extends IntegrationTestCase
 {
-    private const QUERY_SQL = 'SELECT id FROM cars WHERE year = ? AND type = ? AND chassis = ?';
-
     private int $testUserId;
 
     protected function setUp(): void
@@ -45,22 +43,12 @@ final class ChassisAvailabilityQueryTest extends IntegrationTestCase
     }
 
     /**
-     * Mirrors the query in app/api/cars/chassis-availability.php's chassis_check handler.
-     *
-     * DB::query() never throws on an execute-time failure — it just returns
-     * zero rows — so a broken query would otherwise make "available" and
-     * "query failed" indistinguishable. See IntegrationTestCase's own
-     * countMatchingLogs()/deleteCarWithHistory() for the same convention.
+     * Mirrors the chassis_check handler in app/api/cars/chassis-availability.php,
+     * which treats a match from CarRepository::findByChassisKey() as "taken".
      */
     private function isChassisTaken(string $year, string $type, string $chassis): bool
     {
-        $carQ = $this->db->query(self::QUERY_SQL, [$year, $type, $chassis]);
-
-        if ($carQ->error()) {
-            throw new RuntimeException("isChassisTaken() query failed: {$carQ->errorString()}");
-        }
-
-        return $carQ->count() > 0;
+        return (new CarRepository($this->db))->findByChassisKey($year, $type, $chassis) !== null;
     }
 
     /**
