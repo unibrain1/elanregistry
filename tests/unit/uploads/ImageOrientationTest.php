@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Resize;
 use PHPUnit\Framework\TestCase;
 
@@ -130,5 +131,33 @@ class ImageOrientationTest extends TestCase
         } catch (Exception $e) {
             $this->fail('Should handle PNG files without EXIF processing: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Test that an unhandled file extension throws ImageProcessingException
+     */
+    #[Group('fast')]
+    public function testUnhandledExtensionThrowsImageProcessingException(): void
+    {
+        $testFile = $this->outputDir . 'test.webp';
+        file_put_contents($testFile, 'not a real image');
+
+        $this->expectException(ImageProcessingException::class);
+
+        new Resize($testFile);
+    }
+
+    /**
+     * Test that a corrupt file with a recognized extension throws ImageProcessingException
+     */
+    #[Group('fast')]
+    public function testCorruptRecognizedExtensionThrowsImageProcessingException(): void
+    {
+        $testFile = $this->outputDir . 'corrupt.jpg';
+        file_put_contents($testFile, 'this is not valid jpeg data');
+
+        $this->expectException(ImageProcessingException::class);
+
+        new Resize($testFile);
     }
 }

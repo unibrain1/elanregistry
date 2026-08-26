@@ -2,11 +2,56 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/_headers_sent_namespace_overrides.php';
+
 use ElanRegistry\ApiResponse;
 use ElanRegistry\LogCategories;
 use PHPUnit\Framework\TestCase;
 
 use PHPUnit\Framework\Attributes\Group;
+
+/**
+ * Test-only helper exposing ApiResponse::buildAndEmitHeaders() for direct
+ * unit testing.
+ *
+ * ApiResponse's builder methods (withData(), withLogging(), ...) are
+ * declared to return `self`, which PHP resolves against the DEFINING class
+ * (ApiResponse) rather than the late-static-bound caller. A subclass
+ * approach (extend ApiResponse, expose buildAndEmitHeaders() via a public
+ * wrapper) would therefore make every builder call in a test — e.g.
+ * ApiResponse::success(...)->withData(...) — statically typed as the base
+ * ApiResponse and unable to reach a subclass-only wrapper method without an
+ * unsound cast. Since buildAndEmitHeaders() is protected (not private), it
+ * is reachable on any ApiResponse instance via a same-class-scoped Closure
+ * instead — no subclassing or casting required.
+ */
+final class TestableApiResponse
+{
+    /**
+     * Call $response's protected buildAndEmitHeaders() from outside its
+     * class hierarchy, via a Closure bound to the instance.
+     *
+     * @param ApiResponse $response Response to invoke buildAndEmitHeaders() on
+     *
+     * @return string JSON-encoded response body
+     */
+    public static function exposedBuildAndEmitHeaders(ApiResponse $response): string
+    {
+        $call = Closure::bind(
+            static function (ApiResponse $response): string {
+                return $response->buildAndEmitHeaders();
+            },
+            null,
+            ApiResponse::class
+        );
+
+        if ($call === null) {
+            throw new \RuntimeException('Failed to bind buildAndEmitHeaders() closure to ' . ApiResponse::class);
+        }
+
+        return $call($response);
+    }
+}
 
 /**
  * Unit tests for ApiResponse class
@@ -734,5 +779,181 @@ final class ApiResponseTest extends TestCase
         $this->assertEquals('value', $data['existing']);
         $this->assertEquals('a', $data['new1']);
         $this->assertEquals('b', $data['new2']);
+    }
+
+    // =========================================================================
+    // Tests: buildAndEmitHeaders() — via TestableApiResponse
+    // =========================================================================
+
+    /**
+     * Ensure $GLOBALS['mockHeadersSent'] never bleeds into other tests, even
+     * if a test fails partway through (mirrors the tearDownApcuSimulation()
+     * idiom in tests/unit/location/LocationServiceCacheTest.php).
+     */
+    protected function tearDown(): void
+    {
+        unset($GLOBALS['mockHeadersSent'], $GLOBALS['mockHeadersSentFile'], $GLOBALS['mockHeadersSentLine']);
+        parent::tearDown();
+    }
+
+    /**
+     * Invoke buildAndEmitHeaders() while genuinely exercising its
+     * headers-not-sent branch — including the pre-existing
+     * `while (ob_get_level() > 0) { ob_end_clean(); }` buffer-cleanup loop —
+     * without tripping PHPUnit's "closed output buffers other than its own"
+     * risky-test detector.
+     *
+     * PHPUnit enters every test with its own output buffer already open
+     * (ob_get_level() === 1) and flags a test as risky only when the buffer
+     * level differs from that starting snapshot once the test finishes —
+     * it does not care how many buffers were pushed or popped in between, as
+     * long as the level is restored. buildAndEmitHeaders()'s cleanup loop
+     * drains every open buffer (including PHPUnit's own) down to level 0, so
+     * this helper re-establishes the starting level afterward rather than
+     * merely pushing one extra buffer beforehand (which still nets out to a
+     * level PHPUnit didn't expect).
+     *
+     * @param ApiResponse $response Response to invoke buildAndEmitHeaders() on
+     *
+     * @return string JSON-encoded response body
+     */
+    private function invokeBuildAndEmitHeaders(ApiResponse $response): string
+    {
+        $startLevel = ob_get_level();
+
+        $json = TestableApiResponse::exposedBuildAndEmitHeaders($response);
+
+        while (ob_get_level() < $startLevel) {
+            ob_start();
+        }
+
+        return $json;
+    }
+
+    /**
+     * buildAndEmitHeaders() executes the pending log entry via the real
+     * global logger() (the ElanRegistry namespace has no logger() override,
+     * so PHP's unqualified call in ApiResponse falls back to the global
+     * function), which the test bootstrap replaces with a recording stub
+     * that appends to $GLOBALS['mockLogEntries']. This lets us assert the
+     * exact log entry that was recorded, not just that no error occurred.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    public function testBuildAndEmitHeadersExecutesPendingLog(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $response = ApiResponse::success('Done')
+            ->withLogging(42, LogCategories::LOG_CATEGORY_OWNER_ACTIONS, 'Profile updated');
+
+        $this->invokeBuildAndEmitHeaders($response);
+
+        $this->assertCount(1, $mockLogEntries);
+        $this->assertEquals(42, $mockLogEntries[0]['user_id']);
+        $this->assertEquals(LogCategories::LOG_CATEGORY_OWNER_ACTIONS, $mockLogEntries[0]['category']);
+        $this->assertEquals('Profile updated', $mockLogEntries[0]['message']);
+    }
+
+    /**
+     * When no pending log is set, buildAndEmitHeaders() must not record any
+     * log entry, and must still return valid JSON.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    public function testBuildAndEmitHeadersSkipsLogWhenNoPendingLog(): void
+    {
+        global $mockLogEntries;
+        $mockLogEntries = [];
+
+        $response = ApiResponse::success('Done');
+
+        $json = $this->invokeBuildAndEmitHeaders($response);
+
+        // Re-declare $mockLogEntries as global here: PHPStan otherwise narrows
+        // it to the literal array{} assigned above and flags the assertion as
+        // trivially true, missing that the intervening call can mutate it.
+        global $mockLogEntries;
+        $this->assertEmpty($mockLogEntries);
+        $this->assertEquals($response->toArray(), json_decode($json, true));
+    }
+
+    /**
+     * When headers_sent() reports true (simulated via the ElanRegistry-namespace
+     * override in _headers_sent_namespace_overrides.php), buildAndEmitHeaders()
+     * must skip header emission but still return valid JSON matching toArray().
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    public function testBuildAndEmitHeadersWhenHeadersAlreadySent(): void
+    {
+        $GLOBALS['mockHeadersSent'] = true;
+        $GLOBALS['mockHeadersSentFile'] = 'mock-file.php';
+        $GLOBALS['mockHeadersSentLine'] = 99;
+
+        $response = ApiResponse::success('Done')->withData('key', 'value');
+        $json = TestableApiResponse::exposedBuildAndEmitHeaders($response);
+
+        $this->assertEquals($response->toArray(), json_decode($json, true));
+    }
+
+    /**
+     * When headers have not been sent (the default/unset state, matching a
+     * normal CLI PHPUnit run), buildAndEmitHeaders() takes the header-emission
+     * branch and still returns valid JSON matching toArray().
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    public function testBuildAndEmitHeadersWhenHeadersNotSent(): void
+    {
+        unset($GLOBALS['mockHeadersSent']);
+
+        $response = ApiResponse::success('Done')->withData('key', 'value');
+
+        $json = $this->invokeBuildAndEmitHeaders($response);
+
+        $this->assertEquals($response->toArray(), json_decode($json, true));
+    }
+
+    /**
+     * buildAndEmitHeaders() returns valid JSON matching toArray() for a
+     * normal response with data attached.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    public function testBuildAndEmitHeadersReturnsValidJsonForNormalData(): void
+    {
+        $response = ApiResponse::success('Done')->withData('quality_score', 85);
+
+        $json = $this->invokeBuildAndEmitHeaders($response);
+
+        $this->assertEquals($response->toArray(), json_decode($json, true));
+    }
+
+    /**
+     * When the response data contains a value json_encode() cannot serialize
+     * (a resource, under JSON_THROW_ON_ERROR), buildAndEmitHeaders() catches
+     * the JsonException and returns the fixed safe-fallback JSON string.
+     *
+     * @return void
+     */
+    #[Group('fast')]
+    public function testBuildAndEmitHeadersFallsBackOnJsonEncodeFailure(): void
+    {
+        $resource = fopen('php://memory', 'r');
+
+        $response = ApiResponse::success('Done')->withData('badValue', $resource);
+
+        $json = $this->invokeBuildAndEmitHeaders($response);
+
+        fclose($resource);
+
+        $this->assertEquals('{"success":false,"message":"An internal error occurred"}', $json);
     }
 }
