@@ -19,16 +19,14 @@ use PHPUnit\Framework\Attributes\Group;
  */
 class ImageOrientationTest extends TestCase
 {
-    private $testImageDir;
     private $outputDir;
 
     protected function setUp(): void
     {
-        // $this->testImageDir points at fixtures/orientation/, which does not exist on
-        // disk. The orientation-correction tests below use synthetic in-memory images
-        // (via imagecreate), not real EXIF-tagged fixtures, so this is a known coverage
-        // gap rather than a bug — real EXIF orientation handling is not exercised here.
-        $this->testImageDir = __DIR__ . '/fixtures/orientation/';
+        // Note: the orientation-correction tests below use synthetic in-memory
+        // images (via imagecreate), not real EXIF-tagged fixtures, so this is a
+        // known coverage gap rather than a bug — real EXIF orientation handling
+        // is not exercised here.
         $this->outputDir = __DIR__ . '/output/orientation/';
 
         // Create output directory if it doesn't exist
@@ -73,8 +71,7 @@ class ImageOrientationTest extends TestCase
         // Test Resize class can process the image
         try {
             $resize = new Resize($testFile);
-            $this->assertNotNull($resize, 'Resize object should be created');
-            
+
             // The image should be processed successfully even without EXIF data
             $resize->resizeImage(50, 25, 'exact');
             $resizedFile = $this->outputDir . 'test_resized.jpg';
@@ -104,7 +101,12 @@ class ImageOrientationTest extends TestCase
         // Should not throw exception when processing image without EXIF
         try {
             $resize = new Resize($testFile);
-            $this->assertInstanceOf(\ElanRegistry\Resize::class, $resize);
+            $resize->resizeImage(50, 50, 'exact');
+
+            $resizedFile = $this->outputDir . 'no_exif_resized.jpg';
+            $resize->saveImage($resizedFile, 80);
+
+            $this->assertFileExists($resizedFile, 'Resized image should be created');
         } catch (Exception $e) {
             $this->fail('Should handle images without EXIF data gracefully: ' . $e->getMessage());
         }
@@ -127,7 +129,12 @@ class ImageOrientationTest extends TestCase
         // Should process PNG files normally (no EXIF orientation correction)
         try {
             $resize = new Resize($testFile);
-            $this->assertInstanceOf(\ElanRegistry\Resize::class, $resize);
+            $resize->resizeImage(50, 50, 'exact');
+
+            $resizedFile = $this->outputDir . 'test_resized.png';
+            $resize->saveImage($resizedFile, 80);
+
+            $this->assertFileExists($resizedFile, 'Resized PNG should be created');
         } catch (Exception $e) {
             $this->fail('Should handle PNG files without EXIF processing: ' . $e->getMessage());
         }
