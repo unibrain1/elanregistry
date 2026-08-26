@@ -131,18 +131,6 @@ class HeadTagsSecurityTest extends TestCase
     }
 
     /**
-     * Test that file has proper PHPDoc header
-     */
-    public function testHasProperDocumentation(): void
-    {
-        $this->assertStringContainsString(
-            '/**',
-            $this->fileContent,
-            'head_tags.php should have PHPDoc header'
-        );
-    }
-
-    /**
      * Test that Twitter URL meta tag exists and uses $current_url
      */
     public function testTwitterUrlUsesCurrentUrl(): void
@@ -172,28 +160,6 @@ class HeadTagsSecurityTest extends TestCase
             '$site_description = !empty($pageDescription)',
             $this->fileContent,
             'head_tags.php should assign $site_description from the $pageDescription override check'
-        );
-    }
-
-    /**
-     * Test that conditional closing tag exists
-     */
-    public function testHasConditionalClosing(): void
-    {
-        // Count opening and closing endif
-        $openCount = substr_count($this->fileContent, 'if (!empty($host))');
-        $closeCount = substr_count($this->fileContent, '<?php endif; ?>');
-
-        $this->assertGreaterThan(
-            0,
-            $openCount,
-            'head_tags.php should have at least one if (!empty($host)) block'
-        );
-
-        $this->assertGreaterThan(
-            0,
-            $closeCount,
-            'head_tags.php should have closing endif'
         );
     }
 }

@@ -1,6 +1,7 @@
 // tests/playwright/mobile-responsive.test.js
 const { test, expect } = require('@playwright/test');
 const { navigateAndWait } = require('./auth-helper.js');
+const { CAR_ID_WITH_HISTORY } = require('./fixtures.js');
 
 /**
  * Mobile responsive tests at iPhone SE viewport (375x667).
@@ -19,7 +20,7 @@ const MOBILE_VIEWPORT = { width: 375, height: 667 };
 const PUBLIC_PAGES = [
   '',
   'app/owner/cars/index.php',
-  'app/owner/cars/details.php?car_id=1091',
+  `app/owner/cars/details.php?car_id=${CAR_ID_WITH_HISTORY}`,
   'app/owner/cars/factory.php',
   'app/cars/identify.php',
   'app/owner/contact/index.php',

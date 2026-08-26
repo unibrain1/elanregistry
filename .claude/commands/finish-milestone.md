@@ -34,7 +34,7 @@ TaskCreate. Suggested task subjects:
 9. Security review (Step 9.5) + local multi-agent review (Step 9.7)
 9.8. Local milestone-level deep review (Fable) — mirrors CI, runs pre-PR
 10. Create the PR targeting main
-11. Note CI milestone review trigger (backstop)
+11. Verify CI milestone review posted a comment; re-trigger if missing
 12. Output summary
 
 Set each task to `in_progress` when you begin it and `completed` on success.
@@ -457,22 +457,103 @@ main triggers auto-closure.
 
 Fill in actual data from steps 4 and 5.
 
-### Step 11: CI milestone review (backstop + audit trail)
+### Step 11: Verify CI milestone review posted a comment (backstop + audit trail)
 
-Once the PR is open, the `claude-code-review.yml` workflow automatically
-runs the same milestone-level analysis (Fable) against `main` that Step 9.8
-already ran locally. It reads `merged-prs.txt`, checks release-notes
-accuracy, architecture drift, integration, and deployment readiness, and
-posts the result as a visible PR comment.
+Once the PR is open, the `claude-code-review.yml` workflow is *expected* to
+run the same milestone-level analysis (Fable) against `main` that Step 9.8
+already ran locally, and post the result as a visible PR comment. **Do not
+assume this happened — verify it.**
 
-This is intentionally redundant with Step 9.8 — Step 9.8 catches problems
-before the PR exists; this CI run re-confirms against the final merged state
-and leaves an auditable record on the PR for any human reviewer. It is not
-the primary place this analysis happens.
+PR-open events are not guaranteed to trigger Actions runs at all: GitHub's
+abuse/rate throttle can silently suppress webhook-triggered runs (this
+happened on PR #1718 — see #1724). And even when a run *is* triggered, a job
+`conclusion: success` does not prove a review was posted: the
+`claude-code-action@v1` step can complete without ever calling `gh pr
+comment` — most commonly because the action's own workflow-file-must-match-
+default-branch validation silently skips execution on PRs that modify
+`claude-code-review.yml` itself (documented in that file's header comment
+block — this is intentional security behavior, not a bug, but it still means
+no review posted). A "successful" job is not evidence of a posted review;
+only the comment itself is.
 
-If you need to re-run the deep review later (e.g., after pushing fixes),
-apply the `deep-review` label to the PR or comment `@claude deep-review`.
-It will not re-run on every push — that keeps CI cost down.
+**Verify by checking for the comment, not the job status:**
+
+```bash
+PR_NUM=<pr-number>
+gh api "repos/elan-registry/registry/issues/${PR_NUM}/comments" \
+  --jq '[.[] | select(.body | test("#{1,6}\\s+Strengths|\\*\\*Strengths\\*\\*"))] | length'
+```
+
+This is the same "Strengths"-heading pattern `claude-code-review.yml`'s own
+gate step uses to detect a real posted review (both the `pr-to-milestone-
+review` and `milestone-review` jobs' final steps check for it) — reuse it as
+the ground truth here rather than inventing a separate signal.
+
+Poll every ~30s for up to ~5 minutes (Fable milestone reviews run longer than
+the lightweight Sonnet per-push reviews). If a matching comment appears,
+**the review ran successfully** — note this in the Step 12 summary and move
+on.
+
+**If no matching comment appears after the poll window**, first check
+whether the PR opted out of review — `milestone-review` deliberately skips on
+titles containing `[skip-review]` (see `claude-code-review.yml`'s `if:`
+condition, which applies even to the label-triggered event):
+
+```bash
+gh pr view "$PR_NUM" --json title -q .title --repo elan-registry/registry
+```
+
+If the title contains `[skip-review]`, no comment is the **correct**,
+by-design outcome, not a failure — report "review intentionally skipped per
+title tag" and proceed to Step 12. (Applying the `deep-review` label in this
+case is harmless — the job's `if:` still blocks on the title tag even for
+the labeled event, so it would silently no-op rather than force a review —
+but doing so anyway just wastes a poll cycle for no benefit; skip straight to
+reporting instead.)
+
+If the title carries neither tag, determine which failure mode this is
+before recovering:
+
+```bash
+HEAD_SHA=$(gh pr view "$PR_NUM" --json headRefOid -q .headRefOid --repo elan-registry/registry)
+gh run list --workflow=claude-code-review.yml --repo elan-registry/registry \
+  --json databaseId,headSha,status,conclusion,event \
+  --jq --arg sha "$HEAD_SHA" '[.[] | select(.headSha == $sha)]'
+```
+
+- **No matching run at all** — never triggered. This is the #1724 throttle
+  case. Recover:
+
+  ```bash
+  gh pr edit "$PR_NUM" --add-label "deep-review" --repo elan-registry/registry
+  ```
+
+  Then re-poll for the comment the same way as above.
+
+- **A run exists but produced no comment** — check whether this PR's diff
+  touches `.github/workflows/claude-code-review.yml`:
+
+  ```bash
+  gh pr diff "$PR_NUM" --name-only --repo elan-registry/registry | grep -Fx '.github/workflows/claude-code-review.yml'
+  ```
+
+  If it does, this is the documented self-referential workflow-file skip —
+  the `deep-review` label will **not** fix it; the workflow file only takes
+  effect once merged to `main`. Report this to the user distinctly (do not
+  silently re-trigger). If the diff does not touch that file, treat it the
+  same as "never triggered" above (apply the `deep-review` label, re-poll)
+  since `claude-code-review.yml` already has a fallback-post step for
+  turn-exhaustion (it posts Claude's last result text directly — see the
+  workflow's own comment referencing PR #1529), so a run that completed with
+  zero comment and an untouched workflow file more likely means that
+  fallback step itself failed to post (e.g. a `gh pr comment` / API error,
+  or an empty execution file) than plain turn-exhaustion. Either way the
+  recovery action is the same — re-trigger and re-poll.
+
+**Never report this step as complete without a confirmed comment or an
+explicit, reported reason recovery isn't applicable.** This verify-then-
+recover loop replaces the previous assumption that PR-open automatically
+produces a review — that assumption is exactly what failed on PR #1718.
 
 ### Step 12: Output summary
 
@@ -483,9 +564,12 @@ It will not re-run on every push — that keeps CI cost down.
 - Release notes status (finalized or needs attention)
 - Wiki updates status (updated, committed, or skipped)
 - CLAUDE.md update status (updated or skipped)
+- CI milestone review status (from Step 11): "posted normally" / "no run was
+  triggered — re-triggered via deep-review label, now posted" / "ran but
+  posted nothing — self-referential workflow-file change, requires merge to
+  main first" / etc. — never omit this line
 - Remind: wiki/ files need to be manually pushed to the wiki repo
 - Next steps:
-  - "The CI milestone-level review runs automatically on PR open"
   - "To re-run the deep review later, label the PR `deep-review` or comment `@claude deep-review`"
   - "After the PR is merged, run `/release-milestone $ARGUMENTS` to tag and deploy"
   - "Release notes are at `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`"

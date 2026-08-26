@@ -43,12 +43,36 @@ quality checks. Run once per developer after cloning the repo.
 - Verifies installation and tests required tools (PHP, Composer, npx)
 - Checks that vendor/ and node_modules/ are present
 
-**Pre-commit hook steps:**
+**Pre-commit hook steps** (`.githooks/pre-commit`):
 
-1. PHP coding standards validation (security, types, PHPDoc)
-2. Markdown linting for documentation consistency
-3. Regression test validation (issue linking)
-4. Fast unit tests when critical files are modified
+1. PHP coding standards validation (security, types, PHPDoc, and — for
+   `tests/unit/regression/*.php` — issue-linking traceability, checked via
+   `checkRegressionTestStructure()` inside this same step, not a separate one)
+2. Markdown linting for formatting
+3. Unit tests (if critical files changed) — runs concurrently with step 4
+4. PHPStan static analysis (if PHP files changed) — runs concurrently with step 3
+5. JavaScript linting (if JS files changed and ESLint is available)
+6. Documentation consistency (`composer check:docs`, if PHP or Markdown files
+   are staged) — dead links, stale indexes, ADR drift, dead symbols
+7. Minify first-party JS/CSS (if source files changed and Node is available)
+
+**Pre-push hook steps** (`.githooks/pre-push`, #1439):
+
+1. **Blocking integration-test gate** — only on the `origin` remote (GitHub);
+   `prod`/`test` deploy pushes always skip it, since those deploy
+   already-CI-verified `main` and shouldn't depend on local dev-machine test-DB
+   state. If the push touches any file under `app/`, `usersc/classes/`, or
+   `tests/integration/`, runs the full `composer test:integration` suite
+   (~1-2 min, requires a working `.env.test.local` — see
+   `docs/development/ENVIRONMENT.md`) and blocks the push (exits non-zero) on
+   any test failure or an unreachable test database. Pushes that touch none
+   of those paths skip this step entirely. Bypass with `git push --no-verify`
+   (also skips step 2 below).
+2. **Non-blocking `/review-pr` reminder** — on the first push of a
+   feature/issue-style branch (`issue/*`, `claude/*`, `feat/*`, `fix/*`,
+   `chore/*`, `refactor/*`), prints a reminder to run `/review-pr` locally
+   before relying on CI's lighter-weight review. Silence with
+   `SKIP_REVIEW_PR_REMINDER=1 git push`.
 
 ### check-hooks-status.sh
 
@@ -206,11 +230,29 @@ php scripts/check-coding-standards.php app/
 Common issues: missing `declare(strict_types=1)`, missing return type
 declarations, missing PHPDoc on public methods, SQL string concatenation.
 
+### Push Blocked by the Integration-Test Gate
+
+**Symptom:** `git push` blocked with an integration-suite failure or a
+"Could not connect to the test database" error, on a push that touches
+`app/`, `usersc/classes/`, or `tests/integration/`.
+
+```bash
+# Confirm .env.test.local exists and points at a reachable, provisioned schema
+cat .env.test.local
+./scripts/provision-schema.sh   # (re)builds the schema if missing/stale
+
+# Reproduce the failure directly
+composer test:integration
+```
+
+See `docs/development/ENVIRONMENT.md` — "Test Database Isolation" for setup.
+
 ### Need to Bypass Hooks Temporarily
 
 ```bash
 # Emergency only — fix issues before merging
 git commit --no-verify -m "message"
+git push --no-verify              # also skips the integration-test gate
 ```
 
 ### Getting Help

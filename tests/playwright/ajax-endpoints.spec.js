@@ -1,6 +1,6 @@
 // tests/playwright/ajax-endpoints.test.js
 const { test, expect } = require('@playwright/test');
-const { ensureLoggedIn } = require('./auth-helper.js');
+const { ensureLoggedIn, waitForDataTables } = require('./auth-helper.js');
 
 // Extracts a real, valid CSRF token for the current session from the
 // already-rendered <input name="csrf"> on usersc/user_settings.php — the
@@ -105,25 +105,23 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
       }
     });
 
-    // DataTables endpoint should respond (may require specific parameters)
-    expect(response.status()).not.toBe(404);
-    expect(response.status()).not.toBe(500);
+    // The beforeEach hook already established an authenticated session,
+    // so this DataTables endpoint should always return 200.
+    expect(response.status()).toBe(200);
 
-    if (response.status() === 200) {
-      try {
-        const jsonResponse = await response.json();
+    try {
+      const jsonResponse = await response.json();
 
-        // Should have DataTables structure
-        expect(jsonResponse).toHaveProperty('draw');
-        expect(jsonResponse).toHaveProperty('recordsTotal');
-        expect(jsonResponse).toHaveProperty('recordsFiltered');
-        expect(jsonResponse).toHaveProperty('data');
+      // Should have DataTables structure
+      expect(jsonResponse).toHaveProperty('draw');
+      expect(jsonResponse).toHaveProperty('recordsTotal');
+      expect(jsonResponse).toHaveProperty('recordsFiltered');
+      expect(jsonResponse).toHaveProperty('data');
 
-        // Data should be an array
-        expect(Array.isArray(jsonResponse.data)).toBe(true);
-      } catch (parseError) {
-        throw new Error(`list.php returned non-JSON (status ${response.status()}): ${parseError.message}`);
-      }
+      // Data should be an array
+      expect(Array.isArray(jsonResponse.data)).toBe(true);
+    } catch (parseError) {
+      throw new Error(`list.php returned non-JSON (status ${response.status()}): ${parseError.message}`);
     }
   });
 
@@ -182,6 +180,13 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
       expect(Number.isInteger(id)).toBe(true);
       expect(id).toBeGreaterThan(0);
     });
+
+    if (newCarIds.length > 0) {
+      await waitForDataTables(page, 15000);
+      const badge = page.locator('td a.btn .badge.er-badge-yellow').first();
+      await expect(badge).toBeVisible();
+      await expect(badge).toContainText('NEW');
+    }
   });
 
   test('car history endpoint returns DataTables JSON structure', async ({ page }) => {

@@ -10,6 +10,8 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { CAR_ID_STANDARD } = require('./fixtures.js');
+const { assertNoGoogleMapsRequests } = require('./auth-helper.js');
 
 /**
  * CSP violation monitoring helper
@@ -201,35 +203,16 @@ test.describe('CSP Validation Tests', () => {
   });
 
   test('no requests to Google Maps domains on statistics or details pages', async ({ page }) => {
-    const googleMapsRequests = [];
-    page.on('request', request => {
-      const url = request.url();
-      try {
-        const hostname = new URL(url).hostname;
-        if (hostname === 'maps.googleapis.com' || hostname.endsWith('.maps.googleapis.com') ||
-            hostname === 'maps.gstatic.com' || hostname.endsWith('.maps.gstatic.com')) {
-          googleMapsRequests.push(url);
-        }
-      } catch (_) { /* ignore non-URL strings */ }
-    });
-
     // Check statistics page
-    await page.goto('app/owner/reports/statistics.php');
-    await page.waitForTimeout(2000);
-
-    expect(googleMapsRequests, 'No Google Maps requests on statistics page').toHaveLength(0);
-
-    googleMapsRequests.length = 0;
+    await assertNoGoogleMapsRequests(page, 'app/owner/reports/statistics.php', 'statistics page');
 
     // Check a car details page (use a stable car ID or skip if none)
     try {
-      await page.goto('app/owner/cars/details.php?car_id=1');
-      await page.waitForTimeout(2000);
-      expect(googleMapsRequests, 'No Google Maps requests on car details page').toHaveLength(0);
+      await assertNoGoogleMapsRequests(page, `app/owner/cars/details.php?car_id=${CAR_ID_STANDARD}`, 'car details page');
     } catch (navError) {
       // page.goto throws on timeout/crash, not on auth redirects;
       // log so navigation failures are diagnosable. CSP prohibition is still
-      // verified via the googleMapsRequests assertion above.
+      // verified via the statistics page assertion above.
       console.warn('car details CSP check skipped (navigation error):', navError.message);
     }
   });

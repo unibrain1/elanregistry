@@ -1,12 +1,6 @@
 const { test, expect } = require('@playwright/test');
-
-// Escapes regex metacharacters so an expectedTitle string can be used inside
-// a RegExp for a partial (contains) match against the real <title> tag,
-// which appends " {site_name}" after the page-specific title (see
-// users/template/header1_must_include.php).
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+const { CAR_ID_STANDARD, CAR_ID_REDIRECT_TEST } = require('../fixtures.js');
+const { assertPageTitle } = require('../auth-helper.js');
 
 test.describe('Elan Registry - All Pages (Not Logged In)', () => {
   // Skip these tests if running in logged-in project
@@ -215,32 +209,7 @@ test.describe('Elan Registry - All Pages (Not Logged In)', () => {
 
       // Layer 4: Verify page-specific title and meta description (#1432)
       if (expectedTitle) {
-        // The <title> tag appends " {site_name}" after $pageTitle (see
-        // users/template/header1_must_include.php), so this is a partial
-        // (contains) match rather than an exact one.
-        await expect(page).toHaveTitle(new RegExp(escapeRegExp(expectedTitle)));
-
-        // og:title/twitter:title mirror $pageTitle exactly, with no
-        // site-name suffix (see usersc/includes/head_tags.php), so these
-        // are exact matches.
-        const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
-        expect(ogTitle).toBe(expectedTitle);
-        const twitterTitle = await page.locator('meta[name="twitter:title"]').getAttribute('content');
-        expect(twitterTitle).toBe(expectedTitle);
-      }
-      if (expectedDescription) {
-        // $site_description is $pageDescription verbatim, with no suffix (unlike
-        // $pageTitle's <title> tag above), so these are exact matches.
-        const description = await page.locator('meta[name="description"]').getAttribute('content');
-        expect(description).toBe(expectedDescription);
-
-        // og:description/twitter:description share $site_description with the
-        // meta description tag (see usersc/includes/head_tags.php), so they
-        // pick up $pageDescription the same way.
-        const ogDescription = await page.locator('meta[property="og:description"]').getAttribute('content');
-        expect(ogDescription).toBe(expectedDescription);
-        const twitterDescription = await page.locator('meta[name="twitter:description"]').getAttribute('content');
-        expect(twitterDescription).toBe(expectedDescription);
+        await assertPageTitle(page, { expectedTitle, expectedDescription, checkSocialMeta: true });
       }
 
       console.log(`✓ Successfully reached: ${name} (${path})`);
@@ -424,9 +393,9 @@ test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {
       if (isDownloadable) {
         downloadableLinks.push(link);
       } else {
-        // Exclude /app/owner/cars/details.php links except for car_id=1 (to avoid testing many individual car pages)
-        if (link.includes('/app/owner/cars/details.php') && !link.includes('car_id=1')) {
-          // Skip this link - it's a car details page other than car_id=1
+        // Exclude /app/owner/cars/details.php links except for CAR_ID_STANDARD (to avoid testing many individual car pages)
+        if (link.includes('/app/owner/cars/details.php') && !link.includes(`car_id=${CAR_ID_STANDARD}`)) {
+          // Skip this link - it's a car details page other than CAR_ID_STANDARD
           return;
         }
         navigableLinks.push(link);
@@ -581,8 +550,8 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
       label: 'docs/guide-viewer.php CAR_TRANSFER_USER_GUIDE.md',
     },
     {
-      from: '/app/car_details.php?car_id=100',
-      to: '/app/owner/cars/details.php?car_id=100',
+      from: `/app/car_details.php?car_id=${CAR_ID_REDIRECT_TEST}`,
+      to: `/app/owner/cars/details.php?car_id=${CAR_ID_REDIRECT_TEST}`,
       label: '/app/car_details.php preserves car_id query string',
     },
     {
@@ -962,14 +931,14 @@ test.describe('SEO metadata: JSON-LD, noindex, apple-touch-icon (#1371)', () => 
     }
   });
 
-  test('GET /app/owner/cars/details.php?car_id=1 renders a Schema.org Car JSON-LD block', async ({ page }) => {
-    const response = await page.goto('/app/owner/cars/details.php?car_id=1');
+  test(`GET /app/owner/cars/details.php?car_id=${CAR_ID_STANDARD} renders a Schema.org Car JSON-LD block`, async ({ page }) => {
+    const response = await page.goto(`/app/owner/cars/details.php?car_id=${CAR_ID_STANDARD}`);
 
     // Layer 1: HTTP response must be successful
     expect(response.status()).toBeLessThan(400);
 
     // Layer 2: Must not have been redirected to the login page — securePage()
-    // permits guest access to this specific car page (car_id=1 is the same ID
+    // permits guest access to this specific car page (CAR_ID_STANDARD is the same ID
     // the link-crawl test above keeps navigable for the same reason).
     expect(page.url()).not.toContain('login.php');
 

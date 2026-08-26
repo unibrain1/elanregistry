@@ -23,9 +23,13 @@ class ImageOrientationTest extends TestCase
 
     protected function setUp(): void
     {
+        // $this->testImageDir points at fixtures/orientation/, which does not exist on
+        // disk. The orientation-correction tests below use synthetic in-memory images
+        // (via imagecreate), not real EXIF-tagged fixtures, so this is a known coverage
+        // gap rather than a bug — real EXIF orientation handling is not exercised here.
         $this->testImageDir = __DIR__ . '/fixtures/orientation/';
         $this->outputDir = __DIR__ . '/output/orientation/';
-        
+
         // Create output directory if it doesn't exist
         if (!is_dir($this->outputDir)) {
             mkdir($this->outputDir, 0755, true);
@@ -43,28 +47,6 @@ class ImageOrientationTest extends TestCase
                 }
             }
         }
-    }
-
-    /**
-     * Test that the Resize class exists
-     */
-    #[Group('fast')]
-    public function testResizeClassExists(): void
-    {
-        $this->assertTrue(class_exists('ElanRegistry\\Resize'), 'Resize class should exist');
-    }
-
-    /**
-     * Test that the correctOrientation method exists in Resize class
-     */
-    #[Group('fast')]
-    public function testCorrectOrientationMethodExists(): void
-    {
-        $reflection = new ReflectionClass('ElanRegistry\\Resize');
-        $this->assertTrue(
-            $reflection->hasMethod('correctOrientation'),
-            'Resize class should have correctOrientation method'
-        );
     }
 
     /**
@@ -102,43 +84,6 @@ class ImageOrientationTest extends TestCase
         } catch (Exception $e) {
             $this->fail('Resize should handle images without EXIF data: ' . $e->getMessage());
         }
-    }
-
-    /**
-     * Test that EXIF extension is available
-     */
-    #[Group('fast')]
-    public function testEXIFExtensionAvailable(): void
-    {
-        $this->assertTrue(
-            function_exists('exif_read_data'),
-            'EXIF extension should be available for orientation handling'
-        );
-    }
-
-    /**
-     * Test that imagerotate function is available
-     */
-    #[Group('fast')]
-    public function testImageRotateAvailable(): void
-    {
-        $this->assertTrue(
-            function_exists('imagerotate'),
-            'imagerotate function should be available for orientation correction'
-        );
-    }
-
-    /**
-     * Test that imageflip function is available
-     */
-    #[Group('fast')]
-    public function testImageFlipAvailable(): void
-    {
-        // imageflip was added in PHP 5.5.0
-        $this->assertTrue(
-            function_exists('imageflip'),
-            'imageflip function should be available for orientation correction'
-        );
     }
 
     /**

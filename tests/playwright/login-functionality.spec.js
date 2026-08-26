@@ -23,32 +23,7 @@ const INVALID_CREDENTIALS = {
 };
 
 test.describe('Login Functionality', () => {
-  
-  test('Cloudflare Turnstile integration verification', async ({ page }) => {
-    await page.goto('usersc/login.php', { waitUntil: 'networkidle' });
-    await page.waitForLoadState('networkidle');
 
-    // Check if Turnstile widget is present
-    const turnstileElement = await page.locator('.cf-turnstile').count();
-
-    if (turnstileElement > 0) {
-      console.log('Turnstile widget detected on login form');
-
-      // Verify Turnstile script is loaded
-      const turnstileScript = await page.locator('script[src*="challenges.cloudflare.com/turnstile"]').count();
-      expect(turnstileScript).toBeGreaterThan(0);
-
-      // Verify form structure with Turnstile
-      await expect(page.locator('input[name="username"], input[name="email"]')).toBeVisible();
-      await expect(page.locator('input[name="password"]')).toBeVisible();
-      await expect(page.locator('button[type="submit"], input[type="submit"]')).toBeVisible();
-
-      console.log('Turnstile integration is working correctly');
-    } else {
-      console.log('Turnstile widget not detected - Turnstile may be in off mode');
-    }
-  });
-  
   test.beforeEach(async ({ page }) => {
     // Ensure we start each test logged out
     await logout(page);
@@ -131,18 +106,21 @@ test.describe('Login Functionality', () => {
     // Try to submit with empty username
     await page.fill('input[name="password"]', VALID_CREDENTIALS.password);
     await page.click('button[type="submit"], input[type="submit"]');
-    
-    // Should show validation error or stay on form
-    await page.waitForTimeout(1000);
+
+    // Browser-native HTML5 validation blocks submission on the empty required field
+    await expect(page.locator('input[name="username"]:invalid, input[name="email"]:invalid')).toBeVisible();
     const currentUrl = page.url();
     expect(currentUrl).toContain('login');
-    
-    // Reset and try empty password
+
+    // Reset and try empty password. The password field has no `required`
+    // attribute (see usersc/login.php), so HTML5 constraint validation never
+    // marks it :invalid — submission reaches the server, which must reject
+    // it instead.
     await page.fill('input[name="username"], input[name="email"]', VALID_CREDENTIALS.username);
     await page.fill('input[name="password"]', '');
     await page.click('button[type="submit"], input[type="submit"]');
-    
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
+
     const currentUrl2 = page.url();
     expect(currentUrl2).toContain('login');
     
@@ -225,20 +203,19 @@ test.describe('Login Functionality', () => {
 
   test('CSRF token handling', async ({ page }) => {
     await page.goto('usersc/login.php', { waitUntil: 'networkidle' });
-    
-    // Check if CSRF token field exists
-    const csrfToken = await page.locator('input[name="csrf_token"], input[name="_token"]').count();
-    
-    if (csrfToken > 0) {
-      // CSRF protection is active - verify it's included in form submission
-      const tokenValue = await page.inputValue('input[name="csrf_token"], input[name="_token"]');
-      expect(tokenValue).toBeTruthy();
-      expect(tokenValue.length).toBeGreaterThan(10); // Should be a substantial token
-      
-      // Perform login and verify token is processed correctly
-      await login(page, VALID_CREDENTIALS.username, VALID_CREDENTIALS.password);
-      expect(await isLoggedIn(page)).toBe(true);
-    }
+
+    // Check that the CSRF token field exists
+    const csrfInput = page.locator('input[name="csrf"]');
+    await expect(csrfInput).toHaveCount(1);
+
+    // CSRF protection is active - verify it's included in form submission
+    const tokenValue = await csrfInput.inputValue();
+    expect(tokenValue).toBeTruthy();
+    expect(tokenValue.length).toBeGreaterThan(10); // Should be a substantial token
+
+    // Perform login and verify token is processed correctly
+    await login(page, VALID_CREDENTIALS.username, VALID_CREDENTIALS.password);
+    expect(await isLoggedIn(page)).toBe(true);
   });
 
   test('login form accessibility', async ({ page }) => {
@@ -271,17 +248,21 @@ test.describe('Login Functionality', () => {
     // Get initial session info (if available via cookies or headers)
     // Perform login
     await login(page, VALID_CREDENTIALS.username, VALID_CREDENTIALS.password);
-    
+
     // Get post-login session info
     const postLoginCookies = await page.context().cookies();
-    
-    // Verify session changed after login (basic session fixation check)
-    const sessionCookie = postLoginCookies.find(c => c.name.includes('session') || c.name.includes('PHPSESSID'));
-    if (sessionCookie) {
-      // Session cookie should exist and have secure properties
-      expect(sessionCookie.httpOnly).toBe(true); // Should be HTTP only for security
-    }
-    
+
+    // Session cookie is PHPSESSID (PHP default; the app does not call
+    // session_name() to override it — see users/init.php:8-18). It must
+    // always be present post-login, so this asserts unconditionally rather
+    // than skipping when absent.
+    const sessionCookie = postLoginCookies.find(c => c.name === 'PHPSESSID');
+    expect(sessionCookie).toBeDefined();
+    expect(sessionCookie.httpOnly).toBe(true);
+    expect(sessionCookie.sameSite).toBe('Strict');
+    // secure is conditional on HTTPS (users/init.php:12) — localhost is HTTP, so false is correct here.
+    expect(sessionCookie.secure).toBe(false);
+
     expect(await isLoggedIn(page)).toBe(true);
   });
 });

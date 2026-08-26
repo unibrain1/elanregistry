@@ -1,26 +1,228 @@
 #!/bin/bash
 
 #
-# Pre-push hook: non-blocking reminder to run /review-pr before pushing
-# a feature branch.
+# Pre-push hook:
+#   1. BLOCKING integration-test gate (#1439) — see below.
+#   2. Non-blocking reminder to run /review-pr before pushing a feature branch.
 #
-# Rationale: CI runs a lightweight Sonnet-backed review on PRs targeting
-# milestone branches and relies on the author having done a deep multi-agent
-# review locally. Running /review-pr on your Claude Max/Pro subscription
-# catches issues before CI cycles burn tokens on every push.
+# Rationale for the reminder: CI runs a lightweight Sonnet-backed review on
+# PRs targeting milestone branches and relies on the author having done a
+# deep multi-agent review locally. Running /review-pr on your Claude Max/Pro
+# subscription catches issues before CI cycles burn tokens on every push.
 #
-# This hook NEVER blocks a push. It only prints a reminder on the first
-# push of a branch that looks like feature / issue work (issue/*,
-# claude/*, feat/*, fix/*, chore/*, refactor/*) when the remote branch
-# does not yet exist. Set SKIP_REVIEW_PR_REMINDER=1 to silence it.
+# The reminder section NEVER blocks a push. It only prints on the first push
+# of a branch that looks like feature / issue work (issue/*, claude/*,
+# feat/*, fix/*, chore/*, refactor/*) when the remote branch does not yet
+# exist. Set SKIP_REVIEW_PR_REMINDER=1 to silence it.
 #
+# The integration-gate section DOES block a push — see its comment block
+# below for scope, the remote restriction, and the --no-verify escape hatch.
+#
+
+# Read ref updates from stdin ONCE, into a variable. git pipes the ref list
+# to pre-push hooks as a one-shot stream — a shell pipe cannot be rewound
+# once read, so with two sections each needing the full ref list (the gate
+# below, and the reminder that already existed), the list has to be captured
+# up front and each section loops over the saved copy instead of stdin
+# directly.
+ref_updates="$(cat)"
+
+# git passes the pushed-to remote's name as $1 (its URL as $2) — separate
+# from the per-ref stdin data above.
+remote_name="${1:-}"
+
+# =============================================================================
+# 1. Integration-test gate (#1439)
+#
+# Restricted to the `origin` remote (GitHub) only. This repo also has `prod`
+# and `test` deploy remotes (see Registry/CLAUDE.md) — `git push prod main` /
+# `git push test main` deploy already-CI-verified, already-merged `main`
+# code, not new work. Running a ~2 min blocking suite (and hard-failing the
+# whole push if the *local* test schema happens to be unreachable at that
+# exact moment — see #1591) on a deploy would tie deploy success to local
+# dev-machine state that has nothing to do with the code being deployed.
+#
+# Only runs when the push touches files matching
+# ^(app|usersc/classes|tests/integration)/.*\.php$ — those are the paths the
+# integration suite actually exercises. Pushes that touch none of them skip
+# this section entirely (fast path).
+#
+# Runs the FULL integration suite (composer test:integration, ~2 min locally)
+# against the dedicated test schema configured in .env.test.local.
+# tests/bootstrap-integration.php already fails loudly (exit 1) if that
+# database is unreachable or misconfigured (#1591) — this hook does not
+# duplicate that preflight check, it just blocks the push on ANY non-zero
+# exit code from composer test:integration, whether that's an unreachable DB
+# or an actual test failure. Both are "block the push" per the issue's
+# acceptance criteria.
+#
+# Escape hatch: `git push --no-verify` skips this hook entirely (standard git
+# behavior — no extra code needed here).
+# =============================================================================
+
+integration_gate_paths='^(app|usersc/classes|tests/integration)/.*\.php$'
+gate_failed=0
+
+# Picks the closest true parent branch for a brand-new ref with no upstream
+# (see the "New ref" comment block below for why this exists). Issue/bug/
+# feature branches fork from a local `milestone/*` branch, not `main` — so
+# among all candidate ancestors, the correct parent is whichever one has the
+# FEWEST commits between its merge-base and $1. A milestone branch that is
+# the true parent will show 0+ commits ahead; origin/main, being further back
+# in history, will show many more.
+#
+# A candidate is rejected only when $1 (the pushed branch) is itself an
+# ancestor of that candidate — i.e. the candidate was cut FROM $1's own tip
+# (a stale/scratch milestone branch someone branched off the issue branch
+# after diverging from it) rather than being a real, independent parent. This
+# is checked as `! git merge-base --is-ancestor target candidate`, NOT the
+# reverse: requiring the candidate to be an ancestor of $1 would also reject
+# a milestone branch that has legitimately moved on since $1 forked from it
+# (e.g. the developer worked another issue in the meantime, which merged into
+# the milestone branch, before finally pushing $1 for the first time) — that
+# milestone branch is still $1's true logical parent even though $1's tip
+# isn't reachable from it anymore (PR #1767 review). A commit-count
+# comparison alone can't tell a true ancestor with zero commits ahead (e.g.
+# $1 is a genuinely fresh branch with no commits yet) apart from a diverged
+# sibling — both show count=0 — so the ancestor-direction check is required
+# first; count only breaks ties among confirmed candidates (#1751 review).
+# Picking a sibling cut from $1's own tip would silently zero out (or
+# under-report) the diff and defeat the gate exactly like the bug this
+# function fixes, just via a different trigger.
+#
+# Echoes the winning base SHA on success, and the winning candidate + commit
+# count to stderr for diagnosability. Returns non-zero (echoes nothing) if no
+# candidate resolves at all.
+_pick_closest_base() {
+    local target="$1"
+    local best_base="" best_count="" best_candidate=""
+    local candidate base count
+
+    while IFS= read -r candidate; do
+        [ -z "$candidate" ] && continue
+        base="$(git merge-base "$target" "$candidate" 2>/dev/null)" || continue
+        # Reject only candidates cut FROM $target's own tip (i.e. $target is
+        # an ancestor of $candidate) — see the function comment above for why
+        # this direction, not the reverse, is the correct discriminator.
+        git merge-base --is-ancestor "$target" "$candidate" 2>/dev/null && continue
+        count="$(git rev-list --count "$base".."$target" 2>/dev/null)" || continue
+        case "$count" in
+            ''|*[!0-9]*)
+                echo "  WARNING: unexpected 'git rev-list --count' output for candidate '$candidate': '$count' — skipping it." >&2
+                continue
+                ;;
+        esac
+        if [ -z "$best_count" ] || [ "$count" -lt "$best_count" ]; then
+            best_base="$base"
+            best_count="$count"
+            best_candidate="$candidate"
+        fi
+    done <<< "$(git for-each-ref --format='%(refname:short)' 'refs/heads/milestone/*' 2>/dev/null; echo 'origin/main')"
+
+    if [ -n "$best_base" ]; then
+        echo "  (merge-base resolved via closest branch: $best_candidate, $best_count commit(s) ahead)" >&2
+        printf '%s\n' "$best_base"
+        return 0
+    fi
+    return 1
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    # Skip deletes
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+
+    # Restricted to origin — see the comment block above this loop.
+    if [ "$remote_name" != "origin" ]; then
+        continue
+    fi
+
+    branch="${local_ref#refs/heads/}"
+
+    if [ "$remote_sha" != "0000000000000000000000000000000000000000" ]; then
+        # Updating an existing remote ref — diff against its current tip.
+        base="$remote_sha"
+    else
+        # New ref (first push of this branch, e.g. right after /start-issue's
+        # `git checkout -b` + `git push -u`). At the moment this hook runs,
+        # the branch may not have an upstream configured yet — the tracking
+        # lookup below fails to resolve in that case. Falling back to diffing
+        # local_sha against itself (empty diff) would silently skip the gate
+        # on exactly the case this issue (#1439) exists to cover: the first
+        # push of new feature work. Fall back through:
+        #   1. the pushed branch's own configured upstream, if any. Uses
+        #      "$branch@{upstream}" — the *named* branch being pushed, not
+        #      bare '@{u}', which resolves against whatever's currently
+        #      checked out and would silently compute the wrong base for an
+        #      explicit `git push origin some-other-branch:some-other-branch`
+        #      run from a different branch.
+        #   2. the closest local `milestone/*` branch or origin/main (see
+        #      _pick_closest_base above) — issue/bug/feature branches fork
+        #      from a milestone branch, not main (#1751), so origin/main
+        #      alone would pick up that milestone's entire accumulated diff.
+        #      _pick_closest_base picks whichever candidate has the fewest
+        #      commits ahead, excluding only candidates cut FROM local_sha's
+        #      own tip (e.g. a stale milestone branch someone branched off
+        #      this same branch after diverging from it, which would
+        #      otherwise zero out the diff) — a milestone branch that has
+        #      simply moved on since local_sha forked from it is still a
+        #      valid, rankable candidate, which reliably isolates just this
+        #      branch's own commits
+        #      regardless of which branch it actually forked from.
+        #   3. local_sha itself, only if both above fail to resolve (e.g. no
+        #      'origin' remote at all) — printed loudly so it's never a
+        #      silent gap.
+        if base="$(git merge-base "$local_sha" "${branch}@{upstream}" 2>/dev/null)"; then
+            :
+        elif base="$(_pick_closest_base "$local_sha")"; then
+            :
+        else
+            echo "  WARNING: could not resolve a merge-base for '$local_ref' (no upstream, no origin/main)." >&2
+            echo "  Integration gate cannot determine changed files and will be SKIPPED for this ref." >&2
+            base="$local_sha"
+        fi
+    fi
+
+    changed_files="$(git diff --name-only "$base" "$local_sha")"
+
+    if ! printf '%s\n' "$changed_files" | grep -qE "$integration_gate_paths"; then
+        continue
+    fi
+
+    cat <<EOF
+
+  Integration-test gate: push to '$branch' touches app/, usersc/classes/, or
+  tests/integration/. Running the full integration suite before allowing this
+  push (composer test:integration, ~2 min against the test schema)...
+
+EOF
+
+    if ! composer test:integration; then
+        cat <<EOF
+
+  BLOCKED: integration suite failed (or the test database was unreachable —
+  check the output above). Push aborted.
+
+  Fix the failure, or bypass with: git push --no-verify
+
+EOF
+        gate_failed=1
+    fi
+done <<< "$ref_updates"
+
+if [ "$gate_failed" -eq 1 ]; then
+    exit 1
+fi
+
+# =============================================================================
+# 2. Non-blocking /review-pr reminder (pre-existing behavior, unchanged)
+# =============================================================================
 
 if [ -n "${SKIP_REVIEW_PR_REMINDER:-}" ]; then
     exit 0
 fi
 
-# Read ref updates from stdin. git always pipes ref data to pre-push hooks;
-# the while loop exits cleanly on EOF if there is nothing to process.
 reminder_shown=0
 while read -r local_ref local_sha remote_ref remote_sha; do
     # Skip deletes
@@ -58,6 +260,6 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 EOF
         reminder_shown=1
     fi
-done
+done <<< "$ref_updates"
 
 exit 0

@@ -18,7 +18,9 @@
 #   3. Unit Tests (if critical files changed) — runs concurrently with #4
 #   4. PHPStan Static Analysis (if PHP files changed) — runs concurrently with #3
 #   5. JavaScript Linting (if JS files changed and ESLint available)
-#   6. Minify first-party JS/CSS (if source files changed and Node available)
+#   6. Documentation Consistency (composer check:docs, if PHP or Markdown
+#      files staged) — dead links, stale indexes, ADR drift, dead symbols
+#   7. Minify first-party JS/CSS (if source files changed and Node available)
 #
 
 set -e
@@ -202,7 +204,30 @@ else
     echo "⏭️  No JavaScript files staged"
 fi
 
-# Step 6: Minify first-party JS/CSS if source files changed
+# Step 6: Documentation consistency check (composer check:docs) — dead
+# internal links, stale index tables, ADR status drift, wrong repo/branch
+# URLs, and dead symbols referenced in docs. Runs in well under a second, so
+# it's unconditional whenever PHP or Markdown files are staged rather than
+# trying to predict which specific files could affect it (dead-symbol checks
+# depend on PHP code, not just docs). This was previously CI-only
+# (static-analysis.yml's `docs` job) — catching it locally avoids a
+# doc-vs-code push/wait/fail round-trip.
+echo ""
+echo "📚 Step 6: Documentation Consistency"
+if [ -n "$STAGED_PHP_FILES" ] || [ -n "$STAGED_MD_FILES" ]; then
+    if composer check:docs; then
+        echo "✅ Passed"
+    else
+        echo ""
+        echo "❌ COMMIT BLOCKED: Fix the documentation issues above."
+        echo "   Bypass (not recommended): git commit --no-verify"
+        exit 1
+    fi
+else
+    echo "⏭️  No PHP or Markdown files staged"
+fi
+
+# Step 7: Minify first-party JS/CSS if source files changed
 STAGED_FIRST_PARTY=$(git diff --cached --name-only --diff-filter=ACMR | \
   grep -E '^app/assets/(js|css)/[^/]+\.(js|css)$|^app/admin/assets/[^/]+\.(js|css)$' | \
   grep -v '\.min\.' || true)

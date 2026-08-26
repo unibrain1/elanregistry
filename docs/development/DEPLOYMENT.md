@@ -223,16 +223,20 @@ Use `Closes`, `Fixes`, or `Resolves` followed by `#NNN`. See the
 
 ## 🛠️ Local Development Tools
 
-### Pre-Commit Quality Checks
+### Pre-Commit and Pre-Push Quality Checks
 
-Pre-commit hooks validate PHP coding standards, markdown formatting, and run fast unit tests before each commit.
+Pre-commit hooks validate PHP coding standards, markdown formatting, and run
+fast unit tests before each commit. Pre-push additionally runs the full
+integration suite and blocks the push on failure, on pushes touching `app/`,
+`usersc/classes/`, or `tests/integration/` (#1439).
 
 ```bash
 ./scripts/setup-git-hooks.sh    # One-time setup
-git commit --no-verify           # Bypass (emergency only)
+git commit --no-verify           # Bypass pre-commit (emergency only)
+git push --no-verify             # Bypass pre-push, including the integration gate
 ```
 
-**See the [Development Workflow](https://github.com/elan-registry/registry/wiki/Development-Workflow) wiki page** for hook details and `scripts/README.md` for troubleshooting.
+**See `scripts/README.md`** ("Git Hooks Management" / "Troubleshooting Git Hooks") for full hook step-by-step details and troubleshooting.
 
 ## 📋 Complete Production Deployment Process
 

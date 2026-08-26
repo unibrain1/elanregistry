@@ -164,6 +164,14 @@ npm-built bundle, identical behavior) with zero upgrade risk folded in. A
 DataTables 3.x upgrade is deliberately deferred to its own future issue, so
 any regression it introduces is bisectable independently of this change.
 
+**Update (#1741):** That deferred upgrade landed as its own issue, as planned.
+`datatables.net-bs5`/`-fixedheader-bs5`/`-responsive-bs5` were bumped to
+`3.0.2`/`5.0.0`/`4.0.2` (a mutually compatible set — all three peer-depend on
+`datatables.net-bs5@^3`, deduping to one `datatables.net@3.0.2` core) and the
+vendored bundle rebuilt via `npm run build`. Exact-pinning was kept for the
+same reason as the original 2.3.8 pin: the declared version should match what
+production actually serves.
+
 ### Dead entries removed
 
 - **jQuery UI, Dropzone**: no vendored files ever existed (Registry or stock

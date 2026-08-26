@@ -22,9 +22,9 @@ As of v2.11.0, we use **only 3 DataTables extensions** for optimal performance:
 
 | Extension           | Version  | Purpose                  | Usage      |
 | ------------------- | -------- | ------------------------ | ---------- |
-| **DataTables Core** | dt-2.3.8 | Base table functionality | All tables |
-| **FixedHeader**     | fh-4.0.6 | Sticky table headers     | All tables |
-| **Responsive**      | r-3.0.8  | Mobile-responsive tables | All tables |
+| **DataTables Core** | dt-3.0.2 | Base table functionality | All tables |
+| **FixedHeader**     | fh-5.0.0 | Sticky table headers     | All tables |
+| **Responsive**      | r-4.0.2  | Mobile-responsive tables | All tables |
 
 ## Where DataTables is Used
 
@@ -134,11 +134,11 @@ builder with:
 
 | Extension Code | Full Name       | Version    |
 | -------------- | --------------- | ---------- |
-| `dt`           | DataTables Core | `2.3.8`    |
-| `fh`           | FixedHeader     | `4.0.6`    |
-| `r`            | Responsive      | `3.0.8`    |
+| `dt`           | DataTables Core | `3.0.2`    |
+| `fh`           | FixedHeader     | `5.0.0`    |
+| `r`            | Responsive      | `4.0.2`    |
 
-The styling target is `bs4` (Bootstrap 4).
+The styling target is `bs5` (Bootstrap 5).
 
 ### Updating the Vendored Bundle
 
@@ -201,9 +201,9 @@ server-side processing or assess if the UX trade-offs are acceptable.
 
 **Current versions are stable and battle-tested**:
 
-- DataTables Core: 2.3.8
-- FixedHeader: 4.0.6
-- Responsive: 3.0.8
+- DataTables Core: 3.0.2
+- FixedHeader: 5.0.0
+- Responsive: 4.0.2
 
 **When to upgrade**:
 
