@@ -361,24 +361,6 @@ parameters:
 			path: tests/unit/location/LocationServiceCacheTest.php
 
 		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Resize'' and ElanRegistry\\Resize will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 2
-			path: tests/unit/uploads/ImageOrientationTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with ElanRegistry\\Resize and ''Resize object…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/unit/uploads/ImageOrientationTest.php
-
-		-
-			message: '#^Property ImageOrientationTest\:\:\$testImageDir is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: tests/unit/uploads/ImageOrientationTest.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>website" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1

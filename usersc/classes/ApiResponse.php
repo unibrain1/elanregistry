@@ -295,22 +295,22 @@ class ApiResponse
     }
 
     /**
-     * Send the response as JSON and exit
+     * Build the response body and emit response headers as a side effect
      *
      * Handles:
+     * - Executing pending log entry
      * - Setting Content-Type header
      * - Setting HTTP status code
      * - Output buffering cleanup
-     * - Executing pending log entry
-     * - JSON encoding and output
-     * - Script termination
+     * - JSON encoding (with a safe fallback string if encoding fails)
      *
      * Gracefully handles cases where headers are already sent by
-     * logging a warning but still outputting the JSON response.
+     * logging a warning but still building the JSON response.
      *
-     * @return never This method terminates script execution
+     * @return string JSON-encoded response body, or a minimal safe JSON
+     *                 string if encoding the response failed
      */
-    public function send(): never
+    protected function buildAndEmitHeaders(): string
     {
         // Execute pending log entry before sending response
         if ($this->pendingLog !== null && function_exists('logger')) {
@@ -342,8 +342,32 @@ class ApiResponse
             header('Content-Type: application/json; charset=utf-8');
         }
 
-        // Output JSON and exit
-        echo json_encode($this->toArray(), JSON_THROW_ON_ERROR);
+        try {
+            return json_encode($this->toArray(), JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            if (function_exists('logger')) {
+                logger(
+                    0,
+                    LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+                    'ApiResponse: json_encode failed — ' . $e->getMessage()
+                );
+            }
+            return '{"success":false,"message":"An internal error occurred"}';
+        }
+    }
+
+    /**
+     * Send the response as JSON and exit
+     *
+     * Delegates header emission, pending-log execution, and JSON encoding
+     * to buildAndEmitHeaders(); this method is a thin echo+exit wrapper
+     * around its return value.
+     *
+     * @return never This method terminates script execution
+     */
+    public function send(): never
+    {
+        echo $this->buildAndEmitHeaders();
         exit;
     }
 

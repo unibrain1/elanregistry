@@ -18,8 +18,7 @@ TBD — filled in as issues are completed.
 ## Issues Resolved
 
 - WIP: [#1509](https://github.com/elan-registry/registry/issues/1509) — refactor: route remaining car-lookup endpoints through CarRepository
-- WIP: [#1516](https://github.com/elan-registry/registry/issues/1516) — fix: harden Resize::openImage() and ApiResponse::send() against uncaught throwables
-- WIP: [#1616](https://github.com/elan-registry/registry/issues/1616) — test: ApiResponse::send() has no coverage — every AJAX endpoint terminates through it
+- [#1516](https://github.com/elan-registry/registry/issues/1516) / [#1616](https://github.com/elan-registry/registry/issues/1616) — fix: harden `Resize::openImage()` and `ApiResponse::send()` against uncaught throwables (a `.webp` upload, or any corrupt image, previously crashed with an uncaught `TypeError`; `.webp` support itself is tracked separately in #1383), plus test coverage for `ApiResponse::send()`.
 - [#1617](https://github.com/elan-registry/registry/issues/1617) — test: ChassisValidator private validation branches (race car, pre/post-1970 formats) untested. Added `tests/unit/security/ChassisValidatorTest.php` (25 tests) covering every branch in `validateRaceCar()`, `validatePre1970()`, `validatePost1970()`, `validateElevenCharFormat()`, `validateFiveCharFormat()`, and `getValidSuffixes()` via the public `validate()` entrypoint, plus two `allowOverride:false` tests in `ChassisValidatorXssTest.php` proving genuine format-pass (not just allowlist-legality). No production code changed.
 - WIP: [#1699](https://github.com/elan-registry/registry/issues/1699) — bug: three playwright npm scripts reference .test.js files that do not exist
 - WIP: [#1732](https://github.com/elan-registry/registry/issues/1732) — test: datatables-xss.spec.js History section assumes ambient car data instead of creating its own fixture
