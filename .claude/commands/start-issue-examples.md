@@ -116,8 +116,9 @@ Implementation complete for issue #423. Next steps:
 0. Update test plan  — Add test scenarios to test-plan-<milestone>.md in the
                        local Plans directory (path in .claude.local.md)
 1. /simplify         — Review and clean up the code (optional)
-2. /review-pr        — Multi-agent local review (recommended before push)
-3. /commit           — Commit your changes
+2. /commit           — Commit your changes
+3. /review-pr        — Multi-agent local review (requires a commit — it
+                       diffs merge-base..HEAD, not working-tree changes)
 4. /commit-push-pr   — Push and create a PR targeting `milestone/v3.2.0`
                        Include "Closes #423" in the PR body.
 5. /address-pr-comments — After CI runs, review and fix any PR comments
@@ -209,8 +210,9 @@ Implementation complete for issue #512. Next steps:
 0. Update test plan  — Add test scenarios to test-plan-<milestone>.md in the
                        local Plans directory (path in .claude.local.md)
 1. /simplify         — Review and clean up the code (optional)
-2. /review-pr        — Multi-agent local review (recommended before push)
-3. /commit           — Commit your changes
+2. /commit           — Commit your changes
+3. /review-pr        — Multi-agent local review (requires a commit — it
+                       diffs merge-base..HEAD, not working-tree changes)
 4. /commit-push-pr   — Push and create a PR targeting `milestone/v2.16.0`
                        Include "Closes #512" in the PR body.
 5. /address-pr-comments — After CI runs, review and fix any PR comments

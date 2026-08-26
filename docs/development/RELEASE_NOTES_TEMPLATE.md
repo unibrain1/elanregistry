@@ -59,7 +59,14 @@ When generating release notes:
    Remove a section or subsection entirely if it has no entries.
 3. **Issues Resolved** lists every closed issue in the milestone, sorted by
    issue number. Use the exact GitHub issue/PR title verbatim.
-   Format: `- [#NNN](URL) — GitHub issue title`
+   Format: `- [#NNN](URL) — GitHub issue title`. This describes the
+   *finished* release notes — `/finish-milestone` verifies every entry
+   matches this format before opening the milestone PR. Mid-milestone, entries
+   for issues not yet completed carry a `WIP:` prefix
+   (`- WIP: [#NNN](URL) — GitHub issue title`), added by `/start-milestone`
+   when it pre-populates the section and removed by `/finish-issue` once that
+   issue's PR merges — every entry must have that prefix stripped by the time
+   `/finish-milestone` runs.
 4. **Required Actions** should only appear when there are actual post-deployment
    steps (SQL migrations, config changes, dependency installs). Otherwise state
    "None".

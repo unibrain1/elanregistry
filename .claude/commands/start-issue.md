@@ -7,16 +7,18 @@ model: claude-opus-4-8
 
 ## Hard Constraints (non-negotiable)
 
-> **1. PLAN APPROVAL IS REQUIRED before writing any code.**
-> Present the plan at Step 9 and wait for the user to explicitly approve it.
-> Do not begin implementation until you receive a clear "yes / proceed / looks
-> good" or equivalent. If the user changes the subject or gives partial
-> feedback, ask again: "Should I proceed with the plan as written?"
+> **1. PLAN APPROVAL IS REQUIRED before this command ends.**
+> Write the plan to its plan file (Step 9) and present that file's content
+> for approval. Do not mark the plan approved until you receive a clear
+> "yes / proceed / looks good" or equivalent. If the user changes the
+> subject or gives partial feedback, ask again: "Should I proceed with the
+> plan as written?"
 >
-> **2. NEVER commit, push, or create PRs.**
-> After implementation is complete, stop. The user commits explicitly via
-> `/commit` or `/commit-push-pr`. Do not run `git add`, `git commit`, or
-> `git push` under any circumstances during this workflow.
+> **2. THIS COMMAND NEVER IMPLEMENTS, COMMITS, PUSHES, OR CREATES PRs.**
+> `/start-issue` stops once the plan file is approved. Implementation is a
+> separate command, `/execute-plan`, run afterward. Do not write application
+> code, run `git add`/`git commit`/`git push`, or launch software-developer
+> agents for implementation from within this command.
 
 ---
 
@@ -25,56 +27,42 @@ model: claude-opus-4-8
 Do NOT create tasks yet. Fetch the issue (Step 2) and assess complexity tier
 first. After Step 2, create only the tasks that apply to the determined tier:
 
-- **Small** (1-2 files, clear scope): 6 tasks — fetch issue + assess, branch +
-  mark in progress, explore, implement, test + security review, final summary
-- **Medium** (3-5 files, some ambiguity): 8 tasks — fetch issue + assess,
-  branch + mark in progress, explore, PM refinement + plan, implement, test,
-  security review + architect review, final summary
-- **Large** (new subsystem, schema changes, cross-cutting): 10 tasks — all of
-  the above plus separate plan confirmation and documentation step
+- **Small** (1-2 files, clear scope): 5 tasks — fetch issue + assess, branch +
+  mark in progress, explore, write + approve plan file, final summary
+- **Medium** (3-5 files, some ambiguity): 6 tasks — fetch issue + assess,
+  branch + mark in progress, explore, PM refinement, write + approve plan
+  file, final summary
+- **Large** (new subsystem, schema changes, cross-cutting): 7 tasks — all of
+  the above plus a separate documentation-plan step
 
 Set each to `in_progress`/`completed` as you progress.
 
 This command helps you start working on a GitHub issue within a milestone
 workflow by creating a branch, entering plan mode, and developing an
-implementation plan with continuous clarifying questions. Specialized agents are
-invoked as needed throughout the workflow.
+implementation plan with continuous clarifying questions. It ends by writing
+an approved plan file to `docs/plans/` — implementation happens afterward, in
+a separate command, `/execute-plan`, which reads that file. Specialized
+agents are invoked as needed throughout the research/planning workflow below;
+`/execute-plan` invokes its own separate set for implementation.
 
 ## Available Agents
 
 Launch agents via the Task tool. Use parallel instances when work can be partitioned.
+This command's scope is research and planning only — it does not implement, so
+`software-developer` and post-implementation `senior-architect` review are not
+used here. See `/execute-plan`'s own agent table for those.
 
 | Agent | `subagent_type` | Model | Use When |
 | --- | --- | --- | --- |
 | Explore | `Explore` | `haiku` | Codebase research |
 | Plan | `Plan` | `sonnet` | Implementation strategy |
-| Software Developer | `software-developer` | `sonnet` (Trivial/Small), `opus` (Medium/Large) | **Primary coding agent** — see per-tier override below |
-| Senior Architect | `senior-architect` | `opus` | Architecture, security, code review |
 | Senior Product Manager | `senior-product-manager` | `sonnet` | Issue refinement, scope, criteria |
-| Senior Test Engineer | `senior-test-engineer` | `sonnet` | Test strategy and writing |
-| Technical Documentation Writer | `technical-documentation-writer` | `haiku` | Docs updates |
+| Senior Test Engineer | `senior-test-engineer` | `sonnet` | Test strategy for the plan's Test Plan section |
+| Technical Documentation Writer | `technical-documentation-writer` | `haiku` | Documentation-plan scoping |
 | General Purpose | `general-purpose` | `haiku` | Multi-step research |
 
 **Scale agent usage to issue complexity** — see tiers below. Over-invoking agents is waste.
-**Always invoke for code changes:** software-developer, senior-test-engineer (unless trivial fix).
-**Skip** docs agent for internal refactoring; test agent for docs-only changes.
-
-**Per-tier model override for `software-developer`** — the agent's default
-model (set in `.claude/agents/software-developer.md`) is Opus. For
-Trivial/Small issues, override to Sonnet to avoid Opus overkill on routine
-CRUD-style work:
-
-```text
-Agent({
-  subagent_type: "software-developer",
-  model: "sonnet",          // Trivial/Small only — omit for Medium/Large
-  description: "...",
-  prompt: "..."
-})
-```
-
-Omit `model` for Medium/Large issues so the agent inherits its default
-(Opus) — those tiers need the deeper reasoning.
+**Skip** the docs-scoping consult for internal refactoring; the test-strategy consult for docs-only changes.
 
 ## Issue Complexity Tiers
 
@@ -82,12 +70,13 @@ Assess complexity immediately after fetching the issue. Choose the tier and foll
 
 | Tier | Profile | Agent pattern |
 | --- | --- | --- |
-| **Small** | 1-2 files, clear scope, explicit acceptance criteria, no DB/security changes | 1 Explore → software-developer → security-reviewer (if forms/SQL touched) |
-| **Medium** | Feature, 3-5 files, some ambiguity, or touches DB/auth | 1-2 Explore → PM (if scope unclear) → Plan → software-developer → test engineer → security-reviewer |
+| **Small** | 1-2 files, clear scope, explicit acceptance criteria, no DB/security changes | 1 Explore → write plan file |
+| **Medium** | Feature, 3-5 files, some ambiguity, or touches DB/auth | 1-2 Explore → PM (if scope unclear) → Plan → test-strategy consult → write plan file |
 | **Large** | New subsystem, schema changes, cross-cutting concern, or significant ambiguity | Full workflow below |
 
-For Small issues skip: PM agent, pre-implementation architect call, parallel Explore agents.
-For Medium issues skip: pre-implementation architect call (architect reviews code, not plans).
+For Small issues skip: PM agent, parallel Explore agents.
+This command never launches `senior-architect` — architecture/security review
+of actual code happens in `/execute-plan`, after implementation, not here.
 
 ## Workflow Steps
 
@@ -343,192 +332,182 @@ and your answers. I'll ask clarifying questions as I refine the approach."
    - **technical-documentation-writer** (only when changes affect public APIs, schema,
      classes, or user flows): Ask which docs need updating based on the change type.
 
-   Do NOT launch senior-architect pre-implementation. Architect review happens post-implementation (Step 10.6) when there is actual code to review.
+   Do NOT launch senior-architect from this command. Architect review happens
+   post-implementation, inside `/execute-plan`, when there is actual code to
+   review — never against a plan.
 
-8. **Incorporate agent feedback into the plan**: Merge feedback into a single
-   comprehensive plan. Include sections only for agents that were consulted:
+8. **Incorporate agent feedback into the plan** (Step 7.4): Merge feedback
+   into a single comprehensive plan. Include sections only for agents that
+   were consulted:
    - **Bug Escape Analysis** (from Step 7.2.5, if bug issue)
    - **UserSpice Integration** (from Step 7.1)
    - **Database & Security Considerations** (from Step 7.2)
-   - **Architecture & Design** (from senior-architect)
-   - **Implementation Steps** (your plan, informed by architect feedback)
+   - **Architecture & Design** (your plan, informed by Explore/Plan-agent research)
+   - **Implementation Checklist** (see Step 9's format — this is the section
+     `/execute-plan` executes against)
    - **Test Plan** (from senior-test-engineer, if consulted)
    - **Documentation Plan** (from technical-documentation-writer, if consulted)
 
-### Step 8: Exit Plan Mode with Plan
+### Step 8: Exit Plan Mode with Draft Plan Content
 
 Use ExitPlanMode when you have:
 
 - Asked all necessary clarifying questions
 - Explored all relevant code
 - Consulted the appropriate specialized agents
-- Created a comprehensive implementation plan
+- Drafted all sections of the plan in Step 7.4's list
 
-### Step 9: Present Plan for Approval
+Exiting plan mode here does not yet mean approval — it hands control back to
+write the plan to disk (Step 9), which is what the user actually reviews.
 
-After exiting plan mode, present the plan and ask:
+### Step 9: Write the Plan File and Present for Approval
 
-"Here's my implementation plan for issue #ISSUE_NUMBER based on our
-discussion and agent input. Please review and let me know if you'd like any
-changes before I proceed with implementation."
+Write the plan to `docs/plans/issue-<ISSUE_NUMBER>-<slug>.md`, where `<slug>`
+is the same short kebab-case description used for the branch name (Step 3).
+Create the `docs/plans/` directory if it does not exist yet. The
+`**Milestone:**` field is the `milestone/*` branch Step 3 already determined
+— record it here so `/execute-plan` (which runs on the issue branch, with no
+milestone version in its own branch name) doesn't have to re-derive it.
 
-**STOP. Do not proceed to Step 10 until the user explicitly approves the
-plan.** A response that changes the subject, asks a follow-up question, or
-provides partial feedback is NOT approval. If in doubt, ask: "Should I
-proceed with the plan as written?"
+**File structure** (include only the sections that apply, per Step 7.4's list):
 
-### Step 10: Implementation (after explicit plan approval only)
+```markdown
+# Issue #<NUMBER>: <Title>
 
-Once the user has explicitly approved the plan, execute using agents strategically:
+**Branch:** `<branch-name>`
+**Milestone:** `<milestone-branch>` (e.g. `milestone/v2.17.0`)
+**Status:** Draft — pending approval
 
-1. Update the issue with the plan details.
+## Bug Escape Analysis
+<!-- if bug issue -->
 
-2. **Launch software-developer agents to implement code changes.** Partition
-   the work by file or subsystem and launch **parallel instances**:
+## UserSpice Integration
+<!-- decision from Step 7.1 -->
 
-   - One software-developer agent per independent file or group of related files
-   - Provide each agent with: the approved plan (its portion), the file(s) to
-     modify, and any relevant context from the Explore/architect research
-   - Example: For 3 independent files, launch 3 software-developer agents
-     simultaneously. For 2 tightly coupled files, use 1 agent for both.
-   - **Model override by tier:** Pass `model: "sonnet"` for Trivial/Small
-     issues. Omit `model` for Medium/Large (agent default is Opus). See the
-     per-tier override note in the agent table at the top of this file.
+## Database & Security Considerations
+<!-- from Step 7.2 -->
 
-3. **Launch agents in parallel for post-implementation work.** Only launch
-   agents that are relevant to the changes made:
+## Architecture & Design
+<!-- your approach, alternatives considered, why this one -->
 
-   - **senior-test-engineer**: Write and run tests from the test plan. Launch
-     **separate instances** for different test types if needed (e.g., one for
-     PHPUnit unit tests, one for Playwright browser tests). Provide each
-     instance with the implementation details and its portion of the test plan.
+## Implementation Checklist
 
-   - **technical-documentation-writer**: Update docs per the documentation
-     plan. Run in parallel with test agents when there are no dependencies.
+Each item is one concrete, independently verifiable action. Mark file(s)
+touched and parallel-safety so `/execute-plan` can decide fan-out and so any
+agent can re-check completion against actual repo state.
 
-4. Run quality checks:
-   - Relevant test suites (verify the test agent's tests pass)
-   - Pre-commit hooks run PHPStan and phpcs on staged files — these catch type and lint errors
+- [ ] <Action> — `path/to/file.php` (parallel-safe)
+- [ ] <Action> — `path/to/other-file.php` (parallel-safe)
+- [ ] <Action> — `path/to/file.php` (depends on: <previous item's short name>)
+- [ ] Run `senior-test-engineer`-authored tests, verify pass
+- [ ] Run `/security-review` (if forms/SQL/auth touched), address Critical/High
+- [ ] Run `senior-architect` review of the diff, address findings
 
-5. **Run `/security-review`**: Launch the security-reviewer agent via the
-   Agent tool with `subagent_type: "security-reviewer"` to audit all changed
-   files. Provide the agent with the full diff of changes. Address any
-   Critical or High severity findings before proceeding.
+## Test Plan
+<!-- from senior-test-engineer, if consulted -->
 
-6. **Launch senior-architect agent** for final review of the completed changes.
-   Provide the diff of all changes and ask for comprehensive code review:
+## Documentation Plan
+<!-- from technical-documentation-writer, if consulted -->
+```
 
-   - **Security verification**: CSRF tokens, prepared statements, input validation, XSS prevention
-   - **Database verification**: Schema consistency, trigger execution, audit trail logging
-   - **Code quality**: PHP 8+ types, readability, maintainability
-   - **Standards adherence**: CODING_STANDARDS.md, error handling patterns, project conventions
-   - **Test coverage**: Are tests comprehensive? Do they cover security and edge cases?
-   - **Documentation**: Are docs complete and accurate?
+**Checklist item granularity**: one item per concrete action a single agent
+run could complete and a later check could verify against repo state (a
+function/method exists, a file was created, a test file exists and passes) —
+not one item per broad phase like "Implementation" or "Testing".
 
-   **Model by tier:** `senior-architect` defaults to **opus** (set in its own
-   frontmatter), so omitting `model` gives Opus on every tier. For Small and
-   Medium issues pass `model: "sonnet"` explicitly if you want the cheaper
-   run; Large issues need no override.
+**Parallel-safety annotations**: mark an item `(parallel-safe)` only if its
+file(s) don't overlap with any other parallel-safe item's file(s) and it has
+no ordering dependency on another item's output. Mark true dependencies with
+`(depends on: <item>)`. When in doubt, do not mark parallel-safe — a false
+`(depends on: ...)` costs a little serialized time; a false `(parallel-safe)`
+risks two agents corrupting the same file.
 
-7. Address any issues raised by the security review or architect review. If
-   fixes are needed, launch software-developer agents again for the
-   corrections.
+After writing the file, present it for approval:
 
-8. **Hand off to the developer workflow.** Do NOT commit, push, or create PRs.
-   **STOP HERE and wait for the user's explicit instruction before proceeding.**
-   Present a summary with the next steps and ask the user which step to run:
+"I've written the implementation plan for issue #ISSUE_NUMBER to
+`docs/plans/issue-<NUMBER>-<slug>.md`. Please review and let me know if
+you'd like any changes before I mark it approved."
 
-   ```text
-   Implementation complete for issue #ISSUE_NUMBER. Next steps:
+**STOP. Do not mark the plan approved, and do not end this command's turn
+implying readiness for `/execute-plan`, until the user explicitly approves.**
+A response that changes the subject, asks a follow-up question, or provides
+partial feedback is NOT approval. If in doubt, ask: "Should I proceed with
+the plan as written?"
 
-   0. Update test plan  — Add test scenarios to test-plan-<milestone>.md in the
-                          local Plans directory (path in .claude.local.md)
-   1. /simplify         — Review and clean up the code (optional)
-   2. /review-pr        — Run the multi-agent local review (RECOMMENDED before
-                          push; uses your Max/Pro subscription so CI can stay
-                          cheap)
-   3. /commit           — Commit your changes
-   4. /commit-push-pr   — Push and create a PR targeting `MILESTONE_BRANCH`
-                          Include "Closes #ISSUE_NUMBER" in the PR body.
-   5. /address-pr-comments — After CI runs, review and fix any PR comments
-   6. /finish-issue     — Monitor CI, squash-merge, and close the issue
-   ```
+If the user requests changes, edit the plan file directly and re-present it
+— do not describe the changes in chat without updating the file. The file is
+the artifact of record; chat-only revisions that never make it into the file
+are exactly the drift this plan-file workflow exists to prevent.
 
-   > **Why `/review-pr` before push?** CI runs a lightweight Sonnet backstop
-   > on issue PRs and relies on the author having done a deep review locally.
-   > Running `/review-pr` here catches issues on your plan instead of burning
-   > CI tokens on repeated pushes. Note: at this stage it reviews working-tree
-   > changes (`git diff HEAD`) — run it before `/commit` so you can act on
-   > findings without an amended commit.
+Once approved, update the file's status line to `**Status:** Approved —
+ready for /execute-plan` and stop. Do not proceed to implementation from
+this command.
 
-   Do NOT run any of these steps automatically. Each step requires the user
-   to explicitly invoke it (e.g., type `/commit` or `/commit-push-pr`).
+### Step 10: Hand Off to /execute-plan
 
-   **For bug issues**, also remind the user to include the escape analysis
-   in the PR description:
+This command's work is done once the plan file is approved (Step 9). State
+plainly that the plan is approved and saved at
+`docs/plans/issue-<NUMBER>-<slug>.md`, then use AskUserQuestion to offer the
+next step rather than a plain-text menu:
 
-   ```text
-   Remember: Include the bug escape analysis in the PR description so
-   reviewers can verify preventive test coverage.
-   ```
+- Question: "Plan approved. What next?"
+- Options: `Run /execute-plan now` (recommended — this is the only real next
+  step in the workflow), `Ask more questions / discuss the plan first`
+- If the user picks `/execute-plan`, invoke it immediately via the Skill
+  tool (`Skill({skill: "execute-plan"})`) rather than telling the user to
+  type it themselves.
+- If the user picks the discuss option, drop back into normal conversation —
+  do not re-offer the same question on every reply; only re-present it once
+  the discussion reaches a natural stopping point or the user asks "what's
+  next."
 
-### Update Draft Release Notes
-
-Before handing off, update the draft release notes for the milestone. Extract
-the version from the milestone branch name (e.g., `milestone/v2.17.0` ->
-`v2.17.0`) and update `docs/releases/RELEASE_NOTES_vX.Y.Z.md`:
-
-1. **If the file doesn't exist yet**, create it from the template at
-   `docs/development/RELEASE_NOTES_TEMPLATE.md` with the milestone version.
-
-2. **Add the issue's changes** to the appropriate section(s):
-   - User-facing changes -> `## User-Facing Changes`
-   - Bug fixes -> `### Bug Fixes`
-   - Technical/internal changes -> `## Technical Changes`
-   - Include the issue number as a reference: `(#ISSUE_NUMBER)`
-
-3. **Keep it cumulative** -- append to existing entries, don't replace them.
-   Each issue adds its line items to the draft.
-
-4. **Use the technical-documentation-writer agent** (`haiku`) to write the
-   release notes entry if the changes are non-trivial.
+Do not implement anything, and do not update the issue or release notes from
+this command — `/execute-plan` does that once there is actual work done to
+describe.
 
 ## Critical Rules
 
-- **PLAN APPROVAL IS A HARD GATE** — do not write a single line of code before
-  the user explicitly approves the plan at Step 9. Partial feedback, silence,
-  or a change of subject is NOT approval. Ask again if unclear.
-- **NEVER commit code** — do not run `git add`, `git commit`, or `git push`
-  at any point during this workflow. After implementation is complete, stop and
-  present next steps. The user commits explicitly via `/commit` or
-  `/commit-push-pr`.
-- **Issue PRs MUST target the milestone branch** - never target `main` directly.
-  The issue PR targets `milestone/vX.Y.Z`. Only the final milestone PR
-  (created by `/finish-milestone`) targets `main`.
-- **Remind user to use `/finish-issue`** - after the PR passes review and CI,
-  the user should run `/finish-issue` to squash-merge and clean up.
+- **PLAN APPROVAL IS A HARD GATE** — do not mark the plan file approved until
+  the user explicitly approves it at Step 9. Partial feedback, silence, or a
+  change of subject is NOT approval. Ask again if unclear.
+- **THIS COMMAND NEVER WRITES APPLICATION CODE OR TOUCHES GIT** — no
+  `git add`/`git commit`/`git push`, no software-developer agents, no
+  implementation of any kind. That is entirely `/execute-plan`'s job.
+- **The plan file is the artifact of record** — if the user requests changes
+  during approval, edit the file directly and re-present it. Do not describe
+  revisions only in chat.
+- **Never assume — verify via code or ask.** When a question has an objective
+  answer the codebase can settle (does this function exist, does this file
+  already have a CSRF check, what pattern do other endpoints use), check the
+  code — grep/read it, don't guess and don't ask the user something you can
+  verify yourself. When it's a judgment call, a preference, or genuinely
+  ambiguous scope, use AskUserQuestion — don't silently pick an answer either
+  way. Never present something as settled without having done one of the two.
 - **Ask questions ONE AT A TIME** - wait for each answer before asking the next
 - **Continue asking questions WHILE IN PLAN MODE** - don't wait until
   after plan mode
-- **Use AskUserQuestion tool** when appropriate for multiple-choice questions
+- **Use AskUserQuestion tool** for every clarifying question, hand-off choice,
+  and next-step recommendation — this command interviews via that tool, not
+  free-form chat questions, so answers are structured and unambiguous
 - **Follow project conventions** from CLAUDE.md and CODING_STANDARDS.md
-- **Read before modifying** - always read files before suggesting changes
-- **Test thoroughly** - run diagnostics and tests before considering work complete
-- **Tier agent usage** - assess complexity first; Small issues skip PM, pre-implementation architect, and multi-agent Explore
+- **Tier agent usage** - assess complexity first; Small issues skip PM and multi-agent Explore
 - **Triage pre-existing issues immediately** (Step 5.5) — never silently note something as "pre-existing"; apply the
   containment + severity matrix and either fold it in, create an issue in the current milestone, or defer with `triage` label.
   Use `/found` for standalone capture.
 - **Investigate testing gaps for bugs** - for `bug` labeled issues, include escape analysis in the plan
 - **Verify UserSpice integration** (Step 7.1) - do not duplicate framework functionality
 - **Assess database and security impacts** (Step 7.2) - identify schema changes and security requirements upfront
-- **No pre-implementation architect call** - architect reviews code after implementation, not plans
-- **Only invoke agents that are needed** - match agents to the issue type; skip docs agent for internal refactoring, skip test agent for docs-only changes
-- **Scale agents up** - separate test agents for PHPUnit vs Playwright when both are needed
-- **Run independent agents in parallel** - when agents don't depend on each
-  other's output, launch them simultaneously for efficiency
-- **Never close issues manually** - use `Closes #NNN` in the PR body so
-  issues close automatically on merge
+- **No architect call from this command** - architect reviews code after implementation, inside `/execute-plan`, not plans
+- **Only invoke agents that are needed** - match agents to the issue type;
+  skip the docs-scoping consult for internal refactoring, the test-strategy
+  consult for docs-only changes
+- **Checklist items must be concrete and independently verifiable** — one item
+  per action a repo-state check could confirm, not one item per broad phase
+- **Mark parallel-safety conservatively** — only mark `(parallel-safe)` when
+  file sets truly don't overlap and there's no ordering dependency
 
 ## Examples
 
-See `.claude/commands/start-issue-examples.md` for worked example flows (reference only — not loaded at runtime).
+See `.claude/commands/start-issue-examples.md` for worked example flows
+(reference only — not loaded at runtime; some describe the pre-plan-file
+flow and may not reflect the current Step 9/10 split).

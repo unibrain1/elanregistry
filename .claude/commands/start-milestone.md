@@ -263,7 +263,14 @@ Create a draft release notes file at
 - Write a brief summary based on the milestone description
 - Populate the "Issues Resolved" section with all open issues from the
   milestone (linked to GitHub using
-  `https://github.com/elan-registry/registry/issues/NNN`)
+  `https://github.com/elan-registry/registry/issues/NNN`), each entry
+  prefixed with `WIP:` since none are actually resolved yet at milestone
+  creation — e.g. `WIP: [#423](https://github.com/elan-registry/registry/issues/423) — Issue title`.
+  `/execute-plan` fills in each issue's real Technical/User-Facing Changes
+  bullet as that issue is implemented, and `/finish-issue` strips this
+  issue's own `WIP:` prefix once its PR is merged and the issue closed —
+  the prefix is what lets `/finish-milestone` later verify every planned
+  issue actually finished, not just that the right issues are listed.
 - Leave deployment instructions and verification sections as template
   placeholders — these will be filled in as issues are completed
 - Remove the "Template Instructions" section below the `---` divider
@@ -285,7 +292,8 @@ Display:
 - Which issues are expected to require wiki/architecture updates
 - Note that draft release notes were created at
   `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`
-- Instructions: "Use `/start-issue <number>` to begin work on the first issue"
+- Instructions: "Use `/start-issue <number>` to plan the first issue, then
+  `/execute-plan` to implement it once the plan is approved"
 
 ## Important
 
@@ -295,8 +303,9 @@ Display:
   `milestone/*` branch exists, warn the user.
 - Do not push to `test` or `prod` remotes — this command only sets up the
   branch on GitHub (`origin`).
-- Release notes are cumulative — each `/start-issue` adds to them as work
-  progresses.
+- Release notes are cumulative — each `/execute-plan` run adds to them as
+  work progresses (`/start-issue` only plans; it doesn't touch release
+  notes).
 - `Plans/` is a separate private repo, sibling to this one (see
   `Web/ElanRegistry/CLAUDE.md`). Sprint plan files are deleted once a
   milestone is released — do not treat a missing file as an error.

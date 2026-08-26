@@ -255,7 +255,8 @@ Most work follows a structured milestone lifecycle with these commands:
 
 ```text
 /start-milestone v2.17.0     — Create milestone branch, prompt fix-script cleanup, draft release notes
-  /start-issue 423            — Branch, plan, implement, test, security review
+  /start-issue 423            — Branch, research, plan-mode interview, write approved plan file
+  /execute-plan                — Implement the approved plan, test, security/architect review
   /simplify                   — Clean up the code (optional, recommended)
   /commit                     — Commit changes locally
   /commit-push-pr             — Push + PR targeting milestone branch
@@ -269,8 +270,13 @@ Most work follows a structured milestone lifecycle with these commands:
 
 **Branch structure:** `main` ← `milestone/vX.Y.Z` ← `issue/NNN-slug`
 
-- `/start-issue` handles the full development cycle (branch, plan, implement,
-  test, security review) but **does not commit or push**
+- `/start-issue` handles branch creation, research, and planning, ending in
+  an approved plan file at `docs/plans/issue-NNN-slug.md` — it never
+  implements, commits, or pushes.
+- `/execute-plan` reads that approved plan file and does the full
+  implementation cycle (implement, test, security/architect review),
+  re-verifying the plan's checklist against actual repo state so it can be
+  resumed or re-run safely — it also **does not commit or push**.
 - `/address-pr-comments` fetches all CI check annotations and reviewer comments
   after a PR is pushed, triages blocking vs. advisory findings, fixes blocking
   items with a software-developer agent, and re-verifies CI before handoff

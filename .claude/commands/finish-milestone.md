@@ -25,6 +25,7 @@ TaskCreate. Suggested task subjects:
 2. Check for open issues still in the milestone
 3. Switch to milestone branch and ensure up to date
 3.5. Check for known-broken test exclusions still present
+3.6. Check for leftover plan files
 4. Gather all merged PRs targeting the milestone branch
 5. Get the full diff against main
 5.5. Verify milestone scope vs. release notes
@@ -104,6 +105,27 @@ grep -rn "Group('known-broken')" tests/ || echo "None found"
 5. If a cited issue is already closed but the tag is still present in code, that's likely a
    forgotten cleanup step, not an accepted risk — flag this distinctly and recommend removing
    the tag now (quick fix) rather than treating it as a risk-acceptance decision.
+
+### Step 3.6: Check for leftover plan files
+
+Each issue's `/finish-issue` run deletes its `docs/plans/issue-NNN-*.md` file
+as part of closing out that issue (see `/finish-issue`'s Step 8). A file
+still present here means that step was skipped — most likely an issue whose
+PR was merged some other way (bypassing `/finish-issue`), or an interrupted
+run from an older command version. Either way it's dead weight riding into
+the main-targeting PR with no other check positioned to catch it.
+
+```bash
+git diff --name-only main...HEAD -- docs/plans/
+```
+
+**If any files are found:** present them to the user and ask whether to
+delete them now (if the corresponding issue is confirmed closed and merged)
+or investigate first (if it's unclear whether that issue's work actually
+completed). Do not silently delete — a plan file could also mean genuinely
+unfinished work that never went through `/finish-issue` at all.
+
+**If none found:** proceed silently — this is the expected state.
 
 ### Step 4: Gather all merged PRs targeting the milestone branch
 
@@ -224,8 +246,20 @@ since they touch different files.
 
 ### Step 6: Finalize release notes at `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`
 
-- Read the file and verify all issues are marked as resolved (no "WIP:"
-  prefixes remain)
+- Check for any remaining `WIP:` prefixes in the "Issues Resolved" section:
+
+  ```bash
+  grep -n "WIP:" docs/releases/RELEASE_NOTES_v$ARGUMENTS.md
+  ```
+
+  Each one means an issue's `/finish-issue` run never stripped it — either
+  that issue's PR never actually merged (contradicts Step 2's "no open
+  issues remain" check, so investigate that discrepancy first) or its
+  `/finish-issue` run skipped Step 8 for some other reason. Do not strip a
+  remaining `WIP:` prefix yourself as a shortcut — confirm the issue is
+  genuinely closed and merged (cross-check against Step 4's merged-PR list)
+  before removing it, since this prefix is the one signal that distinguishes
+  "planned" from "actually shipped" in this document.
 - Use the `technical-documentation-writer` agent to finalize:
   - Fill in any remaining template placeholders
   - Ensure deployment instructions, verification steps are complete
@@ -569,10 +603,20 @@ produces a review — that assumption is exactly what failed on PR #1718.
   posted nothing — self-referential workflow-file change, requires merge to
   main first" / etc. — never omit this line
 - Remind: wiki/ files need to be manually pushed to the wiki repo
-- Next steps:
-  - "To re-run the deep review later, label the PR `deep-review` or comment `@claude deep-review`"
-  - "After the PR is merged, run `/release-milestone $ARGUMENTS` to tag and deploy"
-  - "Release notes are at `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`"
+- Note as plain text (informational, not a runnable choice): "To re-run the
+  deep review later, label the PR `deep-review` or comment `@claude
+  deep-review`" and "Release notes are at
+  `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`"
+- Use AskUserQuestion for the actual next step, since `/release-milestone`
+  is runnable right now — it merges the PR itself (that's its Step 8), it
+  does not wait for a human to merge on GitHub first:
+  - Question: "Milestone PR ready. What next?"
+  - Options: `Run /release-milestone $ARGUMENTS` (recommended — merges the
+    PR, tags, and publishes the release), `Ask more questions / review the
+    PR myself first`
+  - If the user picks `/release-milestone`, invoke it immediately via the
+    Skill tool. If they pick the discuss option, drop into normal
+    conversation and don't re-offer until they ask what's next.
 
 ## Important
 

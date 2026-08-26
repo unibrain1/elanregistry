@@ -341,23 +341,64 @@ Remove the "in progress" label if present:
 gh issue edit $ARGUMENTS --remove-label "in progress"
 ```
 
-### Step 7: Update draft release notes
+### Step 7: Return to the milestone branch
 
-Read the draft release notes at
+Do this **before** any local commit below (Step 8) — `gh pr merge` in Step 5
+operates via the GitHub API and does not change what's checked out locally,
+so without this step first, Step 8's commit would land on the deleted issue
+branch instead of the milestone branch.
+
+```bash
+git checkout <milestone-branch>
+git pull origin <milestone-branch>
+```
+
+Clean up the local issue branch if it still exists:
+
+```bash
+git branch -d <issue-branch> 2>/dev/null
+```
+
+### Step 8: Update draft release notes and delete the plan file
+
+The squash-merge in Step 5 already carried the plan file (if this issue went
+through `/start-issue` → `/execute-plan`) onto the milestone branch, now
+checked out per Step 7.
+
+**Release notes:** read the draft release notes at
 `docs/releases/RELEASE_NOTES_v<version>.md` (where `<version>` is extracted
-from the milestone branch name, e.g., `milestone/v2.17.0` → `v2.17.0`).
+from the milestone branch name, e.g., `milestone/v2.17.0` → `v2.17.0`). In the
+"Issues Resolved" section, find this issue's entry and strip its `WIP:`
+prefix — `/start-milestone` wrote every entry with that prefix at milestone
+creation, since none were resolved yet; this issue's entry is the one that's
+actually done now. If the entry has no `WIP:` prefix (e.g. an ad-hoc issue
+added to the milestone after `/start-milestone` ran, or a plan that predates
+this convention), add the entry now instead — don't skip it.
 
-In the "Issues Resolved" section, mark this issue as resolved (remove any
-"WIP:" prefix if present).
+**Plan file:** check for one on the milestone branch:
 
-If the release notes were updated, commit the change:
+```bash
+ls docs/plans/issue-$ARGUMENTS-*.md 2>/dev/null
+```
+
+If found, stage its removal — its job (a verifiable, resumable record other
+agents/sessions could check against) is done once the code is merged and the
+issue is closed; the merged diff and closed issue are now the source of
+truth, same lifecycle as sprint plans in the sibling `Plans/` repo. If no
+matching file exists, skip silently — not every issue goes through the
+plan-file workflow (e.g. trivial fixes done ad hoc).
+
+Commit whichever of the two changed (release notes, plan-file removal, or
+both) in one commit:
 
 ```bash
 git add docs/releases/
+git rm -f docs/plans/issue-$ARGUMENTS-*.md 2>/dev/null
 git commit -m "docs: mark issue #$ARGUMENTS as resolved in release notes"
+git push origin <milestone-branch>
 ```
 
-### Step 7.5: Mark the issue complete in the sprint plan
+### Step 8.5: Mark the issue complete in the sprint plan
 
 Look for a sprint plan matching this milestone in the sibling `Plans/` repo
 (see `Web/ElanRegistry/CLAUDE.md`):
@@ -366,7 +407,7 @@ Look for a sprint plan matching this milestone in the sibling `Plans/` repo
 ls ../Plans/sprints/<version>.md
 ```
 
-(where `<version>` is the same one used in Step 7, e.g. `v2.29.3`.)
+(where `<version>` is the same one used in Step 8, e.g. `v2.29.3`.)
 
 **If no matching file exists:** skip this step silently.
 
@@ -386,19 +427,6 @@ This edit is made directly in the `Plans/` repo's working tree — a separate
 git repository from this one. Do not commit it; leave it for the user to
 review and commit there per that repo's own workflow (same convention as the
 `/start-milestone` sprint-plan update).
-
-### Step 8: Return to the milestone branch
-
-```bash
-git checkout <milestone-branch>
-git pull origin <milestone-branch>
-```
-
-Clean up the local issue branch if it still exists:
-
-```bash
-git branch -d <issue-branch> 2>/dev/null
-```
 
 ### Step 9: Report results
 
@@ -427,21 +455,30 @@ gh api "repos/elan-registry/registry/issues?milestone=${MILESTONE_NUM}&state=ope
   --jq '.[] | {number, title}'
 ```
 
-Suggest next steps:
+Determine the recommended next issue:
 
-- **If a sprint plan was found and used in Step 7.5:** walk its sequence
-  line left-to-right and recommend the first issue number not marked with
-  ✅. Cross-check it's still in the open-issues list from above (it may have
-  been closed/consolidated outside this flow); if not, fall back to the next
-  unmarked entry that is. Say: "Run `/start-issue <next-issue>` — next in the
-  sprint plan sequence." If every issue in the sequence is now ✅ but other
-  open issues remain (untracked by the plan), list them separately.
+- **If a sprint plan was found and used in Step 8.5:** walk its sequence line
+  left-to-right and find the first issue number not marked with ✅. Cross-check
+  it's still in the open-issues list from above (it may have been
+  closed/consolidated outside this flow); if not, fall back to the next
+  unmarked entry that is. If every issue in the sequence is now ✅ but other
+  open issues remain (untracked by the plan), note those separately.
 - **If no sprint plan was found/used, or the finished issue wasn't in its
-  sequence:** fall back to today's behavior —
-  - If open issues remain: "Run `/start-issue <next-issue>` to begin the next
-    issue in this milestone"
-  - If no open issues remain: "All issues in this milestone are complete. Run
-    `/finish-milestone $ARGUMENTS` to create the milestone PR"
+  sequence:** the recommended next issue is just the next open one from the
+  API list above, if any.
+
+Use AskUserQuestion rather than a plain-text menu:
+
+- Question: "Issue #$ARGUMENTS closed. What next?"
+- Options, built from the above: `Run /start-issue <next-issue>` (only offer
+  if an open issue was identified — label it "next in sprint plan sequence"
+  when that's why it was picked), `Run /finish-milestone $ARGUMENTS` (only
+  offer if no open issues remain in the milestone), `Ask more questions /
+  discuss first`
+- If the user picks a command, invoke it immediately via the Skill tool
+  rather than telling them to type it.
+- If the user picks the discuss option, drop into normal conversation and
+  don't re-offer until they ask what's next.
 
 ## Important
 
