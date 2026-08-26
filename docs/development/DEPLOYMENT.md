@@ -227,7 +227,7 @@ Use `Closes`, `Fixes`, or `Resolves` followed by `#NNN`. See the
 
 Pre-commit hooks validate PHP coding standards, markdown formatting, and run
 fast unit tests before each commit. Pre-push additionally runs the full
-integration suite as a non-bypassable gate on pushes touching `app/`,
+integration suite and blocks the push on failure, on pushes touching `app/`,
 `usersc/classes/`, or `tests/integration/` (#1439).
 
 ```bash
