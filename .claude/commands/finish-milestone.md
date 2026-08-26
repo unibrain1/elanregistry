@@ -165,7 +165,7 @@ all take the release notes' existing content as ground truth.
    Resolved" section:
 
    ```bash
-   grep -oP '(?<=issues/)\d+' docs/releases/RELEASE_NOTES_v$ARGUMENTS.md | sort -un
+   grep -oP '(?<=issues/)\d+' docs/releases/RELEASE_NOTES_$ARGUMENTS.md | sort -un
    ```
 
 3. Diff the two number sets and investigate every mismatch:
@@ -221,7 +221,7 @@ all take the release notes' existing content as ground truth.
    pattern above) require the user's explicit decision — do not proceed on
    your own judgment.
 
-5. Apply the agreed changes to `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`.
+5. Apply the agreed changes to `docs/releases/RELEASE_NOTES_$ARGUMENTS.md`.
    If a GitHub milestone reassignment was part of the resolution (e.g.
    moving an issue to match where its superseding issue actually lives):
 
@@ -244,12 +244,12 @@ the changes), rather than working through them one at a time. Apply the
 resulting edits/commits after — commit order between them doesn't matter
 since they touch different files.
 
-### Step 6: Finalize release notes at `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`
+### Step 6: Finalize release notes at `docs/releases/RELEASE_NOTES_$ARGUMENTS.md`
 
 - Check for any remaining `WIP:` prefixes in the "Issues Resolved" section:
 
   ```bash
-  grep -n "WIP:" docs/releases/RELEASE_NOTES_v$ARGUMENTS.md
+  grep -n "WIP:" docs/releases/RELEASE_NOTES_$ARGUMENTS.md
   ```
 
   Each one means an issue's `/finish-issue` run never stripped it — either
@@ -395,7 +395,7 @@ once-per-milestone deep analysis, not a per-push check). Provide it with:
 
 - The merged PR list (from the command above)
 - The full diff `main...milestone/$ARGUMENTS`
-- The finalized release notes at `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`
+- The finalized release notes at `docs/releases/RELEASE_NOTES_$ARGUMENTS.md`
 
 Ask it to perform the same five checks the CI job does:
 
@@ -456,7 +456,7 @@ Closes #NNN — Issue title (PR #NN)
 
 ## Release Notes
 
-See `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md` for complete release notes.
+See `docs/releases/RELEASE_NOTES_$ARGUMENTS.md` for complete release notes.
 
 <!-- Include this section ONLY if Step 3.5 found known-broken-tagged tests and the user
      chose to proceed with them explicitly accepted (option (b) in that step). Omit entirely
@@ -606,7 +606,7 @@ produces a review — that assumption is exactly what failed on PR #1718.
 - Note as plain text (informational, not a runnable choice): "To re-run the
   deep review later, label the PR `deep-review` or comment `@claude
   deep-review`" and "Release notes are at
-  `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`"
+  `docs/releases/RELEASE_NOTES_$ARGUMENTS.md`"
 - Use AskUserQuestion for the actual next step, since `/release-milestone`
   is runnable right now — it merges the PR itself (that's its Step 8), it
   does not wait for a human to merge on GitHub first:

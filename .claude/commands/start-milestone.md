@@ -256,7 +256,7 @@ released, not here.
 ### Step 6: Create draft release notes
 
 Create a draft release notes file at
-`docs/releases/RELEASE_NOTES_v$ARGUMENTS.md` using the template at
+`docs/releases/RELEASE_NOTES_$ARGUMENTS.md` using the template at
 `docs/development/RELEASE_NOTES_TEMPLATE.md`:
 
 - Fill in the version and today's date
@@ -291,7 +291,7 @@ Display:
 - Whether `Plans/sprints/$ARGUMENTS.md` was updated to match (if applicable)
 - Which issues are expected to require wiki/architecture updates
 - Note that draft release notes were created at
-  `docs/releases/RELEASE_NOTES_v$ARGUMENTS.md`
+  `docs/releases/RELEASE_NOTES_$ARGUMENTS.md`
 - Instructions: "Use `/start-issue <number>` to plan the first issue, then
   `/execute-plan` to implement it once the plan is approved"
 

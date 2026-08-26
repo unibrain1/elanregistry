@@ -366,7 +366,7 @@ through `/start-issue` → `/execute-plan`) onto the milestone branch, now
 checked out per Step 7.
 
 **Release notes:** read the draft release notes at
-`docs/releases/RELEASE_NOTES_v<version>.md` (where `<version>` is extracted
+`docs/releases/RELEASE_NOTES_<version>.md` (where `<version>` is extracted
 from the milestone branch name, e.g., `milestone/v2.17.0` → `v2.17.0`). In the
 "Issues Resolved" section, find this issue's entry and strip its `WIP:`
 prefix — `/start-milestone` wrote every entry with that prefix at milestone
@@ -441,7 +441,7 @@ Output a summary:
   (or "no doc impact"). Note any **wiki** page needing a separate
   `/publish-wiki` run.
 - Branch `<issue-branch>` — deleted
-- Release notes updated at `docs/releases/RELEASE_NOTES_v<version>.md`
+- Release notes updated at `docs/releases/RELEASE_NOTES_<version>.md`
 - Now on `<milestone-branch>`
 
 List remaining open issues in the milestone. Use the direct API (`gh issue list --milestone` can silently return empty results):

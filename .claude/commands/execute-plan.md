@@ -214,7 +214,7 @@ git branch --list 'milestone/*'
 If exactly one exists, use it. If zero or multiple exist, stop and ask the
 user which milestone branch this issue belongs to — do not guess.
 
-Once resolved, update `docs/releases/RELEASE_NOTES_v<version>.md` (create
+Once resolved, update `docs/releases/RELEASE_NOTES_<version>.md` (create
 from `docs/development/RELEASE_NOTES_TEMPLATE.md` if it doesn't exist yet).
 Add this issue's changes to the appropriate section, keep it cumulative, use
 the `technical-documentation-writer` agent for non-trivial entries.

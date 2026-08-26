@@ -80,7 +80,7 @@ If checks are failing or the PR is not mergeable, stop and report the issue.
 
 ### Step 4: Parse release notes for pre/post deployment steps
 
-- Read `docs/releases/RELEASE_NOTES_v<version>.md`
+- Read `docs/releases/RELEASE_NOTES_<version>.md`
 - Check the "Required Actions After Deployment" section:
   - If it contains actual steps (not "None"), these are **post-deployment
     steps** to remind the user about
@@ -116,7 +116,7 @@ gone, so copy it to a temp location first:
 ```bash
 git checkout milestone/<version>
 git pull origin milestone/<version>
-cp docs/releases/RELEASE_NOTES_v<version>.md /tmp/release-notes-v<version>.md
+cp docs/releases/RELEASE_NOTES_<version>.md /tmp/release-notes-v<version>.md
 ```
 
 Then delete the file and push the deletion to the milestone branch — this
@@ -124,7 +124,7 @@ updates the still-open PR with one more reviewable commit, it does not merge
 anything yet:
 
 ```bash
-git rm docs/releases/RELEASE_NOTES_v<version>.md
+git rm docs/releases/RELEASE_NOTES_<version>.md
 git commit -m "chore: remove v<version> release notes — published to GitHub Releases"
 git push origin milestone/<version>
 ```
