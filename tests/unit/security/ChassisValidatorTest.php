@@ -151,6 +151,15 @@ final class ChassisValidatorTest extends TestCase
         $this->assertStringContainsString('must be 11 characters', $result['error_reason']);
     }
 
+    public function testPost1970NonTransitionYearFiveCharLengthFails(): void
+    {
+        $result = $this->validate('1234A', 1971, self::ELAN_MODEL);
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('must be 11 characters', $result['error_reason']);
+        $this->assertStringNotContainsString('5 characters', $result['error_reason']);
+    }
+
     // -------------------------------------------------------------------------
     // Eleven-char format
     // -------------------------------------------------------------------------
@@ -224,12 +233,22 @@ final class ChassisValidatorTest extends TestCase
         $aSuffix = $this->validate('7301019999A', 1973, self::ELAN_MODEL);
         $this->assertTrue($aSuffix['valid']);
 
+        $jSuffix = $this->validate('7301019999J', 1973, self::ELAN_MODEL);
+        $this->assertTrue($jSuffix['valid']);
+
         $kSuffix = $this->validate('7301019999K', 1973, self::ELAN_MODEL);
         $this->assertTrue($kSuffix['valid']);
 
         $lSuffix = $this->validate('7301019999L', 1973, self::ELAN_MODEL);
         $this->assertFalse($lSuffix['valid']);
         $this->assertStringContainsString('A-K (excluding I)', $lSuffix['error_reason']);
+    }
+
+    public function testGetValidSuffixesAcceptsLowercaseSuffix(): void
+    {
+        $result = $this->validate('7301019999a', 1973, self::ELAN_MODEL);
+
+        $this->assertTrue($result['valid']);
     }
 
     public function testGetValidSuffixesPlus2Range(): void
@@ -247,6 +266,14 @@ final class ChassisValidatorTest extends TestCase
     // -------------------------------------------------------------------------
     // Empty/required chassis
     // -------------------------------------------------------------------------
+
+    public function testOverrideIsNoOpWhenAlreadyValid(): void
+    {
+        $result = $this->validate('1234', 1966, self::ELAN_MODEL, true);
+
+        $this->assertTrue($result['valid']);
+        $this->assertFalse($result['override_used']);
+    }
 
     public function testEmptyChassisFails(): void
     {
