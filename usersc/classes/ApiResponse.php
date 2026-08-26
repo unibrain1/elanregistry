@@ -74,13 +74,13 @@ class ApiResponse
     private ?array $pendingLog = null;
 
     /**
-     * Protected constructor - use factory methods instead (protected to allow test subclassing)
+     * Private constructor - use factory methods instead
      *
      * @param bool   $success    Whether the operation was successful
      * @param string $message    Human-readable message
      * @param int    $statusCode HTTP status code
      */
-    protected function __construct(bool $success, string $message, int $statusCode)
+    private function __construct(bool $success, string $message, int $statusCode)
     {
         $this->success = $success;
         $this->message = $message;
