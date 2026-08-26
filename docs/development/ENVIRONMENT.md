@@ -224,7 +224,7 @@ database, the test suite requires a dedicated test schema:
 
 After the initial setup, tests can be re-run safely and repeatedly against the test schema without risking the development database.
 
-**Non-bypassable gate (#1439):** `.githooks/pre-push` blocks pushes that touch
+**Blocking pre-push gate (#1439):** `.githooks/pre-push` blocks pushes that touch
 integration-suite-relevant code on any failure, including an unreachable test
 database — set up `.env.test.local` per this section *before* you first touch
 those paths, or the push will fail at `tests/bootstrap-integration.php`'s
