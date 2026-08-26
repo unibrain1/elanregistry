@@ -138,7 +138,7 @@ builder with:
 | `fh`           | FixedHeader     | `5.0.0`    |
 | `r`            | Responsive      | `4.0.2`    |
 
-The styling target is `bs4` (Bootstrap 4).
+The styling target is `bs5` (Bootstrap 5).
 
 ### Updating the Vendored Bundle
 

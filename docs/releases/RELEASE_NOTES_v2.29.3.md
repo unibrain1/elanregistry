@@ -5,12 +5,19 @@
 
 ## Required Actions After Deployment
 
-None. Run the standard `composer migrate` deploy step to apply the settings-column
+Run the standard `composer migrate` deploy step to apply the settings-column
 drop migration ([#1734](https://github.com/elan-registry/registry/issues/1734)) —
 no manual data backfill or config change is needed beyond that. The new
 pre-push integration-test gate ([#1439](https://github.com/elan-registry/registry/issues/1439))
 and CI service container run in local/CI environments only and require no
 production or test-server action.
+
+Purge Cloudflare cache for `usersc/js/*` and `usersc/css/*` after deploy — the
+DataTables ([#1741](https://github.com/elan-registry/registry/issues/1741)),
+MapLibre GL ([#1742](https://github.com/elan-registry/registry/issues/1742)),
+and @versatiles/style ([#1743](https://github.com/elan-registry/registry/issues/1743))
+vendored bundle rebuilds ship under unchanged filenames, so a stale edge-cached
+copy could otherwise be served post-deploy.
 
 ## Technical Changes
 
