@@ -36,7 +36,7 @@ unmodified.
 - No schema change. Data-only `UPDATE` statements against existing `cars`
   columns.
 - No auth/CSRF-relevant code paths beyond the fix script itself, which follows
-  the established `secureP104371age()` + CSRF-token-on-POST pattern used by every
+  the established `securePage()` + CSRF-token-on-POST pattern used by every
   other fix script (see `03-Decode-All-HTML-Encoded-Fields.php`, still visible
   in git history at commit `d4f17956`, used as the direct template for this
   script's structure).

@@ -18,7 +18,7 @@
 - **Image and email config centralized** ([#1067](https://github.com/elan-registry/registry/issues/1067)): Image limits, transfer expiry, and email branding now read from `config.php`/`.env` instead of scattered admin-settings values; the Settings tab is removed.
 - **Settings default conflict resolved** ([#1722](https://github.com/elan-registry/registry/issues/1722)): `elan_image_max` no longer has two disagreeing defaults.
 - **Admin tab test coverage** ([#1660](https://github.com/elan-registry/registry/issues/1660)): Owner-management and health admin tabs now have Playwright smoke coverage.
-- **Cars table whitespace cleanup** ([#1491](https://github.com/elan-registry/registry/issues/1491)): Legacy leading/trailing whitespace in `color`, `comments`, `variant`, `series`, `chassis`, `city`, `state`, `fname`, and `lname` is trimmed via a one-time admin script (`app/admin/scripts/fix/12-Trim-Cars-Column-Whitespace.php`, run once via the Maintenance tab). Also fixes a live gap where `CarValidator` never sanitized `fname`/`lname` on ownership transfers — those two fields now trim consistently with `city`/`state`/`country`, so this can't recur.
+- **Cars table whitespace cleanup** ([#1491](https://github.com/elan-registry/registry/issues/1491)): Legacy leading/trailing whitespace in `color`, `comments`, `variant`, `series`, `chassis`, `city`, `state`, `fname`, and `lname` is trimmed via a one-time admin script (`app/admin/scripts/fix/12-Trim-Cars-Column-Whitespace.php`, run once via the Maintenance tab). Also fixes a live gap where `CarValidator` never sanitized `fname`/`lname` on ownership transfers — those two fields now trim consistently with `city`/`state`/`country` (ASCII whitespace: spaces, tabs, newlines, CR).
 
 ## Issues Resolved
 

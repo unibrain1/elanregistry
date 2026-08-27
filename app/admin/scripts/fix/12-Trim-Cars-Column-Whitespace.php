@@ -45,13 +45,26 @@ const CARS_TRIM_COLUMNS = ['color', 'comments', 'variant', 'series', 'chassis', 
  * whitespace on a column. Uses a POSIX character class, not plain
  * LENGTH(col) != LENGTH(TRIM(col)): MySQL's TRIM() with no remstr argument
  * strips only the ASCII space character (0x20) — it does not touch tabs,
- * newlines, or CR, unlike PHP's trim() (used by InputSanitizer::normalize()
- * on the CarValidator side of this fix), which strips " \t\n\r\0\x0B" by
- * default. A prior version of this script used the LENGTH-based check for
- * both detection and cleanup, so it silently reported 0 affected rows for
- * — and never touched — any row whose only stray whitespace was a tab or
- * newline. Caught via PR review; confirmed against live data (19
+ * newlines, or CR. A prior version of this script used the LENGTH-based
+ * check for both detection and cleanup, so it silently reported 0 affected
+ * rows for — and never touched — any row whose only stray whitespace was a
+ * tab or newline. Caught via PR review; confirmed against live data (19
  * `cars.comments` rows had trailing newlines this check had missed).
+ *
+ * Note this is NOT the same character set PHP's trim() strips (used by
+ * InputSanitizer::normalize() on the CarValidator side of this fix, which
+ * covers " \t\n\r\0\x0B"): MySQL 8's regex engine is ICU-based, and its
+ * POSIX `[[:space:]]` class is Unicode-aware — confirmed against this
+ * project's actual MySQL 8.0.40 instance to also match non-breaking space
+ * (U+00A0), em space (U+2003), line separator (U+2028), and ideographic
+ * space (U+3000), none of which PHP's trim() touches, while PHP's trim()
+ * uniquely strips a literal null byte (\0), which this class does not.
+ * This one-time cleanup query is therefore strictly broader than the
+ * ongoing CarValidator sanitization for most stray whitespace (harmless —
+ * it cleans more junk, not less) but the two are not equivalent going
+ * forward: a fname/lname saved with a leading/trailing non-ASCII space
+ * character would still pass CarValidator uncaught, even though this
+ * script would have cleaned any pre-existing occurrence of one.
  */
 const WHITESPACE_DETECT_SQL = "REGEXP '^[[:space:]]|[[:space:]]\$'";
 
