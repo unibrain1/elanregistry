@@ -361,7 +361,7 @@ test.describe('DataTables XSS render guard — car history table', () => {
         }
         await context.close();
         if (!carId) {
-            throw new Error(`History XSS tests could not create a disposable car fixture (${failureDetail}) — see issue #1732`);
+            throw new Error(`Car history XSS tests require a disposable car fixture; addCar failed (${failureDetail})`);
         }
     });
 
