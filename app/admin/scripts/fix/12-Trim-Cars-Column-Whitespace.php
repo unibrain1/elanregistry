@@ -41,6 +41,21 @@ $backupManager = new BackupManager(dbi(), $abs_us_root . $us_url_root . BACKUP_B
 const CARS_TRIM_COLUMNS = ['color', 'comments', 'variant', 'series', 'chassis', 'city', 'state', 'fname', 'lname'];
 
 /**
+ * WHERE-clause fragment (needs $column substituted) detecting leading/trailing
+ * whitespace on a column. Uses a POSIX character class, not plain
+ * LENGTH(col) != LENGTH(TRIM(col)): MySQL's TRIM() with no remstr argument
+ * strips only the ASCII space character (0x20) — it does not touch tabs,
+ * newlines, or CR, unlike PHP's trim() (used by InputSanitizer::normalize()
+ * on the CarValidator side of this fix), which strips " \t\n\r\0\x0B" by
+ * default. A prior version of this script used the LENGTH-based check for
+ * both detection and cleanup, so it silently reported 0 affected rows for
+ * — and never touched — any row whose only stray whitespace was a tab or
+ * newline. Caught via PR review; confirmed against live data (19
+ * `cars.comments` rows had trailing newlines this check had missed).
+ */
+const WHITESPACE_DETECT_SQL = "REGEXP '^[[:space:]]|[[:space:]]\$'";
+
+/**
  * Count rows in cars where $column has leading/trailing whitespace.
  *
  * @throws \InvalidArgumentException If $column is not in the CARS_TRIM_COLUMNS allowlist
@@ -51,7 +66,7 @@ function countColumnAffected(object $db, string $column): int
     if (!in_array($column, CARS_TRIM_COLUMNS, true)) {
         throw new \InvalidArgumentException("Disallowed column: {$column}");
     }
-    $sql    = "SELECT COUNT(*) AS cnt FROM cars WHERE LENGTH(`{$column}`) != LENGTH(TRIM(`{$column}`))";
+    $sql    = "SELECT COUNT(*) AS cnt FROM cars WHERE `{$column}` " . WHITESPACE_DETECT_SQL;
     $result = $db->query($sql);
     if ($db->error()) {
         throw new \RuntimeException("DB error counting affected rows in cars.{$column}: " . $db->errorString());
@@ -62,6 +77,10 @@ function countColumnAffected(object $db, string $column): int
 /**
  * Trim leading/trailing whitespace from $column on all affected cars rows.
  *
+ * Uses REGEXP_REPLACE (MySQL 8.0+) rather than TRIM() so tabs/newlines/CR
+ * are stripped along with plain spaces — see WHITESPACE_DETECT_SQL's
+ * docblock for why TRIM() alone is insufficient here.
+ *
  * @throws \InvalidArgumentException If $column is not in the CARS_TRIM_COLUMNS allowlist
  * @throws \RuntimeException         If the update query fails
  */
@@ -70,7 +89,8 @@ function trimColumn(object $db, string $column): int
     if (!in_array($column, CARS_TRIM_COLUMNS, true)) {
         throw new \InvalidArgumentException("Disallowed column: {$column}");
     }
-    $sql = "UPDATE cars SET `{$column}` = TRIM(`{$column}`) WHERE LENGTH(`{$column}`) != LENGTH(TRIM(`{$column}`))";
+    $sql = "UPDATE cars SET `{$column}` = REGEXP_REPLACE(`{$column}`, '^[[:space:]]+|[[:space:]]+\$', '')"
+        . " WHERE `{$column}` " . WHITESPACE_DETECT_SQL;
     $db->query($sql);
     if ($db->error()) {
         throw new \RuntimeException("DB error trimming cars.{$column}: " . $db->errorString());
@@ -147,7 +167,7 @@ $isProcessing = admin_script_exec_requested();
                                         Trims whitespace from <code>cars</code>:
                                         <code><?php echo implode('</code>, <code>', CARS_TRIM_COLUMNS); ?></code>.
                                     </li>
-                                    <li>Uses <code>TRIM()</code> — only leading/trailing whitespace is removed, internal content is untouched.</li>
+                                    <li>Strips leading/trailing whitespace (spaces, tabs, newlines, CR) — internal content is untouched.</li>
                                 </ul>
                             </div>
 
