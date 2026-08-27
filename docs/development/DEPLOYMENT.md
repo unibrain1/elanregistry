@@ -349,9 +349,18 @@ Test and production servers have a single shared post-receive hook
 2. Run `git describe --tags` and write VERSION file
 3. Run `composer install --no-dev --optimize-autoloader`
 4. Run `php vendor/bin/phinx migrate` (halts deployment on failure)
-5. Self-update the installed hook from the newly deployed working tree
-6. Remove dev-only paths listed in `.deployignore` (e.g. `tests/`, `scripts/`,
+5. Run `npm ci --omit=dev && npm run build` to (re)generate vendored frontend
+   assets in `usersc/js/`/`usersc/css/` (halts deployment on failure). These
+   directories are gitignored build output, not committed — see
+   [ADR-018](adr/ADR-018-build-at-deploy-for-frontend-vendoring.md)
+6. Self-update the installed hook from the newly deployed working tree
+7. Remove dev-only paths listed in `.deployignore` (e.g. `tests/`, `scripts/`,
    `utilities/`, `wiki/`) via `rm -rf`, then remove `.deployignore` itself
+
+**Host requirements:** steps 3-5 require Composer, PHP, and Node/npm to be
+resolvable non-interactively on the deploy host's login shell (no `nvm use`
+or similar interactive step). Verified against `test.elanregistry.org` during
+ADR-018's research: Node v18.20.8 / npm 10.8.2, no shell workaround needed.
 
 **Important:** Never list a persistent, server-writable directory in
 `.deployignore` (e.g. `backups/`) — step 6's `rm -rf` would delete it wholesale
