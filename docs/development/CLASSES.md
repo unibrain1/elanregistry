@@ -22,6 +22,7 @@ Use this table to choose the right class for your task:
 | Update car data and create history | Car + update() | Automatic history via triggers, audit logging | `$car->update(['color' => 'Blue', ...])` |
 | Access owner profile and user data | Owner | User profile integration, custom user methods | `$owner = new Owner($uid)` |
 | Validate VIN/chassis format | ChassisValidator | Specialized validation for vehicle identifiers | `$validator->validate('26/0001')` |
+| Direct DB queries on cars/history/factory data | CarRepository | Testable data-access layer, used by Car and API endpoints | `(new CarRepository($db))->findByChassisKey($year, $type, $chassis)` |
 | Create database backups | BackupManager | Backup/restore operations, database dumping | `$backup = new BackupManager(...)` |
 | Decode car images | CarImageProcessor | Decodes the `cars.image` JSON array into usable entries | `CarImageProcessor::decode($car->image)` |
 | Query car models by year/series | CarModel | Reference data for model filtering | `$models = (new CarModel())->getAvailableInYear(1970)` |
@@ -407,6 +408,76 @@ if (!CarModel::exists($series, $variant, $type)) {
 
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) - Exception patterns
 - CarModel reference class for model validation
+
+---
+
+### CarRepository
+
+**Location**: `/usersc/classes/Car/CarRepository.php`
+
+**Namespace**: `ElanRegistry\Car`
+
+**Purpose**: Database access layer for car operations. Extracted from `Car.php`
+to provide a focused, testable data access layer wrapping the `cars`,
+`cars_hist`, `elan_factory_info`, and `car_models` tables.
+
+**Key Features**:
+
+- CRUD operations for car records (`findById`, `insertCar`, `updateCar`, `deleteCar`)
+- Row-locking lookup (`findByIdForUpdate`) for use inside an active transaction
+- Optimistic-concurrency image update via compare-and-swap (`updateImage`)
+- Chassis-based and verification-code-based car lookups
+- Car history (`cars_hist`) read/write/transfer
+- Factory serial-number lookup and suffix-code decoding
+- Nested-transaction-safe `beginTransaction()`/`commit()`/`rollback()` (no-op when participating in an outer transaction already begun by the caller)
+
+**Methods**:
+
+- `findById(int $carId): ?object` - Look up a car by ID
+- `findByIdForUpdate(int $carId): ?object` - Look up and row-lock a car (`SELECT ... FOR UPDATE`); must be called inside an active transaction
+- `insertCar(array $fields): bool` - Insert a new car record
+- `updateCar(int $carId, array $fields): bool` - Update an existing car record
+- `deleteCar(int $carId): bool` - Delete a car by ID; throws `CarNotFoundException` if no row matched
+- `reassignCarsByUser(int $fromUserId, ?int $toUserId): int` - Bulk-reassign all
+  cars owned by one user to another (or clear ownership); used by the
+  user-deletion hook
+- `updateVerificationCode(int $carId, string $verificationCode): bool` - Update a car's verification code
+- `updateLastVerified(int $carId, string $dateTime): bool` - Update a car's last-verified timestamp
+- `updateSoldDate(int $carId, string $soldDate): bool` - Update a car's sold date
+- `updateImage(int $carId, string $newJson, string $expectedJson): bool` - Compare-and-swap update of the image JSON column; returns `false` on concurrent modification
+- `findByChassisKey(string $year, string $type, string $chassis): ?object` -
+  Find a car by its composite chassis key (year, type, chassis); used by
+  `chassis-availability.php` and `transfer-request.php` to check chassis
+  uniqueness
+- `findByVerificationCode(string $code): ?object` - Look up a car by verification code
+- `getAllForSitemap(): array` - Get all car IDs and modification times for sitemap generation
+- `findByOwner(int $ownerId): array` - Find car IDs owned by a given user
+- `getHistory(int $carId): array` - Get a car's history records, most recent first
+- `insertHistory(array $fields): bool` - Insert a `cars_hist` record
+- `transferHistory(int $fromCarId, int $toCarId): bool` - Reassign history records from one car to another
+- `getFactoryInfo(string $chassis, int $suffixLength): ?object` - Look up factory info by full chassis serial, falling back to a suffix-length search
+- `suffixToText(string $suffix): string` - Static; convert a factory suffix code to descriptive text
+- `getFilterOptions(): array` - Distinct series/type/variant values from `car_models` for listing filter pills
+- `beginTransaction()`/`commit()`/`rollback(): void` - Nested-transaction-safe wrappers; no-op when an outer transaction already owns the transaction
+- `lastId(): int` - Last inserted ID
+- `errorString(): string` - Last DB error message
+
+**Exceptions**:
+
+- `CarDatabaseException` - Query failure
+- `CarNotFoundException` - `deleteCar()` when no row matched
+
+**Used By**:
+
+- Car class (composed data-access layer)
+- `app/api/cars/chassis-availability.php`, `app/api/cars/transfer-request.php` (`findByChassisKey()`)
+- User-deletion hook (`reassignCarsByUser()`)
+- Sitemap generation (`getAllForSitemap()`)
+
+**See Also**:
+
+- [ERROR_HANDLING.md](ERROR_HANDLING.md) - Exception patterns
+- [DATABASE.md](DATABASE.md) - `cars`, `cars_hist`, `elan_factory_info` schema
 
 ---
 
