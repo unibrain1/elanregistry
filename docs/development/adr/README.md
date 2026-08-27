@@ -26,7 +26,8 @@ We follow the [Michael Nygard ADR template](https://cognitect.com/blog/2011/11/1
 | [ADR-014](ADR-014-replace-secure-env-php-with-phpdotenv.md) | Replace johnathanmiller/secure-env-php with vlucas/phpdotenv | Accepted | High |
 | [ADR-015](ADR-015-self-host-frontend-libraries.md) | Self-Host Frontend Libraries via Source-Controlled Assets | Superseded (by ADR-017) | High |
 | [ADR-016](ADR-016-file-based-navigation-customizer-template.md) | File-Based Navigation for Customizer Template | Accepted | Medium |
-| [ADR-017](ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md) | Automate Frontend Vendoring via npm Build Pipeline | Accepted | Medium |
+| [ADR-017](ADR-017-automate-frontend-vendoring-via-npm-build-pipeline.md) | Automate Frontend Vendoring via npm Build Pipeline | Superseded (by ADR-018) | Medium |
+| [ADR-018](ADR-018-build-at-deploy-for-frontend-vendoring.md) | Build Frontend Assets at Deploy Time Instead of Committing Build Output | Accepted | Medium |
 
 ## Statuses
 
