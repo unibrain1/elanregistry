@@ -397,7 +397,8 @@ via HTTP response inspection.
 >   `https://bootswatch.com`, `https://cdn.bootswatch.com`,
 >   `https://use.fontawesome.com`, `https://ka-f.fontawesome.com`
 >
-> DataTables JS/CSS and Chart.js are now vendored in `usersc/` (see ADR-017;
+> DataTables JS/CSS and Chart.js are now vendored in `usersc/`, built at
+> deploy time rather than committed (see ADR-018, superseding ADR-017;
 > jQuery UI was never actually vendored and was removed entirely in #1725).
 > Font Awesome is served from `users/fonts/css/`. Remaining CDN domains
 > (`cdn.jsdelivr.net`, `cdnjs.cloudflare.com`) will be removed in #618 when
