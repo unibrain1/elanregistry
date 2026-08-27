@@ -301,7 +301,8 @@ async function getCsrfFromOwnerForm(page) {
     await page.goto(CAR_EDIT_FORM_PAGE, { waitUntil: 'domcontentloaded' });
     try {
         return (await page.inputValue('#csrf', { timeout: 3000 })) || null;
-    } catch {
+    } catch (err) {
+        console.error(`getCsrfFromOwnerForm: could not read #csrf on ${CAR_EDIT_FORM_PAGE}: ${err.message}`);
         return null;
     }
 }
@@ -310,7 +311,8 @@ async function getCsrfFromAdminDeleteForm(page) {
     await page.goto(ADMIN_DELETE_ENDPOINT, { waitUntil: 'domcontentloaded' });
     try {
         return (await page.locator('.delete-form input[name="csrf"]').inputValue({ timeout: 3000 })) || null;
-    } catch {
+    } catch (err) {
+        console.error(`getCsrfFromAdminDeleteForm: could not read delete-form csrf on ${ADMIN_DELETE_ENDPOINT}: ${err.message}`);
         return null;
     }
 }
@@ -349,13 +351,17 @@ test.describe('DataTables XSS render guard — car history table', () => {
                 csrf,
             },
         });
+        let failureDetail = `HTTP ${response.status()}`;
         if (response.status() === 200) {
             const body = await response.json().catch(() => null);
             carId = body?.cardetails?.id ? parseInt(body.cardetails.id, 10) : null;
+            if (!carId) {
+                failureDetail = `response had no cardetails.id: ${JSON.stringify(body)}`;
+            }
         }
         await context.close();
         if (!carId) {
-            throw new Error('History XSS tests could not create a disposable car fixture — see issue #1732');
+            throw new Error(`History XSS tests could not create a disposable car fixture (${failureDetail}) — see issue #1732`);
         }
     });
 
@@ -366,8 +372,13 @@ test.describe('DataTables XSS render guard — car history table', () => {
         await ensureLoggedIn(page);
 
         const csrf = await getCsrfFromAdminDeleteForm(page);
-        if (csrf) {
-            await page.request.post(ADMIN_DELETE_ENDPOINT, {
+        if (!csrf) {
+            console.error(
+                `[datatables-xss.spec.js] Could not fetch CSRF token to delete fixture car ${carId} — ` +
+                'it was NOT cleaned up and remains in the database. Delete manually if needed.'
+            );
+        } else {
+            const response = await page.request.post(ADMIN_DELETE_ENDPOINT, {
                 form: {
                     command: 'delete',
                     car_id: String(carId),
@@ -376,6 +387,12 @@ test.describe('DataTables XSS render guard — car history table', () => {
                     csrf,
                 },
             });
+            if (response.status() !== 200) {
+                console.error(
+                    `[datatables-xss.spec.js] Delete request for fixture car ${carId} returned ` +
+                    `HTTP ${response.status()} — cleanup may have failed; verify manually.`
+                );
+            }
         }
         await context.close();
     });
