@@ -875,4 +875,67 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
         $this->assertNull($row->solddate, 'solddate must be NULL after clearing');
         $this->assertStringStartsWith($purchaseDate, $row->purchasedate, 'purchasedate must remain unchanged');
     }
+
+    /**
+     * Regression test for issue #1448: clearing both purchasedate and solddate
+     * in the same update() call must succeed. The cross-field
+     * solddate >= purchasedate check relies on isset() returning false for a
+     * null value — this must hold when BOTH fields are null simultaneously,
+     * not just when one is cleared while the other remains set (covered by
+     * testCarUpdateClearsSoldDateWhileKeepingPurchaseDate above).
+     */
+    #[Group('integration')]
+    public function testCarUpdateClearsBothPurchaseAndSoldDateSimultaneously(): void
+    {
+        $carId = $this->createTestCar($this->testUserId, [
+            'purchasedate' => '2018-03-10',
+            'solddate'     => '2021-07-04',
+        ]);
+
+        $car = new Car($carId);
+        $result = $car->update([
+            'id'           => $carId,
+            'token'        => Token::generate(),
+            'purchasedate' => '',
+            'solddate'     => '',
+        ]);
+
+        $this->assertTrue($result, 'Clearing both purchasedate and solddate together must not throw a cross-field validation error');
+
+        $row = $this->db->query('SELECT purchasedate, solddate FROM cars WHERE id = ?', [$carId])->first();
+        $this->assertNull($row->purchasedate, 'purchasedate must be NULL after clearing');
+        $this->assertNull($row->solddate, 'solddate must be NULL after clearing');
+    }
+
+    /**
+     * Regression test for issue #1448: Car::create() also runs the six
+     * clearable fields through CarValidator, but unlike update(), create()
+     * has no array_filter step at all — the validated fields go straight to
+     * CarRepository::insertCar(). Submitting an explicitly empty clearable
+     * field on creation must insert NULL (matching the column's own
+     * DEFAULT NULL), not throw and not insert an empty string.
+     */
+    #[Group('integration')]
+    public function testCarCreateWithEmptyClearableFieldInsertsNull(): void
+    {
+        $car = new Car();
+        $result = $car->create([
+            'token'   => Token::generate(),
+            'user_id' => $this->testUserId,
+            'year'    => '1971',
+            'model'   => 'Sprint|FHC|36',
+            'chassis' => 'CRT' . substr(uniqid(), -9),
+            'color'   => '',
+            'website' => '',
+        ]);
+
+        $this->assertTrue($result, 'Car::create() with empty clearable fields must succeed');
+
+        $carId = (int) $car->data()->id;
+        $this->trackCarId($carId);
+
+        $row = $this->db->query('SELECT color, website FROM cars WHERE id = ?', [$carId])->first();
+        $this->assertNull($row->color, 'color must be NULL, not an empty string, on create');
+        $this->assertNull($row->website, 'website must be NULL, not an empty string, on create');
+    }
 }

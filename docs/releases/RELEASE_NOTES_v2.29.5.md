@@ -30,7 +30,7 @@
 
 - WIP: [#1067](https://github.com/elan-registry/registry/issues/1067) — fix: Car/Owner domain code reads image and email config from scattered $settings properties instead of one source
 - WIP: [#1313](https://github.com/elan-registry/registry/issues/1313) — fix: edit.php force-logs-out a user when the car is missing/merged instead of showing 404
-- WIP: [#1448](https://github.com/elan-registry/registry/issues/1448) — fix: Car::update() array_filter prevents clearing color/comments/website/engine/sold-date
+- [#1448](https://github.com/elan-registry/registry/issues/1448) — fix: Car::update() array_filter prevents clearing color/comments/website/engine/sold-date
 - [#1491](https://github.com/elan-registry/registry/issues/1491) — tech-debt: legacy trailing/leading whitespace in cars table string columns; also fixes CarValidator not sanitizing fname/lname
 - WIP: [#1505](https://github.com/elan-registry/registry/issues/1505) — fix: stop silently returning false/null/[] on DB errors across Owner and CarRepository, including unchecked transaction integrity
 - WIP: [#1519](https://github.com/elan-registry/registry/issues/1519) — refactor: move Token::check() CSRF validation out of the Car entity
