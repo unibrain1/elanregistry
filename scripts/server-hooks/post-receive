@@ -91,6 +91,18 @@ do
         exit 1
     }
 
+    # Build frontend vendored assets BEFORE cleanup — .deployignore removes
+    # package.json/package-lock.json/scripts/ (ADR-018)
+    echo "Building frontend vendored assets..."
+    npm ci --omit=dev || {
+        echo "ERROR: npm ci failed — deployment halted."
+        exit 1
+    }
+    npm run build || {
+        echo "ERROR: npm run build failed — deployment halted."
+        exit 1
+    }
+
     # Self-update this hook BEFORE cleanup — .deployignore removes scripts/
     HOOK_SOURCE="$WORK_TREE/scripts/server-hooks/post-receive"
     if [ -f "$HOOK_SOURCE" ]; then

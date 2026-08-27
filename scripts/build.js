@@ -1,5 +1,10 @@
 'use strict';
 
+// NOTE: Any npm package this script (or a package it calls, like esbuild)
+// needs at build time must stay in package.json's "dependencies", not
+// "devDependencies". Deploy runs `npm ci --omit=dev` before invoking this
+// script (see scripts/server-hooks/post-receive, ADR-018), which deletes
+// devDependencies entirely.
 const esbuild = require('esbuild');
 const fs = require('fs');
 
