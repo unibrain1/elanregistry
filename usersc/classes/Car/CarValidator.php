@@ -207,6 +207,8 @@ class CarValidator
                 case 'city':
                 case 'state':
                 case 'country':
+                case 'fname':
+                case 'lname':
                     if (!empty($value)) {
                         $validatedFields[$key] = InputSanitizer::normalize($value, 100);
                     }
