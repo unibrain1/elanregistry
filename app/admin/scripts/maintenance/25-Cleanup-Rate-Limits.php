@@ -85,10 +85,19 @@ if (!isAdmin()) {
                                     $removed = (new \RateLimit())->cleanup(24);
                                     logger($user->data()->id, LogCategories::LOG_CATEGORY_DATABASE_MAINTENANCE,
                                         "Rate limit cleanup removed {$removed} record(s) older than 24 hours");
+                                    $recordingWarning = null;
+                                    admin_script_record_completion(__FILE__, (int) $user->data()->id, function (string $msg) use (&$recordingWarning) {
+                                        $recordingWarning = $msg;
+                                    });
                                     ?>
                                     <div class="alert alert-success mb-0">
                                         <i class="fa fa-check-circle"></i> Removed <strong><?= (int) $removed ?></strong> rate limit record(s) older than 24 hours.
                                     </div>
+                                    <?php if ($recordingWarning !== null): ?>
+                                    <div class="alert alert-warning mt-2 mb-0">
+                                        <?= htmlspecialchars($recordingWarning, ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                    <?php endif; ?>
                                     <?php
                                 } catch (\Throwable $e) {
                                     logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,

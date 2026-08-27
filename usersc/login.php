@@ -536,6 +536,7 @@ $dest = $_SESSION[$currentSessionName . '_login_dest'] ?? '';
     </div>
 </div>
 </div>
+<script src="<?= $us_url_root ?>app/assets/js/turnstile-reset.min.js?v=<?= ASSET_VERSION ?>"></script>
 <script nonce="<?= htmlspecialchars($userspice_nonce ?? '') ?>">
     $(document).ready(function() {
         const loginModal = new bootstrap.Modal(document.getElementById('loginModal'), {

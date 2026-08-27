@@ -54,6 +54,10 @@ package.json
 package-lock.json
 tsconfig.json
 
+# Node dependency tree (npm ci recreates it on every deploy — .htaccess
+# already blocks web access, this just shrinks the deployed docroot)
+node_modules/
+
 # Composer (dependencies not deployed via git)
 composer.json
 composer.lock

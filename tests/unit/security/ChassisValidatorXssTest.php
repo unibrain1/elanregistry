@@ -171,16 +171,12 @@ final class ChassisValidatorXssTest extends TestCase
      * allowlist and validates normally without requiring override.
      *
      * "26-R-01" contains only digits, uppercase letters, and hyphens — all
-     * in the allowlist. With $year=1963 and variant="Standard" (non-Race), the
-     * production-car path is taken; the format won't match the 4-digit pre-1970
-     * rule and will fail format validation. That is fine — this test only
-     * verifies that the allowlist itself does not block the chassis. It does
-     * that by asserting the error reason does NOT say "invalid characters".
-     *
-     * Note: the "26-R-01" race pattern only activates when the model variant
-     * contains "Race". With model "S1|Standard|Roadster", the production path
-     * is taken, and the format will fail for other reasons. The allowlist
-     * concern is separate from format correctness.
+     * in the allowlist. The race pattern only activates when the model
+     * variant contains "Race"; with model "S1|Standard|Roadster" the
+     * production-car path is taken instead, and format validation fails for
+     * unrelated reasons (it won't match the 4-digit pre-1970 rule). That is
+     * fine — this test only verifies the allowlist itself does not block the
+     * chassis, by asserting the error reason does NOT say "invalid characters".
      */
     public function testValidHyphenFormatPassesAllowlist(): void
     {
@@ -232,5 +228,47 @@ final class ChassisValidatorXssTest extends TestCase
 
         $this->assertFalse($result['valid']);
         $this->assertStringContainsString('Invalid model format', $result['error_reason']);
+    }
+
+    // -------------------------------------------------------------------------
+    // Genuine format passes (no override) — supplements the allowlist-only
+    // testValidSlashFormatPassesAllowlist / testValidHyphenFormatPassesAllowlist
+    // cases above, which both rely on $allowOverride=true because their
+    // fixtures do not match any real chassis format.
+    //
+    // No format recognized by ChassisValidator ever accepts a forward slash
+    // (production formats are digit/digit+letter only; race formats use
+    // hyphens), so a slash-delimited chassis can never produce a genuine
+    // (non-override) pass — only the hyphen format can. The slash test below
+    // instead confirms that "26/0001" fails format validation without
+    // override, while still passing the character allowlist itself.
+    // -------------------------------------------------------------------------
+
+    /**
+     * The hyphen-delimited 1963 race-car format "26-R-01" passes validation
+     * genuinely (no override) when the model variant actually contains
+     * "Race", unlike testValidHyphenFormatPassesAllowlist() above which uses
+     * a non-Race model and therefore only passes via $allowOverride=true.
+     */
+    public function testValidHyphenFormatPassesWithoutOverride(): void
+    {
+        $result = $this->validate('26-R-01', year: 1963, model: '26|Race|Roadster', allowOverride: false);
+
+        $this->assertTrue($result['valid']);
+        $this->assertFalse($result['override_used']);
+    }
+
+    /**
+     * Without override, "26/0001" fails format validation (no recognized
+     * format uses a forward slash) but is not blocked by the character
+     * allowlist itself — the allowlist and format-matching concerns are
+     * independent.
+     */
+    public function testSlashFormatFailsWithoutOverride(): void
+    {
+        $result = $this->validate('26/0001', allowOverride: false);
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringNotContainsString('invalid characters', $result['error_reason']);
     }
 }

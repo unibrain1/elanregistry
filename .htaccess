@@ -163,6 +163,9 @@ Redirect 301 /guide.php /docs/
 Redirect 301 /app/owner/cars/@the_elan_sprint_diary /docs/car-stories.php
 # Duplicate PDF path: /docs/assets/ renamed to /docs/reference/assets/ in #715
 Redirect 301 /docs/assets/ /docs/reference/assets/
+# Old asset path moved to usersc/images/ (#1803) — external caches
+# (Facebook link-card scraper, already-sent email) still request it
+Redirect 301 /usersc/templates/ElanRegistry/assets/images/ /usersc/images/
 
 # Additional legacy paths found via GSC (#1409)
 Redirect 301 /app/manage_cars.php /app/owner/cars/index.php

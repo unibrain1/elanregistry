@@ -1,6 +1,7 @@
 // tests/playwright/ajax-endpoints.test.js
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn, waitForDataTables } = require('./auth-helper.js');
+const { CAR_ID_STANDARD } = require('./fixtures.js');
 
 // Extracts a real, valid CSRF token for the current session from the
 // already-rendered <input name="csrf"> on usersc/user_settings.php — the
@@ -33,13 +34,18 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
   test('chassis validation endpoint responds correctly', async ({ page }) => {
     // Test the Lotus Elan chassis validation endpoint (ApiResponse JSON format)
 
-    // Test missing command parameter (should return 400)
+    // Missing command parameter, with a REAL CSRF token — chassis-availability.php
+    // checks CSRF (line 30-34) before command validation (line 37-39), so a fake
+    // token would only ever prove CSRF rejection here, not command validation.
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
     const missingCommandResponse = await page.request.post('app/api/cars/chassis-availability.php', {
-      data: {
+      form: {
         chassis: '12345678',
         year: '1973',
         model: 'Sprint',
-        csrf: 'test_token'
+        csrf
       }
     });
     expect(missingCommandResponse.status()).toBe(400);
@@ -52,7 +58,7 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
 
     // Test CSRF validation failure (should return 403)
     const csrfFailResponse = await page.request.post('app/api/cars/chassis-availability.php', {
-      data: {
+      form: {
         command: 'chassis_check',
         chassis: '12345678',
         year: '1973',
@@ -67,30 +73,78 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     } catch (parseError) {
       throw new Error(`chassis-availability.php (CSRF fail) returned non-JSON (status ${csrfFailResponse.status()}): ${parseError.message}`);
     }
+  });
 
-    // Test valid chassis check format (will fail CSRF but should have correct structure)
-    const validFormatResponse = await page.request.post('app/api/cars/chassis-availability.php', {
-      data: {
+  test('chassis_check with no matching car reports available', async ({ page }) => {
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
+    // Chassis/year/model combination extremely unlikely to match any real car.
+    const response = await page.request.post('app/api/cars/chassis-availability.php', {
+      form: {
         command: 'chassis_check',
-        chassis: '12345678',
-        year: '1973',
-        model: 'Sprint',
-        csrf: 'test_token'
+        chassis: 'NOMATCH999999',
+        year: '1970',
+        model: 'S4|SE|FHC',
+        csrf
       }
     });
+    expect(response.status()).toBe(200);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', true);
+    expect(jsonResponse).toHaveProperty('taken', false);
+    expect(jsonResponse).toHaveProperty('available', true);
+  });
 
-    try {
-      const jsonResponse = await validFormatResponse.json();
-      expect(jsonResponse).toHaveProperty('success');
-      expect(jsonResponse).toHaveProperty('message');
-      // If success is true, should have taken and available properties
-      if (jsonResponse.success) {
-        expect(jsonResponse).toHaveProperty('taken');
-        expect(jsonResponse).toHaveProperty('available');
+  test('chassis_check with a fixture car chassis reports taken', async ({ page }) => {
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
+    // Look up CAR_ID_STANDARD's real chassis/year/type via the admin car-details
+    // endpoint, then rebuild the combined "series|variant|type" model string
+    // chassis-availability.php expects (it only uses the type — the third
+    // segment — so series/variant are placeholders here).
+    const carDetailsResponse = await page.request.post('app/admin/includes/process-car-details.php', {
+      form: { car_id: String(CAR_ID_STANDARD), csrf }
+    });
+    const carDetailsJson = await carDetailsResponse.json();
+    test.skip(!carDetailsJson.success, `Could not look up CAR_ID_STANDARD (${CAR_ID_STANDARD}) via process-car-details.php: ${carDetailsJson.message}`);
+    const { chassis, year, type } = carDetailsJson.car;
+
+    const response = await page.request.post('app/api/cars/chassis-availability.php', {
+      form: {
+        command: 'chassis_check',
+        chassis,
+        year: String(year),
+        model: `X|Y|${type}`,
+        csrf
       }
-    } catch (parseError) {
-      throw new Error(`chassis-availability.php (valid format) returned non-JSON (status ${validFormatResponse.status()}): ${parseError.message}`);
-    }
+    });
+    expect(response.status()).toBe(200);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', true);
+    expect(jsonResponse).toHaveProperty('taken', true);
+    expect(jsonResponse).toHaveProperty('available', false);
+  });
+
+  test('chassis_check rejects an invalid command with a real CSRF token', async ({ page }) => {
+    // Confirms this is genuinely a command-validation 400, not an incidental
+    // CSRF 403 — uses a real token so the request reaches command validation.
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
+    const response = await page.request.post('app/api/cars/chassis-availability.php', {
+      form: {
+        command: 'not_a_real_command',
+        chassis: '12345678',
+        year: '1973',
+        model: 'S4|SE|FHC',
+        csrf
+      }
+    });
+    expect(response.status()).toBe(400);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', false);
   });
 
   test('DataTables AJAX endpoint returns car data', async ({ page }) => {
@@ -270,93 +324,175 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     }
   });
 
-  test('admin car details endpoint requires admin permissions', async ({ page }) => {
-    // Test the admin-only car details processing endpoint
+  test('admin car details endpoint returns car data for an admin user', async ({ page }) => {
+    // The configured TEST_USERNAME/TEST_PASSWORD account is itself an admin, so
+    // requireAdminAjax()'s admin check passes — this is a real success-path test,
+    // not a permission-rejection test (CSRF/admin-gate rejection for this endpoint
+    // is exercised by other tests using invalid tokens/unauthenticated requests
+    // elsewhere in the suite).
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
     const response = await page.request.post('app/admin/includes/process-car-details.php', {
-      data: {
-        car_id: '1',
-        csrf: 'test_token'
+      form: {
+        car_id: String(CAR_ID_STANDARD),
+        csrf
       }
     });
 
-    // Regular user should get 403 Forbidden
-    expect(response.status()).toBe(403);
-
-    try {
-      const jsonResponse = await response.json();
-      expect(jsonResponse).toHaveProperty('success', false);
-      expect(jsonResponse).toHaveProperty('message');
-    } catch (_error) {
-      // If not JSON, should still be 403
-      expect(response.status()).toBe(403);
+    expect(response.status()).toBe(200);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', true);
+    expect(jsonResponse).toHaveProperty('car');
+    for (const field of ['id', 'year', 'type', 'chassis', 'color', 'series', 'fname', 'lname', 'email', 'city', 'state', 'country', 'ctime', 'mtime']) {
+      expect(jsonResponse.car).toHaveProperty(field);
     }
   });
 
-  test('admin transfer approve endpoint requires admin permissions', async ({ page }) => {
-    // Test the admin-only transfer approval endpoint
-    const response = await page.request.post('app/admin/includes/process-transfer-approve.php', {
-      data: {
-        transfer_id: '1',
-        csrf: 'test_token'
-      }
+  test.describe('admin transfer approve/deny — real success-path coverage', () => {
+    let csrf;
+    let carDetails;
+
+    test.beforeEach(async ({ page }) => {
+      csrf = await getCsrfFromSettingsPage(page);
+      test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
+      const carDetailsResponse = await page.request.post('app/admin/includes/process-car-details.php', {
+        form: { car_id: String(CAR_ID_STANDARD), csrf }
+      });
+      const carDetailsJson = await carDetailsResponse.json();
+      test.skip(!carDetailsJson.success, `Could not look up CAR_ID_STANDARD (${CAR_ID_STANDARD}) via process-car-details.php: ${carDetailsJson.message}`);
+      carDetails = carDetailsJson.car;
+
+      // transfer-request.php rejects a requester who already owns the target car
+      // ("You already own this car") — the admin test account being the same
+      // account that owns CAR_ID_STANDARD would make every fixture-creation
+      // request fail before a pending transfer ever exists. Detect that up
+      // front by comparing the car's registered email to the logged-in
+      // account rather than assuming either way.
+      test.skip(
+        carDetails.email === process.env.TEST_USERNAME,
+        'CAR_ID_STANDARD is owned by the admin test account — cannot self-transfer to create a fixture'
+      );
     });
 
-    // Regular user should get 403 Forbidden
-    expect(response.status()).toBe(403);
-
-    try {
-      const jsonResponse = await response.json();
-      expect(jsonResponse).toHaveProperty('success', false);
-      expect(jsonResponse).toHaveProperty('message');
-    } catch (_error) {
-      // If not JSON, should still be 403
-      expect(response.status()).toBe(403);
+    /**
+     * Create a disposable pending transfer request for CAR_ID_STANDARD via the
+     * public transfer-request.php endpoint, using CAR_ID_STANDARD's own
+     * chassis/year/type so the "existing car" lookup matches it.
+     * @returns {Promise<number>} the created transfer_request_id
+     */
+    async function createPendingTransfer(page) {
+      const response = await page.request.post('app/api/cars/transfer-request.php', {
+        form: {
+          chassis: carDetails.chassis,
+          year: String(carDetails.year),
+          model: `X|Y|${carDetails.type}`,
+          color: 'Red',
+          engine: '',
+          comments: 'Playwright ajax-endpoints.spec.js disposable fixture',
+          csrf
+        }
+      });
+      const json = await response.json();
+      test.skip(!json.success, `Could not create disposable transfer request fixture: ${json.message}`);
+      return json.transfer_request_id;
     }
+
+    test('process-transfer-deny succeeds for a real pending transfer', async ({ page }) => {
+      const transferId = await createPendingTransfer(page);
+
+      const response = await page.request.post('app/admin/includes/process-transfer-deny.php', {
+        form: {
+          transfer_id: String(transferId),
+          csrf
+        }
+      });
+
+      expect(response.status()).toBe(200);
+      const jsonResponse = await response.json();
+      expect(jsonResponse).toHaveProperty('success', true);
+      expect(jsonResponse).toHaveProperty('transfer_id', transferId);
+      // No cleanup needed — deny is a terminal status change (matches the
+      // PHPUnit TransferIntegrationTestCase idiom for terminal-status rows).
+    });
+
+    // process-transfer-approve.php calls $car->transfer(...), which permanently
+    // reassigns car ownership (app/admin/includes/process-transfer-approve.php:81).
+    // createPendingTransfer() above builds its transfer request from
+    // CAR_ID_STANDARD's own chassis/year/type, so transfer-request.php's chassis
+    // lookup resolves back to CAR_ID_STANDARD itself — there is no fixture car
+    // here, only the shared reference fixture from fixtures.js. Approving that
+    // request would permanently transfer CAR_ID_STANDARD's ownership to the
+    // admin test account, corrupting a fixture reused across the whole suite
+    // (see fixtures.js's own "must not change" comment).
+    //
+    // A safe version needs a disposable car owned by someone other than the
+    // admin test account (transfer-request.php rejects a requester who already
+    // owns the target car — see its "You already own this car" check), so the
+    // admin can approve a transfer *to* itself without a self-transfer
+    // rejection. That requires either:
+    //   - a second Playwright-authenticated test account, or
+    //   - a fixture-seeding endpoint/helper that can create a car owned by a
+    //     non-admin user,
+    // neither of which exists yet — the single TEST_USERNAME/TEST_PASSWORD
+    // account is the only identity available to this suite, and no
+    // direct-DB-insert helper (as PHPUnit's IntegrationTestCase::createTestCar())
+    // is available from Playwright's HTTP-only test harness. Building that
+    // infrastructure is out of scope for a single test fix.
+    //
+    // Filed as a follow-up: see GitHub issue tracking real Playwright coverage
+    // for process-transfer-approve.php's success path with a disposable fixture.
+    test.skip('process-transfer-approve succeeds for a separate real pending transfer — needs a disposable non-admin-owned car fixture; skipped to avoid mutating CAR_ID_STANDARD', () => {});
   });
 
-  test('admin transfer deny endpoint requires admin permissions', async ({ page }) => {
-    // Test the admin-only transfer denial endpoint
-    const response = await page.request.post('app/admin/includes/process-transfer-deny.php', {
-      data: {
-        transfer_id: '1',
-        csrf: 'test_token'
-      }
+  test.describe('admin settings endpoint', () => {
+    const FIELD = 'elan_image_max';
+    let csrf;
+    let originalValue;
+
+    test.beforeEach(async ({ page }) => {
+      csrf = await getCsrfFromSettingsPage(page);
+      test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
+      // Read the current value from the rendered admin settings tab before
+      // mutating it, so afterEach can restore it unconditionally.
+      await page.goto('app/admin/maintenance.php?tab=settings', { waitUntil: 'domcontentloaded' });
+      const input = page.locator(`#${FIELD}`).first();
+      originalValue = await input.getAttribute('value');
+      test.skip(originalValue === null, `Could not read current value of ${FIELD} from the admin settings tab`);
     });
 
-    // Regular user should get 403 Forbidden
-    expect(response.status()).toBe(403);
-
-    try {
-      const jsonResponse = await response.json();
-      expect(jsonResponse).toHaveProperty('success', false);
-      expect(jsonResponse).toHaveProperty('message');
-    } catch (_error) {
-      // If not JSON, should still be 403
-      expect(response.status()).toBe(403);
-    }
-  });
-
-  test('admin settings endpoint requires admin permissions', async ({ page }) => {
-    // Test the admin-only (level 2) settings update endpoint
-    const response = await page.request.post('app/api/admin/process-settings.php', {
-      data: {
-        field: 'elan_image_max',
-        value: '10',
-        csrf: 'test_token'
+    test.afterEach(async ({ page }) => {
+      // Unconditionally restore the original value — this is a shared, live
+      // settings row, and a mutation must never leak into the rest of the suite.
+      if (originalValue === null || originalValue === undefined) {
+        return;
       }
+      await page.request.post('app/api/admin/process-settings.php', {
+        form: {
+          field: FIELD,
+          value: originalValue,
+          csrf
+        }
+      });
     });
 
-    // Unauthenticated request should get 403 Forbidden
-    expect(response.status()).toBe(403);
+    test('process-settings succeeds for an admin user and restores original value', async ({ page }) => {
+      const newValue = String(Number(originalValue) + 1);
 
-    try {
+      const response = await page.request.post('app/api/admin/process-settings.php', {
+        form: {
+          field: FIELD,
+          value: newValue,
+          csrf
+        }
+      });
+
+      expect(response.status()).toBe(200);
       const jsonResponse = await response.json();
-      expect(jsonResponse).toHaveProperty('success', false);
-      expect(jsonResponse).toHaveProperty('message');
-    } catch (_error) {
-      // If not JSON, should still be 403
-      expect(response.status()).toBe(403);
-    }
+      expect(jsonResponse).toHaveProperty('success', true);
+    });
   });
 
   test('feedback endpoint requires CSRF and returns JSON', async ({ page }) => {

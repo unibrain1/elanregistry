@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElanRegistry;
 
+use ElanRegistry\Exceptions\ImageProcessingException;
 use GdImage;
 
 /**
@@ -105,7 +106,7 @@ class Resize
 
     ## --------------------------------------------------------
 
-    private function openImage(string $file): GdImage|false
+    private function openImage(string $file): GdImage
     {
         // *** Get extension
         $extension = strtolower(strrchr($file, '.'));
@@ -125,6 +126,13 @@ class Resize
                 $img = false;
                 break;
         }
+
+        if ($img === false) {
+            throw new ImageProcessingException(
+                "Unsupported or corrupt image file: {$file}"
+            );
+        }
+
         return $img;
     }
 

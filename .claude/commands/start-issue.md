@@ -400,6 +400,9 @@ agent can re-check completion against actual repo state.
 - [ ] <Action> — `path/to/other-file.php` (parallel-safe)
 - [ ] <Action> — `path/to/file.php` (depends on: <previous item's short name>)
 - [ ] Run `senior-test-engineer`-authored tests, verify pass
+- [ ] PHPStan baseline hygiene: confirm no touched file carries pre-existing
+      `phpstan-baseline.neon` entries (fix or explicitly defer per
+      `/execute-plan` Step 6.5)
 - [ ] Run `/security-review` (if forms/SQL/auth touched), address Critical/High
 - [ ] Run `senior-architect` review of the diff, address findings
 

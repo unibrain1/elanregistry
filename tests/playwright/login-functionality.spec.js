@@ -301,6 +301,119 @@ test.describe('Login Form Responsiveness', () => {
   }
 });
 
+test.describe('Login Turnstile Reset (#1798)', () => {
+
+  test('login form wires data-error-callback and data-expired-callback', async ({ page }) => {
+    await page.goto('usersc/login.php', { waitUntil: 'networkidle' });
+
+    // Turnstile only renders with valid Cloudflare keys configured — skip
+    // the widget-attribute assertion locally where it may be absent, same
+    // convention as the forgot-password test above.
+    const widget = page.locator('.cf-turnstile');
+    const hasTurnstile = await widget.count() > 0;
+    if (!hasTurnstile) {
+      test.skip(true, 'Turnstile not configured in this environment');
+    }
+
+    await expect(widget).toHaveAttribute('data-error-callback', 'elanTurnstileError');
+    await expect(widget).toHaveAttribute('data-expired-callback', 'elanTurnstileExpired');
+  });
+
+  test('elanTurnstileExpired calls turnstile.reset() without throwing', async ({ page }) => {
+    await page.goto('usersc/login.php', { waitUntil: 'networkidle' });
+
+    // Stub window.turnstile.reset before triggering expiry — this exercises
+    // the shared turnstile-reset.js helper directly rather than depending on
+    // Cloudflare's real widget timing, mirroring how this suite already
+    // simulates client-side-only behavior elsewhere (see datatables-xss.spec.js).
+    const result = await page.evaluate(() => {
+      let resetCalled = false;
+      window.turnstile = { reset: () => { resetCalled = true; } };
+
+      let threw = null;
+      try {
+        window.elanTurnstileExpired();
+      } catch (e) {
+        threw = e.message;
+      }
+
+      return {
+        hasHandler: typeof window.elanTurnstileExpired === 'function',
+        resetCalled,
+        threw,
+      };
+    });
+
+    expect(result.hasHandler, 'window.elanTurnstileExpired must be defined on the login page').toBe(true);
+    expect(result.threw, 'elanTurnstileExpired must not throw').toBeNull();
+    expect(result.resetCalled, 'elanTurnstileExpired must call turnstile.reset()').toBe(true);
+  });
+
+  test('elanTurnstileError calls turnstile.reset() without throwing', async ({ page }) => {
+    await page.goto('usersc/login.php', { waitUntil: 'networkidle' });
+
+    const result = await page.evaluate(() => {
+      let resetCalled = false;
+      window.turnstile = { reset: () => { resetCalled = true; } };
+
+      let threw = null;
+      try {
+        window.elanTurnstileError();
+      } catch (e) {
+        threw = e.message;
+      }
+
+      return {
+        hasHandler: typeof window.elanTurnstileError === 'function',
+        resetCalled,
+        threw,
+      };
+    });
+
+    expect(result.hasHandler, 'window.elanTurnstileError must be defined on the login page').toBe(true);
+    expect(result.threw, 'elanTurnstileError must not throw').toBeNull();
+    expect(result.resetCalled, 'elanTurnstileError must call turnstile.reset()').toBe(true);
+  });
+
+  test('double-submit does not throw when Turnstile expires between submits', async ({ page }) => {
+    await page.goto('usersc/login.php', { waitUntil: 'networkidle' });
+
+    const pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    // Simulate the reported failure mode: the widget expires (e.g. from an
+    // idle tab or a prior submit consuming the token) between two submits.
+    // Before this fix, the login page had no elanTurnstileExpired handler at
+    // all, so this would have been a ReferenceError if Cloudflare's widget
+    // ever invoked the (unwired) callback.
+    await page.evaluate(() => {
+      window.turnstile = { reset: () => {} };
+      window.elanTurnstileExpired();
+    });
+
+    expect(pageErrors, `Unexpected page errors: ${pageErrors.join('; ')}`).toHaveLength(0);
+  });
+
+  test('elanTurnstileExpired does not throw when window.turnstile is undefined', async ({ page }) => {
+    await page.goto('usersc/login.php', { waitUntil: 'networkidle' });
+
+    // The realistic failure scenario prompting this fix: Cloudflare's widget
+    // script never finished loading/executing, but a stale or otherwise-
+    // fired callback invokes the handler anyway.
+    const result = await page.evaluate(() => {
+      delete window.turnstile;
+      let threw = null;
+      try {
+        window.elanTurnstileExpired();
+      } catch (e) {
+        threw = e.message;
+      }
+      return threw;
+    });
+    expect(result, 'elanTurnstileExpired must not throw when window.turnstile is undefined').toBeNull();
+  });
+});
+
 test.describe('Forgot Password Page', () => {
   const SUBMIT_BUTTON = 'button[name="forgotten_password"], input[name="forgotten_password"]';
 

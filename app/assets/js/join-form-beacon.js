@@ -79,8 +79,11 @@
             msg.textContent = 'Verification expired — please complete the verification challenge again before submitting.';
             msg.classList.remove('d-none');
         }
-        if (window.turnstile && typeof window.turnstile.reset === 'function') {
-            window.turnstile.reset();
+        // Reset itself lives in the shared turnstile-reset.js (loaded before
+        // this file, see usersc/views/_join.php), so both this join-specific
+        // handler and the login page's plainer one share one implementation.
+        if (typeof window.elanTurnstileReset === 'function') {
+            window.elanTurnstileReset();
         }
     };
 

@@ -11,5 +11,15 @@
   "attribution": {
     "commit": "",
     "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(vendor/bin/phpstan analyse *)",
+      "Bash(composer test:full *)",
+      "Bash(composer test:quick *)",
+      "Bash(composer test:integration *)",
+      "Bash(composer check:docs *)",
+      "Bash(gh label list *)"
+    ]
   }
 }

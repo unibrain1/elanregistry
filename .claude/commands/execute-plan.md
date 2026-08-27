@@ -38,8 +38,9 @@ assumptions about what "should" have happened.
 
 Create tasks: locate + validate plan file, re-verify checklist against repo
 state, execute remaining items (fanned out per plan annotations), run
-test/security/architect review steps from the plan, update checklist +
-release notes, final hand-off summary. Set each `in_progress`/`completed` as
+test/PHPStan-baseline-hygiene/security/architect review steps from the plan,
+update checklist + release notes, final hand-off summary. Set each
+`in_progress`/`completed` as
 you progress.
 
 ## Workflow
@@ -156,6 +157,68 @@ Run quality checks: relevant test suites, and note that pre-commit hooks will
 run PHPStan/phpcs on staged files at commit time regardless.
 
 Mark the corresponding checklist items `[x]` as each completes.
+
+### Step 6.5: PHPStan Baseline Hygiene
+
+Per CLAUDE.md's fix-when-you-touch-it policy (see CODING_STANDARDS.md —
+PHPStan Baseline Hygiene): any project-owned PHP file this plan touched must
+not carry `phpstan-baseline.neon` entries — reported errors on touched files
+must be fixed, not grandfathered. This is the same check `/finish-issue`
+Step 4.5 runs, moved earlier so it's caught right after implementation
+instead of at merge time, while the context of what changed is still fresh.
+
+**Why a plain `vendor/bin/phpstan analyse <file>` run does not catch this:**
+`phpstan.neon` includes `phpstan-baseline.neon`, so a normal run — scoped to
+one file or the whole project — silently suppresses every pre-existing
+baseline entry for that file. It only ever reports *new* errors. Checking
+the baseline file directly is the only way to see whether an already-touched
+file still carries old debt:
+
+```bash
+CHANGED_FILES=$(git diff --name-only $(git merge-base HEAD origin/<milestone-branch>)..HEAD)
+
+for f in $CHANGED_FILES; do
+  case "$f" in
+    *.php)
+      if grep -qF "path: $f" phpstan-baseline.neon 2>/dev/null; then
+        echo "BASELINE OVERRIDE: $f"
+      fi
+      ;;
+  esac
+done
+```
+
+(If the branch has no commits yet — e.g. this step runs before `/commit` —
+use `git diff --name-only` with no ref, or `git status --short`, to get the
+working-tree changed-file list instead.)
+
+**If any file appears:** read the matching baseline entries
+(`grep -B3 -A8 "path: <file>" phpstan-baseline.neon`) to see the exact
+errors. Then:
+
+- **If the flagged lines were touched by this plan's work:** fix them now —
+  this is exactly the debt fix-when-you-touch-it exists to catch.
+- **If the flagged lines are elsewhere in the file, untouched by this
+  plan:** use AskUserQuestion rather than deciding unilaterally — do not
+  silently carry the debt forward and do not silently fix unrelated code
+  without confirming scope:
+  - Question: "`<file>` has N pre-existing PHPStan baseline entries on lines
+    this plan didn't touch. How should I proceed?"
+  - Options: `Carry over, not touched by this plan` (recommended — avoids
+    scope creep into unrelated debt), `Fix them now anyway` (if the file is
+    already open and the fix is small)
+
+After any fix, regenerate the baseline to drop resolved entries:
+
+```bash
+composer phpstan:baseline
+```
+
+Re-run the affected test suite and PHPStan on the file to confirm clean,
+then re-check the `CHANGED_FILES` loop above returns nothing for it.
+
+**If no changed file appears in the baseline:** proceed to Step 7 with
+nothing to do here.
 
 ### Step 7: Security and Architect Review
 

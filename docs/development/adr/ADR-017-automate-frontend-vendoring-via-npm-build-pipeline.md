@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-018](ADR-018-build-at-deploy-for-frontend-vendoring.md)
 
 **Supersedes:** [ADR-015](ADR-015-self-host-frontend-libraries.md)
 

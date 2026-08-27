@@ -17,7 +17,9 @@ require_once '../../../users/init.php';
 use ElanRegistry\ApiResponse;
 use ElanRegistry\Input;
 use ElanRegistry\LogCategories;
+use ElanRegistry\Car\CarRepository;
 use ElanRegistry\Car\CarValidator;
+use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarValidationException;
 
 if (!Input::existsPost()) {
@@ -66,23 +68,19 @@ try {
             ->send();
     }
 
-    $db = DB::getInstance();
-    $carQ = $db->query(
-        'SELECT id FROM cars WHERE year = ? AND type = ? AND chassis = ?',
-        [$year, $type, $chassis]
-    );
-
-    if ($carQ->error()) {
+    try {
+        $result = (new CarRepository(dbi()))->findByChassisKey($year, $type, $chassis);
+    } catch (CarDatabaseException $e) {
         ApiResponse::serverError('Unable to verify chassis availability')
             ->withLogging(
                 $logUserId,
                 LogCategories::LOG_CATEGORY_DATABASE_ERROR,
-                'chassis-availability: DB error on chassis lookup: ' . $db->errorString()
+                'chassis-availability: DB error on chassis lookup: ' . $e->getMessage()
             )
             ->send();
     }
 
-    $isTaken = $carQ->count() > 0;
+    $isTaken = $result !== null;
 
     ApiResponse::success($isTaken ? 'Chassis number is already registered' : 'Chassis number is available')
         ->withData('taken', $isTaken)

@@ -134,6 +134,12 @@ yarn-error.log*
 .yarn-integrity
 
 ########################################
+# Frontend Vendored Assets (ADR-018: built at deploy time)
+########################################
+usersc/js/*
+usersc/css/*
+
+########################################
 # Testing
 ########################################
 # PHPUnit

@@ -303,8 +303,7 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                     const btn = e.target.closest('[data-action]');
                     if (!btn) return;
                     if (btn.dataset.action === 'returnToMenu') {
-                        if (window.opener) { window.opener.location.reload(); window.close(); }
-                        else { window.location.href = '../../index.php?tab=maintenance'; }
+                        window.close();
                     }
                 });
             </script>
@@ -454,15 +453,9 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                     echo "<script nonce=\"" . htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') . "\">showCompletionSummary(`$final_stats`, " . ($cumulative_errors > 0 ? 'true' : 'false') . ");</script>";
 
                     // Log to fix_script_runs table
-                    try {
-                        $db->insert('fix_script_runs', [
-                            'script_name' => basename(__FILE__),
-                            'completed_at' => date('Y-m-d H:i:s')
-                        ]);
-                    } catch (\Throwable $e) {
-                        logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, "Failed to record fix_script_runs completion: " . $e->getMessage() . " (Issue #176)");
-                        outputMessage("⚠️ Warning: Could not record script completion in fix_script_runs table");
-                    }
+                    admin_script_record_completion(__FILE__, (int) $user->data()->id, function (string $msg) {
+                        outputMessage($msg);
+                    });
 
                     // Log final completion
                     logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, "Thumbnail optimization completed (batched) - Total Processed: {$cumulative_processed}, Generated: {$cumulative_generated}, Removed: {$cumulative_removed}, Errors: {$cumulative_errors} (Issue #176)");
@@ -638,7 +631,7 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                         echo "<script nonce=\"" . htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') . "\">
                             setTimeout(function() {
                                 addLogMessage('🔄 Automatically continuing to next batch...');
-                                window.location.href = {$next_url_js};
+                                window.location.replace({$next_url_js});
                             }, 2000);
                         </script>";
 
@@ -649,15 +642,9 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                     outputMessage("✅ All batches completed! Thumbnail optimization finished!");
 
                     // Log to fix_script_runs table
-                    try {
-                        $db->insert('fix_script_runs', [
-                            'script_name' => basename(__FILE__),
-                            'completed_at' => date('Y-m-d H:i:s')
-                        ]);
-                    } catch (\Throwable $e) {
-                        logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, "Failed to record fix_script_runs completion: " . $e->getMessage() . " (Issue #176)");
-                        outputMessage("⚠️ Warning: Could not record script completion in fix_script_runs table");
-                    }
+                    admin_script_record_completion(__FILE__, (int) $user->data()->id, function (string $msg) {
+                        outputMessage($msg);
+                    });
 
                     // Log the final completion
                     logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, "Thumbnail optimization completed (batched) - Total Processed: {$cumulative_processed}, Generated: {$cumulative_generated}, Removed: {$cumulative_removed}, Errors: {$cumulative_errors} (Issue #176)");

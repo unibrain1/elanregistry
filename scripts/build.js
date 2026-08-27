@@ -1,5 +1,10 @@
 'use strict';
 
+// NOTE: Any npm package this script (or a package it calls, like esbuild)
+// needs at build time must stay in package.json's "dependencies", not
+// "devDependencies". Deploy runs `npm ci --omit=dev` before invoking this
+// script (see scripts/server-hooks/post-receive, ADR-018), which deletes
+// devDependencies entirely.
 const esbuild = require('esbuild');
 const fs = require('fs');
 
@@ -18,6 +23,7 @@ const jsFiles = [
   'app/assets/js/car-edit.js',
   'app/assets/js/contact-form.js',
   'app/assets/js/join-form-beacon.js',
+  'app/assets/js/turnstile-reset.js',
   'app/admin/assets/admin-core.js',
   'app/admin/assets/backup-operations.js',
   'app/admin/assets/js/design-system.js',
@@ -51,6 +57,11 @@ Promise.all([
   ...cssFiles.map(f => esbuild.build({ entryPoints: [f], minify: true, outfile: f.replace(/\.css$/, '.min.css') })),
 ]).then(async () => {
   console.log(`Built ${jsFiles.length + cssFiles.length} files.`);
+
+  // usersc/js and usersc/css are gitignored build output (ADR-018) — they
+  // won't exist on a fresh clone/checkout, so create them before writing.
+  fs.mkdirSync('usersc/js', { recursive: true });
+  fs.mkdirSync('usersc/css', { recursive: true });
 
   for (const [src, dest] of vendorFiles) {
     fs.copyFileSync(src, dest);

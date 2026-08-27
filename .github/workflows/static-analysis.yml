@@ -36,7 +36,6 @@ jobs:
       php: ${{ steps.filter.outputs.php }}
       js: ${{ steps.filter.outputs.js }}
       docs: ${{ steps.filter.outputs.docs }}
-      vendor: ${{ steps.filter.outputs.vendor }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -58,12 +57,6 @@ jobs:
             docs:
               - "**.md"
               - "scripts/check-docs.php"
-            vendor:
-              - "package.json"
-              - "package-lock.json"
-              - "scripts/build.js"
-              - "usersc/js/**"
-              - "usersc/css/**"
 
   docs:
     name: Documentation Consistency
@@ -198,27 +191,3 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
-
-  vendor-drift:
-    name: Vendored Asset Drift Check
-    needs: changes
-    if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.vendor == 'true')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build vendored assets
-        run: npm run build
-
-      - name: Fail if committed vendored assets are out of date
-        run: git diff --exit-code -- usersc/js usersc/css

@@ -769,7 +769,7 @@ function uploadImages(array &$cardetails, array &$errors): void
                             $resizeObj = new Resize($filePath . $newFileName);
                             $resizeObj->resizeImage($size, $size, 'auto');
                             $resizeObj->saveImage($thumbname, 80);
-                        } catch (ElanRegistryException $e) {
+                        } catch (\Throwable $e) {
                             $resizeSuccess = false;
                             logger(
                                 $user->data()->id,
