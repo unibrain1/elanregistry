@@ -143,7 +143,11 @@ except those explicitly listed as project-owned:
 
 ```bash
 composer install                # PHP dependencies
-npm install                     # Node dependencies (for testing)
+npm install                     # Node dependencies
+npm run build                   # Required after install/clone — usersc/js and usersc/css
+                                 # (DataTables, Chart.js, MapLibre GL, FilePond) are gitignored
+                                 # build output (ADR-018); the site has no working frontend
+                                 # until this runs at least once
 ./scripts/setup-git-hooks.sh    # Pre-commit quality checks (RECOMMENDED)
 
 # PHP testing

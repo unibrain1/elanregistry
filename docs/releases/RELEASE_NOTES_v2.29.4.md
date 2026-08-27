@@ -10,10 +10,12 @@
 2. **#1803**: force Facebook's
    [Sharing Debugger](https://developers.facebook.com/tools/debug/) to
    re-scrape affected link-card URLs.
-3. **#1806**: after the first deploy to each environment, confirm the new
-   `post-receive` build step ran and `usersc/js`/`usersc/css` regenerated —
-   see [DEPLOYMENT.md](../development/DEPLOYMENT.md) for the "two pushes"
-   hook-update quirk.
+3. **#1806**: the new build step only takes effect on the *second* push to
+   each environment (see DEPLOYMENT.md's "two pushes" hook-update quirk) —
+   push, then immediately `git commit --allow-empty && git push` again,
+   back-to-back. The frontend (DataTables/maps/charts/uploads) is degraded
+   between the two pushes, so do not delay. After push #2, confirm
+   `usersc/js`/`usersc/css` regenerated and pages render correctly.
 
 ## User-Facing Changes
 
