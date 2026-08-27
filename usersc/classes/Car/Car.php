@@ -170,7 +170,7 @@ class Car
             try {
                 $fields['image'] = $this->getImageProcessor()->encodeImages($fields['images']);
                 unset($fields['images']);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_FILE_ERROR, "Car class: Image encoding error during create: " . $e->getMessage());
                 throw new ImageProcessingException('Error processing car images: ' . $e->getMessage());
             }
@@ -231,7 +231,7 @@ class Car
             try {
                 $fields['image'] = $this->getImageProcessor()->encodeImages($fields['images']);
                 unset($fields['images']);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_FILE_ERROR, "Car class: Image encoding error during update: " . $e->getMessage());
                 throw new ImageProcessingException('Error processing car images: ' . $e->getMessage());
             }
@@ -607,7 +607,7 @@ class Car
                 return $car->exists() ? $car : null;
             }
             return null;
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Unexpected error: ' . $e->getMessage());
             throw new CarDatabaseException('An unexpected error occurred. Please try again or contact support.');
         }
