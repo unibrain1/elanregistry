@@ -51,6 +51,60 @@ test.describe('Join form client-side failure beacon (#1690)', () => {
     expect(wasReset).toBe(true);
   });
 
+  // Regression guard for #1798: turnstile-reset.js must load before
+  // join-form-beacon.js on this page — the latter's elanTurnstileExpired
+  // delegates to window.elanTurnstileReset() internally. Nothing enforces
+  // this ordering except the two <script src> tags' document position (see
+  // usersc/views/_join.php).
+  test('turnstile-reset.js script tag appears before join-form-beacon.js in the DOM', async ({ page }) => {
+    // Checking window.elanTurnstileReset's existence (or which handler
+    // "won") after page load can't distinguish correct load order from any
+    // order — both scripts have already executed by the time page.evaluate
+    // runs, and the second-loaded script's assignment always wins
+    // regardless of which one that is. Only the actual <script> tag
+    // position in the DOM proves the enforced order.
+    const scriptOrder = await page.evaluate(() => {
+      const scripts = Array.from(document.querySelectorAll('script[src]'));
+      return scripts
+        .map((s) => s.src)
+        .filter((src) => src.includes('turnstile-reset') || src.includes('join-form-beacon'));
+    });
+
+    expect(scriptOrder.length, 'both turnstile-reset and join-form-beacon script tags must be present').toBe(2);
+    expect(scriptOrder[0], 'turnstile-reset.js must appear before join-form-beacon.js').toContain('turnstile-reset');
+    expect(scriptOrder[1]).toContain('join-form-beacon');
+  });
+
+  test('join-form-beacon.js\'s elanTurnstileExpired delegates to window.elanTurnstileReset()', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      let sharedResetCalled = false;
+      window.elanTurnstileReset = () => { sharedResetCalled = true; };
+      window.elanTurnstileExpired();
+      return sharedResetCalled;
+    });
+    expect(result, 'join-form-beacon.js\'s elanTurnstileExpired must call window.elanTurnstileReset()').toBe(true);
+  });
+
+  // Regression guard for #1798: the shared reset helper's guard clause
+  // (window.turnstile && typeof window.turnstile.reset === 'function') must
+  // hold even when Cloudflare's widget script never finished loading/
+  // executing — the realistic scenario that originally prompted this fix,
+  // not just the "stub it and confirm it's called" happy path the other
+  // tests exercise.
+  test('elanTurnstileExpired does not throw when window.turnstile is undefined', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      delete window.turnstile;
+      let threw = null;
+      try {
+        window.elanTurnstileExpired();
+      } catch (e) {
+        threw = e.message;
+      }
+      return threw;
+    });
+    expect(result, 'elanTurnstileExpired must not throw when window.turnstile is undefined').toBeNull();
+  });
+
   test('a GPS failure POSTs to join-failure-report.php with reason=location_gps_failed', async ({ page, context }) => {
     // Deny geolocation so handleGPSClick()'s catch branch (and therefore
     // onGPSError) actually fires.

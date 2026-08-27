@@ -18,6 +18,7 @@ const jsFiles = [
   'app/assets/js/car-edit.js',
   'app/assets/js/contact-form.js',
   'app/assets/js/join-form-beacon.js',
+  'app/assets/js/turnstile-reset.js',
   'app/admin/assets/admin-core.js',
   'app/admin/assets/backup-operations.js',
   'app/admin/assets/js/design-system.js',

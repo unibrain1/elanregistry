@@ -407,5 +407,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- Shared Turnstile reset helper — must load before the beacon script below,
+     which redefines elanTurnstileError/elanTurnstileExpired with its own
+     join-specific versions that call window.elanTurnstileReset() -->
+<script src="<?=$us_url_root?>app/assets/js/turnstile-reset.min.js?v=<?= ASSET_VERSION ?>"></script>
+
 <!-- Join Form Beacon Script -->
 <script src="<?=$us_url_root?>app/assets/js/join-form-beacon.min.js?v=<?= ASSET_VERSION ?>"></script>
