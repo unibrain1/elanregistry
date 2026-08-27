@@ -58,6 +58,11 @@ Promise.all([
 ]).then(async () => {
   console.log(`Built ${jsFiles.length + cssFiles.length} files.`);
 
+  // usersc/js and usersc/css are gitignored build output (ADR-018) — they
+  // won't exist on a fresh clone/checkout, so create them before writing.
+  fs.mkdirSync('usersc/js', { recursive: true });
+  fs.mkdirSync('usersc/css', { recursive: true });
+
   for (const [src, dest] of vendorFiles) {
     fs.copyFileSync(src, dest);
   }
