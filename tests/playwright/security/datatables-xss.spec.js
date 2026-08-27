@@ -338,7 +338,7 @@ test.describe('DataTables XSS render guard — car history table', () => {
         const csrf = await getCsrfFromOwnerForm(page);
         if (!csrf) {
             await context.close();
-            return;
+            throw new Error(`Car history XSS tests require a disposable car fixture; could not read #csrf on ${CAR_EDIT_FORM_PAGE}`);
         }
 
         const response = await page.request.post(ADD_CAR_ENDPOINT, {
@@ -387,10 +387,22 @@ test.describe('DataTables XSS render guard — car history table', () => {
                     csrf,
                 },
             });
-            if (response.status() !== 200) {
+            // app/admin/index.php never changes HTTP status on failure — errors
+            // (bad confirmation text, car not found, permission denial, DB
+            // errors) are queued as a session flash and rendered inline in this
+            // same 200 response as userSpiceMessage("<message>",'danger') —
+            // a quoted string literal, distinct from the static boilerplate
+            // `userSpiceMessage(msg,'danger')` helper definition that's present
+            // on every page load regardless of outcome (verified: the literal
+            // identifier `msg` never appears quoted, only a real error message
+            // does). A status check alone cannot detect these; check the body
+            // for the quoted-literal form specifically.
+            const body = await response.text().catch(() => '');
+            const hasErrorToast = /userSpiceMessage\(\s*"[^"]*"\s*,\s*'danger'\s*\)/.test(body);
+            if (response.status() !== 200 || hasErrorToast) {
                 console.error(
-                    `[datatables-xss.spec.js] Delete request for fixture car ${carId} returned ` +
-                    `HTTP ${response.status()} — cleanup may have failed; verify manually.`
+                    `[datatables-xss.spec.js] Delete request for fixture car ${carId} did not ` +
+                    `confirm success (HTTP ${response.status()}${hasErrorToast ? ', error toast present in response' : ''}) — cleanup may have failed; verify manually.`
                 );
             }
         }
@@ -399,7 +411,6 @@ test.describe('DataTables XSS render guard — car history table', () => {
 
     test('car history DataTable initialises on details page', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
         await openCarHistoryTable(page, carId);
@@ -408,7 +419,6 @@ test.describe('DataTables XSS render guard — car history table', () => {
 
     test('render guard prevents XSS when history row contains HTML payload', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
         await openCarHistoryTable(page, carId);
@@ -450,7 +460,6 @@ test.describe('DataTables XSS render guard — car history table', () => {
 
     test('no raw XSS probe <img src="x"> injected inside #carHistoryTable', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
         await openCarHistoryTable(page, carId);
@@ -467,7 +476,6 @@ test.describe('DataTables XSS render guard — car history table', () => {
 
     test('render guard prevents XSS in chassis column of history table', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
         await openCarHistoryTable(page, carId);
