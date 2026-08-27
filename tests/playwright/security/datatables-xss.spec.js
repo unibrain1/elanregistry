@@ -351,7 +351,7 @@ test.describe('DataTables XSS render guard — car history table', () => {
                 csrf,
             },
         });
-        let failureDetail = `HTTP ${response.status()}`;
+        let failureDetail = `HTTP ${response.status()}: ${await response.text().catch(() => '<unreadable body>')}`;
         if (response.status() === 200) {
             const body = await response.json().catch(() => null);
             carId = body?.cardetails?.id ? parseInt(body.cardetails.id, 10) : null;
