@@ -357,7 +357,7 @@ Determine which agents apply based on `git diff --name-only main...milestone/$AR
 | `.php` with forms/SQL | + security-reviewer |
 | New PHP classes/types | + type-design-analyzer |
 | Test files changed | pr-test-analyzer |
-| Docs/comments changed | comment-analyzer |
+| Docs/comments changed | comment-analyzer + independent fact-check (see `/review-pr` Step 4.5 — fresh, context-free agent re-derives each factual claim from source rather than trusting the diff) |
 
 Launch only the applicable agents in parallel. Skip agents for file types not present in the diff.
 

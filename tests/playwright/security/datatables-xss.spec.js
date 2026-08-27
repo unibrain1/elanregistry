@@ -283,9 +283,48 @@ test.describe('DataTables XSS render guard — factory table', () => {
 // Section 3: Car history table (app/owner/cars/details.php → #carHistoryTable)
 //
 // Same row.add() approach: inject an XSS payload in the color column and
-// verify the rendered DOM is safe. A beforeAll fetches a car_id from the
-// car list page so no ID needs to be hardcoded.
+// verify the rendered DOM is safe. A beforeAll creates a disposable car
+// fixture (rather than assuming one already exists in the test DB — see
+// issue #1732) so the section passes deterministically regardless of
+// ambient DB state; an afterAll cleans it up via the admin delete form,
+// the only delete path the app exposes (there is no owner-facing delete
+// endpoint). This only works because the shared test account
+// (TEST_USERNAME/TEST_PASSWORD) is an admin — a fixture needing a
+// non-admin-owned car (e.g. #1789) would need a second test identity.
 // ---------------------------------------------------------------------------
+
+const ADD_CAR_ENDPOINT    = 'app/api/cars/save.php';
+const ADMIN_DELETE_ENDPOINT = 'app/admin/index.php';
+const CAR_EDIT_FORM_PAGE  = 'app/owner/cars/edit.php';
+
+async function getCsrfFromOwnerForm(page) {
+    await page.goto(CAR_EDIT_FORM_PAGE, { waitUntil: 'domcontentloaded' });
+    try {
+        return (await page.inputValue('#csrf', { timeout: 3000 })) || null;
+    } catch (err) {
+        console.error(`getCsrfFromOwnerForm: could not read #csrf on ${CAR_EDIT_FORM_PAGE}: ${err.message}`);
+        return null;
+    }
+}
+
+async function getCsrfFromAdminDeleteForm(page) {
+    await page.goto(ADMIN_DELETE_ENDPOINT, { waitUntil: 'domcontentloaded' });
+    try {
+        return (await page.locator('.delete-form input[name="csrf"]').inputValue({ timeout: 3000 })) || null;
+    } catch (err) {
+        console.error(`getCsrfFromAdminDeleteForm: could not read delete-form csrf on ${ADMIN_DELETE_ENDPOINT}: ${err.message}`);
+        return null;
+    }
+}
+
+// Navigates to the details page and expands the history table. #historyDetails
+// is a Bootstrap collapse, hidden by default on every car (ambient or fixture)
+// — the table wrapper only becomes visible once #historyToggleBtn is clicked.
+async function openCarHistoryTable(page, carId) {
+    await page.goto(`app/owner/cars/details.php?car_id=${carId}`, { waitUntil: 'domcontentloaded' });
+    await page.locator('#historyToggleBtn').click();
+    await page.waitForSelector('#carHistoryTable_wrapper', { timeout: 15000 });
+}
 
 test.describe('DataTables XSS render guard — car history table', () => {
     let carId = null;
@@ -295,37 +334,94 @@ test.describe('DataTables XSS render guard — car history table', () => {
         const context = await browser.newContext();
         const page    = await context.newPage();
         await ensureLoggedIn(page);
-        await page.goto(CAR_LIST_PAGE, { waitUntil: 'domcontentloaded' });
-        await waitForDataTables(page, 15000);
-        carId = await page.evaluate(() => {
-            const link = document.querySelector('#cartable tbody a[href*="car_id="]');
-            if (!link) return null;
-            const m = link.href.match(/car_id=(\d+)/);
-            return m ? parseInt(m[1], 10) : null;
+
+        const csrf = await getCsrfFromOwnerForm(page);
+        if (!csrf) {
+            await context.close();
+            throw new Error(`Car history XSS tests require a disposable car fixture; could not read #csrf on ${CAR_EDIT_FORM_PAGE}`);
+        }
+
+        const response = await page.request.post(ADD_CAR_ENDPOINT, {
+            form: {
+                action: 'addCar',
+                year: '1966',
+                model: 'S3|FHC|36',
+                chassis: `TEST-${Date.now()}`,
+                chassis_override: '1',
+                csrf,
+            },
         });
+        let failureDetail = `HTTP ${response.status()}: ${await response.text().catch(() => '<unreadable body>')}`;
+        if (response.status() === 200) {
+            const body = await response.json().catch(() => null);
+            carId = body?.cardetails?.id ? parseInt(body.cardetails.id, 10) : null;
+            if (!carId) {
+                failureDetail = `response had no cardetails.id: ${JSON.stringify(body)}`;
+            }
+        }
         await context.close();
         if (!carId) {
-            throw new Error('History XSS tests require at least one car in the test database — none found in #cartable');
+            throw new Error(`Car history XSS tests require a disposable car fixture; addCar failed (${failureDetail})`);
         }
+    });
+
+    test.afterAll(async ({ browser }) => {
+        if (!carId) return;
+        const context = await browser.newContext();
+        const page    = await context.newPage();
+        await ensureLoggedIn(page);
+
+        const csrf = await getCsrfFromAdminDeleteForm(page);
+        if (!csrf) {
+            console.error(
+                `[datatables-xss.spec.js] Could not fetch CSRF token to delete fixture car ${carId} — ` +
+                'it was NOT cleaned up and remains in the database. Delete manually if needed.'
+            );
+        } else {
+            const response = await page.request.post(ADMIN_DELETE_ENDPOINT, {
+                form: {
+                    command: 'delete',
+                    car_id: String(carId),
+                    confirmation: 'DELETE',
+                    reason: 'Playwright test fixture cleanup (#1732)',
+                    csrf,
+                },
+            });
+            // app/admin/index.php never changes HTTP status on failure — errors
+            // (bad confirmation text, car not found, permission denial, DB
+            // errors) are queued as a session flash and rendered inline in this
+            // same 200 response as userSpiceMessage("<message>",'danger') —
+            // a quoted string literal, distinct from the static boilerplate
+            // `userSpiceMessage(msg,'danger')` helper definition that's present
+            // on every page load regardless of outcome (verified: the literal
+            // identifier `msg` never appears quoted, only a real error message
+            // does). A status check alone cannot detect these; check the body
+            // for the quoted-literal form specifically.
+            const body = await response.text().catch(() => '');
+            const hasErrorToast = /userSpiceMessage\(\s*"[^"]*"\s*,\s*'danger'\s*\)/.test(body);
+            if (response.status() !== 200 || hasErrorToast) {
+                console.error(
+                    `[datatables-xss.spec.js] Delete request for fixture car ${carId} did not ` +
+                    `confirm success (HTTP ${response.status()}${hasErrorToast ? ', error toast present in response' : ''}) — cleanup may have failed; verify manually.`
+                );
+            }
+        }
+        await context.close();
     });
 
     test('car history DataTable initialises on details page', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
-        await page.goto(`app/owner/cars/details.php?car_id=${carId}`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('#carHistoryTable_wrapper', { timeout: 15000 });
+        await openCarHistoryTable(page, carId);
         await expect(page.locator('#carHistoryTable')).toBeAttached();
     });
 
     test('render guard prevents XSS when history row contains HTML payload', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
-        await page.goto(`app/owner/cars/details.php?car_id=${carId}`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('#carHistoryTable_wrapper', { timeout: 15000 });
+        await openCarHistoryTable(page, carId);
 
         const result = await page.evaluate(() => {
             window.__historyXssFlag = undefined;
@@ -364,11 +460,9 @@ test.describe('DataTables XSS render guard — car history table', () => {
 
     test('no raw XSS probe <img src="x"> injected inside #carHistoryTable', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
-        await page.goto(`app/owner/cars/details.php?car_id=${carId}`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('#carHistoryTable_wrapper', { timeout: 15000 });
+        await openCarHistoryTable(page, carId);
 
         const probeCount = await page.evaluate(() =>
             document.querySelectorAll('#carHistoryTable img[src="x"]').length
@@ -382,11 +476,9 @@ test.describe('DataTables XSS render guard — car history table', () => {
 
     test('render guard prevents XSS in chassis column of history table', async ({ page }) => {
         skipIfNoCreds();
-        if (!carId) test.skip(true, 'No cars found in registry — cannot load car details page');
 
         await ensureLoggedIn(page);
-        await page.goto(`app/owner/cars/details.php?car_id=${carId}`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('#carHistoryTable_wrapper', { timeout: 15000 });
+        await openCarHistoryTable(page, carId);
 
         const result = await page.evaluate(() => {
             window.__chassisXssFlag = undefined;

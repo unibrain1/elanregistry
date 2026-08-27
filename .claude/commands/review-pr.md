@@ -178,13 +178,13 @@ file looks like now in its entirety.
 
 Based on `$ARGUMENTS` (default: all applicable):
 
-| Aspect    | Agent                                      | When to run                                          |
-|-----------|--------------------------------------------|------------------------------------------------------|
-| `code`    | `pr-review-toolkit:code-reviewer`          | Always                                               |
-| `errors`  | `pr-review-toolkit:silent-failure-hunter`  | If catch blocks, fallbacks, or error paths changed   |
-| `comments`| `pr-review-toolkit:comment-analyzer`       | If PHPDoc, inline comments, or docstrings changed    |
-| `tests`   | `pr-review-toolkit:pr-test-analyzer`       | If test files changed or new features added          |
-| `simplify`| `pr-review-toolkit:code-simplifier`        | After all other agents pass; final polish only       |
+| Aspect     | Agent                                                                    | When to run                                        |
+|------------|--------------------------------------------------------------------------|----------------------------------------------------|
+| `code`     | `pr-review-toolkit:code-reviewer`                                        | Always                                             |
+| `errors`   | `pr-review-toolkit:silent-failure-hunter`                                | If catch blocks, fallbacks, or error paths changed |
+| `comments` | `pr-review-toolkit:comment-analyzer` + independent fact-check (Step 4.5) | If PHPDoc, inline comments, or docstrings changed  |
+| `tests`    | `pr-review-toolkit:pr-test-analyzer`                                     | If test files changed or new features added        |
+| `simplify` | `pr-review-toolkit:code-simplifier`                                      | After all other agents pass; final polish only     |
 
 If `$ARGUMENTS` is empty or `all`, run all applicable agents based on the changed
 file types (skip test analyzer if no test files changed; skip comment analyzer if
@@ -215,6 +215,49 @@ Provide **each agent** with:
 
 Run all applicable agents **in parallel** for speed. `simplify` always runs last,
 after other agents complete.
+
+---
+
+## Step 4.5: Independent fact-check of comments (if `comments` applies)
+
+`comment-analyzer` reviews comment *quality* (clarity, redundancy, rot risk) —
+it does not independently verify that a comment's factual claims are true.
+Its context is the same conversation and diff everyone else is looking at, so
+an inaccurate claim that sounds right — because it echoes something decided
+mid-implementation, not because it matches the actual running code — can
+read as correct to every reviewer who already believes it.
+
+When any comment changed or was added in this branch's diff makes a factual
+claim about the codebase — endpoint contracts, response shapes, "the only
+path that does X," field names, framework behavior (e.g. "this element is
+hidden by default"), required values — verify it with a **fresh agent that
+has no prior context on this branch, this conversation, or this PR**. Launch
+via the `Agent` tool with `subagent_type: "general-purpose"` (not `fork` —
+a fork inherits this conversation, which is exactly what must be avoided
+here) and a prompt that:
+
+- Names the file(s) and the specific comments to audit, quoted verbatim
+- Instructs it to treat every factual claim in those comments as **unverified
+  and to be falsified**, not as documentation to trust
+- Requires it to re-derive each claim from source: grep the repo for
+  competing/alternative code paths the comment claims don't exist, read the
+  actual endpoint/function referenced, query a live DB directly if the claim
+  is about data (e.g. "this value exists in table X"), and check framework
+  defaults (e.g. CSS class behavior) against the actual markup/library, not
+  the comment's description of it
+- Asks for an explicit verdict per claim: VERIFIED (with the file:line or
+  query result that proves it) or CONTRADICTED/UNVERIFIABLE (with what was
+  found instead)
+
+This step exists because the same tool call that produces a plausible-sounding
+comment can also produce a plausible-sounding review of it — both draw on the
+same (possibly wrong) belief formed during implementation. A fresh agent with
+no memory of *how* the code came to look this way has no such belief to
+confirm; it only has the repo as it exists right now.
+
+Fold any CONTRADICTED/UNVERIFIABLE finding into Step 5's Blocking table.
+VERIFIED findings need no further action — do not report them as if they were
+new information, since they simply confirm what the diff already claimed.
 
 ---
 
@@ -300,6 +343,11 @@ start, or skipped.
 - The `simplify` aspect runs only after all other aspects pass — don't use it
   to mask unfixed issues.
 - To review only specific aspects: `/review-pr code errors`
+- **The `comments` aspect's fact-check (Step 4.5) must run as a genuinely
+  fresh agent, not a fork.** A fork inherits this conversation's context —
+  including whatever belief produced the comment in the first place — which
+  defeats the point. Only an agent with no memory of this session can
+  meaningfully falsify a claim instead of recognizing and confirming it.
 - **A green PHPUnit exit code does not mean the suite ran.** An unreachable
   database exits 0 having run zero tests (UserSpice `die()`s in bootstrap
   before PHPUnit reports), and skips, warnings, incomplete, and risky tests
