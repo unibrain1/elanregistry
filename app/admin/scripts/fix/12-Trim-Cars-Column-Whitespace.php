@@ -78,6 +78,29 @@ function trimColumn(object $db, string $column): int
     return $db->count();
 }
 
+/**
+ * Set the session-scoped cars_update audit-trigger suppression flag.
+ *
+ * Declared as a standalone function (rather than inlined in the processing
+ * block below) so $db is typed `object`, matching countColumnAffected()/
+ * trimColumn() — PHPStan's flow analysis otherwise assumes the concrete
+ * DB instance's internal error state can't change between two calls in the
+ * same scope, since it can't see that the intervening trim loop's query()
+ * calls mutate it.
+ *
+ * @param bool $enabled true to suppress the trigger, false to restore it
+ * @throws \RuntimeException If the SET query fails
+ */
+function setTriggerSuppression(object $db, bool $enabled): void
+{
+    $db->query('SET @disable_triggers = ' . ($enabled ? '1' : 'NULL'));
+    if ($db->error()) {
+        throw new \RuntimeException(
+            'Failed to ' . ($enabled ? 'set' : 'reset') . ' @disable_triggers: ' . $db->errorString()
+        );
+    }
+}
+
 $isProcessing = admin_script_exec_requested();
 
 ?>
@@ -262,7 +285,7 @@ $isProcessing = admin_script_exec_requested();
                             // every trimmed row would otherwise generate a redundant cars_hist row
                             // per column touched. See the trigger's own docblock in
                             // database/migrations/20260709000000_add_elanregistry_baseline.php.
-                            $db->query('SET @disable_triggers = 1');
+                            setTriggerSuppression($db, true);
 
                             foreach (CARS_TRIM_COLUMNS as $column) {
                                 $changed = trimColumn($db, $column);
@@ -271,7 +294,7 @@ $isProcessing = admin_script_exec_requested();
                                 $results['processed'] += $changed;
                             }
 
-                            $db->query('SET @disable_triggers = NULL');
+                            setTriggerSuppression($db, false);
 
                             admin_script_record_completion(
                                 __FILE__,
@@ -310,7 +333,12 @@ $isProcessing = admin_script_exec_requested();
                                 logProgress("Warnings: {$results['warnings']}", 'warning');
                             }
 
-                        } catch (\Exception $e) {
+                        } catch (\Throwable $e) {
+                            // Catches \Throwable, not just \Exception: countColumnAffected()/
+                            // trimColumn() run under strict_types, so a future misuse (wrong
+                            // type passed in) raises \TypeError, which extends \Error, not
+                            // \Exception — catching only \Exception would let it escape this
+                            // block entirely and skip the @disable_triggers reset below.
                             $results['errors']++;
                             logProgress('FATAL ERROR: ' . $e->getMessage(), 'error');
                             logger(
@@ -320,8 +348,20 @@ $isProcessing = admin_script_exec_requested();
                             );
                             // Always clear the trigger-suppression flag, even on a mid-loop
                             // failure, so a later query on this connection doesn't silently
-                            // skip audit-trail writes.
-                            $db->query('SET @disable_triggers = NULL');
+                            // skip audit-trail writes. Nested try/catch: setTriggerSuppression()
+                            // throws on failure, and we're already handling one failure here —
+                            // a second throw must not escape uncaught.
+                            try {
+                                setTriggerSuppression($db, false);
+                            } catch (\Throwable $resetError) {
+                                logProgress('WARNING: failed to reset @disable_triggers — ' . $resetError->getMessage(), 'warning');
+                                logger(
+                                    $user->data()->id,
+                                    LogCategories::LOG_CATEGORY_FIX_SCRIPT,
+                                    '12 trim: failed to reset @disable_triggers during error recovery — ' . $resetError->getMessage()
+                                );
+                                $results['warnings']++;
+                            }
                         }
                     }
 
