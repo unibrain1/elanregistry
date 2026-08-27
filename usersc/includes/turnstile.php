@@ -38,25 +38,31 @@ function isTurnstileEnabled(): bool
  *
  * When $withFailureCallbacks is true, the div also carries
  * data-error-callback="elanTurnstileError" and data-expired-callback="elanTurnstileExpired"
- * attributes, and the script tag gets id="elan-turnstile-script" so
- * join-form-beacon.js can attach a same-origin addEventListener('error', ...)
+ * attributes, and the script tag gets id="elan-turnstile-script" so a
+ * page-appropriate handler can attach a same-origin addEventListener('error', ...)
  * listener to it (an inline onerror="..." attribute would be silently
  * blocked by this site's CSP — script-src has no 'unsafe-inline'/
  * script-src-attr exception, and browsers refuse inline event-handler
  * attributes under that policy; a JS-attached listener isn't subject to
- * that restriction). elanTurnstileError/elanTurnstileExpired/
- * elanTurnstileNotLoaded are defined only by app/assets/js/join-form-beacon.js,
- * loaded solely by usersc/views/_join.php — pass true only from the join
- * page's own call site (usersc/plugins/hooker/hooks/join_form_turnstile.php).
- * Passing true from a page that doesn't load join-form-beacon.js would have
- * Cloudflare's widget invoke undefined window functions; whether that's
- * actually tolerated by Cloudflare's widget isn't verifiable in this repo
- * (the CDN script isn't vendored here), so this is opt-in rather than
- * assumed-safe everywhere. No-ops silently when Turnstile is disabled (off
- * mode or plain HTTP).
+ * that restriction).
  *
- * @param bool $withFailureCallbacks Wire the join page's failure-reporting
- *        callbacks. Defaults to false — safe for login/forgot-password.
+ * elanTurnstileError/elanTurnstileExpired are defined by the shared
+ * app/assets/js/turnstile-reset.js (loaded by both usersc/login.php and
+ * usersc/views/_join.php — see issue #1798), so both call sites can safely
+ * pass true. On the join page, join-form-beacon.js (loaded after
+ * turnstile-reset.js) redefines these two names with its own richer
+ * versions — status-message updates and failure-beacon reporting — that
+ * delegate to the shared reset via window.elanTurnstileReset() internally.
+ * elanTurnstileNotLoaded remains defined only by join-form-beacon.js and is
+ * join-page-specific (covers the api.js script-tag error listener and the
+ * widget-render poll, both scoped to #join-form) — passing true from any
+ * page that doesn't load join-form-beacon.js is still safe for the reset
+ * behavior itself, but won't get the join page's richer error reporting.
+ * No-ops silently when Turnstile is disabled (off mode or plain HTTP).
+ *
+ * @param bool $withFailureCallbacks Wire data-error-callback/data-expired-callback
+ *        to elanTurnstileError/elanTurnstileExpired. Safe to pass true from
+ *        any page that loads turnstile-reset.js (currently login and join).
  * @return void
  */
 function addTurnstile(bool $withFailureCallbacks = false): void
@@ -76,8 +82,11 @@ function addTurnstile(bool $withFailureCallbacks = false): void
     // own JS is already running — is covered by join-form-beacon.js
     // attaching a real addEventListener('error', ...) to this tag via the id
     // below, not an inline onerror attribute (CSP-blocked; see the docblock
-    // above). Only given an id when $withFailureCallbacks is true (join page
-    // only), same gate as the data-*-callback attributes above.
+    // above). This listener is currently only attached on the join page
+    // (join-form-beacon.js is join-specific); the id is still emitted
+    // whenever $withFailureCallbacks is true so any future page loading an
+    // equivalent listener can also target it, same gate as the
+    // data-*-callback attributes above.
     $scriptId = $withFailureCallbacks ? ' id="elan-turnstile-script"' : '';
     echo '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer'
         . $scriptId . '></script>' . "\n";
@@ -97,11 +106,12 @@ function verifyTurnstile(): bool
     if (!isTurnstileEnabled()) {
         return true;
     }
+    global $remote_addr;
     $token = $_POST['cf-turnstile-response'] ?? '';
     if (empty($token)) {
+        logger(0, LogCategories::LOG_CATEGORY_SECURITY, 'Turnstile: empty token submitted from ' . $remote_addr);
         return false;
     }
-    global $remote_addr;
     return _verifyTurnstileToken($_ENV['TURNSTILE_SECRET_KEY'], $token, $remote_addr);
 }
 

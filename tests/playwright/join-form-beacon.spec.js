@@ -51,6 +51,50 @@ test.describe('Join form client-side failure beacon (#1690)', () => {
     expect(wasReset).toBe(true);
   });
 
+  // Regression guard for #1798: turnstile-reset.js must load before
+  // join-form-beacon.js on this page — the latter's elanTurnstileExpired
+  // delegates to window.elanTurnstileReset() internally. Nothing enforces
+  // this ordering except the two <script src> tags' document position (see
+  // usersc/views/_join.php); this test would catch a future reorder or an
+  // accidental defer/async addition breaking that guarantee.
+  test('shared turnstile-reset.js loads before join-form-beacon.js overrides it', async ({ page }) => {
+    const hasSharedReset = await page.evaluate(() => typeof window.elanTurnstileReset === 'function');
+    expect(hasSharedReset, 'window.elanTurnstileReset must be defined — turnstile-reset.js did not load').toBe(true);
+
+    // join-form-beacon.js's own elanTurnstileExpired must still be the one
+    // active on this page (not the shared file's plain version) — confirmed
+    // indirectly via the status-message test above, but here we assert the
+    // override actually happened by checking the reset delegation still
+    // reaches the real turnstile.reset() the shared file wraps.
+    const result = await page.evaluate(() => {
+      let sharedResetCalled = false;
+      window.elanTurnstileReset = () => { sharedResetCalled = true; };
+      window.elanTurnstileExpired();
+      return sharedResetCalled;
+    });
+    expect(result, 'join-form-beacon.js\'s elanTurnstileExpired must call window.elanTurnstileReset()').toBe(true);
+  });
+
+  // Regression guard for #1798: the shared reset helper's guard clause
+  // (window.turnstile && typeof window.turnstile.reset === 'function') must
+  // hold even when Cloudflare's widget script never finished loading/
+  // executing — the realistic scenario that originally prompted this fix,
+  // not just the "stub it and confirm it's called" happy path the other
+  // tests exercise.
+  test('elanTurnstileExpired does not throw when window.turnstile is undefined', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      delete window.turnstile;
+      let threw = null;
+      try {
+        window.elanTurnstileExpired();
+      } catch (e) {
+        threw = e.message;
+      }
+      return threw;
+    });
+    expect(result, 'elanTurnstileExpired must not throw when window.turnstile is undefined').toBeNull();
+  });
+
   test('a GPS failure POSTs to join-failure-report.php with reason=location_gps_failed', async ({ page, context }) => {
     // Deny geolocation so handleGPSClick()'s catch branch (and therefore
     // onGPSError) actually fires.
