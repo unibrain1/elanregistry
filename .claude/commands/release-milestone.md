@@ -64,12 +64,38 @@ gh pr list --base main --state open \
 - The PR must be in a mergeable state (no conflicts, checks passing)
 - The working tree must be clean (`git status --porcelain`)
 - Must be on `main` or the milestone branch
+- **No unresolved Blocking/Important review findings** (see below) — this
+  command does not fix problems, only merges/tags/publishes what's already
+  been fully vetted by `/finish-milestone`.
 
 ```bash
 gh pr view <number> --json mergeable,mergeStateStatus,statusCheckRollup
 ```
 
 If checks are failing or the PR is not mergeable, stop and report the issue.
+
+**This command assumes `/finish-milestone` already resolved every review
+finding before handing off — it does not fix things itself.** Confirm that
+assumption instead of trusting it blindly: fetch every posted review comment
+on the PR and check for a `Blocking` or `Important` heading with actual
+content.
+
+```bash
+gh api "repos/elan-registry/registry/issues/<number>/comments" --jq '.[].body'
+```
+
+**If any comment shows an unresolved Blocking/Important finding** (no later
+comment or commit demonstrably addresses it): **stop immediately.** Do not
+proceed with the confirmation in Step 5, and do not fix the finding as part
+of this run. Report the finding to the user and tell them to go back to
+`/finish-milestone` (or a manual fix-and-push cycle followed by a fresh
+review) to resolve it there, on the still-open, still-reviewable PR — not
+here, where the next steps are irreversible merge/tag/publish actions.
+
+This is the second, independent check on the same requirement
+`/finish-milestone` Step 11.5 exists to satisfy — it exists so that a PR
+which sat open for a while, or one that reached this command by some other
+path, still gets caught rather than silently assumed clean.
 
 ### Step 3: Check version consistency
 

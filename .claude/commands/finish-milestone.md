@@ -433,7 +433,61 @@ This step duplicates the CI job's analysis by design. It runs once per
 milestone, so the extra cost is worth catching problems before the milestone
 branch is exposed as a PR rather than after.
 
-Once every finding is resolved or explicitly accepted, proceed to Step 10.
+Once every finding is resolved or explicitly accepted, proceed to Step 9.9.
+
+### Step 9.9: Fresh-checkout smoke test (only when build/install steps changed)
+
+Every review above — Step 9.7, Step 9.8, CI's own diff-based reviews — reads
+diffs and file contents. None of them *execute* anything against a truly
+clean checkout. That gap let a real bug ship undetected on v2.29.4:
+`scripts/build.js` never created `usersc/js`/`usersc/css` before writing into
+them, so a fresh clone's first build threw `ENOENT` and silently produced no
+vendored frontend assets — invisible to every diff review because every
+existing local checkout already had those directories on disk from before the
+change. It surfaced only by accident, well into `/release-milestone`, when a
+live page happened to be checked in a browser.
+
+**Run this step whenever the milestone touched**: `scripts/build.js` (or any
+build/install tooling), `package.json`/`composer.json` dependency tiers,
+`.gitignore` (new ignored generated-output paths), or `scripts/server-hooks/`
+(deploy-hook logic). Skip it for milestones with no build/install/deploy
+tooling changes — it exists for exactly that class of bug, not as a general
+smoke test.
+
+**Procedure:**
+
+```bash
+# Use a scratch worktree, not your working checkout — the goal is to
+# reproduce what a genuinely fresh clone/deploy sees, with nothing left
+# over from prior local state.
+git worktree add /tmp/milestone-smoke-$ARGUMENTS milestone/$ARGUMENTS
+cd /tmp/milestone-smoke-$ARGUMENTS
+
+composer install --no-dev --optimize-autoloader   # mirrors deploy's actual install flags
+npm ci --omit=dev                                  # mirrors deploy's actual install flags (adjust flags to match this milestone's build.js/post-receive invocation)
+npm run build                                      # or whatever the deploy hook actually runs
+
+# Confirm the build's expected output actually exists on disk — don't just
+# check the exit code, since a partial-then-crash run can exit non-zero
+# after already producing some files (masking that other expected files
+# are missing).
+```
+
+Check the exit code AND the actual file listing of whatever the build is
+supposed to produce (e.g. `ls usersc/js usersc/css` for this milestone's
+vendored-asset build). A clean exit with missing expected output is exactly
+the bug this step exists to catch.
+
+If anything fails or produces incomplete output, fix it on the milestone
+branch (same fix-then-re-verify loop as Step 9.8), then re-run this step
+against the fixed commit. Clean up the worktree when done:
+
+```bash
+cd -
+git worktree remove /tmp/milestone-smoke-$ARGUMENTS
+```
+
+Once clean, proceed to Step 10.
 
 ### Step 10: Create the PR targeting main
 
@@ -588,6 +642,51 @@ gh run list --workflow=claude-code-review.yml --repo elan-registry/registry \
 explicit, reported reason recovery isn't applicable.** This verify-then-
 recover loop replaces the previous assumption that PR-open automatically
 produces a review — that assumption is exactly what failed on PR #1718.
+
+### Step 11.5: Fix findings and confirm CI is fully green before handoff
+
+Finding a comment exists (Step 11) is not the same as the milestone being
+ready to release. Read the comment's actual content and check for any
+`Blocking` or `Important` heading — not just whether the comment exists.
+
+**This step exists because of a real incident**: on v2.29.4, Step 11 verified
+a review posted and stopped there. The posted review had 3 `Important`
+findings (a two-push deploy-window gap, an unverified prod host, and
+`node_modules` persisting in the deployed docroot). None were fixed before
+`/finish-milestone` handed off — they were only discovered and fixed later,
+*during* `/release-milestone`, forcing a second review round and a live
+merge-in-progress fix cycle. `/release-milestone` is the point of no return;
+finding and fixing problems there is strictly worse than finding them here.
+
+**Procedure:**
+
+1. Fetch the posted comment(s) and check for `## Blocking` or `## Important`
+   headings with actual content (not just an empty section or "none found").
+2. **If any Blocking or Important finding exists:** fix it the same way
+   Step 9.8 requires — apply the fix as a commit on the milestone branch,
+   push it (this updates the still-open PR), then **re-verify CI is green
+   and re-check for a fresh review comment** (a push may trigger
+   `pr-to-milestone-review`, or you may need to re-apply the `deep-review`
+   label to get a fresh `milestone-review` pass against the fixed diff).
+   Repeat until a review comment shows zero unresolved Blocking/Important
+   items.
+3. **Also verify all CI checks are green at this point** — not just that a
+   review comment exists. `gh pr checks <pr-number>` must show every check
+   passed (skipped checks that are correctly gated off, per this workflow's
+   own design, are fine — an actual failure or a still-pending required
+   check is not).
+4. Do not proceed to Step 12 until both (2) and (3) are satisfied. If a fix
+   turns out to require user input or a judgment call (e.g. the prod-host
+   verification advisory from the incident above, which needs live SSH
+   access only the user has), present it via AskUserQuestion and get an
+   explicit decision — "defer to a tracked follow-up" is an acceptable
+   resolution, but it must be an explicit choice recorded in the PR, not a
+   silent skip.
+
+**The bar for calling `/finish-milestone` complete:** the milestone branch,
+as it exists on `main`'s target commit right this moment, should need zero
+further code changes before `/release-milestone` runs. `/release-milestone`
+merges, tags, and publishes — it is not a place to discover or fix problems.
 
 ### Step 12: Output summary
 
