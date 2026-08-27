@@ -121,3 +121,45 @@ function logProgress(string $message, string $type = 'info'): void
     echo date('[H:i:s] ') . ($icons[$type] ?? '•') . ' ' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . "\n";
     flush();
 }
+
+/**
+ * Records a fix/maintenance script's completion in fix_script_runs, used
+ * to populate the "Last Run" column on the maintenance dashboard
+ * (tab-maintenance.php). Never throws — a recording failure is logged but
+ * must not interrupt or mask the calling script's actual result.
+ *
+ * @param string        $scriptFile   Pass __FILE__ from the calling script
+ * @param int           $userId       Acting user's ID, for the failure log entry
+ * @param callable|null $onFailure    Optional callback invoked with the failure
+ *                                    message on error (e.g. an outputMessage()
+ *                                    wrapper), for scripts that stream progress
+ *                                    back to the UI. Omit when the caller has
+ *                                    no such bridge (e.g. a JSON AJAX handler).
+ */
+function admin_script_record_completion(
+    string $scriptFile,
+    int $userId,
+    ?callable $onFailure = null
+): void {
+    global $db;
+    try {
+        $db->insert('fix_script_runs', [
+            'script_name' => basename($scriptFile),
+            'completed_at' => date('Y-m-d H:i:s'),
+        ]);
+    } catch (\Throwable $e) {
+        logger($userId, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,
+            'Could not record fix_script_runs completion for ' . basename($scriptFile) . ': ' . $e->getMessage());
+        if ($onFailure !== null) {
+            try {
+                $onFailure('⚠️ Could not record script completion in fix_script_runs table');
+            } catch (\Throwable $callbackError) {
+                // Swallowed deliberately: this function's contract is "never throws", so a
+                // buggy caller-supplied callback must not escape and crash the calling script.
+                logger($userId, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,
+                    'admin_script_record_completion onFailure callback itself threw for '
+                    . basename($scriptFile) . ': ' . $callbackError->getMessage());
+            }
+        }
+    }
+}
