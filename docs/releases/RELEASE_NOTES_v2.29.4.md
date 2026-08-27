@@ -5,28 +5,66 @@
 
 ## Required Actions After Deployment
 
-- **#1798 (Turnstile reset fix): manually verify on test.elanregistry.org before/after deploying to prod.** Not tested against a live Cloudflare Turnstile widget locally — `isTurnstileEnabled()` requires HTTPS, which this dev machine's MAMP setup doesn't serve (Traefik HTTPS proxy was tried and disabled). Automated coverage (7 PHPUnit + 8 Playwright tests) exercises the fixed code paths directly (HTML output of `addTurnstile(true)`, the reset handlers, the `verifyTurnstile()` logging) without needing a live widget, but the actual browser/Cloudflare-widget interaction — data-error-callback/data-expired-callback firing on real expiry, resetting cleanly, double-submit recovering — has not been observed end-to-end. Verify on the login form: (1) widget renders with working reset on token expiry (~300s idle), (2) double-submit no longer produces `timeout-or-duplicate`.
-- **#1803 (stale image path redirect): after deploying to prod, force Facebook's [Sharing Debugger](https://developers.facebook.com/tools/debug/) to re-scrape any URLs whose link-card was affected**, so the cached (imageless) card picks up the new redirect target. The `.htaccess` redirect alone doesn't invalidate Facebook's existing scrape cache.
-- **#1806 (build-at-deploy vendoring): after the first deploy to each environment (test, then prod), verify `usersc/js/` and `usersc/css/` were actually (re)generated on disk by the new post-receive build step** — check file timestamps (`ls -la usersc/js usersc/css` on the host) match the deploy time, and confirm the deploy log shows the `npm ci --omit=dev`/`npm run build` step running and succeeding, not silently skipped. Then confirm the site itself works: DataTables tables render, statistics charts load, FilePond image uploads work, the car-details map renders. Remember the "two pushes" rule (see DEPLOYMENT.md) — the very first push after this PR merges runs the *old* hook and only installs the new hook file; the new build step doesn't actually execute until the second push to that remote.
+1. **#1798**: verify Turnstile widget reset live on test.elanregistry.org
+   (not testable locally — HTTPS required).
+2. **#1803**: force Facebook's
+   [Sharing Debugger](https://developers.facebook.com/tools/debug/) to
+   re-scrape affected link-card URLs.
+3. **#1806**: after the first deploy to each environment, confirm the new
+   `post-receive` build step ran and `usersc/js`/`usersc/css` regenerated —
+   see [DEPLOYMENT.md](../development/DEPLOYMENT.md) for the "two pushes"
+   hook-update quirk.
 
 ## User-Facing Changes
 
-TBD — filled in as issues are completed.
+Changes visible to public registry visitors (car listings, owner pages, search, etc.).
+
+### Improvements
+
+- **Turnstile widget reset** ([#1798](https://github.com/elan-registry/registry/issues/1798)): login form's widget now resets on token expiry or double-submit.
+- **Fixed stale image link** ([#1803](https://github.com/elan-registry/registry/issues/1803)): corrected a broken asset path in link previews and email.
 
 ## Admin-Facing Changes
 
-TBD — filled in as issues are completed.
+Changes visible only to administrators (admin dashboard, maintenance tools, settings, etc.).
+
+### Improvements <!-- markdownlint-disable-line MD024 -->
+
+- **Fix-script popup buttons** ([#1777](https://github.com/elan-registry/registry/issues/1777)): "Close Window" now closes the window instead of navigating away.
+- **Fix-script "Last Run" tracking** ([#1775](https://github.com/elan-registry/registry/issues/1775),
+  [#1776](https://github.com/elan-registry/registry/issues/1776)): scripts #21
+  and #25 now record completion correctly.
 
 ## Issues Resolved
 
-- [#1516](https://github.com/elan-registry/registry/issues/1516) / [#1616](https://github.com/elan-registry/registry/issues/1616) — fix: harden `Resize::openImage()` and `ApiResponse::send()` against uncaught throwables (a `.webp` upload, or any corrupt image, previously crashed with an uncaught `TypeError`; `.webp` support itself is tracked separately in #1383), plus test coverage for `ApiResponse::send()`.
-- [#1617](https://github.com/elan-registry/registry/issues/1617) — test: ChassisValidator private validation branches (race car, pre/post-1970 formats) untested. Added `tests/unit/security/ChassisValidatorTest.php` (25 tests) covering every branch in `validateRaceCar()`, `validatePre1970()`, `validatePost1970()`, `validateElevenCharFormat()`, `validateFiveCharFormat()`, and `getValidSuffixes()` via the public `validate()` entrypoint, plus two `allowOverride:false` tests in `ChassisValidatorXssTest.php` proving genuine format-pass (not just allowlist-legality). No production code changed.
-- [#1699](https://github.com/elan-registry/registry/issues/1699) — bug: fixed three `package.json` playwright npm scripts (`playwright:security`, `playwright:maps`, `playwright:mobile`) referencing renamed/removed `.test.js` files, restoring them to the actual `.spec.js` filenames (or, for `playwright:security`, dropping a reference to a file that never existed under either name).
-- [#1732](https://github.com/elan-registry/registry/issues/1732) — test: `datatables-xss.spec.js`'s History section no longer assumes an ambient car exists — it now creates a disposable car fixture via the real `addCar` CSRF-POST flow and cleans it up via the admin delete form. Also fixed a co-located pre-existing bug: the 4 History tests never expanded the `#historyDetails` Bootstrap collapse before waiting on `#carHistoryTable_wrapper`, so they'd time out regardless of fixture data.
-- [#1764](https://github.com/elan-registry/registry/issues/1764) — tech-debt: chassis-availability.php SQL dedup and endpoint happy-path test coverage. Extracted the duplicated chassis-uniqueness query into `CarRepository::findByChassisKey()`, used by both `chassis-availability.php` and `transfer-request.php`; added PHPUnit coverage for the new method; added real-CSRF happy-path Playwright coverage for `chassis_check` and converted four "requires admin permissions" tests (car-details, transfer-deny, settings; transfer-approve deferred, see #1789) from fake-token CSRF-rejection tests into genuine success-path tests.
-- [#1771](https://github.com/elan-registry/registry/issues/1771) — tech-debt: revisited ADR-017's build-at-deploy rejection now that Node is confirmed available on the deploy host. Verified directly via SSH against `test.elanregistry.org`: Node/npm resolve non-interactively with no workaround needed, and a real `npm ci && npm run build` completes in ~16s. Wrote [ADR-018](https://github.com/elan-registry/registry/blob/main/docs/development/adr/ADR-018-build-at-deploy-for-frontend-vendoring.md), superseding ADR-017 — frontend vendoring moves from build-then-commit to build-at-deploy, closing the recurring Dependabot-blocks-on-drift-check pattern (#1741-1743, and the then-open #1739/#1740). Implementation work (the actual `post-receive`/`.deployignore`/CI changes) is scoped to a separate follow-up issue, #1806.
-- [#1776](https://github.com/elan-registry/registry/issues/1776) / [#1775](https://github.com/elan-registry/registry/issues/1775) — fix: "Last Run" tracking gaps for admin scripts #21 and #25. Script #21 now records completion even when a permission analysis finds zero issues (previously only recorded on the execute path, which a zero-issues run never reached); script #25 now records completion at all (previously never wrote to `fix_script_runs`). Extracted a shared `admin_script_record_completion()` helper in `fix-script-core.php`, also adopted by script #24 for consistency.
-- [#1777](https://github.com/elan-registry/registry/issues/1777) — fix: maintenance/fix-script "Close Window"/"Return to Menu"/"Abort" buttons navigated away instead of closing the popup window (modern browsers default `target="_blank"` links to `noopener`, breaking the old `window.opener` check). Fixed in the shared button helper plus two inline duplicates in scripts #21 and #24.
-- [#1798](https://github.com/elan-registry/registry/issues/1798) — fix: the login form's Cloudflare Turnstile widget had no reset path — a double-submit or an idle login tab past the token's ~300s lifetime produced an unrecoverable `timeout-or-duplicate`. Extracted a shared `app/assets/js/turnstile-reset.js` helper (loaded on both login and join pages) so `login_form_turnstile.php` can safely call `addTurnstile(true)`; `join-form-beacon.js` now delegates its own reset call to the shared helper. Also fixed `verifyTurnstile()` silently returning `false` on an empty token with no `logger()` call — every other failure path in that file logs; the empty-token branch now logs via `LogCategories::LOG_CATEGORY_SECURITY` with the client IP, distinguishable from the existing Cloudflare-rejection log message.
-- [#1803](https://github.com/elan-registry/registry/issues/1803) — fix: added a 301 redirect for the retired `/usersc/templates/ElanRegistry/assets/images/` asset path (moved to `/usersc/images/` some time ago, no redirect added at the time). No application code referenced the stale path — the remaining 404s were purely external residue (Facebook's link-card scrape cache, already-sent transactional email referencing the old logo URL), which only a redirect can repair.
-- [#1806](https://github.com/elan-registry/registry/issues/1806) — tech-debt: implemented [ADR-018](https://github.com/elan-registry/registry/blob/main/docs/development/adr/ADR-018-build-at-deploy-for-frontend-vendoring.md)'s build-at-deploy decision. `scripts/server-hooks/post-receive` now runs `npm ci --omit=dev && npm run build` after the Phinx migration step, halting the deploy on failure like the existing Composer/Phinx steps. The 19 vendored third-party files in `usersc/js/`/`usersc/css/` are now gitignored build output instead of committed — untracked via `git rm --cached`, still generated locally by `npm run build` (unchanged trigger: manual, or automatic via the pre-commit hook when staged files touch it). Moved `esbuild`/`@versatiles/style` from `devDependencies` to `dependencies` in `package.json` (verified via `npm explain --json` that the bare DataTables core packages are already transitively installed as regular deps of their `-bs5` wrappers — no further `package.json` changes needed) and regenerated `package-lock.json`. Retired CI's `vendor-drift` job and its now-orphaned `vendor` path-filter, since there's no committed output left to check for drift. **Requires a `/publish-wiki` pass after merge** — `Registry-Installation-Production.md` and `Database-Migrations-and-Deployment.md` describe the old Node-not-required-on-prod behavior and need correcting.
+- [#1516](https://github.com/elan-registry/registry/issues/1516) — fix: harden
+  Resize::openImage() and ApiResponse::send() against uncaught throwables
+- [#1616](https://github.com/elan-registry/registry/issues/1616) — test:
+  ApiResponse::send() has no coverage — every AJAX endpoint terminates through it
+- [#1617](https://github.com/elan-registry/registry/issues/1617) — test:
+  ChassisValidator private validation branches (race car, pre/post-1970 formats) untested
+- [#1699](https://github.com/elan-registry/registry/issues/1699) — bug: three
+  playwright npm scripts reference .test.js files that do not exist
+- [#1732](https://github.com/elan-registry/registry/issues/1732) — test:
+  datatables-xss.spec.js History section assumes ambient car data instead of
+  creating its own fixture
+- [#1764](https://github.com/elan-registry/registry/issues/1764) — tech-debt:
+  chassis-availability.php SQL dedup and endpoint happy-path test coverage
+- [#1771](https://github.com/elan-registry/registry/issues/1771) — tech-debt:
+  revisit ADR-017 vendoring decision now that Node is available on prod
+- [#1775](https://github.com/elan-registry/registry/issues/1775) — fix: script
+  #25 (Cleanup Rate Limits) never records completion in fix_script_runs
+- [#1776](https://github.com/elan-registry/registry/issues/1776) — fix:
+  investigate why script #21 (Fix Page Permissions) Last Run doesn't update
+  in production despite correct insert code
+- [#1777](https://github.com/elan-registry/registry/issues/1777) — fix:
+  maintenance/fix-script "Close Window" button navigates away instead of
+  closing the popup window
+- [#1798](https://github.com/elan-registry/registry/issues/1798) — fix: login
+  form never resets the Turnstile widget, and empty-token submissions are
+  logged nowhere
+- [#1803](https://github.com/elan-registry/registry/issues/1803) — fix: stale
+  /usersc/templates/ElanRegistry/assets/images/ path 404s — broken Facebook
+  link-card image and logo in already-sent email
+- [#1806](https://github.com/elan-registry/registry/issues/1806) — tech-debt:
+  implement ADR-018 build-at-deploy for frontend vendoring
