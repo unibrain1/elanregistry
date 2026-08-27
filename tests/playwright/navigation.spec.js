@@ -92,6 +92,15 @@ test.describe('Navigation and File Reorganization', () => {
     await testRedirect(page, 'app/cars/factory.php', 'app/owner/cars/factory.php');
   });
 
+  // Issue #1803 — retired usersc/templates/ElanRegistry/assets/images/ path
+  test('retired template image path redirects to usersc/images/', async ({ page }) => {
+    await testRedirect(
+      page,
+      'usersc/templates/ElanRegistry/assets/images/apple-touch-icon.png',
+      'usersc/images/apple-touch-icon.png'
+    );
+  });
+
   test('app/contact/ paths redirect to app/owner/contact/ equivalents', async ({ page }) => {
     await testRedirect(page, 'app/contact/index.php', 'app/owner/contact/index.php');
     await testRedirect(page, 'app/contact/owner.php', 'app/owner/contact/owner.php');
