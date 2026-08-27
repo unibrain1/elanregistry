@@ -135,22 +135,36 @@ class CarValidator
                 case 'series':
                 case 'variant':
                 case 'type':
-                case 'color':
-                case 'engine':
                     if (!empty($value)) {
                         $validatedFields[$key] = InputSanitizer::normalize($value, 100);
                     }
                     break;
 
+                case 'color':
+                case 'engine':
+                    // Explicit null-else (unlike lat/lon below): these fields are in
+                    // Car::CLEARABLE_FIELDS, so an owner clearing them must produce a
+                    // real `null` the persistence layer will write, not a dropped key
+                    // (see #1448). lat/lon aren't clearable this way — dropping the key
+                    // there is intentional, don't copy this pattern onto them.
+                    if ($value !== null && $value !== '') {
+                        $validatedFields[$key] = InputSanitizer::normalize($value, 100);
+                    } else {
+                        $validatedFields[$key] = null;
+                    }
+                    break;
+
                 case 'comments':
-                    if (!empty($value)) {
+                    if ($value !== null && $value !== '') {
                         $validatedFields[$key] = InputSanitizer::normalize($value, 5000);
+                    } else {
+                        $validatedFields[$key] = null;
                     }
                     break;
 
                 case 'purchasedate':
                 case 'solddate':
-                    if (!empty($value)) {
+                    if ($value !== null && $value !== '') {
                         $date = DateTime::createFromFormat('Y-m-d', $value);
                         if (!$date || $date->format('Y-m-d') !== $value) {
                             throw new CarValidationException("Invalid date format for {$key}. Use YYYY-MM-DD format");
@@ -166,6 +180,8 @@ class CarValidator
                             );
                         }
                         $validatedFields[$key] = $value;
+                    } else {
+                        $validatedFields[$key] = null;
                     }
                     break;
 
@@ -179,7 +195,7 @@ class CarValidator
                     break;
 
                 case 'website':
-                    if (!empty($value)) {
+                    if ($value !== null && $value !== '') {
                         if (!filter_var($value, FILTER_VALIDATE_URL)) {
                             throw new CarValidationException(
                                 'Website URL must start with http:// or https:// (e.g. https://example.com)'
@@ -192,6 +208,8 @@ class CarValidator
                             );
                         }
                         $validatedFields[$key] = filter_var($value, FILTER_SANITIZE_URL);
+                    } else {
+                        $validatedFields[$key] = null;
                     }
                     break;
 

@@ -11,6 +11,12 @@
 2. Run the one-time data-cleanup script from #1491 on test, verify affected
    row counts drop to 0, then run on prod.
 
+## User-Facing Changes
+
+### Improvements
+
+- **Clearing car fields now persists** ([#1448](https://github.com/elan-registry/registry/issues/1448)): Emptying color, engine, comments, website, purchase date, or sold date on the edit form now actually saves — previously the value silently reverted on reload despite the save reporting success.
+
 ## Admin-Facing Changes
 
 ### Improvements

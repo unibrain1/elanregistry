@@ -36,6 +36,15 @@ class Car
 {
     private const CHASSIS_SUFFIX_LENGTH = 5;
 
+    /**
+     * Fields allowed to carry an explicit null through update() to clear
+     * the column in the database. All other fields keep the default
+     * strip-empty behavior.
+     */
+    private const CLEARABLE_FIELDS = [
+        'color', 'engine', 'purchasedate', 'solddate', 'website', 'comments',
+    ];
+
     private DatabaseInterface $_db;
     private ?object $_data = null;
     private array $_history = [];
@@ -240,9 +249,12 @@ class Car
         $carId = (int) $filteredFields['id'];
         unset($filteredFields['id']);
 
-        $filteredFields = array_filter($filteredFields, function ($value) {
-            return $value !== '' && $value !== null;
-        });
+        $filteredFields = array_filter(
+            $filteredFields,
+            fn($value, $key) => in_array($key, self::CLEARABLE_FIELDS, true)
+                || ($value !== '' && $value !== null),
+            ARRAY_FILTER_USE_BOTH
+        );
 
         $repo = $this->getRepository();
         $updateResult = $repo->updateCar($carId, $filteredFields);
