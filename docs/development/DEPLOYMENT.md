@@ -363,12 +363,12 @@ or similar interactive step). Verified against `test.elanregistry.org` during
 ADR-018's research: Node v18.20.8 / npm 10.8.2, no shell workaround needed.
 
 **Important:** Never list a persistent, server-writable directory in
-`.deployignore` (e.g. `backups/`) — step 6's `rm -rf` would delete it wholesale
+`.deployignore` (e.g. `backups/`) — step 7's `rm -rf` would delete it wholesale
 on every subsequent push. See #1479, where this happened to the server's
 backup directory.
 
 **Important — deploying a change to `post-receive` itself takes two pushes,
-not one:** Step 5's self-update copies the new hook file to disk *during* the
+not one:** Step 6's self-update copies the new hook file to disk *during* the
 currently-running invocation, but that invocation is already executing the
 *old* code — it can't reload itself mid-run. So the first push after any
 change to `scripts/server-hooks/post-receive` still executes the **old**
