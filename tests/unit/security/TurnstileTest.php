@@ -16,6 +16,12 @@ require_once __DIR__ . '/../../../usersc/includes/turnstile.php';
  * false silently. These tests lock in that it now logs via logger() with
  * LogCategories::LOG_CATEGORY_SECURITY and the client IP, matching the
  * sibling rejection-log's category and message-wording convention.
+ *
+ * Known gap: no test here exercises verifyTurnstile() with a non-empty
+ * token, because the very next line in that function falls through to
+ * _verifyTurnstileToken(), a real network call to Cloudflare's siteverify
+ * endpoint with no mock seam (plain function, not a class/interface) —
+ * a fast unit test can't safely depend on that. Not closed in this PR.
  */
 #[Group('fast')]
 #[Group('unit')]
@@ -56,7 +62,7 @@ class TurnstileTest extends TestCase
     }
 
     #[Group('fast')]
-    public function testWhitespaceOnlyTokenIsTreatedAsEmptyAndLogged(): void
+    public function testEmptyStringTokenIsLoggedTheSameAsAbsentKey(): void
     {
         global $mockLogEntries;
         $_POST['cf-turnstile-response'] = '';
@@ -101,10 +107,10 @@ class TurnstileTest extends TestCase
      * Deterministic coverage of addTurnstile(true)'s actual HTML output —
      * independent of live Cloudflare keys/HTTPS, unlike the Playwright
      * attribute-wiring test which skips whenever Turnstile isn't configured
-     * (no TURNSTILE_SITE_KEY/TURNSTILE_SECRET_KEY in this repo's CI). This
-     * is the only non-skippable coverage of the exact regression #1798 fixes
-     * — login_form_turnstile.php now calling addTurnstile(true) instead of
-     * addTurnstile().
+     * (no TURNSTILE_SITE_KEY/TURNSTILE_SECRET_KEY in this repo's CI). Proves
+     * addTurnstile(true) itself works correctly — testLoginHook... below
+     * proves the login hook actually calls it with true, which this test
+     * alone does not.
      */
     #[Group('fast')]
     public function testAddTurnstileWithFailureCallbacksEmitsCallbackAttributesAndScriptId(): void
@@ -116,6 +122,33 @@ class TurnstileTest extends TestCase
         $this->assertStringContainsString('data-error-callback="elanTurnstileError"', $html);
         $this->assertStringContainsString('data-expired-callback="elanTurnstileExpired"', $html);
         $this->assertStringContainsString('id="elan-turnstile-script"', $html);
+    }
+
+    /**
+     * The exact regression #1798 fixes: login_form_turnstile.php must call
+     * addTurnstile(true), not addTurnstile() — a revert back to the no-arg
+     * form would leave the login widget with no working reset path again,
+     * but every other test in this suite would stay green (they test
+     * addTurnstile() itself, not this hook file's call to it). This is the
+     * only CI-enforced (non-skippable) guard against that specific revert —
+     * the Playwright attribute-wiring test would also catch it, but that one
+     * skips whenever live Turnstile keys aren't configured, which CI never
+     * sets.
+     */
+    #[Group('fast')]
+    public function testLoginHookCallsAddTurnstileWithFailureCallbacksEnabled(): void
+    {
+        ob_start();
+        require __DIR__ . '/../../../usersc/plugins/hooker/hooks/login_form_turnstile.php';
+        $html = ob_get_clean();
+
+        $this->assertStringContainsString(
+            'data-error-callback="elanTurnstileError"',
+            $html,
+            'login_form_turnstile.php must call addTurnstile(true) — reverting to addTurnstile() ' .
+            'reintroduces the #1798 regression (no reset path on the login form)'
+        );
+        $this->assertStringContainsString('data-expired-callback="elanTurnstileExpired"', $html);
     }
 
     #[Group('fast')]

@@ -51,11 +51,15 @@ function isTurnstileEnabled(): bool
  * usersc/views/_join.php — see issue #1798), so both call sites can safely
  * pass true. On the join page, join-form-beacon.js (loaded after
  * turnstile-reset.js) redefines these two names with its own richer
- * versions — status-message updates and failure-beacon reporting — that
- * delegate to the shared reset via window.elanTurnstileReset() internally.
+ * versions — status-message updates and failure-beacon reporting for both;
+ * only elanTurnstileExpired additionally delegates to the shared reset via
+ * window.elanTurnstileReset() — elanTurnstileError does not reset the
+ * widget on the join page. On the login page, the shared file's own
+ * plainer elanTurnstileError does call the reset.
  * elanTurnstileNotLoaded remains defined only by join-form-beacon.js and is
- * join-page-specific (covers the api.js script-tag error listener and the
- * widget-render poll, both scoped to #join-form) — passing true from any
+ * join-page-specific in practice — it covers the api.js script-tag error
+ * listener (unconditional) and the widget-render poll (explicitly gated on
+ * #join-form existing) — passing true from any
  * page that doesn't load join-form-beacon.js is still safe for the reset
  * behavior itself, but won't get the join page's richer error reporting.
  * No-ops silently when Turnstile is disabled (off mode or plain HTTP).

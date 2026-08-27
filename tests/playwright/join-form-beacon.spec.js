@@ -55,17 +55,27 @@ test.describe('Join form client-side failure beacon (#1690)', () => {
   // join-form-beacon.js on this page — the latter's elanTurnstileExpired
   // delegates to window.elanTurnstileReset() internally. Nothing enforces
   // this ordering except the two <script src> tags' document position (see
-  // usersc/views/_join.php); this test would catch a future reorder or an
-  // accidental defer/async addition breaking that guarantee.
-  test('shared turnstile-reset.js loads before join-form-beacon.js overrides it', async ({ page }) => {
-    const hasSharedReset = await page.evaluate(() => typeof window.elanTurnstileReset === 'function');
-    expect(hasSharedReset, 'window.elanTurnstileReset must be defined — turnstile-reset.js did not load').toBe(true);
+  // usersc/views/_join.php).
+  test('turnstile-reset.js script tag appears before join-form-beacon.js in the DOM', async ({ page }) => {
+    // Checking window.elanTurnstileReset's existence (or which handler
+    // "won") after page load can't distinguish correct load order from any
+    // order — both scripts have already executed by the time page.evaluate
+    // runs, and the second-loaded script's assignment always wins
+    // regardless of which one that is. Only the actual <script> tag
+    // position in the DOM proves the enforced order.
+    const scriptOrder = await page.evaluate(() => {
+      const scripts = Array.from(document.querySelectorAll('script[src]'));
+      return scripts
+        .map((s) => s.src)
+        .filter((src) => src.includes('turnstile-reset') || src.includes('join-form-beacon'));
+    });
 
-    // join-form-beacon.js's own elanTurnstileExpired must still be the one
-    // active on this page (not the shared file's plain version) — confirmed
-    // indirectly via the status-message test above, but here we assert the
-    // override actually happened by checking the reset delegation still
-    // reaches the real turnstile.reset() the shared file wraps.
+    expect(scriptOrder.length, 'both turnstile-reset and join-form-beacon script tags must be present').toBe(2);
+    expect(scriptOrder[0], 'turnstile-reset.js must appear before join-form-beacon.js').toContain('turnstile-reset');
+    expect(scriptOrder[1]).toContain('join-form-beacon');
+  });
+
+  test('join-form-beacon.js\'s elanTurnstileExpired delegates to window.elanTurnstileReset()', async ({ page }) => {
     const result = await page.evaluate(() => {
       let sharedResetCalled = false;
       window.elanTurnstileReset = () => { sharedResetCalled = true; };
