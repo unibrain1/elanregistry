@@ -16,6 +16,7 @@
 ### Improvements
 
 - **Clearing car fields now persists** ([#1448](https://github.com/elan-registry/registry/issues/1448)): Emptying color, engine, comments, website, purchase date, or sold date on the edit form now actually saves — previously the value silently reverted on reload despite the save reporting success.
+- **Editing a deleted/merged car now shows a clear message** ([#1313](https://github.com/elan-registry/registry/issues/1313)): Submitting an edit for a car that no longer exists now shows "This car could not be found" and redirects to your car list, instead of silently failing to save with no explanation.
 
 ## Admin-Facing Changes
 
@@ -29,7 +30,7 @@
 ## Issues Resolved
 
 - WIP: [#1067](https://github.com/elan-registry/registry/issues/1067) — fix: Car/Owner domain code reads image and email config from scattered $settings properties instead of one source
-- WIP: [#1313](https://github.com/elan-registry/registry/issues/1313) — fix: edit.php force-logs-out a user when the car is missing/merged instead of showing 404
+- [#1313](https://github.com/elan-registry/registry/issues/1313) — fix: edit.php force-logs-out a user when the car is missing/merged instead of showing 404
 - [#1448](https://github.com/elan-registry/registry/issues/1448) — fix: Car::update() array_filter prevents clearing color/comments/website/engine/sold-date
 - [#1491](https://github.com/elan-registry/registry/issues/1491) — tech-debt: legacy trailing/leading whitespace in cars table string columns; also fixes CarValidator not sanitizing fname/lname
 - WIP: [#1505](https://github.com/elan-registry/registry/issues/1505) — fix: stop silently returning false/null/[] on DB errors across Owner and CarRepository, including unchecked transaction integrity

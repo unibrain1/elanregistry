@@ -95,7 +95,7 @@ if (Input::existsPost()) {
  */
 function updateCarDetails(array &$car): void
 {
-    global $user;
+    global $user, $us_url_root;
 
     if (empty($car['id'])) {
         logger($user->data()->id, LogCategories::LOG_CATEGORY_CAR_ACTIONS, 'Empty car_id field in GET');
@@ -107,7 +107,9 @@ function updateCarDetails(array &$car): void
     if (!$carQ->exists()) {
         logger($user->data()->id, LogCategories::LOG_CATEGORY_CAR_ACTIONS,
             'Car not found for edit: car_id=' . $car['id'] . ' user_id=' . $user->data()->id);
-        return;
+        usError('This car could not be found.');
+        Redirect::to($us_url_root . 'app/owner/cars/index.php');
+        exit;
     }
 
     // Security: Verify user ownership or admin/editor permissions
