@@ -446,54 +446,12 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     test.skip('process-transfer-approve succeeds for a separate real pending transfer — needs a disposable non-admin-owned car fixture; skipped to avoid mutating CAR_ID_STANDARD', () => {});
   });
 
-  test.describe('admin settings endpoint', () => {
-    const FIELD = 'elan_image_max';
-    let csrf;
-    let originalValue;
-
-    test.beforeEach(async ({ page }) => {
-      csrf = await getCsrfFromSettingsPage(page);
-      test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
-
-      // Read the current value from the rendered admin settings tab before
-      // mutating it, so afterEach can restore it unconditionally.
-      await page.goto('app/admin/maintenance.php?tab=settings', { waitUntil: 'domcontentloaded' });
-      const input = page.locator(`#${FIELD}`).first();
-      originalValue = await input.getAttribute('value');
-      test.skip(originalValue === null, `Could not read current value of ${FIELD} from the admin settings tab`);
-    });
-
-    test.afterEach(async ({ page }) => {
-      // Unconditionally restore the original value — this is a shared, live
-      // settings row, and a mutation must never leak into the rest of the suite.
-      if (originalValue === null || originalValue === undefined) {
-        return;
-      }
-      await page.request.post('app/api/admin/process-settings.php', {
-        form: {
-          field: FIELD,
-          value: originalValue,
-          csrf
-        }
-      });
-    });
-
-    test('process-settings succeeds for an admin user and restores original value', async ({ page }) => {
-      const newValue = String(Number(originalValue) + 1);
-
-      const response = await page.request.post('app/api/admin/process-settings.php', {
-        form: {
-          field: FIELD,
-          value: newValue,
-          csrf
-        }
-      });
-
-      expect(response.status()).toBe(200);
-      const jsonResponse = await response.json();
-      expect(jsonResponse).toHaveProperty('success', true);
-    });
-  });
+  // The 'admin settings endpoint' describe block (process-settings.php,
+  // elan_image_max mutation test) was removed in #1067 — that AJAX endpoint
+  // and its backing tab-settings.php admin UI were deleted entirely.
+  // ELAN_IMAGE_MAX and the other former settings are now config.php
+  // constants, not web-editable DB rows, so there is nothing left to
+  // exercise here.
 
   test('feedback endpoint requires CSRF and returns JSON', async ({ page }) => {
     const response = await page.request.post('app/api/contact/send-feedback.php', {

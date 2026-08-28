@@ -3,12 +3,10 @@ declare(strict_types=1);
 
 $elanThumbnailSize = 100;
 $elanResponsiveSize = 300;
-if (!empty($settings->elan_image_thumbnail_sizes)) {
-    $elanSizes = explode(',', $settings->elan_image_thumbnail_sizes);
-    $elanThumbnailSize = intval(trim($elanSizes[0]));
-    if (count($elanSizes) >= 2) {
-        $elanResponsiveSize = intval(trim($elanSizes[1]));
-    }
+$elanSizes = explode(',', ELAN_IMAGE_THUMBNAIL_SIZES);
+$elanThumbnailSize = intval(trim($elanSizes[0]));
+if (count($elanSizes) >= 2) {
+    $elanResponsiveSize = intval(trim($elanSizes[1]));
 }
 ?>
 <script nonce="<?= htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">

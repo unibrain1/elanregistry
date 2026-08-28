@@ -60,7 +60,7 @@ if (strlen($comments) > 1000) {
 }
 
 $emailTo = getFeedbackEmail();
-$emailSubject = '[ELANREGISTRY] Feedback';
+$emailSubject = EMAIL_SUBJECT_PREFIX . ' Feedback';
 
 $template = array(
     'name' => $name,

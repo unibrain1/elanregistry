@@ -28,6 +28,20 @@ if (!defined('BACKUP_RETENTION_AUTOMATED')) {
     define('BACKUP_FAILURE_LOOKBACK_DAYS', 7);
 }
 
+// Media/image, transfer-expiry, and email-subject constants (normally from
+// usersc/includes/config.php, #1067) — mirrors the real values exactly, not
+// placeholder test values, since several tests assert against these
+// verbatim (e.g. EmailTemplateTest's email-subject assertions).
+if (!defined('ELAN_IMAGE_DIR')) {
+    define('ELAN_IMAGE_DIR', 'userimages/');
+    define('ELAN_IMAGE_MAX', 6);
+    define('ELAN_IMAGE_UPLOAD_MAX_SIZE', 3.00);
+    define('ELAN_IMAGE_DISPLAY_MAX_SIZE', 2048);
+    define('ELAN_IMAGE_THUMBNAIL_SIZES', '100,300,768,1024,2048');
+    define('TRANSFER_REQUEST_EXPIRY_DAYS', 30);
+    define('EMAIL_SUBJECT_PREFIX', '[ELANREGISTRY]');
+}
+
 // Prevent any integration test code from loading
 if (defined('INTEGRATION_TEST_SUITE')) {
     die("ERROR: bootstrap-unit.php cannot be used with INTEGRATION_TEST_SUITE defined");
@@ -207,13 +221,14 @@ if (!function_exists('securePage')) {
 // Mock getSettings function - only for unit tests
 if (!function_exists('getSettings')) {
     /**
-     * Mock getSettings function for testing
+     * Mock getSettings function for testing.
+     * elan_image_dir was removed from this mock in #1067 — image/expiry/
+     * email settings are now ELAN_IMAGE_DIR etc. constants (defined above),
+     * not $settings properties.
      */
     function getSettings($id = 1): object {
-        // Return mock settings object
         return (object) [
             'id' => (string) $id,
-            'elan_image_dir' => '/userimages/'
         ];
     }
 }

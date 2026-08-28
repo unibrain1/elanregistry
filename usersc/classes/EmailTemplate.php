@@ -210,6 +210,9 @@ class EmailTemplate
      */
     private function getBaseTemplate(string $title, string $subtitle, string $content, string $footerText): string
     {
+        global $settings;
+
+        $siteName    = htmlspecialchars($settings->site_name ?? 'Lotus Elan Registry', ENT_QUOTES, 'UTF-8');
         $safeTitle   = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $safeFooter  = htmlspecialchars($footerText, ENT_QUOTES, 'UTF-8');
         $safeBaseUrl = htmlspecialchars($this->baseUrl, ENT_QUOTES, 'UTF-8');
@@ -221,7 +224,7 @@ class EmailTemplate
 <head>
     <meta charset=\"UTF-8\">
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-    <title>Lotus Elan Registry - {$safeTitle}</title>
+    <title>{$siteName} - {$safeTitle}</title>
     <style>
         /* Base Styles */
         body {
@@ -373,7 +376,7 @@ class EmailTemplate
                         <td>
                             <div class=\"header\" style=\"background-color: #00563F; color: #ffffff; padding: 20px; text-align: center;\">
                                 <img src=\"{$safeLogoUrl}\" alt=\"Lotus Logo\" class=\"logo\" style=\"width: 48px; height: 48px; display: block; margin: 0 auto 10px auto;\">
-                                <h1 style=\"color: #ffffff; margin: 0 0 5px 0; font-size: 24px;\">Lotus Elan Registry</h1>
+                                <h1 style=\"color: #ffffff; margin: 0 0 5px 0; font-size: 24px;\">{$siteName}</h1>
                                 <p>" . htmlspecialchars($subtitle, ENT_QUOTES, 'UTF-8') . "</p>
                             </div>
 
@@ -382,7 +385,7 @@ class EmailTemplate
                             </div>
 
                             <div class=\"footer\" style=\"background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #dee2e6; color: #6b7280; font-size: 14px;\">
-                                <p><strong>The Lotus Elan Registry</strong></p>
+                                <p><strong>The {$siteName}</strong></p>
                                 <p><a href=\"{$safeBaseUrl}\">{$safeBaseUrl}</a></p>
                                 <p>Preserving the legacy of Colin Chapman's masterpiece since 2003</p>
                                 <hr style=\"border: none; border-top: 1px solid #dee2e6; margin: 15px 0;\">

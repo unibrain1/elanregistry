@@ -113,7 +113,7 @@ class TransferEmailService
 
             $emailBody = $this->buildRequestEmailBody($currentOwner, $requester, $carInfo, $transferRequest);
 
-            $subject = "[ELANREGISTRY] Car Ownership Transfer Request - {$carData->year} {$carData->series} {$carData->variant} (Chassis: {$carData->chassis})";
+            $subject = EMAIL_SUBJECT_PREFIX . " Car Ownership Transfer Request - {$carData->year} {$carData->series} {$carData->variant} (Chassis: {$carData->chassis})";
             $result = ($this->mailer)($currentOwner->email, $subject, $emailBody);
 
             if ($result) {
@@ -178,7 +178,7 @@ class TransferEmailService
 
             $emailBody = $this->buildAdminEmailBody($currentOwner, $requester, $carInfo, $transferRequest, $reviewUrl);
 
-            $subject = "[ELANREGISTRY] ADMIN ALERT: Transfer Request #$transferRequestId - {$carData->year} {$carData->series} (Chassis: {$carData->chassis})";
+            $subject = EMAIL_SUBJECT_PREFIX . " ADMIN ALERT: Transfer Request #$transferRequestId - {$carData->year} {$carData->series} (Chassis: {$carData->chassis})";
 
             $totalCount = count($adminEmails);
             $successCount = 0;
@@ -248,7 +248,7 @@ class TransferEmailService
             $emailBody = $this->buildResponseEmailBody($requester, $carInfo, $transferRequest, $isApproved, $adminNotes, $carUrl);
 
             $status = $isApproved ? 'APPROVED' : 'DENIED';
-            $subject = "[ELANREGISTRY] Transfer Request $status - {$carData->year} {$carData->series} {$carData->variant} (Chassis: {$carData->chassis})";
+            $subject = EMAIL_SUBJECT_PREFIX . " Transfer Request $status - {$carData->year} {$carData->series} {$carData->variant} (Chassis: {$carData->chassis})";
             $requesterNotificationSent = (bool) ($this->mailer)($requester->email, $subject, $emailBody);
 
             if ($requesterNotificationSent) {
@@ -316,7 +316,7 @@ class TransferEmailService
             $emailBody = $this->buildPreviousOwnerEmailBody($previousOwner, $requester, $carInfo, $transferRequest, $isApproved, $adminNotes);
 
             $status = $isApproved ? 'APPROVED' : 'DENIED';
-            $subject = "[ELANREGISTRY] Transfer Decision: $status - {$carData->year} {$carData->series} {$carData->variant} (Chassis: {$carData->chassis})";
+            $subject = EMAIL_SUBJECT_PREFIX . " Transfer Decision: $status - {$carData->year} {$carData->series} {$carData->variant} (Chassis: {$carData->chassis})";
             $result = ($this->mailer)($previousOwner->email, $subject, $emailBody);
 
             if ($result) {
