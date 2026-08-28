@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ElanRegistry\Car\CarValidator;
 use ElanRegistry\DatabaseInterface;
+use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\Reference\CarModel;
 use PHPUnit\Framework\TestCase;
@@ -808,6 +809,28 @@ final class CarValidatorTest extends TestCase
 
         $this->expectException(CarValidationException::class);
         $this->expectExceptionMessage('is not a valid Lotus Elan model');
+
+        $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
+    }
+
+    /**
+     * A DB failure inside CarModel::exists() must surface as
+     * CarDatabaseException, not be swallowed or mistaken for
+     * CarValidationException's "not a valid Lotus Elan model" outcome
+     * (#1505 PR A) — validateAndSanitizeFields() has no catch block on this
+     * path, so the exception is expected to propagate unchanged.
+     */
+    #[Group('unit')]
+    public function testValidateModelPropagatesCarDatabaseExceptionOnDbFailure(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(true);
+        $db->method('errorString')->willReturn('mock query failure');
+
+        $validator = new CarValidator(new CarModel($db));
+
+        $this->expectException(CarDatabaseException::class);
 
         $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
     }
