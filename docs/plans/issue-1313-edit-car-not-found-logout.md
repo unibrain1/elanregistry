@@ -171,13 +171,15 @@ message + redirect added to an already-existing, unchanged guard condition.)
   the plan's own "Confirms (doesn't change) that a genuine ownership
   violation still logs out as before" claim was asserted, not tested.
   `TEST_USERNAME` turned out to be an admin (permission_id=2) and therefore
-  structurally unable to reach the logout branch, so a throwaway non-admin
-  account is registered via `join.php`, email-verified via direct SQL
-  (join.php hard-codes local email verification), and used to POST
-  `action=updateCar` for a real car (`CAR_ID_WITH_HISTORY=1091`) owned by
-  someone else — asserting the session is destroyed afterward. Verified
-  server-side (session file loses its `user` key, the expected `logger()`
-  line fires), not just via a client-side redirect assertion.
+  structurally unable to reach the logout branch. Initially closed via a
+  throwaway non-admin account registered per test run; refactored (at user
+  request) to a persistent `TEST_USERNAME2`/`TEST_PASSWORD2` non-admin
+  account in `.env.local` (gitignored), reusable by any future test needing
+  a plain-owner identity — faster (~16s vs. ~23s for the full file) and
+  avoids sharing `account-enumeration.spec.js`'s registration rate-limit
+  budget. Verified server-side (session file loses its `user` key, the
+  expected `logger()` line fires), not just via a client-side redirect
+  assertion.
 
 ## Documentation Plan
 

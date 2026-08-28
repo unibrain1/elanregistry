@@ -38,46 +38,18 @@
 // that POST directly rather than simulating a button click, since the
 // missing-car scenario has no such button in the UI to click (there is no
 // car to view a hero-actions form for).
+//
+// The ownership-violation test below needs a genuine non-admin, non-owner
+// session — TEST_USERNAME (the shared local login used by beforeEach()) is
+// provisioned as an Administrator (permission_id=2), which bypasses the
+// logout branch entirely. It logs in as a second, persistent plain-owner
+// account instead (TEST_USERNAME2/TEST_PASSWORD2 in .env.local,
+// permission_id=1, owns no cars), avoiding the cost and registration
+// rate-limit contention of registering a throwaway account per test run.
 
 const { test, expect } = require('@playwright/test');
-const { execFileSync } = require('node:child_process');
 const { ensureLoggedIn, login, logout } = require('./auth-helper.js');
 const { CAR_ID_NONEXISTENT, CAR_ID_WITH_HISTORY } = require('./fixtures.js');
-
-/**
- * Run a SQL statement against the local test DB via the `mysql` CLI.
- *
- * Only used by the ownership-violation-logout test below, to flip
- * email_verified=1 on a throwaway registered account immediately after
- * signup. No mysql client library is a project dependency (see package.json)
- * so this shells out to the CLI directly rather than adding one; DB_* vars
- * are already loaded into process.env by playwright.config.js's
- * `dotenv.config({ path: '.env.local' })`, so no separate env loading is
- * needed here.
- *
- * DB_HOST is stored as "host:port" (see .env.local's own comment on that
- * var, and users/classes/DB.php which parses it the same way) — split it
- * rather than assuming DB_PORT alone.
- *
- * @param {string} sql
- */
-function runSql(sql) {
-    const [dbHost, hostPort] = (process.env.DB_HOST || '').split(':');
-    if (!dbHost || !hostPort || !process.env.DB_USER || !process.env.DB_NAME) {
-        throw new Error('DB_HOST/DB_USER/DB_NAME must be set in .env.local to run this test');
-    }
-    execFileSync('mysql', [
-        '-h', dbHost,
-        '-P', hostPort,
-        '-u', process.env.DB_USER,
-        '--protocol=tcp',
-        process.env.DB_NAME,
-        '-e', sql,
-    ], {
-        env: { ...process.env, MYSQL_PWD: process.env.DB_PASS || '' },
-        stdio: ['ignore', 'ignore', 'pipe'],
-    });
-}
 
 test.describe('Car edit page — missing car (#1313)', () => {
 
@@ -196,133 +168,76 @@ test.describe('Car edit page — missing car (#1313)', () => {
     // separate save.php AJAX endpoint against a NONEXISTENT car_id, which
     // never reaches edit.php's own logout branch at all.
     //
-    // Why a throwaway registered account, not TEST_USERNAME: TEST_USERNAME
-    // (the shared local dev/test login) is provisioned as an Administrator
-    // in this environment's DB (permission_id=2), and hasPerm([2, 3]) at
-    // edit.php:117 makes admins bypass the logout branch entirely — using it
-    // here would make the test pass vacuously (or not exercise the branch at
-    // all) regardless of which car_id is used. A freshly self-registered
-    // account is a genuine plain owner: users/join.php hard-codes
-    // 'permissions' => 1 for every new signup (confirmed in that file), so
-    // it can never coincidentally hold admin/editor perms.
+    // Why a second, persistent account (TEST_USERNAME2/TEST_PASSWORD2), not
+    // TEST_USERNAME: TEST_USERNAME (the shared local dev/test login) is
+    // provisioned as an Administrator in this environment's DB
+    // (permission_id=2), and hasPerm([2, 3]) at edit.php:117 makes admins
+    // bypass the logout branch entirely — using it here would make the test
+    // pass vacuously (or not exercise the branch at all) regardless of which
+    // car_id is used. TEST_USERNAME2 is a genuine plain owner
+    // (permission_id=1, verified once at provisioning time — see
+    // .env.local's TEST_USERNAME2/TEST_PASSWORD2 comment for how it was
+    // created) that owns no cars, so it can never coincidentally hold
+    // admin/editor perms or pass the ownership check by actually owning
+    // CAR_ID_WITH_HISTORY.
     //
-    // Why the direct SQL UPDATE: a fresh registration is created with
-    // email_verified=0 in this environment (email activation is enabled —
-    // see users/join.php's $act/$pre handling), and users/init.php:124
-    // redirects any logged-in-but-unverified session to verify.php on every
-    // page except a short skip-list that does not include edit.php. Without
-    // marking the throwaway account verified first, the test could never
-    // reach edit.php at all. This is the one test in the suite that talks to
-    // the DB directly (see runSql() above) — justified because there is no
-    // lighter-weight way to get a real, non-admin, non-owner authenticated
-    // session; account-enumeration.spec.js's registration pattern works
-    // there only because it never logs in as the new account afterward.
-    //
-    // Shares a registration rate-limit budget (ip_max=10/hour — see
+    // This used to register (and delete) a throwaway account per test run
+    // via join.php, which cost ~13s of registration overhead and shared a
+    // registration rate-limit budget (ip_max=10/hour — see
     // usersc/includes/rate_limits.php's 'registration_attempt' entry) with
-    // account-enumeration.spec.js and any other spec that registers real
-    // accounts. Fine under normal single-run usage; running this file
-    // repeatedly back-to-back (e.g. --repeat-each) from the same IP can
-    // exhaust the budget and fail registration with a redirect back to
-    // join.php instead of users/complete.php.
+    // account-enumeration.spec.js. A persistent second account avoids both:
+    // no per-run registration, and no rate-limit contention.
     test('genuine ownership violation on an existing car still logs the user out (edit.php:119-124)', async ({ page, browserName }) => {
-        test.skip(browserName !== 'chromium', 'DB-touching setup only needs to run once, not per-browser-project');
+        test.skip(browserName !== 'chromium', 'Login/logout dance only needs to run once, not per-browser-project');
 
-        const unique = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-        const throwawayEmail = `car-edit-ownership-${unique}@example.com`;
-        const throwawayUsername = `car-edit-ownership-${unique}`;
-        const throwawayPassword = 'CorrectHorseBatteryStaple1!';
-
-        // 0. beforeEach() above logs in as TEST_USERNAME (the shared admin
-        //    account) for every test in this file. join.php redirects an
-        //    already-logged-in session away before ever rendering its form,
-        //    so this test must log out first to reach it.
+        // beforeEach() above logs in as TEST_USERNAME (the shared admin
+        // account) for every test in this file — log out first, then back in
+        // as the persistent plain-owner account.
         await logout(page);
+        await login(page, process.env.TEST_USERNAME2, process.env.TEST_PASSWORD2);
 
-        // 1. Register a fresh throwaway account (real HTTP POST, same as
-        //    account-enumeration.spec.js's pattern) — a genuine plain User
-        //    (permissions=1), owning no cars.
-        await page.goto('usersc/join.php', { waitUntil: 'domcontentloaded' });
-        const joinCsrf = await page.locator('input[name="csrf"]').inputValue();
-        expect(joinCsrf, 'join.php must render a csrf field to obtain a token from').toBeTruthy();
-
-        const joinResponse = await page.request.post('usersc/join.php', {
-            form: {
-                fname: 'CarEdit',
-                lname: 'Ownership',
-                username: throwawayUsername,
-                email: throwawayEmail,
-                password: throwawayPassword,
-                confirm: throwawayPassword,
-                csrf: joinCsrf,
-            },
-            maxRedirects: 0,
-        });
-        expect(joinResponse.status(), 'Registration must succeed (redirect)').toBeGreaterThanOrEqual(300);
-        expect(joinResponse.status(), 'Registration must succeed (redirect)').toBeLessThan(400);
+        await page.goto('app/owner/cars/edit.php', { waitUntil: 'domcontentloaded' });
+        const prePostUrl = page.url();
         expect(
-            joinResponse.headers()['location'],
-            'Registration must redirect to users/complete.php — a failure redirect back to the join page would mean no account was created, making the rest of this test vacuous'
-        ).toContain('users/complete.php');
+            prePostUrl.includes('login') || prePostUrl.includes('Please Log In'),
+            'TEST_USERNAME2 must be logged in before the ownership POST'
+        ).toBe(false);
 
-        // 2. Mark the account verified so it isn't redirected to verify.php
-        //    on every subsequent page (see comment above).
-        runSql(`UPDATE users SET email_verified = 1 WHERE email = '${throwawayEmail}'`);
+        const csrfToken = await page.locator('#csrf').inputValue();
+        expect(csrfToken, 'edit.php must render a #csrf hidden field to obtain a token from').toBeTruthy();
 
-        try {
-            // 3. Log in as the throwaway account and confirm the session is
-            //    actually established before POSTing anything.
-            await login(page, throwawayEmail, throwawayPassword);
-            await page.goto('app/owner/cars/edit.php', { waitUntil: 'domcontentloaded' });
-            const prePostUrl = page.url();
-            expect(
-                prePostUrl.includes('login') || prePostUrl.includes('Please Log In'),
-                'Throwaway account must be logged in and past the email-verification wall before the ownership POST'
-            ).toBe(false);
+        // POST action=updateCar for CAR_ID_WITH_HISTORY — an existing car
+        // TEST_USERNAME2 does not own and has no admin/editor perms over.
+        // Mirrors the real "Update Car" button submit (see the missing-car
+        // test above for why a synthetic form POST is used instead of
+        // clicking a button).
+        // page.request shares the browser context's cookie jar, so this
+        // POST carries the same session as the page above, without the
+        // extra complexity/race potential of a synthetic DOM form submit
+        // + navigation wait (unlike the missing-car test above, this
+        // branch has no Redirect::to() response to follow — edit.php's
+        // logout branch calls $user->logout(); exit(); directly).
+        await page.request.post('app/owner/cars/edit.php', {
+            form: { csrf: csrfToken, action: 'updateCar', car_id: String(CAR_ID_WITH_HISTORY) },
+        });
 
-            const csrfToken = await page.locator('#csrf').inputValue();
-            expect(csrfToken, 'edit.php must render a #csrf hidden field to obtain a token from').toBeTruthy();
-
-            // 4. POST action=updateCar for CAR_ID_WITH_HISTORY — an existing
-            //    car this throwaway account does not own and has no
-            //    admin/editor perms over. Mirrors the real "Update Car"
-            //    button submit (see the missing-car test above for why a
-            //    synthetic form POST is used instead of clicking a button).
-            // page.request shares the browser context's cookie jar, so this
-            // POST carries the same session as the page above, without the
-            // extra complexity/race potential of a synthetic DOM form submit
-            // + navigation wait (unlike the missing-car test above, this
-            // branch has no Redirect::to() response to follow — edit.php's
-            // logout branch calls $user->logout(); exit(); directly).
-            await page.request.post('app/owner/cars/edit.php', {
-                form: { csrf: csrfToken, action: 'updateCar', car_id: String(CAR_ID_WITH_HISTORY) },
-            });
-
-            // ------------------------------------------------------------------
-            // Assertion: the session must now be logged out. Navigate back to
-            // edit.php itself (a private=1 page per the `pages` table — unlike
-            // app/owner/cars/index.php, which is deliberately public and
-            // renders identically whether logged in or not, so it cannot
-            // distinguish auth states here) and confirm it bounces to the
-            // login wall rather than rendering — the inverse of the
-            // missing-car test's "still logged in" check.
-            // ------------------------------------------------------------------
-            await page.goto('app/owner/cars/edit.php', { waitUntil: 'domcontentloaded' });
-            const postNavUrl = page.url();
-            const postNavContent = await page.textContent('body');
-            expect(
-                postNavUrl.includes('login') || postNavUrl.includes('Please Log In') || postNavContent.includes('Please Log In'),
-                'A genuine ownership violation (non-owner, non-admin) POSTing action=updateCar to edit.php must log the user out — ' +
-                'still being logged in here would mean edit.php:119-124\'s logout branch did not fire'
-            ).toBe(true);
-        } finally {
-            // Best-effort cleanup — don't fail the test over cleanup itself.
-            try {
-                runSql(`DELETE FROM users WHERE email = '${throwawayEmail}'`);
-            } catch (_error) {
-                console.warn('Cleanup failed for throwaway user', throwawayEmail, _error.message);
-            }
-        }
+        // ------------------------------------------------------------------
+        // Assertion: the session must now be logged out. Navigate back to
+        // edit.php itself (a private=1 page per the `pages` table — unlike
+        // app/owner/cars/index.php, which is deliberately public and
+        // renders identically whether logged in or not, so it cannot
+        // distinguish auth states here) and confirm it bounces to the
+        // login wall rather than rendering — the inverse of the
+        // missing-car test's "still logged in" check.
+        // ------------------------------------------------------------------
+        await page.goto('app/owner/cars/edit.php', { waitUntil: 'domcontentloaded' });
+        const postNavUrl = page.url();
+        const postNavContent = await page.textContent('body');
+        expect(
+            postNavUrl.includes('login') || postNavUrl.includes('Please Log In') || postNavContent.includes('Please Log In'),
+            'A genuine ownership violation (non-owner, non-admin) POSTing action=updateCar to edit.php must log the user out — ' +
+            'still being logged in here would mean edit.php:119-124\'s logout branch did not fire'
+        ).toBe(true);
     });
 
 });
