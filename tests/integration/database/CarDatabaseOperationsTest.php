@@ -552,21 +552,33 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     }
 
     /**
-     * Test create() with an invalid CSRF token throws CarCreationException
+     * Regression test for issue #1519: CSRF validation moved out of Car::create()
+     * to the HTTP layer (app/api/cars/save.php). Car::create() now silently
+     * strips a 'token' key via unset() rather than validating it — an invalid
+     * or garbage token value must no longer cause a failure.
      */
     #[Group('integration')]
-    public function testCreateCarFailsWithInvalidCsrfToken(): void
+    public function testCreateCarIgnoresInvalidTokenField(): void
     {
-        $this->expectException(CarCreationException::class);
-        $this->expectExceptionMessage('Invalid CSRF token provided');
-
-        (new Car())->create([
+        $carData = [
             'token'   => 'not-a-valid-token',
             'user_id' => $this->testUserId,
             'year'    => '1971',
             'model'   => 'Sprint|FHC|36',
             'chassis' => 'CSRF' . substr(uniqid(), -8),
-        ]);
+        ];
+
+        $car = new Car();
+        $result = $car->create($carData);
+
+        $this->assertTrue($result, 'Car::create() must succeed regardless of the token field value');
+
+        $createdId = (int) $car->data()->id;
+        $this->trackCarId($createdId);
+
+        $row = $this->db->query('SELECT * FROM cars WHERE id = ?', [$createdId])->first();
+        $this->assertNotNull($row, 'Car must be persisted to the database');
+        $this->assertSame($carData['chassis'], $row->chassis);
     }
 
     /**
@@ -590,24 +602,24 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     }
 
     /**
-     * Test update with an invalid CSRF token throws CarValidationException and does not persist
+     * Regression test for issue #1519: CSRF validation moved out of Car::update()
+     * to the HTTP layer (app/api/cars/save.php). Car::update() now silently
+     * strips a 'token' key via unset() rather than validating it — an invalid
+     * or garbage token value must no longer prevent the update from persisting.
      */
     #[Group('integration')]
-    public function testUpdateCarFailsWithInvalidCsrfToken(): void
+    public function testUpdateCarIgnoresInvalidTokenField(): void
     {
-        try {
-            (new Car($this->testCarId))->update([
-                'id'    => $this->testCarId,
-                'token' => 'not-a-valid-token',
-                'color' => 'Should Not Persist',
-            ]);
-            $this->fail('Expected CarValidationException for an invalid CSRF token');
-        } catch (CarValidationException $e) {
-            $this->assertSame('Invalid CSRF token provided', $e->getMessage());
-        }
+        $result = (new Car($this->testCarId))->update([
+            'id'    => $this->testCarId,
+            'token' => 'not-a-valid-token',
+            'color' => 'Should Persist',
+        ]);
+
+        $this->assertTrue($result, 'Car::update() must succeed regardless of the token field value');
 
         $row = $this->db->query('SELECT color FROM cars WHERE id = ?', [$this->testCarId])->first();
-        $this->assertNotSame('Should Not Persist', $row->color, 'Rejected update must not reach the database');
+        $this->assertSame('Should Persist', $row->color, 'Update must reach the database even with an invalid token field');
     }
 
     /**

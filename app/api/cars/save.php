@@ -391,9 +391,6 @@ function buildCarDetails(array &$cardetails, array &$errors, ?int $carId = null)
         $cardetails['website']      = null;
         $cardetails['comments']     = null;
     }
-    // Add CSRF token for Car class validation
-    $cardetails['token'] = Input::get('csrf');
-    
     updateYear($cardetails, $errors);
     updateModel($cardetails, $errors);
     updateChassis($cardetails, $errors);

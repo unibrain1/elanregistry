@@ -156,10 +156,9 @@ class Car
             throw new CarCreationException('No data provided for car creation');
         }
 
-        // CSRF Protection
-        if (!isset($fields['token']) || !Token::check($fields['token'])) {
-            throw new CarCreationException('Invalid CSRF token provided');
-        }
+        // CSRF is validated by the caller (HTTP layer, save.php) before
+        // create() is called — see #1519. Strip a stray token key rather
+        // than let it flow into CarValidator/insertCar() unchecked.
         unset($fields['token']);
 
         $this->getValidator()->validateRequiredFields($fields, ['chassis', 'model', 'year']);
@@ -207,11 +206,9 @@ class Car
             throw new CarValidationException('No data or ID provided for car update');
         }
 
-        // CSRF Protection
-        if (!isset($fields['token']) || !Token::check($fields['token'])) {
-            logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_VALIDATION_ERROR, 'Car update failed: Invalid CSRF token');
-            throw new CarValidationException('Invalid CSRF token provided');
-        }
+        // CSRF is validated by the caller (HTTP layer, save.php) before
+        // update() is called — see #1519. Strip a stray token key rather
+        // than let it flow into CarValidator/persistence unchecked.
         unset($fields['token']);
 
         if (!is_numeric($fields['id']) || $fields['id'] <= 0) {

@@ -48,7 +48,9 @@ History is written automatically by database triggers — never manually.
 $car = new Car($carId);  // throws CarNotFoundException if not found
 $data = $car->data();    // stdObject with all car columns
 
-// Create
+// Create — CSRF is validated by the HTTP-layer caller (see save.php) before
+// create()/update() are invoked, not inside the Car class itself (#1519).
+// Do not pass a token/csrf field here.
 $car = new Car();
 $carId = $car->create([
     'chassis'    => '26/0001',
@@ -56,14 +58,12 @@ $carId = $car->create([
     'body_style' => 'DHC',
     'body_color' => 'Red',
     'user_id'    => $userId,
-    'csrf'       => Token::generate(),
 ]);
 
 // Update
 $car->update([
     'id'         => $carId,
     'body_color' => 'Blue',
-    'csrf'       => Token::generate(),
 ]);
 
 // Delete (hard delete; cars_hist trigger records the audit trail)
