@@ -167,6 +167,17 @@ message + redirect added to an already-existing, unchanged guard condition.)
   found" message, redirect to `cars/index.php`.
 - No existing tests are expected to break — the `exists()` guard's trigger
   condition is unchanged; only what happens inside that branch changes.
+- **Added post-implementation, found by `/review-pr`'s pr-test-analyzer:**
+  the plan's own "Confirms (doesn't change) that a genuine ownership
+  violation still logs out as before" claim was asserted, not tested.
+  `TEST_USERNAME` turned out to be an admin (permission_id=2) and therefore
+  structurally unable to reach the logout branch, so a throwaway non-admin
+  account is registered via `join.php`, email-verified via direct SQL
+  (join.php hard-codes local email verification), and used to POST
+  `action=updateCar` for a real car (`CAR_ID_WITH_HISTORY=1091`) owned by
+  someone else — asserting the session is destroyed afterward. Verified
+  server-side (session file loses its `user` key, the expected `logger()`
+  line fires), not just via a client-side redirect assertion.
 
 ## Documentation Plan
 
