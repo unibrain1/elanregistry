@@ -300,19 +300,34 @@ class Car
             $abs_us_root ?? ''
         );
 
-        // Get history
-        $this->_history = $repo->getHistory($carID);
+        // Get history — getHistory() now throws CarDatabaseException on a DB
+        // failure (previously silently returned []). find() itself must not
+        // start throwing for this subordinate lookup, so catch, log, and
+        // continue with an empty history rather than fail the whole find().
+        try {
+            $this->_history = $repo->getHistory($carID);
+        } catch (CarDatabaseException $e) {
+            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                "Car::find() getHistory failed for car {$carID}: " . $e->getMessage());
+            $this->_history = [];
+        }
 
-        // Get factory info
+        // Get factory info — same rationale as getHistory() above:
+        // getFactoryInfo() now throws on DB failure (previously returned null).
         $this->_factory = null;
         if (!empty($this->_data->chassis)) {
-            $factoryData = $repo->getFactoryInfo($this->_data->chassis, self::CHASSIS_SUFFIX_LENGTH);
-            if ($factoryData !== null) {
-                if (!empty($factoryData->suffix)) {
-                    $factoryData->suffix = $factoryData->suffix .
-                        " (" . CarRepository::suffixToText($factoryData->suffix) . ")";
+            try {
+                $factoryData = $repo->getFactoryInfo($this->_data->chassis, self::CHASSIS_SUFFIX_LENGTH);
+                if ($factoryData !== null) {
+                    if (!empty($factoryData->suffix)) {
+                        $factoryData->suffix = $factoryData->suffix .
+                            " (" . CarRepository::suffixToText($factoryData->suffix) . ")";
+                    }
+                    $this->_factory = $factoryData;
                 }
-                $this->_factory = $factoryData;
+            } catch (CarDatabaseException $e) {
+                logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                    "Car::find() getFactoryInfo failed for car {$carID}: " . $e->getMessage());
             }
         }
 

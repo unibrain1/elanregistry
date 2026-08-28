@@ -46,8 +46,17 @@ if (Input::existsGet() && Input::get('code') && Input::get('action')) {
         exit;
     }
 
-    // Look up the car by verification code (returns null if no match)
-    $carObj = Car::findByVerificationCode($code);
+    // Look up the car by verification code (returns null if no match; throws
+    // CarDatabaseException on a DB failure — caught below so this page, which
+    // renders output directly, doesn't leave a broken partial page on a DB blip).
+    try {
+        $carObj = Car::findByVerificationCode($code);
+    } catch (\ElanRegistry\Exceptions\CarDatabaseException $e) {
+        logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, "Verification code lookup failed for code {$code}: " . $e->getMessage());
+        echo "<h2>An error occurred processing your request. Please contact the registry.</h2>";
+        header('refresh:5;url=' . $base_url . $us_url_root);
+        exit;
+    }
     if ($carObj === null) {
         echo "<h2>Verification code not found or invalid</h2><br>";
         logger(0, LogCategories::LOG_CATEGORY_SECURITY, "Invalid verification code attempted: " . $code . " from IP: " . $remote_addr);

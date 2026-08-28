@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ElanRegistry\Reference;
 
 use ElanRegistry\DatabaseInterface;
+use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarValidationException;
 
 /**
@@ -99,6 +100,7 @@ class CarModel
      *
      * @param string $modelValue Composite key format: "series|variant|type"
      * @return object|null Model object or null if not found
+     * @throws CarDatabaseException If the query fails
      *
      * Query: WHERE model_value = value
      * Example values:
@@ -121,10 +123,16 @@ class CarModel
             return null;
         }
 
-        $result = $this->db->query(
+        $query = $this->db->query(
             'SELECT * FROM car_models WHERE model_value = ?',
             [$modelValue]
-        )->first();
+        );
+        if ($this->db->error()) {
+            throw new CarDatabaseException(
+                "CarModel::byValue failed for modelValue={$modelValue}: " . $this->db->errorString()
+            );
+        }
+        $result = $query->first();
 
         return $result ?: null;
     }
@@ -235,6 +243,7 @@ class CarModel
      * @param string $variant Body style (Roadster, FHC, DHC, Federal, Race)
      * @param string $typeCode Type code (26, 36, 45, 50, 26R)
      * @return bool True if model combination exists
+     * @throws CarDatabaseException If the query fails
      *
      * Query: WHERE series = ? AND variant = ? AND type_code = ?
      *
@@ -249,11 +258,17 @@ class CarModel
      */
     public function exists(string $series, string $variant, string $typeCode): bool
     {
-        $result = $this->db->query(
+        $query = $this->db->query(
             'SELECT COUNT(*) as cnt FROM car_models
              WHERE series = ? AND variant = ? AND type_code = ?',
             [trim($series), trim($variant), trim($typeCode)]
-        )->first();
+        );
+        if ($this->db->error()) {
+            throw new CarDatabaseException(
+                "CarModel::exists failed for {$series}|{$variant}|{$typeCode}: " . $this->db->errorString()
+            );
+        }
+        $result = $query->first();
 
         return ($result->cnt ?? 0) > 0;
     }
