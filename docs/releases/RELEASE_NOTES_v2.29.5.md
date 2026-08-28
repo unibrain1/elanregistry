@@ -38,6 +38,6 @@
 - [#1519](https://github.com/elan-registry/registry/issues/1519) — refactor: move Token::check() CSRF validation out of the Car entity
 - [#1618](https://github.com/elan-registry/registry/issues/1618) — test: Owner.php — ownership history, location-sync error paths, and quality-badge drift guard
 - [#1653](https://github.com/elan-registry/registry/issues/1653) — fix: Car.php catches Exception instead of Throwable at 3 call sites
-- WIP: [#1654](https://github.com/elan-registry/registry/issues/1654) — chore: add OwnerException abstract base; retire dead OwnerNotFoundException catches
+- [#1654](https://github.com/elan-registry/registry/issues/1654) — chore: add OwnerException abstract base; retire dead OwnerNotFoundException catches
 - WIP: [#1660](https://github.com/elan-registry/registry/issues/1660) — test: admin tabs owner-mgmt and health have no Playwright smoke coverage
 - WIP: [#1722](https://github.com/elan-registry/registry/issues/1722) — tech-debt: elan_image_max has two conflicting defaults (6 and 10)
