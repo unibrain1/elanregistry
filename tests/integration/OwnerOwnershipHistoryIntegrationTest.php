@@ -82,16 +82,32 @@ final class OwnerOwnershipHistoryIntegrationTest extends IntegrationTestCase
     public function testGetOwnershipHistoryReturnsMultipleRecordsOrderedByCtimeDesc(): void
     {
         $userId = $this->createTestUser();
-        $carId = $this->createTestCar($userId, ['chassis' => 'HIST0001']);
+        // The car's own chassis/model/year deliberately differ from the
+        // cars_hist rows' values below (rather than matching, as an earlier
+        // version of this test did) — Owner::getOwnershipHistory()'s SELECT
+        // ch.*, c.chassis, c.model, c.year ... LEFT JOIN cars pulls these
+        // three columns from the *joined* cars row, and PDO's duplicate-
+        // column overwrite means c.chassis/c.model win over cars_hist's own
+        // chassis/model of the same name. If the values matched, a
+        // regression that accidentally read cars_hist's own columns instead
+        // of the joined ones would still pass — divergent values make each
+        // assertion below actually discriminate which table it read from.
+        $carId = $this->createTestCar($userId, [
+            'chassis' => 'CARROW01',
+            'model'   => 'Elan Plus 2',
+            'year'    => 1971,
+        ]);
 
         $this->insertHistoryRow($carId, $userId, [
             'operation' => 'CREATE',
-            'chassis'   => 'HIST0001',
+            'chassis'   => 'HISTROW1',
+            'model'     => 'Elan Sprint',
             'ctime'     => '2020-01-01 10:00:00',
         ]);
         $this->insertHistoryRow($carId, $userId, [
             'operation' => 'TRANSFER',
-            'chassis'   => 'HIST0001',
+            'chassis'   => 'HISTROW2',
+            'model'     => 'Elan Sprint',
             'ctime'     => '2021-06-15 10:00:00',
         ]);
 
@@ -107,11 +123,13 @@ final class OwnerOwnershipHistoryIntegrationTest extends IntegrationTestCase
 
         // LEFT JOIN cars c ON ch.car_id = c.id (Owner.php:398) — joined fields
         // present. All three joined columns (chassis, model, year) checked
-        // individually so a regression that breaks the join for just one of
-        // them (e.g. a SELECT list edit) would fail here.
-        $this->assertSame('HIST0001', $history[0]->chassis, 'Joined cars.chassis must be present');
-        $this->assertSame('Elan S4', $history[0]->model, 'Joined cars.model must be present');
-        $this->assertSame(1973, (int) $history[0]->year, 'Joined cars.year must be present');
+        // individually against the *car's* values (not the history row's own
+        // same-named columns, which deliberately differ above) so each
+        // assertion actually discriminates a broken join, not just checks a
+        // value that happens to be present on both tables.
+        $this->assertSame('CARROW01', $history[0]->chassis, 'Joined cars.chassis must be present, not cars_hist.chassis');
+        $this->assertSame('Elan Plus 2', $history[0]->model, 'Joined cars.model must be present, not cars_hist.model');
+        $this->assertSame(1971, (int) $history[0]->year, 'Joined cars.year must be present');
     }
 
     public function testGetOwnershipHistoryReturnsEmptyArrayWhenNoHistoryExists(): void
