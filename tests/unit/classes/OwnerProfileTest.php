@@ -438,7 +438,7 @@ final class OwnerProfileTest extends TestCase
         $this->assertFalse($owner->find(-1));
     }
 
-    public function testFindReturnsFalseOnDatabaseError(): void
+    public function testFindThrowsOwnerDatabaseExceptionOnDatabaseError(): void
     {
         $db = $this->makeOwnerDbMock();
         $db->expects($this->once())->method('query')->willReturnSelf();
@@ -446,8 +446,9 @@ final class OwnerProfileTest extends TestCase
         $db->method('errorString')->willReturn('connection lost');
 
         $owner = new Owner(null, $db);
-        $this->assertFalse($owner->find(42));
-        $this->assertNull($owner->data());
+
+        $this->expectException(\ElanRegistry\Exceptions\OwnerDatabaseException::class);
+        $owner->find(42);
     }
 
     public function testFindReturnsFalseWhenUserNotFound(): void

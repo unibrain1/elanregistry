@@ -469,24 +469,6 @@ parameters:
 			path: usersc/scripts/during_user_creation.php
 
 		-
-			message: '#^Variable \$currentPage might not be defined\.$#'
-			identifier: variable.undefined
-			count: 2
-			path: usersc/user_settings.php
-
-		-
-			message: '#^Variable \$master_account might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/user_settings.php
-
-		-
-			message: '#^Variable \$profiledetails might not be defined\.$#'
-			identifier: variable.undefined
-			count: 12
-			path: usersc/user_settings.php
-
-		-
 			message: '#^Variable \$email might not be defined\.$#'
 			identifier: variable.undefined
 			count: 1

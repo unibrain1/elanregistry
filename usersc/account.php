@@ -5,6 +5,7 @@ declare(strict_types=1);
 use ElanRegistry\Car\Car;
 use ElanRegistry\CarView;
 use ElanRegistry\Exceptions\CarDatabaseException;
+use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 use ElanRegistry\OwnerView;
@@ -22,9 +23,22 @@ if (!empty($_POST['uncloak']) && Token::check(\Input::get('token'))) {
     Redirect::to($us_url_root . 'usersc/account.php');
 }
 
-$ownerId    = (int)$user->data()->id;
-$owner      = new Owner($ownerId);
-$ownerData  = $owner->data();
+$ownerId = (int)$user->data()->id;
+// Owner::__construct() calls find(), which throws OwnerDatabaseException on
+// a DB failure (#1505 PR B) rather than silently returning false — degrade
+// to null $ownerData (already handled by the !== null guard below) instead
+// of letting a DB blip crash every logged-in owner's account page.
+try {
+    $owner     = new Owner($ownerId);
+    $ownerData = $owner->data();
+} catch (OwnerDatabaseException $e) {
+    logger($ownerId, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'account.php: Owner lookup failed: ' . $e->getMessage());
+    // Fallback to an unloaded Owner (no $id passed, so find() never runs) so
+    // $owner stays a valid object for getProfileQualityScore() below, which
+    // returns 0.0 when no data is loaded.
+    $owner     = new Owner();
+    $ownerData = null;
+}
 try {
     $cars = Car::findByOwner($ownerId);
 } catch (CarDatabaseException $e) {

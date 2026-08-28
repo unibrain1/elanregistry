@@ -26,6 +26,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.ph
 
 <?php
 use ElanRegistry\AppConstants;
+use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\Input;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
@@ -33,6 +34,13 @@ use ElanRegistry\Owner;
 if (!securePage($php_self)) {
     die();
 }
+
+// $master_account and $currentPage are set as globals by users/init.php
+// (required above) — PHPStan can't trace assignments across the include
+// boundary, so re-bind them locally here for both static analysis and
+// clarity about where these values come from.
+global $master_account, $currentPage;
+
 //dealing with if the user is logged in
 if ($user->isLoggedIn() && !checkMenu(2, $user->data()->id) && ($settings->site_offline == 1) && (!in_array($user->data()->id, $master_account)) && ($currentPage != 'login.php') && ($currentPage != 'maintenance.php')) {
     $user->logout();
@@ -63,7 +71,15 @@ if ($userQ->count() > 0) {
     $state = (string)$profiledetails->state;
     $country = (string)$profiledetails->country;
 } else {
+    // Every owner gets a profiles row via Owner::create()'s single
+    // user+profile transaction, so a missing row here means data
+    // corruption for an otherwise-authenticated user. $profiledetails is
+    // used unconditionally below (city/state/country/website comparisons),
+    // so this is unrecoverable for the rest of the page — log and stop
+    // rather than continue into undefined-variable territory.
     logger((int)$user->data()->id, LogCategories::LOG_CATEGORY_USER, "USER_SETTING(59) something is wrong with the user profile ");
+    echo "<h2>An error occurred loading your account. Please contact the registry.</h2>";
+    exit;
 }
 
 // Get the country list
@@ -267,12 +283,24 @@ if (!empty($_POST)) {
             $successes[] = 'Lat/Lon updated.';
             logger((int)$user->data()->id, LogCategories::LOG_CATEGORY_USER, 'Successfully updated lat/lon: ' . json_encode($geoResult));
 
-            $owner = new Owner($userId);
-            $carsUpdated = $owner->syncLocationToCars();
-            if ($carsUpdated > 0) {
-                $successes[] = "Location synchronized to $carsUpdated car(s).";
-            } elseif (!empty($owner->getCarsOwned())) {
-                // User has cars but 0 were updated — sync failed (individual errors logged in syncLocationToCars)
+            // getCarsOwned()/syncLocationToCars() throw OwnerDatabaseException on a DB
+            // failure (#1505 PR B) rather than silently returning []/0 — this page has no
+            // exception handling elsewhere, so a DB blip here must degrade gracefully
+            // rather than crash the whole settings page after the profile fields above
+            // already saved successfully. Matches verify_car.php's defensive-wrap
+            // precedent from PR A (#1816).
+            try {
+                $owner = new Owner($userId);
+                $carsUpdated = $owner->syncLocationToCars();
+                if ($carsUpdated > 0) {
+                    $successes[] = "Location synchronized to $carsUpdated car(s).";
+                } elseif (!empty($owner->getCarsOwned())) {
+                    // User has cars but 0 were updated — sync failed (individual errors logged in syncLocationToCars)
+                    $errors[] = 'Location saved, but car location sync encountered an error. Please contact support if this persists.';
+                }
+            } catch (OwnerDatabaseException $e) {
+                logger((int)$user->data()->id, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                    "user_settings.php: car location sync failed for user {$userId}: " . $e->getMessage());
                 $errors[] = 'Location saved, but car location sync encountered an error. Please contact support if this persists.';
             }
         }

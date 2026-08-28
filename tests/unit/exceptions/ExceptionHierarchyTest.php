@@ -17,6 +17,7 @@ use ElanRegistry\Exceptions\ElanRegistryException;
 use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Exceptions\LocationServiceException;
 use ElanRegistry\Exceptions\OwnerCreationException;
+use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\Exceptions\OwnerNotFoundException;
 use ElanRegistry\Exceptions\OwnerUpdateException;
 use ElanRegistry\Exceptions\OwnerValidationException;
@@ -54,6 +55,7 @@ class ExceptionHierarchyTest extends TestCase
         OwnerCreationException::class,
         OwnerValidationException::class,
         OwnerUpdateException::class,
+        OwnerDatabaseException::class,
         ImageProcessingException::class,
         BackupException::class,
         ValidationException::class,
@@ -316,6 +318,7 @@ class ExceptionHierarchyTest extends TestCase
         $this->assertEquals(500, (new CarDatabaseException())->getHttpStatusCode());
         $this->assertEquals(500, (new OwnerCreationException())->getHttpStatusCode());
         $this->assertEquals(500, (new OwnerUpdateException())->getHttpStatusCode());
+        $this->assertEquals(500, (new OwnerDatabaseException())->getHttpStatusCode());
         $this->assertEquals(500, (new ImageProcessingException())->getHttpStatusCode());
         $this->assertEquals(500, (new BackupException('msg'))->getHttpStatusCode());
         $this->assertEquals(500, (new LocationServiceException())->getHttpStatusCode());
@@ -395,6 +398,7 @@ class ExceptionHierarchyTest extends TestCase
             'OwnerCreationException' => [OwnerCreationException::class, 'OwnerActions'],
             'OwnerValidationException' => [OwnerValidationException::class, 'ValidationError'],
             'OwnerUpdateException' => [OwnerUpdateException::class, 'OwnerActions'],
+            'OwnerDatabaseException' => [OwnerDatabaseException::class, 'DatabaseError'],
             'ImageProcessingException' => [ImageProcessingException::class, 'FileError'],
             'AdminContactException' => [AdminContactException::class, 'CarActions'],
             'AdminOperationException' => [AdminOperationException::class, 'SystemError'],
@@ -424,6 +428,7 @@ class ExceptionHierarchyTest extends TestCase
             'OwnerCreationException' => [OwnerCreationException::class, 500],
             'OwnerValidationException' => [OwnerValidationException::class, 422],
             'OwnerUpdateException' => [OwnerUpdateException::class, 500],
+            'OwnerDatabaseException' => [OwnerDatabaseException::class, 500],
             'ImageProcessingException' => [ImageProcessingException::class, 500],
             'AdminContactException' => [AdminContactException::class, 500],
             'AdminOperationException' => [AdminOperationException::class, 500],

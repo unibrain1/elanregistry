@@ -312,6 +312,25 @@ $results = (new Owner())->searchOwners('Portland');
 - Use `(new Owner($userId))->data()` to load combined user+profile data
 - Used in admin consolidated management interface
 
+**Exception Handling**:
+
+`find()`, `getCarsOwned()`, and `getOwnershipHistory()` throw
+`OwnerDatabaseException` (extends `ElanRegistryException`, 500) on a DB query
+failure. They still return `false`/`[]` for a genuinely empty/not-found
+result — only a DB-layer error throws, so callers can distinguish "not
+found" from "DB failed" without reading logs.
+
+`create()`/`update()` wrap their writes in `beginTransaction()`/`commit()`/
+`rollback()` (an ownership-flag transaction guard mirroring
+`CarRepository`'s pattern) and catch `\Throwable`, guaranteeing rollback on
+any failure including a PHP `\Error`. Their post-write reload call is
+wrapped in its own local `try/catch (OwnerDatabaseException $e)` — a reload
+failure after a successful write is logged, not propagated.
+
+`syncLocationToCars()` lets `getCarsOwned()`'s exception propagate
+uncaught by design — a DB failure should surface as a real exception, not
+collapse into "0 cars synced."
+
 ### CarValidator
 
 **Location**: `/usersc/classes/Car/CarValidator.php`

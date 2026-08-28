@@ -14,6 +14,7 @@ use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\Exceptions\ImageProcessingException;
+use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\LogCategories;
 
 /**
@@ -493,6 +494,9 @@ class Car
      * @throws CarNotFoundException If the car does not exist
      * @throws CarValidationException If the target user does not exist
      * @throws CarDatabaseException If a database operation fails
+     * @throws OwnerDatabaseException If the target-user lookup itself fails
+     *         due to a DB error, before the transaction begins — see
+     *         CarAdministrationService::transfer()'s docblock
      */
     public function transfer(int $newUserId, string $reason, string $operationType, int $actingUserId): true
     {
