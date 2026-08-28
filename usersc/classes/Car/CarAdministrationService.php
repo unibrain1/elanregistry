@@ -12,6 +12,7 @@ use ElanRegistry\Exceptions\CarException;
 use ElanRegistry\Exceptions\CarMergeException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
+use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 use ElanRegistry\Car\CarValidator;
@@ -109,6 +110,11 @@ class CarAdministrationService
      * @return true Always returns true; throws on any failure.
      * @throws CarValidationException If target user is invalid
      * @throws CarDatabaseException If database operation fails
+     * @throws OwnerDatabaseException If the target-user lookup itself fails
+     *         due to a DB error — thrown from the `new Owner($newUserId, $db)`
+     *         lookup below, before the transaction begins. Relies on callers'
+     *         existing broad (`\Throwable`/`CarException`) catches; all three
+     *         current production callers already satisfy this.
      */
     public function transfer(
         object $carData,
