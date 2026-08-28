@@ -1,13 +1,9 @@
 <?php
 declare(strict_types=1);
 
-$elanThumbnailSize = 100;
-$elanResponsiveSize = 300;
 $elanSizes = explode(',', ELAN_IMAGE_THUMBNAIL_SIZES);
 $elanThumbnailSize = intval(trim($elanSizes[0]));
-if (count($elanSizes) >= 2) {
-    $elanResponsiveSize = intval(trim($elanSizes[1]));
-}
+$elanResponsiveSize = intval(trim($elanSizes[1]));
 ?>
 <script nonce="<?= htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
 window.ELAN_CONFIG = {
