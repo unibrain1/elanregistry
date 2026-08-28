@@ -45,7 +45,7 @@
 
 ## Issues Resolved
 
-- WIP: [#1067](https://github.com/elan-registry/registry/issues/1067) — fix: Car/Owner domain code reads image and email config from scattered $settings properties instead of one source
+- [#1067](https://github.com/elan-registry/registry/issues/1067) — fix: Car/Owner domain code reads image and email config from scattered $settings properties instead of one source
 - WIP: [#1225](https://github.com/elan-registry/registry/issues/1225) — refactor: redesign maintenance.php landing state — default to Maintenance, move Health signals to header (pulled into this milestone from v2.35.0 on 2026-08-28, depends on #1067 landing first)
 - [#1313](https://github.com/elan-registry/registry/issues/1313) — fix: edit.php force-logs-out a user when the car is missing/merged instead of showing 404
 - [#1448](https://github.com/elan-registry/registry/issues/1448) — fix: Car::update() array_filter prevents clearing color/comments/website/engine/sold-date
