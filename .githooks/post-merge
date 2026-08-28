@@ -8,3 +8,14 @@ git describe --tags --always > VERSION
 # tracked in git; re-derive it on every pull instead. Non-fatal.
 php "$(git rev-parse --show-toplevel)/scripts/vendor-bootstrap-maps.php" \
     || echo "WARNING: vendor-bootstrap-maps failed (non-fatal) — see output above."
+
+# usersc/js/ and usersc/css/ are gitignored build output (ADR-018, #1806) —
+# regenerate them after every pull/merge so the site doesn't silently break
+# locally when the vendored files are missing or stale. Non-fatal: warn and
+# let the developer run `npm run build` manually if it fails.
+if command -v npm >/dev/null 2>&1; then
+    npm run build --silent \
+        || echo "WARNING: npm run build failed (non-fatal) — run 'npm run build' manually. See output above."
+else
+    echo "WARNING: npm not found — usersc/js/ and usersc/css/ were not rebuilt. Run 'npm run build' manually."
+fi

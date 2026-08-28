@@ -87,7 +87,8 @@ and audit trails.
 **Common Usage**:
 
 ```php
-// Create new car
+// Create new car — CSRF is validated by the HTTP-layer caller (see save.php)
+// before create()/update() are invoked, not inside the Car class itself.
 $car = new Car();
 $carId = $car->create([
     'chassis' => '26/0001',
@@ -95,7 +96,6 @@ $carId = $car->create([
     'body_style' => 'DHC',
     'body_color' => 'Red',
     'user_id' => $userId,
-    'csrf' => Token::generate()
 ]);
 
 // Load existing car
@@ -106,7 +106,6 @@ $carData = $car->data();
 $car->update([
     'id' => $carId,
     'body_color' => 'Blue',
-    'csrf' => Token::generate()
 ]);
 
 // Delete car (soft delete with audit trail)

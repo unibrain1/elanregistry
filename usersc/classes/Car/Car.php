@@ -36,6 +36,15 @@ class Car
 {
     private const CHASSIS_SUFFIX_LENGTH = 5;
 
+    /**
+     * Fields allowed to carry an explicit null through update() to clear
+     * the column in the database. All other fields keep the default
+     * strip-empty behavior.
+     */
+    private const CLEARABLE_FIELDS = [
+        'color', 'engine', 'purchasedate', 'solddate', 'website', 'comments',
+    ];
+
     private DatabaseInterface $_db;
     private ?object $_data = null;
     private array $_history = [];
@@ -147,10 +156,9 @@ class Car
             throw new CarCreationException('No data provided for car creation');
         }
 
-        // CSRF Protection
-        if (!isset($fields['token']) || !Token::check($fields['token'])) {
-            throw new CarCreationException('Invalid CSRF token provided');
-        }
+        // CSRF is validated by the caller (HTTP layer, save.php) before
+        // create() is called — see #1519. Strip a stray token key rather
+        // than let it flow into CarValidator/insertCar() unchecked.
         unset($fields['token']);
 
         $this->getValidator()->validateRequiredFields($fields, ['chassis', 'model', 'year']);
@@ -161,7 +169,7 @@ class Car
             try {
                 $fields['image'] = $this->getImageProcessor()->encodeImages($fields['images']);
                 unset($fields['images']);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_FILE_ERROR, "Car class: Image encoding error during create: " . $e->getMessage());
                 throw new ImageProcessingException('Error processing car images: ' . $e->getMessage());
             }
@@ -198,11 +206,9 @@ class Car
             throw new CarValidationException('No data or ID provided for car update');
         }
 
-        // CSRF Protection
-        if (!isset($fields['token']) || !Token::check($fields['token'])) {
-            logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_VALIDATION_ERROR, 'Car update failed: Invalid CSRF token');
-            throw new CarValidationException('Invalid CSRF token provided');
-        }
+        // CSRF is validated by the caller (HTTP layer, save.php) before
+        // update() is called — see #1519. Strip a stray token key rather
+        // than let it flow into CarValidator/persistence unchecked.
         unset($fields['token']);
 
         if (!is_numeric($fields['id']) || $fields['id'] <= 0) {
@@ -222,7 +228,7 @@ class Car
             try {
                 $fields['image'] = $this->getImageProcessor()->encodeImages($fields['images']);
                 unset($fields['images']);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_FILE_ERROR, "Car class: Image encoding error during update: " . $e->getMessage());
                 throw new ImageProcessingException('Error processing car images: ' . $e->getMessage());
             }
@@ -240,9 +246,12 @@ class Car
         $carId = (int) $filteredFields['id'];
         unset($filteredFields['id']);
 
-        $filteredFields = array_filter($filteredFields, function ($value) {
-            return $value !== '' && $value !== null;
-        });
+        $filteredFields = array_filter(
+            $filteredFields,
+            fn($value, $key) => in_array($key, self::CLEARABLE_FIELDS, true)
+                || ($value !== '' && $value !== null),
+            ARRAY_FILTER_USE_BOTH
+        );
 
         $repo = $this->getRepository();
         $updateResult = $repo->updateCar($carId, $filteredFields);
@@ -595,7 +604,7 @@ class Car
                 return $car->exists() ? $car : null;
             }
             return null;
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Unexpected error: ' . $e->getMessage());
             throw new CarDatabaseException('An unexpected error occurred. Please try again or contact support.');
         }
