@@ -100,6 +100,17 @@ if ($row === false) {
     exit(1);
 }
 
+// A NULL column (never set by any migration, only a column-level default —
+// see this script's docblock) must fail loudly here, not silently coerce to
+// an empty string. custom_functions.php's read-time fallback would mask an
+// empty .env value at runtime, but this write-time check exists so the
+// operator sees the real problem instead of both layers quietly assuming
+// the other one caught it.
+if ($row['elan_admin_emails'] === null || $row['elan_feedback_email'] === null) {
+    fwrite(STDERR, "elan_admin_emails or elan_feedback_email is NULL in the settings row — refusing to write an empty value to .env. Set the column directly or investigate why it was never populated.\n");
+    exit(1);
+}
+
 $adminEmails = (string)$row['elan_admin_emails'];
 $feedbackEmail = (string)$row['elan_feedback_email'];
 

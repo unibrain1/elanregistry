@@ -33,8 +33,6 @@ ob_start();
 // Check to see if the chassis number is taken
 require_once '../../../users/init.php';
 
-$settings = getSettings();  // Get global settings from plugin
-
 $errors     = [];
 $chassis_override_used = false; // Track if chassis validation override was used
 $cardetails = [];

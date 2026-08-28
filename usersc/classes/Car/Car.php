@@ -73,14 +73,7 @@ class Car
     {
         $this->_db = $db ?? dbi();
 
-        if (function_exists('getSettings')) {
-            $settings = getSettings();
-        } else {
-            $settingsQuery = $this->_db->query('SELECT * FROM settings WHERE id = ?', [1]);
-            $settings = $settingsQuery->count() > 0 ? $settingsQuery->first() : null;
-        }
-
-        if ($id && is_object($settings)) {
+        if ($id) {
             $this->imageDir = ELAN_IMAGE_DIR . $id . '/';
             $this->find($id);
         }

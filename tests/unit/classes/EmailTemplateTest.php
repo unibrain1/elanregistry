@@ -80,6 +80,38 @@ final class EmailTemplateTest extends TestCase
         $this->assertStringContainsString('<title>Lotus Elan Registry - My Email Subject</title>', $html);
     }
 
+    public function testRenderUsesGlobalSettingsSiteNameWhenSet(): void
+    {
+        global $settings;
+        $previous = $settings ?? null;
+
+        try {
+            $settings = (object) ['site_name' => 'Custom Registry Name'];
+            $html = $this->template->render('My Email Subject', 'Subtitle', 'Content');
+
+            $this->assertStringContainsString('<title>Custom Registry Name - My Email Subject</title>', $html);
+            $this->assertStringNotContainsString('Lotus Elan Registry', $html);
+        } finally {
+            $settings = $previous;
+        }
+    }
+
+    public function testRenderEscapesGlobalSettingsSiteName(): void
+    {
+        global $settings;
+        $previous = $settings ?? null;
+
+        try {
+            $settings = (object) ['site_name' => '<script>alert(1)</script>'];
+            $html = $this->template->render('Subject', 'Subtitle', 'Content');
+
+            $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
+            $this->assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
+        } finally {
+            $settings = $previous;
+        }
+    }
+
     public function testRenderIncludesSubtitleInHeader(): void
     {
         $html = $this->template->render(
