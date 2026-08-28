@@ -105,8 +105,13 @@ final class OwnerOwnershipHistoryIntegrationTest extends IntegrationTestCase
         $this->assertSame('TRANSFER', $history[0]->operation);
         $this->assertSame('CREATE', $history[1]->operation);
 
-        // LEFT JOIN cars c ON ch.car_id = c.id (Owner.php:398) — joined fields present.
+        // LEFT JOIN cars c ON ch.car_id = c.id (Owner.php:398) — joined fields
+        // present. All three joined columns (chassis, model, year) checked
+        // individually so a regression that breaks the join for just one of
+        // them (e.g. a SELECT list edit) would fail here.
         $this->assertSame('HIST0001', $history[0]->chassis, 'Joined cars.chassis must be present');
+        $this->assertSame('Elan S4', $history[0]->model, 'Joined cars.model must be present');
+        $this->assertSame(1973, (int) $history[0]->year, 'Joined cars.year must be present');
     }
 
     public function testGetOwnershipHistoryReturnsEmptyArrayWhenNoHistoryExists(): void
