@@ -314,11 +314,23 @@ $results = (new Owner())->searchOwners('Portland');
 
 **Exception Handling**:
 
+All Owner exception classes are in the `ElanRegistry\Exceptions` namespace
+and extend `OwnerException` (abstract, extends `ElanRegistryException`),
+mirroring `CarException`'s pattern — `catch (OwnerException $e)` handles any
+owner-domain error uniformly:
+
+- `OwnerCreationException` — owner creation failures (500)
+- `OwnerSearchException` — owner search failures (500)
+- `OwnerUpdateException` — owner update failures (500)
+- `OwnerValidationException` — invalid owner data (422)
+- `OwnerDatabaseException` — database operation failures (500)
+
 `find()`, `getCarsOwned()`, and `getOwnershipHistory()` throw
-`OwnerDatabaseException` (extends `ElanRegistryException`, 500) on a DB query
-failure. They still return `false`/`[]` for a genuinely empty/not-found
-result — only a DB-layer error throws, so callers can distinguish "not
-found" from "DB failed" without reading logs.
+`OwnerDatabaseException` on a DB query failure. They still return `false`/
+`[]` for a genuinely empty/not-found result — only a DB-layer error throws,
+so callers can distinguish "not found" from "DB failed" without reading
+logs. (`OwnerNotFoundException` was removed in v2.29.5 — nothing threw it
+in production; `find()` returning `bool` covers the not-found case.)
 
 `create()`/`update()` wrap their writes in `beginTransaction()`/`commit()`/
 `rollback()` (an ownership-flag transaction guard mirroring

@@ -264,8 +264,9 @@ users/init.php
 - **Car exceptions:** `CarCreationException`, `CarNotFoundException`,
   `CarValidationException`, `CarTransferException`, `CarMergeException`,
   `CarDeletionException`
-- **Owner exceptions:** `OwnerCreationException`, `OwnerNotFoundException`,
-  `OwnerValidationException`, `OwnerUpdateException`
+- **Owner exceptions:** `OwnerCreationException`, `OwnerSearchException`,
+  `OwnerUpdateException`, `OwnerValidationException`, `OwnerDatabaseException`
+  (all extend the abstract `OwnerException` base)
 - **System exceptions:** `ImageProcessingException`, `BackupException`
 
 **Autoloader Details:**
