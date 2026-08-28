@@ -23,7 +23,7 @@ $carData = $carQ->results();  // Results as an array
 foreach ($carData as $car) {
     echo "<hr>Send email for car:" . $car->id . "<br>";
     // Update the verification code
-    $verificationCode = md5(uniqid(rand(), true));
+    $verificationCode = md5(uniqid((string) rand(), true));
     try {
         (new Car((int) $car->id))->setVerificationCode($verificationCode);
     } catch (\Exception $e) {
@@ -38,8 +38,8 @@ foreach ($carData as $car) {
     $db->deleteById("cars_hist", $id);
 
 
-    if ($car->image && file_exists($abs_us_root . $us_url_root . $settings->elan_image_dir . $car->image)) {
-        $image = '<img src="' . htmlspecialchars($base_url . $us_url_root . $settings->elan_image_dir . (string)$car->image, ENT_QUOTES, 'UTF-8') . '">';
+    if ($car->image && file_exists($abs_us_root . $us_url_root . ELAN_IMAGE_DIR . $car->image)) {
+        $image = '<img src="' . htmlspecialchars($base_url . $us_url_root . ELAN_IMAGE_DIR . (string)$car->image, ENT_QUOTES, 'UTF-8') . '">';
     } else {
         $image = 'No image';
     }
@@ -54,7 +54,7 @@ foreach ($carData as $car) {
 
 
     $to = $car->email;
-    $subject = "Lotus Elan Registry - Request for Information Verification";
+    $subject = EMAIL_SUBJECT_PREFIX . " Request for Information Verification";
 
     // Get the email template
     ob_start();

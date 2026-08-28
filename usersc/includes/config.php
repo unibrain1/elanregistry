@@ -63,3 +63,47 @@ $_versionFile = $abs_us_root . $us_url_root . 'VERSION';
 define('ASSET_VERSION', AssetVersionResolver::resolve($_versionFile));
 unset($_versionFile);
 
+// ============================================================================
+// Media & Image Configuration
+// ============================================================================
+
+/**
+ * Directory (relative to $us_url_root) where car images are stored.
+ */
+define('ELAN_IMAGE_DIR', 'userimages/');
+
+/**
+ * Maximum photos allowed per car.
+ */
+define('ELAN_IMAGE_MAX', 6);
+
+/**
+ * Maximum upload file size, in MB.
+ */
+define('ELAN_IMAGE_UPLOAD_MAX_SIZE', 3.00);
+
+/**
+ * Maximum display image width, in pixels.
+ */
+define('ELAN_IMAGE_DISPLAY_MAX_SIZE', 2048);
+
+/**
+ * Comma-separated thumbnail sizes, in pixels.
+ */
+define('ELAN_IMAGE_THUMBNAIL_SIZES', '100,300,768,1024,2048');
+
+// ============================================================================
+// Transfer & Email Configuration
+// ============================================================================
+
+/**
+ * How many days a car ownership transfer request stays valid before expiring.
+ */
+define('TRANSFER_REQUEST_EXPIRY_DAYS', 30);
+
+/**
+ * Bracket prefix prepended to outbound email subjects (contact, feedback,
+ * transfer notifications) so recipients can filter/identify registry mail.
+ */
+define('EMAIL_SUBJECT_PREFIX', '[ELANREGISTRY]');
+

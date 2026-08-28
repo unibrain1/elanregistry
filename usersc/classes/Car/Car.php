@@ -73,15 +73,8 @@ class Car
     {
         $this->_db = $db ?? dbi();
 
-        if (function_exists('getSettings')) {
-            $settings = getSettings();
-        } else {
-            $settingsQuery = $this->_db->query('SELECT * FROM settings WHERE id = ?', [1]);
-            $settings = $settingsQuery->count() > 0 ? $settingsQuery->first() : null;
-        }
-
-        if ($id && is_object($settings)) {
-            $this->imageDir = $settings->elan_image_dir . $id . '/';
+        if ($id) {
+            $this->imageDir = ELAN_IMAGE_DIR . $id . '/';
             $this->find($id);
         }
     }
@@ -151,8 +144,6 @@ class Car
      */
     public function create(array $fields = []): bool
     {
-        $settings = getSettings();
-
         if (empty($fields)) {
             throw new CarCreationException('No data provided for car creation');
         }
@@ -186,7 +177,7 @@ class Car
         if (!$this->find($id)) {
             throw new CarCreationException("Car ID {$id} not found after insert");
         }
-        $this->imageDir = $settings->elan_image_dir . $id . '/';
+        $this->imageDir = ELAN_IMAGE_DIR . $id . '/';
         $ownerId = (int) $this->data()->user_id;
 
         logger($ownerId, LogCategories::LOG_CATEGORY_CAR_ACTIONS, "Car ID $id created and assigned to owner (user ID: $ownerId)");

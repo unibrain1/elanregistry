@@ -25,12 +25,7 @@ if (!securePage($php_self)) {
     die();
 }
 
-// Ensure settings have default values for image configuration
-$settings->elan_image_upload_max_size ??= 2;
-$settings->elan_image_display_max_size ??= 2048;
-$settings->elan_image_thumbnail_sizes ??= '100,300,768,1024,2048';
-
-$maximages = $settings->elan_image_max;
+$maximages = ELAN_IMAGE_MAX;
 
 $cardetails = [];
 // Initialize car details array with default null values
@@ -391,8 +386,8 @@ function updateCarDetails(array &$car): void
                         <details class="mt-2">
                             <summary class="text-muted small" style="cursor:pointer">Photo requirements</summary>
                             <ul class="small text-muted mt-1 mb-0">
-                                <li>Maximum of <?= $settings->elan_image_max ?> photos</li>
-                                <li>Maximum size <?= $settings->elan_image_upload_max_size ?> MB each</li>
+                                <li>Maximum of <?= ELAN_IMAGE_MAX ?> photos</li>
+                                <li>Maximum size <?= ELAN_IMAGE_UPLOAD_MAX_SIZE ?> MB each</li>
                                 <li>Photos only</li>
                                 <li>Tap and hold to reorder &bull; Drag on desktop</li>
                             </ul>
@@ -654,8 +649,8 @@ require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; //c
 window.editCarConfig = {
     urlRoot: <?= json_encode((string)$us_url_root, JSON_HEX_TAG | JSON_HEX_AMP) ?>,
     maxFiles: <?= (int)$maximages ?>,
-    maxFileSize: <?= (int)((float)$settings->elan_image_upload_max_size * 1024 * 1024) ?>,
-    imageResizeWidth: <?= (int)$settings->elan_image_display_max_size ?>,
+    maxFileSize: <?= (int)(ELAN_IMAGE_UPLOAD_MAX_SIZE * 1024 * 1024) ?>,
+    imageResizeWidth: <?= ELAN_IMAGE_DISPLAY_MAX_SIZE ?>,
     isUpdate: <?= json_encode($action === 'updateCar') ?>,
     year: <?= $action === 'updateCar' ? (int)($cardetails['year'] ?? 0) : 0 ?>,
     model: <?= $action === 'updateCar' ? json_encode((string)($cardetails['model'] ?? ''), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) : '""' ?>

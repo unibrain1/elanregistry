@@ -65,6 +65,25 @@ The Elan Registry uses **vlucas/phpdotenv** v5 for environment variable loading 
   (overwritten, not merged) by the in-app Rate Limiting Dashboard on every
   save, which would silently delete any code appended there.
 
+### Admin & Feedback Email Recipients
+
+**Usage**: `usersc/includes/custom_functions.php` (`getAdminEmails()`/`getFeedbackEmail()`)
+
+- `ADMIN_EMAILS` — admin notification recipient address(es), comma-separated
+  if multiple
+- `FEEDBACK_EMAIL` — feedback-form recipient address
+
+Both fall back to `registrar@elanregistry.org` if unset or empty. Formerly
+web-editable `settings` table columns (`elan_admin_emails`/`elan_feedback_email`);
+moved to `.env` in #1067 to close a web-writable path to reroute these
+addresses via a compromised admin session — see `docs/plans/issue-1067-centralize-domain-config.md`
+if still present, or PR #1823.
+
+One-time migration: `scripts/generate-config.php` reads the live `settings`
+row and appends these two keys to `.env` (preserving all other keys), then
+re-applies `chmod 600`. Deletable from the repo once test/prod are both
+confirmed populated — it is not ongoing deploy infrastructure.
+
 ### Cloudflare Turnstile CAPTCHA
 
 **Usage**: `usersc/includes/turnstile.php`

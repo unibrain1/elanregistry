@@ -138,29 +138,31 @@ function getBaseUrl(): string {
 }
 
 /**
- * Get admin email address(es) from settings
+ * Get admin email address(es) from the environment
  *
- * Returns the configured admin email address(es) from the database settings,
+ * Returns the configured admin email address(es) from the environment,
  * with a fallback to the default registrar email if not configured.
  *
  * @return string Admin email address(es), comma-separated if multiple
  */
 function getAdminEmails(): string {
-    global $settings;
-    return $settings->elan_admin_emails ?? 'registrar@elanregistry.org';
+    // ?: (not ??) so an empty-string .env value also falls back, not just
+    // an unset/null key — see #1067.
+    return ($_ENV['ADMIN_EMAILS'] ?? '') ?: 'registrar@elanregistry.org';
 }
 
 /**
- * Get feedback email address from settings
+ * Get feedback email address from the environment
  *
- * Returns the configured feedback form email address from the database settings,
+ * Returns the configured feedback form email address from the environment,
  * with a fallback to the default registrar email if not configured.
  *
  * @return string Feedback email address
  */
 function getFeedbackEmail(): string {
-    global $settings;
-    return $settings->elan_feedback_email ?? 'registrar@elanregistry.org';
+    // ?: (not ??) so an empty-string .env value also falls back, not just
+    // an unset/null key — see #1067.
+    return ($_ENV['FEEDBACK_EMAIL'] ?? '') ?: 'registrar@elanregistry.org';
 }
 
 

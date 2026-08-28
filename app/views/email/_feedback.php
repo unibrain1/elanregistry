@@ -8,7 +8,13 @@ use ElanRegistry\EmailTemplate;
  * Feedback Submission Email Template
  *
  * Sent to registry administrators when a user submits feedback.
- * Variables available: $name, $email, $accountId, $comments
+ * Variables available: $name, $email, $accountId, $comments — set by the
+ * caller (app/api/contact/send-feedback.php) before including this file.
+ *
+ * @var string $name
+ * @var string $email
+ * @var string $accountId
+ * @var string $comments
  */
 
 $emailTemplate = new EmailTemplate();
@@ -27,7 +33,7 @@ $content = "
     $emailTemplate->createMessageBox('Feedback Message', $messageHtml, 'message');
 
 echo $emailTemplate->render(
-    '[ELANREGISTRY] User Feedback',
+    EMAIL_SUBJECT_PREFIX . ' User Feedback',
     'Feedback from ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8'),
     $content,
     ['footer_text' => 'This is an automated message from the registry feedback system.']

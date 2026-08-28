@@ -28,7 +28,6 @@ class LogCategoriesUsageTest extends TestCase
         'app/admin/includes/process-transfer-approve.php',
         'app/admin/includes/process-transfer-deny.php',
         'app/admin/includes/process-car-details.php',
-        'app/api/admin/process-settings.php',
     ];
 
     /**
@@ -63,7 +62,6 @@ class LogCategoriesUsageTest extends TestCase
         'app/admin/includes/tab-health.php',
         'app/admin/includes/tab-maintenance.php',
         'app/admin/includes/tab-owner_mgmt.php',
-        'app/admin/includes/tab-settings.php',
         'app/admin/index.php',
         'app/admin/maintenance.php',
         'app/admin/scripts/fix/_TEMPLATE_Fix-Script.php',
@@ -471,27 +469,6 @@ class LogCategoriesUsageTest extends TestCase
             'getFeedbackEmail()',
             $content,
             '_email_template_verify_new.php must call getFeedbackEmail() for admin contact (#368)'
-        );
-    }
-
-    /**
-     * Regression test for Issue #368: elan_feedback_email must appear in the
-     * processSettingsAutoCreation() defaults array in tab-settings.php,
-     * ensuring it is inserted into the database on fresh installs.
-     */
-    public function testFeedbackEmailSettingIsAutoCreated(): void
-    {
-        $filePath = $this->rootDir . '/app/admin/includes/tab-settings.php';
-        if (!file_exists($filePath)) {
-            $this->markTestSkipped('tab-settings.php not found');
-        }
-
-        $content = (string)file_get_contents($filePath);
-
-        $this->assertMatchesRegularExpression(
-            '/[\'"]elan_feedback_email[\'"]\s*=>/m',
-            $content,
-            'tab-settings.php must include elan_feedback_email in settings auto-creation (#368)'
         );
     }
 

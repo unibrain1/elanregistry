@@ -13,7 +13,10 @@ use ElanRegistry\LogCategories;
  *
  * TAB 1: Health - Read-only system health monitoring
  * TAB 2: Maintenance - Backups, one-time migrations, recurring maintenance tasks
- * TAB 3: Configuration - ElanRegistry settings (Google APIs, CDNs, media, email)
+ *
+ * (The former TAB 3 "Configuration" — image/email/expiry settings — was
+ * removed in #1067; those values are now config.php constants / .env vars,
+ * not a web-editable DB-backed settings tab.)
  *
  * Access control is enforced by PageManager (admin-only). All state-changing
  * operations on this page are performed via AJAX endpoints
@@ -27,7 +30,6 @@ use ElanRegistry\LogCategories;
 $validTabs = [
     'health'      => 'Health',
     'maintenance' => 'Maintenance',
-    'settings'    => 'Configuration',
 ];
 
 $activeTab = isset($_GET['tab']) && is_string($_GET['tab']) && array_key_exists($_GET['tab'], $validTabs)
@@ -144,14 +146,6 @@ try {
                                     <a class="nav-link <?= $activeTab === 'maintenance' ? 'active' : '' ?>"
                                        href="?tab=maintenance" role="tab">
                                         <i class="fas fa-tools"></i> Maintenance
-                                    </a>
-                                </li>
-
-                                <!-- Configuration Tab -->
-                                <li class="nav-item">
-                                    <a class="nav-link <?= $activeTab === 'settings' ? 'active' : '' ?>"
-                                       href="?tab=settings" role="tab">
-                                        <i class="fas fa-cog"></i> Configuration
                                     </a>
                                 </li>
 

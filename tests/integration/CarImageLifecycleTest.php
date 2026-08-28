@@ -28,10 +28,11 @@ use PHPUnit\Framework\Attributes\Group;
 final class CarImageLifecycleTest extends IntegrationTestCase
 {
     /**
-     * Thumbnail sizes generated per upload, read from the real settings row the
-     * same way app/api/cars/save.php's uploadImages() does — falling back to its
-     * hardcoded default only when the setting is empty, so a production config
-     * change can't silently drift out of sync with this test.
+     * Thumbnail sizes generated per upload, read from the same
+     * ELAN_IMAGE_THUMBNAIL_SIZES constant app/api/cars/save.php's
+     * uploadImages() uses (#1067 — was a $settings->elan_image_thumbnail_sizes
+     * DB read prior to this), so a production config change can't silently
+     * drift out of sync with this test.
      *
      * @var list<int>
      */
@@ -49,11 +50,7 @@ final class CarImageLifecycleTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
-        $settings = getSettings();
-        $sizesString = !empty($settings->elan_image_thumbnail_sizes)
-            ? $settings->elan_image_thumbnail_sizes
-            : '100,300,768,1024,2048';
-        $this->thumbnailSizes = array_map('intval', array_map('trim', explode(',', $sizesString)));
+        $this->thumbnailSizes = array_map('intval', array_map('trim', explode(',', ELAN_IMAGE_THUMBNAIL_SIZES)));
 
         $this->testUserId = $this->createTestUser();
 

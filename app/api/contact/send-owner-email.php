@@ -30,7 +30,7 @@ if (!securePage($php_self)) {
     die();
 }
 
-$subject = '[ELANREGISTRY] Owner to Owner Message';
+$subject = EMAIL_SUBJECT_PREFIX . ' Owner to Owner Message';
 
 $logUserId = ($user->isLoggedIn() && $user->data()) ? (int)$user->data()->id : null;
 
