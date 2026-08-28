@@ -18,7 +18,6 @@ use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Exceptions\LocationServiceException;
 use ElanRegistry\Exceptions\OwnerCreationException;
 use ElanRegistry\Exceptions\OwnerDatabaseException;
-use ElanRegistry\Exceptions\OwnerNotFoundException;
 use ElanRegistry\Exceptions\OwnerUpdateException;
 use ElanRegistry\Exceptions\OwnerValidationException;
 use ElanRegistry\Exceptions\ValidationException;
@@ -51,7 +50,6 @@ class ExceptionHierarchyTest extends TestCase
         CarTransferException::class,
         CarDatabaseException::class,
         CarPermissionException::class,
-        OwnerNotFoundException::class,
         OwnerCreationException::class,
         OwnerValidationException::class,
         OwnerUpdateException::class,
@@ -286,7 +284,6 @@ class ExceptionHierarchyTest extends TestCase
     public function testStatusCodesAre404ForNotFound(): void
     {
         $this->assertEquals(404, (new CarNotFoundException())->getHttpStatusCode());
-        $this->assertEquals(404, (new OwnerNotFoundException())->getHttpStatusCode());
     }
 
     /**
@@ -394,7 +391,6 @@ class ExceptionHierarchyTest extends TestCase
             'CarTransferException' => [CarTransferException::class, 'CarTransferError'],
             'CarDatabaseException' => [CarDatabaseException::class, 'DatabaseError'],
             'CarPermissionException' => [CarPermissionException::class, 'AccessDenied'],
-            'OwnerNotFoundException' => [OwnerNotFoundException::class, 'OwnerActions'],
             'OwnerCreationException' => [OwnerCreationException::class, 'OwnerActions'],
             'OwnerValidationException' => [OwnerValidationException::class, 'ValidationError'],
             'OwnerUpdateException' => [OwnerUpdateException::class, 'OwnerActions'],
@@ -424,7 +420,6 @@ class ExceptionHierarchyTest extends TestCase
             'CarTransferException' => [CarTransferException::class, 409],
             'CarDatabaseException' => [CarDatabaseException::class, 500],
             'CarPermissionException' => [CarPermissionException::class, 403],
-            'OwnerNotFoundException' => [OwnerNotFoundException::class, 404],
             'OwnerCreationException' => [OwnerCreationException::class, 500],
             'OwnerValidationException' => [OwnerValidationException::class, 422],
             'OwnerUpdateException' => [OwnerUpdateException::class, 500],

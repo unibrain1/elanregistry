@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 use ElanRegistry\Exceptions\ElanRegistryException;
-use ElanRegistry\Exceptions\OwnerNotFoundException;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
 use ElanRegistry\OwnerView;
@@ -209,11 +208,6 @@ try {
     }
     echo $encoded;
 
-} catch (OwnerNotFoundException $e) {
-    if (ob_get_level() > $obLevelBefore) ob_end_clean();
-    logger($user->data()->id, $e->getLogCategory(), 'Owner not found: ' . $e->getMessage());
-    http_response_code(404);
-    echo json_encode(['success' => false, 'message' => 'Owner not found. Please check the ID and try again.']);
 } catch (ElanRegistryException $e) {
     if (ob_get_level() > $obLevelBefore) ob_end_clean();
     logger($user->data()->id, $e->getLogCategory(), 'Owner info load failed: ' . $e->getMessage());

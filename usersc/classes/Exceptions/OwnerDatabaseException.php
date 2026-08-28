@@ -11,16 +11,14 @@ use ElanRegistry\LogCategories;
  *
  * Exception thrown when owner-related database operations fail.
  * Used for query, transaction, and rollback failures across owner-related
- * data access operations. Mirrors CarDatabaseException's shape — no
- * OwnerException abstract base exists yet (see #1654), so this extends
- * ElanRegistryException directly, matching the other Owner exception
- * classes in this file's package.
+ * data access operations. Mirrors CarDatabaseException's shape, extending
+ * the OwnerException abstract base (see #1654).
  *
  * @package ElanRegistry
  * @subpackage Exceptions
  * @since v2.29.5
  */
-class OwnerDatabaseException extends ElanRegistryException
+class OwnerDatabaseException extends OwnerException
 {
     /**
      * @inheritDoc

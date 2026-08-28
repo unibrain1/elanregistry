@@ -140,11 +140,12 @@ handling and logging.
 | CarPermissionException | 403 | AccessDenied | Car permission denied *(no production throw site post-v2.28.0; retained for hierarchy)* |
 | CarTransferException | 500 | CarTransferError | Ownership transfer |
 | CarValidationException | 422 | ValidationError | Car data validation |
-| OwnerCreationException | 500 | OwnerCreation | Owner creation |
-| OwnerUpdateException | 500 | OwnerUpdate | Owner profile update |
-| OwnerValidationException | 422 | OwnerValidation | Owner data validation |
-| OwnerNotFoundException | 404 | OwnerErrors | Owner not found |
-| OwnerSearchException | 500 | OwnerSearch | Owner search |
+| **OwnerException** (abstract) | 500 | OwnerActions | Base for all owner exceptions |
+| OwnerCreationException | 500 | OwnerActions | Owner creation |
+| OwnerDatabaseException | 500 | DatabaseError | Owner database operations |
+| OwnerUpdateException | 500 | OwnerActions | Owner profile update |
+| OwnerValidationException | 422 | ValidationError | Owner data validation |
+| OwnerSearchException | 500 | OwnerActions | Owner search |
 | ValidationException | 422 | ValidationError | Generic validation |
 | LocationServiceException | 400 | LocationService | Location API |
 | ImageProcessingException | 500 | ImageRemoval | Image resize/upload |
@@ -395,7 +396,7 @@ logger($userId, LogCategories::LOG_CATEGORY_CAR_UPDATE, 'Car update failed: ' . 
 
 ### Exceptions
 
-**Choose appropriate exception type**: Use specific exceptions (CarValidationException, OwnerNotFoundException) not generic Exception.
+**Choose appropriate exception type**: Use specific exceptions (CarValidationException, OwnerValidationException) not generic Exception.
 
 **Separate messages**: User message for UI (`getUserMessage()`) vs technical message for logs (`getMessage()`).
 

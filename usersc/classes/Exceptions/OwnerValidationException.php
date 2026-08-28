@@ -17,7 +17,7 @@ use ElanRegistry\LogCategories;
  * @subpackage Exceptions
  * @since v2.11.0
  */
-class OwnerValidationException extends ElanRegistryException
+class OwnerValidationException extends OwnerException
 {
     /**
      * @inheritDoc

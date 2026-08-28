@@ -307,6 +307,18 @@ parameters:
 			path: tests/unit/exceptions/CarExceptionHierarchyTest.php
 
 		-
+			message: '#^Call to function is_subclass_of\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerException'' and ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionHierarchyTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''ElanRegistry…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionHierarchyTest.php
+
+		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerCreationException will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 1
