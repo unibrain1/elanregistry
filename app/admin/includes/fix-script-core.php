@@ -125,7 +125,8 @@ function logProgress(string $message, string $type = 'info'): void
 /**
  * Records a fix/maintenance script's completion in fix_script_runs, used
  * to populate the "Last Run" column on the maintenance dashboard
- * (tab-maintenance.php). Never throws — a recording failure is logged but
+ * (app/admin/includes/partials/maintenance-migrations.php and
+ * maintenance-scripts.php). Never throws — a recording failure is logged but
  * must not interrupt or mask the calling script's actual result.
  *
  * @param string        $scriptFile   Pass __FILE__ from the calling script

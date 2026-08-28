@@ -1,6 +1,42 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Variable \$backupStats might not be defined\.$#'
+			identifier: variable.undefined
+			count: 6
+			path: app/admin/includes/partials/maintenance-backups.php
+
+		-
+			message: '#^Variable \$backupStatsFallback might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/admin/includes/partials/maintenance-backups.php
+
+		-
+			message: '#^Variable \$showCleanupPrompt might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/admin/includes/partials/maintenance-backups.php
+
+		-
+			message: '#^Variable \$completedFixScripts might not be defined\.$#'
+			identifier: variable.undefined
+			count: 3
+			path: app/admin/includes/partials/maintenance-migrations.php
+
+		-
+			message: '#^Variable \$scriptRunStatus might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/admin/includes/partials/maintenance-migrations.php
+
+		-
+			message: '#^Variable \$maintenanceRunStatus might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: app/admin/includes/partials/maintenance-scripts.php
+
+		-
 			message: '#^Variable \$activeTab might not be defined\.$#'
 			identifier: variable.undefined
 			count: 5

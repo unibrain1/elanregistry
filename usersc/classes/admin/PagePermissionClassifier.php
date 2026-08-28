@@ -45,8 +45,6 @@ class PagePermissionClassifier
      */
     private const ADMIN_ONLY_PAGES = [
         'app/admin/maintenance.php',
-        'app/admin/includes/tab-health.php',
-        'app/admin/includes/tab-maintenance.php',
     ];
 
     /**

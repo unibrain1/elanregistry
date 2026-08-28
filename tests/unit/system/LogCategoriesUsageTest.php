@@ -59,8 +59,6 @@ class LogCategoriesUsageTest extends TestCase
         'app/admin/includes/system/backup-operations.php',
         'app/admin/includes/tab-account_cleanup.php',
         'app/admin/includes/tab-car_mgmt.php',
-        'app/admin/includes/tab-health.php',
-        'app/admin/includes/tab-maintenance.php',
         'app/admin/includes/tab-owner_mgmt.php',
         'app/admin/index.php',
         'app/admin/maintenance.php',

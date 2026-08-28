@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+use ElanRegistry\Admin\BackupManager;
+use ElanRegistry\Admin\MaintenanceStatusLabels;
+use ElanRegistry\Exceptions\BackupException;
 use ElanRegistry\LogCategories;
 
 /**
@@ -11,12 +14,15 @@ use ElanRegistry\LogCategories;
  * registry-wide configuration. Split out from index.php to
  * separate operational maintenance from day-to-day car/owner administration.
  *
- * TAB 1: Health - Read-only system health monitoring
- * TAB 2: Maintenance - Backups, one-time migrations, recurring maintenance tasks
+ * Single page, no tabs (#1225): backups, one-time migration scripts, and
+ * recurring maintenance scripts are all immediately visible. Live health
+ * signals (backup attention, pending migrations) surface as header chips
+ * and a conditional alert instead of a separate read-only Health screen.
  *
- * (The former TAB 3 "Configuration" — image/email/expiry settings — was
+ * (The former "Configuration" tab — image/email/expiry settings — was
  * removed in #1067; those values are now config.php constants / .env vars,
- * not a web-editable DB-backed settings tab.)
+ * not a web-editable DB-backed settings tab. The former "Health" tab was
+ * merged into this page in #1225.)
  *
  * Access control is enforced by PageManager (admin-only). All state-changing
  * operations on this page are performed via AJAX endpoints
@@ -27,18 +33,12 @@ use ElanRegistry\LogCategories;
  * @copyright 2025
  */
 
-$validTabs = [
-    'health'      => 'Health',
-    'maintenance' => 'Maintenance',
-];
-
-$activeTab = isset($_GET['tab']) && is_string($_GET['tab']) && array_key_exists($_GET['tab'], $validTabs)
-    ? $_GET['tab'] : 'health';
-$pageTitle = 'Registry Maintenance - ' . $validTabs[$activeTab];
+$pageTitle = 'Registry Maintenance';
 $pageDescription = 'Admin tools for registry maintenance, health checks, and system configuration.';
 
 require_once '../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.php';
+require_once $abs_us_root . $us_url_root . 'app/admin/includes/system/script-enumeration.php';
 
 // securePage() enforces access via the UserSpice permission_page_matches table.
 // This page must be registered with admin-only (permission 2) in the UserSpice
@@ -80,6 +80,97 @@ try {
            "Error getting system status for maintenance page: " . $e->getMessage());
 }
 
+// ============================================================================
+// Single computation pass (#1225) — consolidates what tab-health.php and
+// tab-maintenance.php each computed separately (near-duplicate try/catch
+// around getEnhancedBackupStatistics()). All of it runs once, before any
+// markup, and is shared by the header chips, the alert, and all three
+// partials below via normal PHP include variable scope.
+// ============================================================================
+
+$backupManager = new BackupManager(dbi(), $abs_us_root . $us_url_root . BACKUP_BASE_DIR, (int)$user->data()->id);
+
+$fixDirectory = $abs_us_root . $us_url_root . 'app/admin/scripts/fix/';
+$fixScripts   = enumerateScriptFiles($fixDirectory);
+rsort($fixScripts, SORT_NATURAL);
+
+$maintenanceDirectory = $abs_us_root . $us_url_root . 'app/admin/scripts/maintenance/';
+$maintenanceScripts   = enumerateScriptFiles($maintenanceDirectory);
+sort($maintenanceScripts, SORT_NATURAL);
+
+$scriptRunStatus = array_fill_keys($fixScripts, ['has_run' => false, 'last_run' => null]);
+$maintenanceRunStatus = array_fill_keys($maintenanceScripts, ['has_run' => false, 'last_run' => null]);
+
+$allScriptNames = array_merge($fixScripts, $maintenanceScripts);
+$scriptRunStatusError = false;
+if (!empty($allScriptNames)) {
+    try {
+        $placeholders = implode(',', array_fill(0, count($allScriptNames), '?'));
+        $sql = "SELECT script_name, MAX(completed_at) as last_run FROM fix_script_runs WHERE script_name IN (" . $placeholders . ") GROUP BY script_name";
+        $runs = $db->query($sql, $allScriptNames)->results();
+        foreach ($runs as $row) {
+            if (isset($scriptRunStatus[$row->script_name])) {
+                $scriptRunStatus[$row->script_name] = ['has_run' => true, 'last_run' => $row->last_run];
+            }
+            if (isset($maintenanceRunStatus[$row->script_name])) {
+                $maintenanceRunStatus[$row->script_name] = ['has_run' => true, 'last_run' => $row->last_run];
+            }
+        }
+    } catch (\Exception $e) {
+        $scriptRunStatusError = true;
+        logger($user->data()->id, LogCategories::LOG_CATEGORY_DATABASE_MAINTENANCE, 'Failed to batch-check script run status: ' . $e->getMessage());
+    }
+}
+
+$pendingFixScripts   = array_filter($fixScripts, fn($s) => !$scriptRunStatus[$s]['has_run']);
+$completedFixScripts = array_filter($fixScripts, fn($s) =>  $scriptRunStatus[$s]['has_run']);
+$pendingMigrations   = count($pendingFixScripts);
+
+/**
+ * Human-readable label for a script filename, used by the migrations and
+ * maintenance-tasks partials. Strips the leading numeric prefix and file
+ * extension, then replaces separators with spaces
+ * (e.g. "21-Fix-Page-Permissions.php" -> "Fix Page Permissions").
+ */
+function scriptDisplayName(string $filename): string
+{
+    return str_replace(['-', '_'], ' ', preg_replace('/^\d+-/', '', pathinfo($filename, PATHINFO_FILENAME)));
+}
+
+$backupStatsFallback = false;
+
+try {
+    $backupStats = $backupManager->getEnhancedBackupStatistics();
+    $oldBackupsCount = 0;
+
+    if (isset($backupStats['retention_analysis'])) {
+        foreach ($backupStats['retention_analysis'] as $typeData) {
+            $oldBackupsCount += $typeData['expired'];
+        }
+    }
+
+    $showCleanupPrompt = $oldBackupsCount > 0;
+} catch (\Throwable $e) {
+    $category = ($e instanceof BackupException) ? $e->getLogCategory() : LogCategories::LOG_CATEGORY_BACKUP_ERROR;
+    logger($user->data()->id, $category, 'Backup stats unavailable: ' . $e->getMessage());
+    $backupStatsFallback = true;
+    $backupStats = [
+        'automated' => ['count' => 0, 'total_size' => 0],
+        'manual'    => ['count' => 0, 'total_size' => 0],
+        'rollback'  => ['count' => 0, 'total_size' => 0],
+        'health_score' => 50,
+        'recommendations' => ['Backup system check needed'],
+    ];
+    $showCleanupPrompt = false;
+    $oldBackupsCount = 0;
+}
+
+// The fallback path above cannot report on failures it never managed to read, so it
+// gets its own degraded status rather than defaulting to a reassuring "Healthy".
+$backupStatusUnknown = $backupStatsFallback;
+$backupFailureDetected = $backupStats['recent_failures'] ?? false;
+$backupNeedsAttention = $backupStatusUnknown || $showCleanupPrompt || $backupFailureDetected;
+
 ?>
 
 <div class="page-wrapper">
@@ -111,9 +202,20 @@ try {
                                 </div>
                             </div>
                             <div class="text-end">
-                                <span class="badge text-bg-primary badge-lg me-2">
-                                    <i class="fas fa-check-circle"></i> System Operational
-                                </span>
+                                <div class="d-flex gap-2 flex-wrap justify-content-end mb-2">
+                                    <?php if ($backupNeedsAttention): ?>
+                                        <a href="#backups-card" class="badge text-bg-warning badge-lg text-decoration-none">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <?= MaintenanceStatusLabels::chipLabel($backupStatusUnknown, $backupFailureDetected) ?>
+                                        </a>
+                                    <?php endif; ?>
+                                    <?php if ($pendingMigrations > 0): ?>
+                                        <a href="#migrations-card" class="badge text-bg-warning badge-lg text-decoration-none">
+                                            <i class="fas fa-wrench"></i>
+                                            <?= $pendingMigrations ?> Pending Migration<?= $pendingMigrations === 1 ? '' : 's' ?>
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
                                 <small class="text-muted">
                                     <i class="fas fa-clock"></i> <?= date('M j, Y g:i A', strtotime($systemStatus['last_updated'])) ?>
                                     &nbsp;<i class="fas fa-code-branch"></i> <?= htmlspecialchars(ApplicationVersion::get()) ?>
@@ -124,54 +226,67 @@ try {
                 </div>
             </div>
 
-            <!-- Main Interface Card -->
-            <div class="row">
+            <?php if ($backupNeedsAttention): ?>
+            <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card registry-card">
-
-                        <!-- Navigation Tabs -->
-                        <div class="card-header p-0">
-                            <ul class="nav nav-tabs card-header-tabs" id="managementTabs" role="tablist">
-
-                                <!-- Health Tab -->
-                                <li class="nav-item">
-                                    <a class="nav-link <?= $activeTab === 'health' ? 'active' : '' ?>"
-                                       href="?tab=health" role="tab">
-                                        <i class="fas fa-heartbeat"></i> Health
-                                    </a>
-                                </li>
-
-                                <!-- Maintenance Tab -->
-                                <li class="nav-item">
-                                    <a class="nav-link <?= $activeTab === 'maintenance' ? 'active' : '' ?>"
-                                       href="?tab=maintenance" role="tab">
-                                        <i class="fas fa-tools"></i> Maintenance
-                                    </a>
-                                </li>
-
-                            </ul>
-                        </div>
-
-                        <!-- Tab Content -->
-                        <div class="card-body">
-                            <div class="tab-content" id="managementTabContent">
-                                <?php include 'includes/partials/js-data-island.php'; ?>
-                                <?php
-                                $tabFile = 'includes/tab-' . str_replace('-', '_', $activeTab) . '.php'; // $activeTab already whitelist-validated above
-                                $tabPath = __DIR__ . '/' . $tabFile;
-
-                                if (file_exists($tabPath)) {
-                                    include $tabPath;
-                                } else {
-                                    include 'includes/tab-placeholder.php';
-                                }
-                                ?>
-
+                    <div class="alert alert-warning cleanup-prompt-alert">
+                        <h5><i class="fas fa-exclamation-triangle"></i> <?= MaintenanceStatusLabels::alertHeading($backupStatusUnknown, $backupFailureDetected) ?></h5>
+                        <?php if ($backupStatusUnknown): ?>
+                            <p class="mb-2">The backup health check itself failed, so the figures below are placeholders rather than real counts. Check the system logs for <strong>BackupError</strong> entries.</p>
+                        <?php endif; ?>
+                        <?php if ($backupFailureDetected): ?>
+                            <p class="mb-2">A backup attempt failed within the last <?= BACKUP_FAILURE_LOOKBACK_DAYS ?> days. Check the system logs for <strong>BackupFailed</strong> entries before relying on the most recent backup.</p>
+                        <?php endif; ?>
+                        <?php if ($showCleanupPrompt): ?>
+                            <p class="mb-2">Found <strong><?= $oldBackupsCount ?></strong> backup files older than 30 days that can be cleaned up.</p>
+                        <?php endif; ?>
+                        <p class="mb-2"><strong>Current backup storage:</strong></p>
+                        <ul class="mb-3">
+                            <li>Automated: <?= $backupStats['automated']['count'] ?> files (<?= round($backupStats['automated']['total_size'] / 1024 / 1024, 2) ?> MB)</li>
+                            <li>Manual: <?= $backupStats['manual']['count'] ?> files (<?= round($backupStats['manual']['total_size'] / 1024 / 1024, 2) ?> MB)</li>
+                            <li>Rollback: <?= $backupStats['rollback']['count'] ?> files (<?= round($backupStats['rollback']['total_size'] / 1024 / 1024, 2) ?> MB)</li>
+                        </ul>
+                        <?php if (!empty($backupStats['recommendations'])): ?>
+                            <div class="mt-2">
+                                <strong>Recommendations:</strong>
+                                <ul class="mb-2">
+                                    <?php foreach ($backupStats['recommendations'] as $recommendation): ?>
+                                        <li class="small"><?= htmlspecialchars($recommendation) ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
                             </div>
-                        </div>
+                        <?php endif; ?>
+                        <a href="#backups-card" class="btn btn-warning btn-sm">
+                            <i class="fas fa-shield-alt"></i> View Backups
+                        </a>
+                        <button type="button" class="btn btn-secondary btn-sm ms-2" data-dismiss-target=".cleanup-prompt-alert">
+                            <i class="fas fa-times"></i> Dismiss
+                        </button>
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php include 'includes/partials/js-data-island.php'; ?>
+
+            <?php if ($scriptRunStatusError): ?>
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <strong>Script run history unavailable.</strong>
+                        Could not load completion records from the database — both the One-time
+                        Migrations and Maintenance Tasks sections below show every script as
+                        pending. Do not re-run a script you know has already completed. Check
+                        server logs for details.
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php include 'includes/partials/maintenance-backups.php'; ?>
+            <?php include 'includes/partials/maintenance-migrations.php'; ?>
+            <?php include 'includes/partials/maintenance-scripts.php'; ?>
 
         </div>
     </div>
@@ -185,4 +300,3 @@ try {
 <link rel="stylesheet" href="assets/admin-core.min.css?v=<?= ASSET_VERSION ?>">
 <script src="assets/admin-core.min.js?v=<?= ASSET_VERSION ?>"></script>
 <script src="assets/backup-operations.min.js?v=<?= ASSET_VERSION ?>"></script>
-
