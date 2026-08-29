@@ -131,8 +131,8 @@ with domain-specific operation types that capture business context:
 | `'NEWOWNER'` | Ownership transfer completed | `CarAdministrationService::transfer()` |
 | `'MERGE'` | Car record merge (duplicate resolution) | `CarAdministrationService::merge()` |
 | `'LOCATION_SYNC'` | Owner location data synchronized | `Owner::syncLocationToCars()` |
-| `'VERIFIED'` | Admin verified car details | `verify_car.php` |
-| `'VERIFIED SOLD'` | Admin marked car as sold | `verify_car.php` |
+| `'VERIFIED'` | Admin verified car details | `verify_car.php` (removed in #1613) |
+| `'VERIFIED SOLD'` | Admin marked car as sold | `verify_car.php` (removed in #1613) |
 | `'DELETE'` | Application-level pre-delete snapshot | `CarAdministrationService::delete()` |
 
 These application-level writes provide richer context (e.g., admin user ID,
@@ -215,14 +215,15 @@ column lists in triggers make this error-prone if not carefully automated.
   the sole source of structural audit records on deletion.
 
 - **History rows are mutable.** Two administrative code paths (`verify_car.php`
-  and `send_email.php`) UPDATE and DELETE existing `cars_hist` rows, violating
-  the append-only immutability assumption of audit trails. No database
-  constraints prevent this. Once an audit row is written, it should never be
-  modified. Note: the verification workflow that performed these mutations is no
-  longer in active use and will fail if attempted; these mutations are therefore
-  a legacy concern that does not affect current operations. The absence of
-  database-level constraints preventing history row modification remains an
-  architectural gap regardless.
+  and `send_email.php`) used to UPDATE and DELETE existing `cars_hist` rows,
+  violating the append-only immutability assumption of audit trails, with no
+  database constraint preventing it. Once an audit row is written, it should
+  never be modified. Both files were removed entirely in #1613 (the
+  verification workflow they implemented was broken end to end and had no
+  navigation entry point), so this specific mutation path no longer exists.
+  The absence of database-level constraints preventing history row
+  modification remains an architectural gap regardless — a future feature
+  could reintroduce the same class of bug.
 
 - **car_user_hist gap resolved (#592).** AFTER INSERT, AFTER UPDATE, and AFTER DELETE
   triggers on `car_user` now populate this table. Indexes on `car_id` and `userid`

@@ -49,36 +49,6 @@ parameters:
 			path: app/admin/includes/tab-placeholder.php
 
 		-
-			message: '#^Variable \$car might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$edit_btn might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$image might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$sold_btn might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$verify_btn might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
 			message: '#^Unreachable statement \- code above always terminates\.$#'
 			identifier: deadCode.unreachable
 			count: 2
