@@ -9,27 +9,50 @@
    then once against prod's own `.env`, to populate `ADMIN_EMAILS`/
    `FEEDBACK_EMAIL` there from each environment's live `settings` row
    (#1067) — do this **before** deploying the PR, since the deploy removes
-   the web-editable admin fallback for these values. After both
-   environments are confirmed working, delete `scripts/generate-config.php`
-   from the repo in a small follow-up commit; it is a one-time migration
-   tool, not kept as ongoing infrastructure.
-2. After deploying #1067, manually confirm the removed
+   the web-editable admin fallback for these values. **The script is
+   append-only, not idempotent** — check that `ADMIN_EMAILS`/
+   `FEEDBACK_EMAIL` aren't already present in the target `.env` before
+   running it, or re-running will duplicate those lines (inert but
+   confusing). After both environments are confirmed working, delete
+   `scripts/generate-config.php` from the repo in a small follow-up
+   commit; it is a one-time migration tool, not kept as ongoing
+   infrastructure.
+2. **Verify prod's PHP `upload_max_filesize`/`post_max_size` ini settings
+   are ≥ 3MB** before deploying. #1067 raises the max upload file size
+   limit from 2MB to 3MB on production (`ELAN_IMAGE_UPLOAD_MAX_SIZE`) —
+   confirmed via direct DB query that this value already differed between
+   prod (2MB) and test/local (3MB) prior to this release; standardized on
+   3MB everywhere. This is a deliberate behavior change, not incidental to
+   the config migration. If prod's PHP ini limits were sized for the old
+   2MB setting, uploads between 2–3MB will pass the client-side FilePond
+   check but fail server-side — check with `php -i | grep -E
+   'upload_max|post_max'` and raise the ini limits first if needed.
+3. Deploy the PR.
+4. Run `app/admin/scripts/maintenance/21-Fix-Page-Permissions.php` on test,
+   then prod, **after deploying**. This registers the new fix script
+   (`12-Trim-Cars-Column-Whitespace.php`, #1491, needed before step 5
+   below) in UserSpice's permission tables, and cleans up stale
+   `pages`/`permission_page_matches` rows left behind by #1613's removal
+   of `app/admin/verify/*`.
+5. After deploying #1067, manually confirm the removed
    `app/api/admin/process-settings.php` route 404s on test and prod —
    closes the security threat-model loop the issue was filed to fix (a
    web-writable path to reroute admin/feedback emails via a compromised
    admin session).
-3. **Note:** #1067 also raises the max upload file size limit from 2MB to
-   3MB on production (`ELAN_IMAGE_UPLOAD_MAX_SIZE`) — confirmed via direct
-   DB query that this value already differed between prod (2MB) and
-   test/local (3MB) prior to this release; standardized on 3MB everywhere.
-   This is a deliberate behavior change, not incidental to the config
-   migration.
-4. Run the one-time data-cleanup script from #1491 on test, verify affected
+6. Run the one-time data-cleanup script from #1491 on test, verify affected
    row counts drop to 0, then run on prod.
-5. **Note:** #1613 removes `app/admin/verify/` entirely. Any already-mailed
+7. **Note:** #1613 removes `app/admin/verify/` entirely. Any already-mailed
    verification links will 404 after this deploys — expected and confirmed
    safe, since every such link already either 404'd or failed CSRF
    validation before this release. No cleanup action needed.
+
+## Developer Notes
+
+- **`.githooks/post-merge` now runs `npm run build` automatically after
+  every `git pull`/merge** (bundled into PR #1813, unrelated to that
+  issue's stated scope). Non-fatal — warns and lets you run `npm run
+  build` manually if it fails or `npm` isn't installed. If your local pull
+  feels slower than before, this is why.
 
 ## User-Facing Changes
 
