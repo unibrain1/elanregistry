@@ -29,7 +29,10 @@ test.describe('Admin confirmation modal — index', () => {
     });
 
     test('CSRF token is present for modal-triggered forms', async ({ page }) => {
-        const csrfInput = page.locator('input[name="csrf"]');
+        // index.php renders multiple forms (assignCar, deleteCar, contact-owner, etc.),
+        // each with its own csrf input sharing the same per-session token value —
+        // scope to the first to avoid a strict-mode violation matching all of them.
+        const csrfInput = page.locator('input[name="csrf"]').first();
         await expect(csrfInput).toBeAttached();
         const value = await csrfInput.getAttribute('value');
         expect(value).toBeTruthy();
