@@ -111,7 +111,7 @@ if (Input::existsPost()) {
                 $fromName = trim($adminData->fname . ' ' . $adminData->lname);
                 $qualityIssue = InputSanitizer::stripHeaderInjectionChars((string)($qualityIssue ?? ''));
 
-                $subject = '[ELANREGISTRY] Administrator Message';
+                $subject = EMAIL_SUBJECT_PREFIX . ' Administrator Message';
                 if ($qualityIssue) {
                     $subject .= ' - ' . $qualityIssue;
                 }

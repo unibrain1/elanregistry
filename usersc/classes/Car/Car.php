@@ -14,6 +14,7 @@ use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\Exceptions\ImageProcessingException;
+use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\LogCategories;
 
 /**
@@ -35,6 +36,15 @@ use ElanRegistry\LogCategories;
 class Car
 {
     private const CHASSIS_SUFFIX_LENGTH = 5;
+
+    /**
+     * Fields allowed to carry an explicit null through update() to clear
+     * the column in the database. All other fields keep the default
+     * strip-empty behavior.
+     */
+    private const CLEARABLE_FIELDS = [
+        'color', 'engine', 'purchasedate', 'solddate', 'website', 'comments',
+    ];
 
     private DatabaseInterface $_db;
     private ?object $_data = null;
@@ -63,15 +73,8 @@ class Car
     {
         $this->_db = $db ?? dbi();
 
-        if (function_exists('getSettings')) {
-            $settings = getSettings();
-        } else {
-            $settingsQuery = $this->_db->query('SELECT * FROM settings WHERE id = ?', [1]);
-            $settings = $settingsQuery->count() > 0 ? $settingsQuery->first() : null;
-        }
-
-        if ($id && is_object($settings)) {
-            $this->imageDir = $settings->elan_image_dir . $id . '/';
+        if ($id) {
+            $this->imageDir = ELAN_IMAGE_DIR . $id . '/';
             $this->find($id);
         }
     }
@@ -141,16 +144,13 @@ class Car
      */
     public function create(array $fields = []): bool
     {
-        $settings = getSettings();
-
         if (empty($fields)) {
             throw new CarCreationException('No data provided for car creation');
         }
 
-        // CSRF Protection
-        if (!isset($fields['token']) || !Token::check($fields['token'])) {
-            throw new CarCreationException('Invalid CSRF token provided');
-        }
+        // CSRF is validated by the caller (HTTP layer, save.php) before
+        // create() is called — see #1519. Strip a stray token key rather
+        // than let it flow into CarValidator/insertCar() unchecked.
         unset($fields['token']);
 
         $this->getValidator()->validateRequiredFields($fields, ['chassis', 'model', 'year']);
@@ -161,7 +161,7 @@ class Car
             try {
                 $fields['image'] = $this->getImageProcessor()->encodeImages($fields['images']);
                 unset($fields['images']);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_FILE_ERROR, "Car class: Image encoding error during create: " . $e->getMessage());
                 throw new ImageProcessingException('Error processing car images: ' . $e->getMessage());
             }
@@ -177,7 +177,7 @@ class Car
         if (!$this->find($id)) {
             throw new CarCreationException("Car ID {$id} not found after insert");
         }
-        $this->imageDir = $settings->elan_image_dir . $id . '/';
+        $this->imageDir = ELAN_IMAGE_DIR . $id . '/';
         $ownerId = (int) $this->data()->user_id;
 
         logger($ownerId, LogCategories::LOG_CATEGORY_CAR_ACTIONS, "Car ID $id created and assigned to owner (user ID: $ownerId)");
@@ -198,11 +198,9 @@ class Car
             throw new CarValidationException('No data or ID provided for car update');
         }
 
-        // CSRF Protection
-        if (!isset($fields['token']) || !Token::check($fields['token'])) {
-            logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_VALIDATION_ERROR, 'Car update failed: Invalid CSRF token');
-            throw new CarValidationException('Invalid CSRF token provided');
-        }
+        // CSRF is validated by the caller (HTTP layer, save.php) before
+        // update() is called — see #1519. Strip a stray token key rather
+        // than let it flow into CarValidator/persistence unchecked.
         unset($fields['token']);
 
         if (!is_numeric($fields['id']) || $fields['id'] <= 0) {
@@ -222,7 +220,7 @@ class Car
             try {
                 $fields['image'] = $this->getImageProcessor()->encodeImages($fields['images']);
                 unset($fields['images']);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_FILE_ERROR, "Car class: Image encoding error during update: " . $e->getMessage());
                 throw new ImageProcessingException('Error processing car images: ' . $e->getMessage());
             }
@@ -240,9 +238,12 @@ class Car
         $carId = (int) $filteredFields['id'];
         unset($filteredFields['id']);
 
-        $filteredFields = array_filter($filteredFields, function ($value) {
-            return $value !== '' && $value !== null;
-        });
+        $filteredFields = array_filter(
+            $filteredFields,
+            fn($value, $key) => in_array($key, self::CLEARABLE_FIELDS, true)
+                || ($value !== '' && $value !== null),
+            ARRAY_FILTER_USE_BOTH
+        );
 
         $repo = $this->getRepository();
         $updateResult = $repo->updateCar($carId, $filteredFields);
@@ -291,19 +292,34 @@ class Car
             $abs_us_root ?? ''
         );
 
-        // Get history
-        $this->_history = $repo->getHistory($carID);
+        // Get history — getHistory() now throws CarDatabaseException on a DB
+        // failure (previously silently returned []). find() itself must not
+        // start throwing for this subordinate lookup, so catch, log, and
+        // continue with an empty history rather than fail the whole find().
+        try {
+            $this->_history = $repo->getHistory($carID);
+        } catch (CarDatabaseException $e) {
+            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                "Car::find() getHistory failed for car {$carID}: " . $e->getMessage());
+            $this->_history = [];
+        }
 
-        // Get factory info
+        // Get factory info — same rationale as getHistory() above:
+        // getFactoryInfo() now throws on DB failure (previously returned null).
         $this->_factory = null;
         if (!empty($this->_data->chassis)) {
-            $factoryData = $repo->getFactoryInfo($this->_data->chassis, self::CHASSIS_SUFFIX_LENGTH);
-            if ($factoryData !== null) {
-                if (!empty($factoryData->suffix)) {
-                    $factoryData->suffix = $factoryData->suffix .
-                        " (" . CarRepository::suffixToText($factoryData->suffix) . ")";
+            try {
+                $factoryData = $repo->getFactoryInfo($this->_data->chassis, self::CHASSIS_SUFFIX_LENGTH);
+                if ($factoryData !== null) {
+                    if (!empty($factoryData->suffix)) {
+                        $factoryData->suffix = $factoryData->suffix .
+                            " (" . CarRepository::suffixToText($factoryData->suffix) . ")";
+                    }
+                    $this->_factory = $factoryData;
                 }
-                $this->_factory = $factoryData;
+            } catch (CarDatabaseException $e) {
+                logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                    "Car::find() getFactoryInfo failed for car {$carID}: " . $e->getMessage());
             }
         }
 
@@ -469,6 +485,9 @@ class Car
      * @throws CarNotFoundException If the car does not exist
      * @throws CarValidationException If the target user does not exist
      * @throws CarDatabaseException If a database operation fails
+     * @throws OwnerDatabaseException If the target-user lookup itself fails
+     *         due to a DB error, before the transaction begins — see
+     *         CarAdministrationService::transfer()'s docblock
      */
     public function transfer(int $newUserId, string $reason, string $operationType, int $actingUserId): true
     {
@@ -595,7 +614,7 @@ class Car
                 return $car->exists() ? $car : null;
             }
             return null;
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Unexpected error: ' . $e->getMessage());
             throw new CarDatabaseException('An unexpected error occurred. Please try again or contact support.');
         }

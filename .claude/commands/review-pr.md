@@ -211,7 +211,21 @@ Provide **each agent** with:
 > reached, CSRF or token interactions that break when multiple edits are combined,
 > and anything that looks correct in a per-file diff but is broken when viewed as
 > a whole. The project is Elan Registry (PHP 8.2 / UserSpice 6). Apply
-> CLAUDE.md standards and docs/development/CODING_STANDARDS.md."
+> CLAUDE.md standards and docs/development/CODING_STANDARDS.md.
+>
+> For any query, regex, or logic whose correctness depends on a specific
+> engine/library behavior — a SQL function's exact semantics, a regex
+> character class's exact coverage, a framework default — do not reason
+> about it from memory or from how the surrounding code describes it.
+> Verify it directly: run the query against the actual project database
+> (connection details are in `.env`; this is a local dev DB, safe to query),
+> or write a small isolated test of the specific claim. A query that
+> 'looks correct' because its logic reads sensibly is not the same as one
+> that has been shown to match its intended character/value set — the two
+> diverge exactly when a function's real behavior differs from its common-sense
+> reading (e.g. a locale- or engine-specific character class matching more
+> or less than expected). If you cannot verify a claim this way, say so
+> explicitly rather than passing the code as correct on inspection alone."
 
 Run all applicable agents **in parallel** for speed. `simplify` always runs last,
 after other agents complete.

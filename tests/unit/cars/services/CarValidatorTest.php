@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ElanRegistry\Car\CarValidator;
 use ElanRegistry\DatabaseInterface;
+use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\Reference\CarModel;
 use PHPUnit\Framework\TestCase;
@@ -326,12 +327,35 @@ final class CarValidatorTest extends TestCase
     // ============================================================
 
     /**
-     * Empty string for website is accepted — field is optional.
+     * Empty string for website clears the field to null — the key must be present
+     * with a null value so the caller can distinguish "clear this" from "absent"
+     * (issue #1448).
      */
-    public function testWebsiteEmptyIsAccepted(): void
+    public function testWebsiteEmptyClearsToNull(): void
     {
         $result = $this->validator->validateAndSanitizeFields(['website' => ''], false);
-        // Empty value is not stored in the validated array (matches the `if (!empty($value))` guard)
+        $this->assertArrayHasKey('website', $result);
+        $this->assertNull($result['website']);
+    }
+
+    /**
+     * Explicit null for website also clears the field to null.
+     */
+    public function testWebsiteNullClearsToNull(): void
+    {
+        $result = $this->validator->validateAndSanitizeFields(['website' => null], false);
+        $this->assertArrayHasKey('website', $result);
+        $this->assertNull($result['website']);
+    }
+
+    /**
+     * A field never present in the input array must not appear in the output —
+     * "absent from the request" and "explicitly cleared" must stay distinguishable
+     * (issue #1448).
+     */
+    public function testWebsiteAbsentFromInputStaysAbsentFromResult(): void
+    {
+        $result = $this->validator->validateAndSanitizeFields(['chassis' => 'ABC123'], false);
         $this->assertArrayNotHasKey('website', $result);
     }
 
@@ -408,6 +432,65 @@ final class CarValidatorTest extends TestCase
         $this->expectException(CarValidationException::class);
         $this->expectExceptionMessageMatches('/must use http:\/\/ or https:\/\//');
         $this->validator->validateAndSanitizeFields(['website' => 'ftp://files.example.com'], false);
+    }
+
+    // ============================================================
+    // clear-to-null tests — issue #1448
+    //
+    // color/engine/comments/website/purchasedate/solddate are the six
+    // fields deliberately changed to distinguish "explicitly cleared"
+    // (produces $result[$field] === null, key present) from "absent from
+    // input" (key stays absent from $result). series/variant/type/model/year
+    // were NOT changed and must keep dropping the key on empty — see their
+    // existing tests elsewhere in this file (untouched).
+    // ============================================================
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function clearableFieldProvider(): array
+    {
+        return [
+            'color'        => ['color'],
+            'engine'       => ['engine'],
+            'comments'     => ['comments'],
+            'purchasedate' => ['purchasedate'],
+            'solddate'     => ['solddate'],
+        ];
+    }
+
+    /**
+     * Passing an empty string for a clearable field produces a present key with a null value.
+     */
+    #[DataProvider('clearableFieldProvider')]
+    public function testClearableFieldEmptyStringClearsToNull(string $field): void
+    {
+        $result = $this->validator->validateAndSanitizeFields([$field => ''], false);
+        $this->assertArrayHasKey($field, $result);
+        $this->assertNull($result[$field]);
+    }
+
+    /**
+     * Passing an explicit null for a clearable field produces a present key with a null value.
+     */
+    #[DataProvider('clearableFieldProvider')]
+    public function testClearableFieldNullClearsToNull(string $field): void
+    {
+        $result = $this->validator->validateAndSanitizeFields([$field => null], false);
+        $this->assertArrayHasKey($field, $result);
+        $this->assertNull($result[$field]);
+    }
+
+    /**
+     * A clearable field never present in the input array must not appear in the
+     * output — only an explicitly-passed empty/null value produces a null in the
+     * output (issue #1448).
+     */
+    #[DataProvider('clearableFieldProvider')]
+    public function testClearableFieldAbsentFromInputStaysAbsentFromResult(string $field): void
+    {
+        $result = $this->validator->validateAndSanitizeFields(['chassis' => 'ABC123'], false);
+        $this->assertArrayNotHasKey($field, $result);
     }
 
     public function testValidateAndSanitizeFieldsRejectsInvalidUserId(): void
@@ -726,6 +809,28 @@ final class CarValidatorTest extends TestCase
 
         $this->expectException(CarValidationException::class);
         $this->expectExceptionMessage('is not a valid Lotus Elan model');
+
+        $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
+    }
+
+    /**
+     * A DB failure inside CarModel::exists() must surface as
+     * CarDatabaseException, not be swallowed or mistaken for
+     * CarValidationException's "not a valid Lotus Elan model" outcome
+     * (#1505 PR A) — validateAndSanitizeFields() has no catch block on this
+     * path, so the exception is expected to propagate unchanged.
+     */
+    #[Group('unit')]
+    public function testValidateModelPropagatesCarDatabaseExceptionOnDbFailure(): void
+    {
+        $db = $this->createStub(DatabaseInterface::class);
+        $db->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(true);
+        $db->method('errorString')->willReturn('mock query failure');
+
+        $validator = new CarValidator(new CarModel($db));
+
+        $this->expectException(CarDatabaseException::class);
 
         $validator->validateAndSanitizeFields(['model' => 'S4|FHC|36'], false);
     }

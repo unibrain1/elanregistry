@@ -123,7 +123,7 @@ try {
     }
 
     $securityToken = bin2hex(random_bytes(32));
-    $expiresAt     = date('Y-m-d H:i:s', strtotime('+30 days'));
+    $expiresAt     = date('Y-m-d H:i:s', strtotime('+' . TRANSFER_REQUEST_EXPIRY_DAYS . ' days'));
     $userData      = $user->data();
 
     $fields = [

@@ -29,7 +29,10 @@ test.describe('Admin confirmation modal — index', () => {
     });
 
     test('CSRF token is present for modal-triggered forms', async ({ page }) => {
-        const csrfInput = page.locator('input[name="csrf"]');
+        // index.php renders multiple forms (assignCar, deleteCar, contact-owner, etc.),
+        // each with its own csrf input sharing the same per-session token value —
+        // scope to the first to avoid a strict-mode violation matching all of them.
+        const csrfInput = page.locator('input[name="csrf"]').first();
         await expect(csrfInput).toBeAttached();
         const value = await csrfInput.getAttribute('value');
         expect(value).toBeTruthy();
@@ -54,13 +57,13 @@ test.describe('Admin confirmation modal — index', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Area 2: maintenance.php — modal DOM and maintenance tab
+// Area 2: maintenance.php — modal DOM
 // ---------------------------------------------------------------------------
 
 test.describe('Admin confirmation modal — maintenance', () => {
     test.beforeEach(async ({ page }) => {
         await ensureLoggedIn(page);
-        await page.goto('app/admin/maintenance.php?tab=maintenance', { waitUntil: 'networkidle' });
+        await page.goto('app/admin/maintenance.php', { waitUntil: 'networkidle' });
     });
 
     test('confirmation modal element is present in DOM', async ({ page }) => {
@@ -114,7 +117,7 @@ test.describe('Admin confirmation modal — maintenance', () => {
 test.describe('Admin input modal — maintenance', () => {
     test.beforeEach(async ({ page }) => {
         await ensureLoggedIn(page);
-        await page.goto('app/admin/maintenance.php?tab=maintenance', { waitUntil: 'networkidle' });
+        await page.goto('app/admin/maintenance.php', { waitUntil: 'networkidle' });
     });
 
     test('input modal and all required child elements are present in DOM', async ({ page }) => {

@@ -85,12 +85,14 @@ SRI hashes are never separated from their URLs.
 
 ### Admin Interface
 
-`app/admin/includes/tab-settings.php` provides a web-based UI for managing all CDN URLs. Includes:
-
-- Auto-creation of missing CDN columns via `processSettingsAutoCreation()`
-- Field name whitelisting against SQL injection
-- Textarea form fields for pasting complete HTML tags
-- Descriptive labels and placeholder examples
+**Superseded (#1067, v2.29.5).** `app/admin/includes/tab-settings.php` used
+to provide a web-based UI for managing all CDN URLs (auto-creation of
+missing CDN columns, field name whitelisting, textarea form fields for
+pasting complete HTML tags). That file and its admin Settings tab were
+removed in #1067, which moved non-secret app config to `config.php`
+constants. CDN URLs are no longer web-editable through an admin UI — they
+remain DB-stored per this ADR's core decision, but are now managed via
+direct migration/seed updates only, not through a runtime admin form.
 
 ### Update Mechanisms
 
@@ -235,7 +237,7 @@ Store CDN URLs and SRI hashes as separate database columns (e.g., `elan_jquery_u
 - **Schema Definition**: `database/migrations/` (current schema-of-record; the file cited when this
   ADR was written has since been removed — see `database/migrations/README.md`)
 - **Template Loading**: [usersc/templates/ElanRegistry/header.php](../../usersc/templates/ElanRegistry/header.php)
-- **Admin Interface**: [app/admin/includes/tab-settings.php](../../app/admin/includes/tab-settings.php)
+- **Admin Interface**: removed in #1067 (v2.29.5) — see the "Admin Interface" section above
 - **FIX Scripts (deleted; recoverable from git history)**: `17-Add-SRI-To-CDN-Resources.php`,
   `19-Add-Select-Extension-DataTables-CDN.php`, `23-Optimize-CDN-Resources.php` — one-time
   scripts that already ran. See [FIX_SCRIPTS.md](../FIX_SCRIPTS.md) for recovery.

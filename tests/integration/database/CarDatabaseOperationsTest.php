@@ -11,6 +11,7 @@ use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Input;
 use ElanRegistry\LogCategories;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -551,21 +552,33 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     }
 
     /**
-     * Test create() with an invalid CSRF token throws CarCreationException
+     * Regression test for issue #1519: CSRF validation moved out of Car::create()
+     * to the HTTP layer (app/api/cars/save.php). Car::create() now silently
+     * strips a 'token' key via unset() rather than validating it — an invalid
+     * or garbage token value must no longer cause a failure.
      */
     #[Group('integration')]
-    public function testCreateCarFailsWithInvalidCsrfToken(): void
+    public function testCreateCarIgnoresInvalidTokenField(): void
     {
-        $this->expectException(CarCreationException::class);
-        $this->expectExceptionMessage('Invalid CSRF token provided');
-
-        (new Car())->create([
+        $carData = [
             'token'   => 'not-a-valid-token',
             'user_id' => $this->testUserId,
             'year'    => '1971',
             'model'   => 'Sprint|FHC|36',
             'chassis' => 'CSRF' . substr(uniqid(), -8),
-        ]);
+        ];
+
+        $car = new Car();
+        $result = $car->create($carData);
+
+        $this->assertTrue($result, 'Car::create() must succeed regardless of the token field value');
+
+        $createdId = (int) $car->data()->id;
+        $this->trackCarId($createdId);
+
+        $row = $this->db->query('SELECT * FROM cars WHERE id = ?', [$createdId])->first();
+        $this->assertNotNull($row, 'Car must be persisted to the database');
+        $this->assertSame($carData['chassis'], $row->chassis);
     }
 
     /**
@@ -589,24 +602,24 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
     }
 
     /**
-     * Test update with an invalid CSRF token throws CarValidationException and does not persist
+     * Regression test for issue #1519: CSRF validation moved out of Car::update()
+     * to the HTTP layer (app/api/cars/save.php). Car::update() now silently
+     * strips a 'token' key via unset() rather than validating it — an invalid
+     * or garbage token value must no longer prevent the update from persisting.
      */
     #[Group('integration')]
-    public function testUpdateCarFailsWithInvalidCsrfToken(): void
+    public function testUpdateCarIgnoresInvalidTokenField(): void
     {
-        try {
-            (new Car($this->testCarId))->update([
-                'id'    => $this->testCarId,
-                'token' => 'not-a-valid-token',
-                'color' => 'Should Not Persist',
-            ]);
-            $this->fail('Expected CarValidationException for an invalid CSRF token');
-        } catch (CarValidationException $e) {
-            $this->assertSame('Invalid CSRF token provided', $e->getMessage());
-        }
+        $result = (new Car($this->testCarId))->update([
+            'id'    => $this->testCarId,
+            'token' => 'not-a-valid-token',
+            'color' => 'Should Persist',
+        ]);
+
+        $this->assertTrue($result, 'Car::update() must succeed regardless of the token field value');
 
         $row = $this->db->query('SELECT color FROM cars WHERE id = ?', [$this->testCarId])->first();
-        $this->assertNotSame('Should Not Persist', $row->color, 'Rejected update must not reach the database');
+        $this->assertSame('Should Persist', $row->color, 'Update must reach the database even with an invalid token field');
     }
 
     /**
@@ -789,5 +802,152 @@ final class CarDatabaseOperationsTest extends IntegrationTestCase
 
         $car = new Car(999999999); // nonexistent id — find() fails, exists() is false
         $car->removeImage('somefile.jpg');
+    }
+
+    /**
+     * Data provider for the six CLEARABLE_FIELDS (issue #1448): each maps a field
+     * name to a real starting value and the "clear" value sent on update (empty
+     * string, matching how app/api/cars/save.php's null-passthrough reaches here
+     * after CarValidator normalizes '' to null).
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function clearableFieldProvider(): array
+    {
+        return [
+            'color'        => ['color', 'Racing Green'],
+            'engine'       => ['engine', 'ENG12345'],
+            'purchasedate' => ['purchasedate', '2020-05-15'],
+            'solddate'     => ['solddate', '2022-06-20'],
+            'website'      => ['website', 'https://example.com'],
+            'comments'     => ['comments', 'Some comments about this car'],
+        ];
+    }
+
+    /**
+     * Regression test for issue #1448: Car::update() must allow explicitly
+     * clearing any of the six CLEARABLE_FIELDS by sending '' — the field's DB
+     * column must become NULL, not silently retain its previous value.
+     *
+     * Uses the real ElanRegistry\Car\Car class end-to-end (per #1440, no mock).
+     */
+    #[Group('integration')]
+    #[DataProvider('clearableFieldProvider')]
+    public function testCarUpdateClearsField(string $field, string $initialValue): void
+    {
+        // solddate requires purchasedate to already be set for a valid, sensible
+        // starting state (car previously sold); other fields are independent.
+        $seed = ['purchasedate' => '2019-01-01'];
+        $carId = $this->createTestCar($this->testUserId, array_merge($seed, [$field => $initialValue]));
+
+        // Sanity check: the field actually has the seeded value before clearing.
+        $before = $this->db->query("SELECT {$field} FROM cars WHERE id = ?", [$carId])->first();
+        $this->assertNotNull($before->{$field}, "Precondition failed: {$field} must be non-null before clearing");
+
+        $car = new Car($carId);
+        $result = $car->update([
+            'id'    => $carId,
+            'token' => Token::generate(),
+            $field  => '',
+        ]);
+
+        $this->assertTrue($result, "Car::update() clearing {$field} must succeed");
+
+        $after = $this->db->query("SELECT {$field} FROM cars WHERE id = ?", [$carId])->first();
+        $this->assertNull($after->{$field}, "DB column '{$field}' must be NULL after clearing");
+    }
+
+    /**
+     * Regression test for issue #1448: clearing solddate while purchasedate
+     * remains set (the "car still owned again" case) must succeed without
+     * tripping the solddate >= purchasedate cross-field validation check —
+     * that check must be skipped whenever either side is null, not treated
+     * as sold-before-purchased.
+     */
+    #[Group('integration')]
+    public function testCarUpdateClearsSoldDateWhileKeepingPurchaseDate(): void
+    {
+        $purchaseDate = '2018-03-10';
+        $soldDate = '2021-07-04';
+        $carId = $this->createTestCar($this->testUserId, [
+            'purchasedate' => $purchaseDate,
+            'solddate'     => $soldDate,
+        ]);
+
+        $car = new Car($carId);
+        $result = $car->update([
+            'id'       => $carId,
+            'token'    => Token::generate(),
+            'solddate' => '',
+        ]);
+
+        $this->assertTrue($result, 'Clearing solddate while purchasedate remains set must not throw a cross-field validation error');
+
+        $row = $this->db->query('SELECT purchasedate, solddate FROM cars WHERE id = ?', [$carId])->first();
+        $this->assertNull($row->solddate, 'solddate must be NULL after clearing');
+        $this->assertStringStartsWith($purchaseDate, $row->purchasedate, 'purchasedate must remain unchanged');
+    }
+
+    /**
+     * Regression test for issue #1448: clearing both purchasedate and solddate
+     * in the same update() call must succeed. The cross-field
+     * solddate >= purchasedate check relies on isset() returning false for a
+     * null value — this must hold when BOTH fields are null simultaneously,
+     * not just when one is cleared while the other remains set (covered by
+     * testCarUpdateClearsSoldDateWhileKeepingPurchaseDate above).
+     */
+    #[Group('integration')]
+    public function testCarUpdateClearsBothPurchaseAndSoldDateSimultaneously(): void
+    {
+        $carId = $this->createTestCar($this->testUserId, [
+            'purchasedate' => '2018-03-10',
+            'solddate'     => '2021-07-04',
+        ]);
+
+        $car = new Car($carId);
+        $result = $car->update([
+            'id'           => $carId,
+            'token'        => Token::generate(),
+            'purchasedate' => '',
+            'solddate'     => '',
+        ]);
+
+        $this->assertTrue($result, 'Clearing both purchasedate and solddate together must not throw a cross-field validation error');
+
+        $row = $this->db->query('SELECT purchasedate, solddate FROM cars WHERE id = ?', [$carId])->first();
+        $this->assertNull($row->purchasedate, 'purchasedate must be NULL after clearing');
+        $this->assertNull($row->solddate, 'solddate must be NULL after clearing');
+    }
+
+    /**
+     * Regression test for issue #1448: Car::create() also runs the six
+     * clearable fields through CarValidator, but unlike update(), create()
+     * has no array_filter step at all — the validated fields go straight to
+     * CarRepository::insertCar(). Submitting an explicitly empty clearable
+     * field on creation must insert NULL (matching the column's own
+     * DEFAULT NULL), not throw and not insert an empty string.
+     */
+    #[Group('integration')]
+    public function testCarCreateWithEmptyClearableFieldInsertsNull(): void
+    {
+        $car = new Car();
+        $result = $car->create([
+            'token'   => Token::generate(),
+            'user_id' => $this->testUserId,
+            'year'    => '1971',
+            'model'   => 'Sprint|FHC|36',
+            'chassis' => 'CRT' . substr(uniqid(), -9),
+            'color'   => '',
+            'website' => '',
+        ]);
+
+        $this->assertTrue($result, 'Car::create() with empty clearable fields must succeed');
+
+        $carId = (int) $car->data()->id;
+        $this->trackCarId($carId);
+
+        $row = $this->db->query('SELECT color, website FROM cars WHERE id = ?', [$carId])->first();
+        $this->assertNull($row->color, 'color must be NULL, not an empty string, on create');
+        $this->assertNull($row->website, 'website must be NULL, not an empty string, on create');
     }
 }

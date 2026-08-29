@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace ElanRegistry;
 
-use Exception;
 use ElanRegistry\Car\CarRepository;
 use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\OwnerCreationException;
+use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\Exceptions\OwnerSearchException;
 use ElanRegistry\Exceptions\OwnerUpdateException;
 use ElanRegistry\Exceptions\OwnerValidationException;
@@ -37,6 +37,7 @@ class Owner
     private ?array $_carsOwned = null;
     private string $userTableName = 'users';
     private string $profileTableName = 'profiles';
+    private bool $transactionOwner = false;
 
     /**
      * Instantiates the Owner object.
@@ -60,12 +61,14 @@ class Owner
      * string location fields (city, state, country, website) are normalised to ''
      * rather than null; lat and lon remain null as returned by the LEFT JOIN.
      *
-     * Returns false both when the user ID does not exist and when a DB error
-     * occurs. DB errors are logged to LOG_CATEGORY_DATABASE_ERROR so callers can
-     * distinguish the two cases via the log rather than the return value.
+     * Returns false when the user ID is invalid or genuinely not found. On a
+     * DB error, throws OwnerDatabaseException instead of returning false, so
+     * callers can distinguish "not found" from "DB failed" without reading
+     * logs (#1505 PR B).
      *
      * @param int $userId The user ID to load
-     * @return bool True if owner found and loaded; false if $userId <= 0, not found, or DB error
+     * @return bool True if owner found and loaded; false if $userId <= 0 or not found
+     * @throws OwnerDatabaseException If the query fails
      */
     public function find(int $userId): bool
     {
@@ -84,7 +87,9 @@ class Owner
         if ($this->_db->error()) {
             logger(0, \ElanRegistry\LogCategories::LOG_CATEGORY_DATABASE_ERROR,
                 "Owner::find DB error for userId={$userId}: " . $this->_db->errorString());
-            return false;
+            throw new OwnerDatabaseException(
+                "Owner::find failed for userId={$userId}: " . $this->_db->errorString()
+            );
         }
 
         if ($q->count() > 0) {
@@ -111,6 +116,62 @@ class Owner
     }
 
     /**
+     * Begin a database transaction
+     *
+     * When participating in an outer transaction (begun by the caller before
+     * this Owner instance), this method is a no-op. Mirrors
+     * CarRepository::beginTransaction()'s ownership-flag pattern.
+     *
+     * @return void
+     */
+    public function beginTransaction(): void
+    {
+        if ($this->_db->inTransaction()) {
+            return; // Participating in outer transaction — no-op
+        }
+        $this->_db->beginTransaction();
+        $this->transactionOwner = true;
+    }
+
+    /**
+     * Commit the current transaction
+     *
+     * When participating in an outer transaction (begun by the caller before
+     * this Owner instance), this method is a no-op.
+     *
+     * @return void
+     */
+    public function commit(): void
+    {
+        if (!$this->transactionOwner) {
+            return; // Outer transaction manages commit — no-op
+        }
+        $this->transactionOwner = false;
+        if ($this->_db->inTransaction()) {
+            $this->_db->commit();
+        }
+    }
+
+    /**
+     * Rollback the current transaction
+     *
+     * When participating in an outer transaction (begun by the caller before
+     * this Owner instance), this method is a no-op.
+     *
+     * @return void
+     */
+    public function rollback(): void
+    {
+        if (!$this->transactionOwner) {
+            return; // Outer transaction manages rollback — no-op
+        }
+        $this->transactionOwner = false;
+        if ($this->_db->inTransaction()) {
+            $this->_db->rollBack();
+        }
+    }
+
+    /**
      * Create a new owner (user + profile)
      *
      * @param array $fields Key value pairs for owner data
@@ -133,7 +194,7 @@ class Owner
         $fields = $this->validateAndSanitizeFields($fields);
 
         // Start transaction for user + profile creation
-        $this->_db->query("START TRANSACTION");
+        $this->beginTransaction();
 
         try {
             // Split fields between user and profile tables
@@ -164,16 +225,25 @@ class Owner
                 );
             }
 
-            $this->_db->query("COMMIT");
-        } catch (Exception $e) {
-            $this->_db->query("ROLLBACK");
+            $this->commit();
+        } catch (\Throwable $e) {
+            $this->rollback();
             logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'Owner creation transaction failed: ' . $e->getMessage());
             throw $e;
         }
 
         // Post-commit: reload and log outside the transaction so that a failure
         // here does not trigger ROLLBACK or log a false "transaction failed" message.
-        $this->find($userId);
+        // A reload failure after a successful write is a lower-severity failure
+        // than the write itself failing, so it's caught and logged rather than
+        // propagated — matching Car::find()'s treatment of its own subordinate
+        // lookups (#1505 PR A).
+        try {
+            $this->find($userId);
+        } catch (OwnerDatabaseException $e) {
+            logger($userId, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                "Owner::create() post-commit reload failed for userId={$userId}: " . $e->getMessage());
+        }
         logger($userId, LogCategories::LOG_CATEGORY_OWNER_ACTIONS, "Owner created: {$userFields['fname']} {$userFields['lname']} ({$userFields['email']})");
 
         return true;
@@ -219,7 +289,7 @@ class Owner
         }
 
         // Start transaction for user + profile updates
-        $this->_db->query("START TRANSACTION");
+        $this->beginTransaction();
 
         try {
             // Split fields between user and profile tables
@@ -252,16 +322,25 @@ class Owner
                 }
             }
 
-            $this->_db->query("COMMIT");
-        } catch (Exception $e) {
-            $this->_db->query("ROLLBACK");
+            $this->commit();
+        } catch (\Throwable $e) {
+            $this->rollback();
             logger($userId, LogCategories::LOG_CATEGORY_DATABASE_ERROR, 'Owner update transaction failed: ' . $e->getMessage());
             throw $e;
         }
 
         // Post-commit: reload and log outside the transaction so that a failure
         // here does not trigger ROLLBACK or log a false "transaction failed" message.
-        $this->find($userId);
+        // A reload failure after a successful write is a lower-severity failure
+        // than the write itself failing, so it's caught and logged rather than
+        // propagated — matching Car::find()'s treatment of its own subordinate
+        // lookups (#1505 PR A).
+        try {
+            $this->find($userId);
+        } catch (OwnerDatabaseException $e) {
+            logger($userId, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                "Owner::update() post-commit reload failed for userId={$userId}: " . $e->getMessage());
+        }
         $fieldsUpdated = array_merge(array_keys($userFields), array_keys($profileFields));
         logger($userId, LogCategories::LOG_CATEGORY_OWNER_ACTIONS, "Owner updated - fields: " . implode(', ', $fieldsUpdated));
 
@@ -272,6 +351,7 @@ class Owner
      * Get all cars owned by this owner
      *
      * @return array Array of car objects owned by this owner
+     * @throws OwnerDatabaseException If the query fails
      */
     public function getCarsOwned(): array
     {
@@ -291,7 +371,9 @@ class Owner
         if ($this->_db->error()) {
             logger((int)$this->_data->id, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
                 "getCarsOwned DB error for userId={$this->_data->id}: " . $this->_db->errorString());
-            return [];
+            throw new OwnerDatabaseException(
+                "Owner::getCarsOwned failed for userId={$this->_data->id}: " . $this->_db->errorString()
+            );
         }
 
         $this->_carsOwned = $carsQuery->count() > 0 ? $carsQuery->results() : [];
@@ -302,6 +384,7 @@ class Owner
      * Get ownership history for this owner
      *
      * @return array Array of ownership history records
+     * @throws OwnerDatabaseException If the query fails
      */
     public function getOwnershipHistory(): array
     {
@@ -321,7 +404,9 @@ class Owner
         if ($this->_db->error()) {
             logger((int)$this->_data->id, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
                 "getOwnershipHistory DB error for userId={$this->_data->id}: " . $this->_db->errorString());
-            return [];
+            throw new OwnerDatabaseException(
+                "Owner::getOwnershipHistory failed for userId={$this->_data->id}: " . $this->_db->errorString()
+            );
         }
 
         return $historyQuery->count() > 0 ? $historyQuery->results() : [];
@@ -503,6 +588,9 @@ class Owner
      * Sync owner location to all owned cars
      *
      * @return int Number of cars updated
+     * @throws OwnerDatabaseException If getCarsOwned() fails to query — a DB
+     *         failure here must surface as a real exception, not silently
+     *         collapse into "0 cars synced" (#1505 PR B)
      */
     public function syncLocationToCars(): int
     {

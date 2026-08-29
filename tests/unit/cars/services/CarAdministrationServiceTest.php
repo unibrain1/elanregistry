@@ -304,7 +304,7 @@ final class CarAdministrationServiceTest extends TestCase
             $this->createOwnerDb(1, 'noowner@invalid', blankLocation: true)
         );
 
-        foreach (['email', 'city', 'state', 'country', 'website'] as $field) {
+        foreach (['email', 'city', 'state', 'country'] as $field) {
             $this->assertArrayHasKey(
                 $field,
                 $updateFields,
@@ -316,6 +316,20 @@ final class CarAdministrationServiceTest extends TestCase
                 "cars.{$field} must be cleared so the previous owner's value cannot survive the transfer"
             );
         }
+
+        // website is cleared to null, not '', since #1448 made CarValidator's
+        // website case null-passthrough (CLEARABLE_FIELDS) rather than
+        // dropping the key — see #1448 for why '' and null aren't yet a
+        // consistent "cleared" signal across all OWNER_IDENTITY_FIELDS.
+        $this->assertArrayHasKey(
+            'website',
+            $updateFields,
+            'cars.website must be written on transfer, not dropped by CarValidator'
+        );
+        $this->assertNull(
+            $updateFields['website'],
+            "cars.website must be cleared so the previous owner's value cannot survive the transfer"
+        );
 
         $this->assertSame('', $historyFields['email'] ?? null);
         $this->assertSame('', $historyFields['city'] ?? null);

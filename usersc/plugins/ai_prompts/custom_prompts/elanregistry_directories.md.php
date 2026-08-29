@@ -27,7 +27,7 @@ projectroot/
 │   │       ├── fix/          # One-time migration scripts (run once, never again)
 │   │       └── maintenance/  # Repeatable maintenance scripts (safe to re-run)
 │   ├── api/          # AJAX API endpoints
-│   │   ├── admin/    # Admin-only API endpoints (process-settings.php)
+│   │   ├── admin/    # Admin-only API endpoints (account-cleanup-data.php)
 │   │   ├── cars/     # Car-specific API endpoints (save, history, chassis-validate, etc.)
 │   │   ├── contact/  # Contact form API endpoints (send-feedback, send-owner-email)
 │   │   └── shared/   # Shared API endpoints (statistics, location-search, location-reverse)

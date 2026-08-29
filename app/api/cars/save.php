@@ -33,25 +33,12 @@ ob_start();
 // Check to see if the chassis number is taken
 require_once '../../../users/init.php';
 
-$settings = getSettings();  // Get global settings from plugin
-
-// Ensure settings have default values for image configuration
-if (!isset($settings->elan_image_upload_max_size)) {
-    $settings->elan_image_upload_max_size = 2;
-}
-if (!isset($settings->elan_image_display_max_size)) {
-    $settings->elan_image_display_max_size = 2048;
-}
-if (!isset($settings->elan_image_thumbnail_sizes)) {
-    $settings->elan_image_thumbnail_sizes = '100,300,768,1024,2048';
-}
-
 $errors     = [];
 $chassis_override_used = false; // Track if chassis validation override was used
 $cardetails = [];
 
-$targetFilePath = $abs_us_root . $us_url_root . $settings->elan_image_dir;
-$targetURL = $us_url_root . $settings->elan_image_dir;
+$targetFilePath = $abs_us_root . $us_url_root . ELAN_IMAGE_DIR;
+$targetURL = $us_url_root . ELAN_IMAGE_DIR;
 
 if ($method !== 'POST' || empty($_POST)) {
     ApiResponse::error('No data received', 400)->send();
@@ -391,9 +378,6 @@ function buildCarDetails(array &$cardetails, array &$errors, ?int $carId = null)
         $cardetails['website']      = null;
         $cardetails['comments']     = null;
     }
-    // Add CSRF token for Car class validation
-    $cardetails['token'] = Input::get('csrf');
-    
     updateYear($cardetails, $errors);
     updateModel($cardetails, $errors);
     updateChassis($cardetails, $errors);
@@ -676,13 +660,9 @@ function uploadImages(array &$cardetails, array &$errors): void
 {
     global $targetFilePath;
     global $user;
-    global $settings;
 
-    // Image resize dimensions from settings
-    $thumbnailSizesString = isset($settings->elan_image_thumbnail_sizes) && !empty($settings->elan_image_thumbnail_sizes)
-        ? $settings->elan_image_thumbnail_sizes
-        : '100,300,768,1024,2048'; // Default fallback
-    $thumbnailSizes = explode(',', $thumbnailSizesString);
+    // Image resize dimensions
+    $thumbnailSizes = explode(',', ELAN_IMAGE_THUMBNAIL_SIZES);
     $imageSizes = array_map('intval', array_map('trim', $thumbnailSizes));
 
 

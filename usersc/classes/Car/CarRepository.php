@@ -248,10 +248,16 @@ class CarRepository
      *
      * @param string $code Verification code
      * @return object|null Car data or null
+     * @throws CarDatabaseException If the query fails
      */
     public function findByVerificationCode(string $code): ?object
     {
         $result = $this->db->query('SELECT * FROM cars WHERE vericode = ?', [$code]);
+        if ($this->db->error()) {
+            throw new CarDatabaseException(
+                "CarRepository::findByVerificationCode failed: " . $this->db->errorString()
+            );
+        }
         if ($result->count() > 0) {
             return $result->first();
         }
@@ -296,17 +302,24 @@ class CarRepository
      *
      * @param int $carId Car ID
      * @return array<object> History records (empty if none)
+     * @throws CarDatabaseException If the query fails
      */
     public function getHistory(int $carId): array
     {
-        return $this->db->query(
+        $result = $this->db->query(
             'SELECT id, car_id, ctime, mtime, timestamp, operation,
                     model, series, variant, year, type, chassis, chassis_override, color, engine,
                     purchasedate, solddate, comments, image,
                     fname, join_date, city, state, country, website
              FROM cars_hist WHERE car_id = ? ORDER BY timestamp DESC',
             [$carId]
-        )->results();
+        );
+        if ($this->db->error()) {
+            throw new CarDatabaseException(
+                "CarRepository::getHistory failed for car={$carId}: " . $this->db->errorString()
+            );
+        }
+        return $result->results();
     }
 
     /**
@@ -339,6 +352,7 @@ class CarRepository
      * @param string $chassis Full chassis number
      * @param int $suffixLength Length of chassis suffix to try as secondary search
      * @return object|null Factory info object or null
+     * @throws CarDatabaseException If a query fails
      */
     public function getFactoryInfo(string $chassis, int $suffixLength): ?object
     {
@@ -346,6 +360,11 @@ class CarRepository
 
         foreach ($search as $serialNumber) {
             $factory = $this->db->query('SELECT * FROM elan_factory_info WHERE serial = ? ', [$serialNumber]);
+            if ($this->db->error()) {
+                throw new CarDatabaseException(
+                    "CarRepository::getFactoryInfo failed for serial={$serialNumber}: " . $this->db->errorString()
+                );
+            }
             if ($factory->count()) {
                 return $factory->first();
             }

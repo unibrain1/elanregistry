@@ -33,7 +33,7 @@ test.describe('Admin page titles — index (#1430)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Area 2: maintenance.php — Registry Maintenance tabs
+// Area 2: maintenance.php — single page, no tabs (#1225)
 // ---------------------------------------------------------------------------
 
 test.describe('Admin page titles — maintenance (#1430)', () => {
@@ -41,14 +41,9 @@ test.describe('Admin page titles — maintenance (#1430)', () => {
         await ensureLoggedIn(page);
     });
 
-    test('default tab (health) renders page-specific title', async ({ page }) => {
+    test('renders static page title', async ({ page }) => {
         await page.goto('app/admin/maintenance.php', { waitUntil: 'networkidle' });
-        await assertPageTitle(page, { expectedTitle: 'Registry Maintenance - Health' });
-    });
-
-    test('settings tab renders page-specific title', async ({ page }) => {
-        await page.goto('app/admin/maintenance.php?tab=settings', { waitUntil: 'networkidle' });
-        await assertPageTitle(page, { expectedTitle: 'Registry Maintenance - Configuration' });
+        await assertPageTitle(page, { expectedTitle: 'Registry Maintenance' });
     });
 });
 

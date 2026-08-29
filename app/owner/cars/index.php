@@ -117,7 +117,7 @@ window.carListConfig = {
     urlRoot: <?= json_encode((string)$us_url_root, JSON_HEX_TAG | JSON_HEX_AMP) ?>,
     newCarIds: <?= json_encode((new CarShowcaseService())->getNewCarIds(), JSON_HEX_TAG | JSON_HEX_AMP) ?>
 };
-window.img_root = <?= json_encode((string)($us_url_root . ($settings->elan_image_dir ?? '')), JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+window.img_root = <?= json_encode((string)($us_url_root . ELAN_IMAGE_DIR), JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 </script>
 <script src='<?= $us_url_root ?>app/assets/js/imagedisplay.min.js?v=<?= ASSET_VERSION ?>'></script>
 <script src='<?= $us_url_root ?>app/assets/js/car-list.min.js?v=<?= ASSET_VERSION ?>'></script>

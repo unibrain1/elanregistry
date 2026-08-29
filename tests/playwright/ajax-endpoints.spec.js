@@ -446,54 +446,12 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     test.skip('process-transfer-approve succeeds for a separate real pending transfer — needs a disposable non-admin-owned car fixture; skipped to avoid mutating CAR_ID_STANDARD', () => {});
   });
 
-  test.describe('admin settings endpoint', () => {
-    const FIELD = 'elan_image_max';
-    let csrf;
-    let originalValue;
-
-    test.beforeEach(async ({ page }) => {
-      csrf = await getCsrfFromSettingsPage(page);
-      test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
-
-      // Read the current value from the rendered admin settings tab before
-      // mutating it, so afterEach can restore it unconditionally.
-      await page.goto('app/admin/maintenance.php?tab=settings', { waitUntil: 'domcontentloaded' });
-      const input = page.locator(`#${FIELD}`).first();
-      originalValue = await input.getAttribute('value');
-      test.skip(originalValue === null, `Could not read current value of ${FIELD} from the admin settings tab`);
-    });
-
-    test.afterEach(async ({ page }) => {
-      // Unconditionally restore the original value — this is a shared, live
-      // settings row, and a mutation must never leak into the rest of the suite.
-      if (originalValue === null || originalValue === undefined) {
-        return;
-      }
-      await page.request.post('app/api/admin/process-settings.php', {
-        form: {
-          field: FIELD,
-          value: originalValue,
-          csrf
-        }
-      });
-    });
-
-    test('process-settings succeeds for an admin user and restores original value', async ({ page }) => {
-      const newValue = String(Number(originalValue) + 1);
-
-      const response = await page.request.post('app/api/admin/process-settings.php', {
-        form: {
-          field: FIELD,
-          value: newValue,
-          csrf
-        }
-      });
-
-      expect(response.status()).toBe(200);
-      const jsonResponse = await response.json();
-      expect(jsonResponse).toHaveProperty('success', true);
-    });
-  });
+  // The 'admin settings endpoint' describe block (process-settings.php,
+  // elan_image_max mutation test) was removed in #1067 — that AJAX endpoint
+  // and its backing tab-settings.php admin UI were deleted entirely.
+  // ELAN_IMAGE_MAX and the other former settings are now config.php
+  // constants, not web-editable DB rows, so there is nothing left to
+  // exercise here.
 
   test('feedback endpoint requires CSRF and returns JSON', async ({ page }) => {
     const response = await page.request.post('app/api/contact/send-feedback.php', {
@@ -549,6 +507,84 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     const validationJson = await validationResponse.json();
     expect(validationJson).toHaveProperty('success', false);
     expect(validationJson.message).toContain('at least 2 characters');
+  });
+
+  // ---------------------------------------------------------------------
+  // Regression coverage for issue #1519: Car::create()/Car::update() no
+  // longer validate CSRF internally — enforcement now lives ONLY at
+  // save.php's endpoint boundary (lines 66-71, before the action switch).
+  // No prior test proved that boundary actually rejects a bad/missing
+  // token for the addCar/updateCar actions specifically.
+  // ---------------------------------------------------------------------
+  test('save.php rejects addCar with an invalid CSRF token', async ({ page }) => {
+    const response = await page.request.post('app/api/cars/save.php', {
+      form: {
+        action: 'addCar',
+        year: '1965',
+        model: 'S1|SE|DHC',
+        chassis: '1234',
+        csrf: 'invalid_token'
+      }
+    });
+    expect(response.status()).toBe(403);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', false);
+  });
+
+  test('save.php rejects updateCar with an invalid CSRF token', async ({ page }) => {
+    const response = await page.request.post('app/api/cars/save.php', {
+      form: {
+        action: 'updateCar',
+        car_id: String(CAR_ID_STANDARD),
+        year: '1965',
+        model: 'S1|SE|DHC',
+        chassis: '1234',
+        csrf: 'invalid_token'
+      }
+    });
+    expect(response.status()).toBe(403);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', false);
+  });
+
+  test('save.php rejects addCar with a missing CSRF token', async ({ page }) => {
+    // Omitting csrf entirely exercises Token::check() with a null/empty
+    // token, not just a well-formed-but-wrong one — a distinct guard path.
+    const response = await page.request.post('app/api/cars/save.php', {
+      form: {
+        action: 'addCar',
+        year: '1965',
+        model: 'S1|SE|DHC',
+        chassis: '1234'
+      }
+    });
+    expect(response.status()).toBe(403);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', false);
+  });
+
+  test('save.php reaches past the CSRF check with a real token (proves the check, not some other guard, rejected the tests above)', async ({ page }) => {
+    // A real token but otherwise-incomplete/invalid data (bogus action) must
+    // NOT 403 — if it did, that would mean some earlier guard (e.g. auth)
+    // was responsible for the 403s above rather than the CSRF check itself.
+    // Deliberately uses a bogus action (not addCar/updateCar) to avoid a real
+    // DB write from this describe block — a genuine addCar/updateCar success
+    // path with a valid token is exercised elsewhere: car-edit-text-save.spec.js
+    // (real navigation-based session) and CarDatabaseOperationsTest.php's
+    // PHPUnit integration suite (Token::generate() + real persistence asserts).
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
+    const response = await page.request.post('app/api/cars/save.php', {
+      form: {
+        action: 'not_a_real_action',
+        csrf
+      }
+    });
+    expect(response.status()).not.toBe(403);
+    expect(response.status()).toBe(400);
+    const jsonResponse = await response.json();
+    expect(jsonResponse).toHaveProperty('success', false);
   });
 
   test('location reverse geocoding endpoint enforces method, CSRF, and validation checks', async ({ page }) => {

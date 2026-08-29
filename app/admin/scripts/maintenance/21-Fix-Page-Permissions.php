@@ -22,9 +22,7 @@ use ElanRegistry\LogCategories;
  *
  * ADMIN-ONLY PAGES (will be set to private=1 with Administrator permission only):
  * - app/admin/scripts/* - All admin maintenance & fix scripts
- * - app/admin/maintenance.php - Maintenance portal page
- * - app/admin/includes/tab-health.php - Health tab include
- * - app/admin/includes/tab-maintenance.php - Maintenance tab include
+ * - app/admin/maintenance.php - Maintenance portal page (single page, no tabs — #1225)
  *
  * ADMIN+EDITOR PAGES (will be set to private=1 with Admin+Editor permissions):
  * - app/admin/* - All other admin pages (not in admin-only list above)
@@ -507,9 +505,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                                 <p class="mb-2"><strong>Admin-Only (private=1, Administrator permission only):</strong></p>
                                 <ul>
                                     <li><strong>app/admin/scripts/*</strong> - All admin fix &amp; maintenance scripts</li>
-                                    <li><strong>app/admin/maintenance.php</strong> - Maintenance portal</li>
-                                    <li><strong>app/admin/includes/tab-health.php</strong> - Health tab include</li>
-                                    <li><strong>app/admin/includes/tab-maintenance.php</strong> - Maintenance tab include</li>
+                                    <li><strong>app/admin/maintenance.php</strong> - Maintenance portal (single page, no tabs)</li>
                                 </ul>
                                 <p class="mb-2"><strong>Admin + Editor (private=1, Administrator + Editor permissions):</strong></p>
                                 <ul>

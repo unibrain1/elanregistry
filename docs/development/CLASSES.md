@@ -87,7 +87,8 @@ and audit trails.
 **Common Usage**:
 
 ```php
-// Create new car
+// Create new car — CSRF is validated by the HTTP-layer caller (see save.php)
+// before create()/update() are invoked, not inside the Car class itself.
 $car = new Car();
 $carId = $car->create([
     'chassis' => '26/0001',
@@ -95,7 +96,6 @@ $carId = $car->create([
     'body_style' => 'DHC',
     'body_color' => 'Red',
     'user_id' => $userId,
-    'csrf' => Token::generate()
 ]);
 
 // Load existing car
@@ -106,7 +106,6 @@ $carData = $car->data();
 $car->update([
     'id' => $carId,
     'body_color' => 'Blue',
-    'csrf' => Token::generate()
 ]);
 
 // Delete car (soft delete with audit trail)
@@ -312,6 +311,37 @@ $results = (new Owner())->searchOwners('Portland');
 
 - Use `(new Owner($userId))->data()` to load combined user+profile data
 - Used in admin consolidated management interface
+
+**Exception Handling**:
+
+All Owner exception classes are in the `ElanRegistry\Exceptions` namespace
+and extend `OwnerException` (abstract, extends `ElanRegistryException`),
+mirroring `CarException`'s pattern — `catch (OwnerException $e)` handles any
+owner-domain error uniformly:
+
+- `OwnerCreationException` — owner creation failures (500)
+- `OwnerSearchException` — owner search failures (500)
+- `OwnerUpdateException` — owner update failures (500)
+- `OwnerValidationException` — invalid owner data (422)
+- `OwnerDatabaseException` — database operation failures (500)
+
+`find()`, `getCarsOwned()`, and `getOwnershipHistory()` throw
+`OwnerDatabaseException` on a DB query failure. They still return `false`/
+`[]` for a genuinely empty/not-found result — only a DB-layer error throws,
+so callers can distinguish "not found" from "DB failed" without reading
+logs. (`OwnerNotFoundException` was removed in v2.29.5 — nothing threw it
+in production; `find()` returning `bool` covers the not-found case.)
+
+`create()`/`update()` wrap their writes in `beginTransaction()`/`commit()`/
+`rollback()` (an ownership-flag transaction guard mirroring
+`CarRepository`'s pattern) and catch `\Throwable`, guaranteeing rollback on
+any failure including a PHP `\Error`. Their post-write reload call is
+wrapped in its own local `try/catch (OwnerDatabaseException $e)` — a reload
+failure after a successful write is logged, not propagated.
+
+`syncLocationToCars()` lets `getCarsOwned()`'s exception propagate
+uncaught by design — a DB failure should surface as a real exception, not
+collapse into "0 cars synced."
 
 ### CarValidator
 

@@ -26,7 +26,7 @@ const { ensureLoggedIn } = require('./auth-helper.js');
 test.describe('Admin fix-script Close Window button', () => {
     test.beforeEach(async ({ page }) => {
         await ensureLoggedIn(page);
-        await page.goto('app/admin/maintenance.php?tab=maintenance', { waitUntil: 'networkidle' });
+        await page.goto('app/admin/maintenance.php', { waitUntil: 'networkidle' });
     });
 
     test('Close Window button closes the popup rather than navigating it', async ({ page, context }) => {

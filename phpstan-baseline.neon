@@ -1,6 +1,42 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Variable \$backupStats might not be defined\.$#'
+			identifier: variable.undefined
+			count: 6
+			path: app/admin/includes/partials/maintenance-backups.php
+
+		-
+			message: '#^Variable \$backupStatsFallback might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/admin/includes/partials/maintenance-backups.php
+
+		-
+			message: '#^Variable \$showCleanupPrompt might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/admin/includes/partials/maintenance-backups.php
+
+		-
+			message: '#^Variable \$completedFixScripts might not be defined\.$#'
+			identifier: variable.undefined
+			count: 3
+			path: app/admin/includes/partials/maintenance-migrations.php
+
+		-
+			message: '#^Variable \$scriptRunStatus might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/admin/includes/partials/maintenance-migrations.php
+
+		-
+			message: '#^Variable \$maintenanceRunStatus might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: app/admin/includes/partials/maintenance-scripts.php
+
+		-
 			message: '#^Variable \$activeTab might not be defined\.$#'
 			identifier: variable.undefined
 			count: 5
@@ -11,48 +47,6 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: app/admin/includes/tab-placeholder.php
-
-		-
-			message: '#^Variable \$car might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$edit_btn might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$image might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$sold_btn might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Variable \$verify_btn might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/admin/verify/_email_template.php
-
-		-
-			message: '#^Parameter \#1 \$prefix of function uniqid expects string, int\<0, max\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/admin/verify/send_email.php
-
-		-
-			message: '#^Match arm comparison between ''num''\|''txt'' and ''toggle'' is always false\.$#'
-			identifier: match.alwaysFalse
-			count: 1
-			path: app/api/admin/process-settings.php
 
 		-
 			message: '#^Unreachable statement \- code above always terminates\.$#'
@@ -127,30 +121,6 @@ parameters:
 			path: app/views/email/_admin_to_owner.php
 
 		-
-			message: '#^Variable \$accountId might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/views/email/_feedback.php
-
-		-
-			message: '#^Variable \$comments might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/views/email/_feedback.php
-
-		-
-			message: '#^Variable \$email might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: app/views/email/_feedback.php
-
-		-
-			message: '#^Variable \$name might not be defined\.$#'
-			identifier: variable.undefined
-			count: 2
-			path: app/views/email/_feedback.php
-
-		-
 			message: '#^Variable \$from might not be defined\.$#'
 			identifier: variable.undefined
 			count: 2
@@ -191,12 +161,6 @@ parameters:
 			identifier: method.alreadyNarrowedType
 			count: 1
 			path: tests/integration/reference/CarModelTest.php
-
-		-
-			message: '#^Variable \$matches in empty\(\) always exists and is not falsy\.$#'
-			identifier: empty.variable
-			count: 1
-			path: tests/unit/admin/ProcessAdminSettingsTest.php
 
 		-
 			message: '#^Parameter \#1 \$card of static method ElanRegistry\\Documentation\\DocumentPortalTemplate\:\:renderDocumentCard\(\) expects array\{title\: string, icon\: string, url\: string, buttonText\: string, headerClass\?\: string, buttonClass\?\: string, cardClass\?\: string, description\?\: string, \.\.\.\}, array\{icon\: ''fa\-car'', url\: ''/test'', buttonText\: ''View''\} given\.$#'
@@ -305,6 +269,18 @@ parameters:
 			identifier: method.alreadyNarrowedType
 			count: 1
 			path: tests/unit/exceptions/CarExceptionHierarchyTest.php
+
+		-
+			message: '#^Call to function is_subclass_of\(\) with ''ElanRegistry\\\\Exceptions\\\\OwnerException'' and ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionHierarchyTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and ''ElanRegistry…'' will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/unit/exceptions/OwnerExceptionHierarchyTest.php
 
 		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with ''ElanRegistry\\\\Exceptions\\\\ElanRegistryException'' and ElanRegistry\\Exceptions\\OwnerCreationException will always evaluate to true\.$#'
@@ -467,24 +443,6 @@ parameters:
 			identifier: variable.undefined
 			count: 5
 			path: usersc/scripts/during_user_creation.php
-
-		-
-			message: '#^Variable \$currentPage might not be defined\.$#'
-			identifier: variable.undefined
-			count: 2
-			path: usersc/user_settings.php
-
-		-
-			message: '#^Variable \$master_account might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: usersc/user_settings.php
-
-		-
-			message: '#^Variable \$profiledetails might not be defined\.$#'
-			identifier: variable.undefined
-			count: 12
-			path: usersc/user_settings.php
 
 		-
 			message: '#^Variable \$email might not be defined\.$#'

@@ -12,11 +12,10 @@ use ElanRegistry\Resize;
  * Issue #176: Max image size for upload and display should be configurable
  *
  * This script:
- * 1. Updates the elan_image_thumbnail_sizes setting from 600px to 768px
- * 2. Generates new 768px thumbnails (tablet/mobile landscape size)
- * 3. Removes old 600px thumbnails (underutilized size)
- * 4. Preserves existing 100px, 300px, 1024px, and 2048px thumbnails
- * 5. Uses existing high-quality source images (1024px or 2048px) for regeneration
+ * 1. Generates new 768px thumbnails (tablet/mobile landscape size)
+ * 2. Removes old 600px thumbnails (underutilized size)
+ * 3. Preserves existing 100px, 300px, 1024px, and 2048px thumbnails
+ * 4. Uses existing high-quality source images (1024px or 2048px) for regeneration
  */
 require_once '../../../../users/init.php';
 require_once $abs_us_root . $us_url_root . 'app/admin/includes/fix-script-core.php';
@@ -30,7 +29,7 @@ if (!securePage($php_self)) {
 $db = DB::getInstance();
 $settings = getSettings();
 
-$currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048';
+$currentSizes = ELAN_IMAGE_THUMBNAIL_SIZES;
 
 ?>
 
@@ -106,7 +105,6 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                             <div class="alert alert-info">
                                 <h5><i class="fa fa-info-circle"></i> What this script does:</h5>
                                 <ul class="mb-0">
-                                    <li>Updates elan_image_thumbnail_sizes setting to replace 600px with 768px</li>
                                     <li>Generates new 768px thumbnails for tablet/mobile landscape viewing</li>
                                     <li>Removes old 600px thumbnails to save disk space</li>
                                     <li>Preserves existing 100px, 300px, 1024px, and 2048px thumbnails</li>
@@ -335,21 +333,6 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                     flush();
                 }
 
-                // Update thumbnail sizes setting: replace 600 with 768
-                $newSizes = $currentSizes;
-                $settingsUpdated = false;
-                if (str_contains($currentSizes, '600')) {
-                    $newSizes = str_replace('600', '768', $currentSizes);
-                    try {
-                        $db->query("UPDATE settings SET elan_image_thumbnail_sizes = ? WHERE id = 1", [$newSizes]);
-                        $settings->elan_image_thumbnail_sizes = $newSizes;
-                        $settingsUpdated = true;
-                    } catch (\Throwable $e) {
-                        logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, "Failed to update elan_image_thumbnail_sizes setting: " . $e->getMessage() . " (Issue #176)");
-                        outputMessage("❌ Failed to update elan_image_thumbnail_sizes in database: " . $e->getMessage());
-                    }
-                }
-
                 // Generate or retrieve the per-session batch nonce (guards continuation GETs against CSRF)
                 if ($is_initial) {
                     try {
@@ -390,16 +373,12 @@ $currentSizes = $settings->elan_image_thumbnail_sizes ?? '100,300,600,1024,2048'
                 outputMessage("Timestamp: " . date('Y-m-d H:i:s'));
                 outputMessage("");
 
-                // Report settings update
-                if ($settingsUpdated) {
-                    outputMessage("⚙️ Updated elan_image_thumbnail_sizes: {$currentSizes} → {$newSizes}");
-                } elseif (!str_contains($currentSizes, '600')) {
-                    outputMessage("✅ elan_image_thumbnail_sizes already correct: {$currentSizes}");
-                }
+                // Report settings status
+                outputMessage("✅ elan_image_thumbnail_sizes already correct: {$currentSizes}");
                 outputMessage("");
 
                 // Get image directory path
-                $imageBasePath = $abs_us_root . $us_url_root . $settings->elan_image_dir;
+                $imageBasePath = $abs_us_root . $us_url_root . ELAN_IMAGE_DIR;
                 outputMessage("🔍 Image base path: " . $imageBasePath);
 
                 // Get total count of cars with images (for overall progress tracking)

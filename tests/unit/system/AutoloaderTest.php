@@ -116,7 +116,6 @@ class AutoloaderTest extends TestCase
         $this->assertTrue(class_exists('ElanRegistry\\Exceptions\\CarDeletionException'), 'CarDeletionException should auto-load');
 
         // Owner exceptions
-        $this->assertTrue(class_exists('ElanRegistry\\Exceptions\\OwnerNotFoundException'), 'OwnerNotFoundException should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\Exceptions\\OwnerCreationException'), 'OwnerCreationException should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\Exceptions\\OwnerValidationException'), 'OwnerValidationException should auto-load');
         $this->assertTrue(class_exists('ElanRegistry\\Exceptions\\OwnerUpdateException'), 'OwnerUpdateException should auto-load');
@@ -205,8 +204,8 @@ class AutoloaderTest extends TestCase
 
         // Test owner exception
         try {
-            throw new \ElanRegistry\Exceptions\OwnerNotFoundException('Test owner message');
-        } catch (\ElanRegistry\Exceptions\OwnerNotFoundException $e) {
+            throw new \ElanRegistry\Exceptions\OwnerCreationException('Test owner message');
+        } catch (\ElanRegistry\Exceptions\OwnerCreationException $e) {
             $this->assertEquals('Test owner message', $e->getMessage());
         }
 

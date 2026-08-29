@@ -88,8 +88,6 @@ final class PagePermissionClassifierTest extends TestCase
             'scripts root'                      => ['app/admin/scripts/index.php',                              true],
             // Admin-only: maintenance portal pages
             'maintenance'                       => ['app/admin/maintenance.php',                         true],
-            'tab-health'                        => ['app/admin/includes/tab-health.php',                        true],
-            'tab-maintenance'                   => ['app/admin/includes/tab-maintenance.php',                   true],
             // Admin+Editor: general admin panel (including design-system)
             'design-system'                     => ['app/admin/design-system.php',                              false],
             'manage-consolidated'               => ['app/admin/manage-consolidated.php',                        false],
@@ -203,8 +201,6 @@ final class PagePermissionClassifierTest extends TestCase
     {
         $maintenancePages = [
             'app/admin/maintenance.php',
-            'app/admin/includes/tab-health.php',
-            'app/admin/includes/tab-maintenance.php',
         ];
 
         foreach ($maintenancePages as $page) {

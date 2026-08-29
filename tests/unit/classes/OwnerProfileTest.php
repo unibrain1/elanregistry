@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Owner;
+use ElanRegistry\OwnerView;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -438,7 +440,7 @@ final class OwnerProfileTest extends TestCase
         $this->assertFalse($owner->find(-1));
     }
 
-    public function testFindReturnsFalseOnDatabaseError(): void
+    public function testFindThrowsOwnerDatabaseExceptionOnDatabaseError(): void
     {
         $db = $this->makeOwnerDbMock();
         $db->expects($this->once())->method('query')->willReturnSelf();
@@ -446,8 +448,9 @@ final class OwnerProfileTest extends TestCase
         $db->method('errorString')->willReturn('connection lost');
 
         $owner = new Owner(null, $db);
-        $this->assertFalse($owner->find(42));
-        $this->assertNull($owner->data());
+
+        $this->expectException(\ElanRegistry\Exceptions\OwnerDatabaseException::class);
+        $owner->find(42);
     }
 
     public function testFindReturnsFalseWhenUserNotFound(): void
@@ -491,5 +494,56 @@ final class OwnerProfileTest extends TestCase
         $this->assertSame('', $data->country);
         $this->assertNull($data->lat);         // null stays null
         $this->assertNull($data->lon);
+    }
+
+    // =========================================================================
+    // getQualityBadgeClass() drift guard (#1618)
+    //
+    // Owner::getQualityBadgeClass() duplicates OwnerView::qualityBadgeClass()'s
+    // thresholds/logic (Owner.php:462-471, OwnerView.php:42-53). OwnerViewTest
+    // already covers OwnerView::qualityBadgeClass() directly with boundary
+    // values; these tests assert Owner's copy returns the identical value at
+    // the same boundaries, so a future edit to just one side is caught here
+    // rather than silently drifting.
+    // =========================================================================
+
+    /**
+     * Direct assertions on Owner::getQualityBadgeClass()'s own thresholds,
+     * independent of OwnerView — a failure here identifies which side
+     * (Owner's own logic) is wrong, not just that the two disagree.
+     */
+    public function testGetQualityBadgeClassReturnsExpectedClassForBoundaryScores(): void
+    {
+        $this->assertSame('danger', Owner::getQualityBadgeClass(0.0));
+        $this->assertSame('danger', Owner::getQualityBadgeClass(59.9));
+        $this->assertSame('warning', Owner::getQualityBadgeClass(60.0));
+        $this->assertSame('warning', Owner::getQualityBadgeClass(79.9));
+        $this->assertSame('success', Owner::getQualityBadgeClass(80.0));
+        $this->assertSame('success', Owner::getQualityBadgeClass(100.0));
+    }
+
+    /**
+     * @return array<string, array{0: float}>
+     */
+    public static function boundaryScoreProvider(): array
+    {
+        return [
+            'zero score' => [0.0],
+            'just below warning (59.9)' => [59.9],
+            'warning boundary (60)' => [60.0],
+            'just below success (79.9)' => [79.9],
+            'success boundary (80)' => [80.0],
+            'perfect score (100)' => [100.0],
+        ];
+    }
+
+    #[DataProvider('boundaryScoreProvider')]
+    public function testGetQualityBadgeClassMatchesOwnerViewAcrossBoundaries(float $score): void
+    {
+        $this->assertSame(
+            OwnerView::qualityBadgeClass($score),
+            Owner::getQualityBadgeClass($score),
+            "Owner::getQualityBadgeClass({$score}) must match OwnerView::qualityBadgeClass({$score}) — they must not drift apart"
+        );
     }
 }
