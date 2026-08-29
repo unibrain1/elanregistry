@@ -60,6 +60,7 @@
 - [#1519](https://github.com/elan-registry/registry/issues/1519) — refactor: move Token::check() CSRF validation out of the Car entity
 - [#1613](https://github.com/elan-registry/registry/issues/1613) — fix: remove the broken, unused car-owner verification directory
 - [#1618](https://github.com/elan-registry/registry/issues/1618) — test: Owner.php — ownership history, location-sync error paths, and quality-badge drift guard
+- [#1623](https://github.com/elan-registry/registry/issues/1623) — chore: local Playwright suite fails at login on this machine — baseURL/vhost mismatch + possible stale .env.local credentials (fix had already landed; confirmed working via #1448/#1653/#1519's new Playwright tests running with real login, reassigned here from v2.29.7)
 - [#1653](https://github.com/elan-registry/registry/issues/1653) — fix: Car.php catches Exception instead of Throwable at 3 call sites
 - [#1654](https://github.com/elan-registry/registry/issues/1654) — chore: add OwnerException abstract base; retire dead OwnerNotFoundException catches
 - [#1656](https://github.com/elan-registry/registry/issues/1656) — fix: CarModel::exists()/byValue() silently swallow DB errors as "not found" (folded into #1505's fix)

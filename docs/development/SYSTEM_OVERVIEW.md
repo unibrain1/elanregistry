@@ -159,9 +159,13 @@ split *is* the permission boundary:
 
 **`app/admin/maintenance.php` — administrators only**
 
-- **Health** — read-only system dashboards.
-- **Maintenance** — database backups and the fix/maintenance script runner.
-- **Settings** — site configuration, behind an explicit `hasPerm([2])` check.
+Single page, no tabs (#1225): database backups, the fix/maintenance script
+runner, and one-time migration scripts are all immediately visible. Live
+health signals (backup attention, pending migrations) surface as header
+chips and a conditional alert, replacing the former read-only Health
+dashboard. The former Configuration/Settings tab (image/email/expiry
+settings) was removed in #1067 — those values are now `config.php`
+constants / `.env` vars, not a web-editable DB-backed settings tab.
 
 **Administrator-only regardless of which page hosts them:** backup operations,
 execution of any fix or maintenance script, settings updates, and account
