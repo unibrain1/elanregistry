@@ -65,8 +65,6 @@ class LogCategoriesUsageTest extends TestCase
         'app/admin/scripts/fix/_TEMPLATE_Fix-Script.php',
         'app/admin/scripts/maintenance/21-Fix-Page-Permissions.php',
         'app/admin/scripts/maintenance/24-Regenerate-Optimized-Thumbnails.php',
-        'app/admin/verify/send_email.php',
-        'app/admin/verify/verify_car.php',
     ];
 
     private string $rootDir;

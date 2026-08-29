@@ -169,9 +169,10 @@ deletion/restoration. The fix-script runner enforces this itself rather than
 relying on the page it is embedded in — so an editor cannot reach a destructive
 script even if a page were mis-registered.
 
-**Car verification** (`app/admin/verify/`) — the annual "is this still
-correct?" prompt to owners. It is wired but broken; see
-[§7](#7-what-is-built-but-broken-or-incomplete).
+**Car verification** — the annual "is this still correct?" prompt to
+owners. Removed in #1613 (was broken end to end and unreachable from any
+navigation); see [§6](#6-what-is-deliberately-not-built). A rebuild is
+planned (#1155/#1156).
 
 ### 3.4. System — runs without a person
 
@@ -219,7 +220,7 @@ enforces expiry automatically — admin queries filter on the timestamp.
 **Verification is what keeps the data true — and it is not running.** The
 intended cycle is: periodically email an owner, they confirm / mark sold /
 update, and the record's freshness clock resets. In practice the cycle has been
-broken for years (see §7), which means every other feature reads from records
+broken for years (see §6), which means every other feature reads from records
 that nothing re-checks.
 
 **Deletion preserves the car, not the person.** Because the registry's value is
@@ -297,20 +298,19 @@ reader assuming an absent feature was an oversight and "restoring" it.
   (ADR-001).
 - **jQuery cannot be removed.** It is a UserSpice 6 dependency, not a project
   choice (ADR-015, ADR-016).
+- **No car-owner verification flow, for now.** `app/admin/verify/` was
+  removed entirely in #1613 — the emailed link pointed at a nonexistent
+  path, carried a session-bound CSRF token that could never match a
+  recipient's session, and sat behind an admin-only auth gate on what was
+  meant to be an owner-facing page. No navigation linked to it. The
+  underlying service layer (`CarVerificationManager`, `Car`/`CarRepository`
+  verification methods) is retained; a rebuild with a proper per-car,
+  per-send token is planned (#1155/#1156).
 
 ## 7. What is built but broken or incomplete
 
 Verified against code. Each of these is a real gap, not a documentation error.
 
-- **Car verification does not work end to end.** The admin dashboard and send
-  path are real — `send_email.php` renders a template and calls `email()`. But:
-  the owner-facing link points at `app/verify/verify_car.php`, **a directory
-  that does not exist** (the file is at `app/admin/verify/verify_car.php`); that
-  file is itself behind `securePage()` under an admin path, so a logged-out
-  owner following the link would be blocked even if the path were right; the
-  eligibility query selects on `mtime < NOW() - 16 YEAR` with `LIMIT 1`, which
-  is both semantically wrong (any edit resets `mtime`) and one car per click;
-  and no admin navigation links to the dashboard at all. A rebuild is planned.
 - **`TransferStatus::Approved` and `::Expired` are never written.** Production
   transitions go straight from `Pending` to `Completed` or `Denied`.
 - **`car_transfer_requests.security_token` is write-only** (see §4).

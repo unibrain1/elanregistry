@@ -287,8 +287,8 @@ if (!empty($_POST)) {
             // failure (#1505 PR B) rather than silently returning []/0 — this page has no
             // exception handling elsewhere, so a DB blip here must degrade gracefully
             // rather than crash the whole settings page after the profile fields above
-            // already saved successfully. Matches verify_car.php's defensive-wrap
-            // precedent from PR A (#1816).
+            // already saved successfully. Matches the defensive-wrap precedent from
+            // PR A (#1816).
             try {
                 $owner = new Owner($userId);
                 $carsUpdated = $owner->syncLocationToCars();

@@ -70,7 +70,7 @@ class VerificationSecurityTest extends TestCase
     // =========================================================================
     // MD5 allowlist regex tests (issue #1148)
     //
-    // verify_car.php validates $code with: preg_match('/^[0-9a-f]{32}$/i', $code)
+    // The allowlist pattern: preg_match('/^[0-9a-f]{32}$/i', $code)
     // These tests document and protect the allowlist contract.
     // =========================================================================
 

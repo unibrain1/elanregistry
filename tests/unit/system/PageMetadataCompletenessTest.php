@@ -107,9 +107,6 @@ class PageMetadataCompletenessTest extends TestCase
      * @var list<string>
      */
     private const EXPECTED_INCOMPLETE_PAGES = [
-        'app/admin/verify/index.php',
-        'app/admin/verify/send_email.php',
-        'app/admin/verify/verify_car.php',
         'app/owner/cars/edit.php',
         'app/owner/contact/index.php',
         'app/owner/contact/owner.php',

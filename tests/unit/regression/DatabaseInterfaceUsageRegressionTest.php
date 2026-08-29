@@ -200,9 +200,10 @@ final class DatabaseInterfaceUsageRegressionTest extends TestCase
      *   chain head is already covered.
      *
      * Verified clean against the codebase by inspection at the time of writing:
-     * the scan reaches 353 production files, and the only extra-`\DB` call it
-     * declines to flag is `$db->deleteById()` in `app/admin/verify/send_email.php`
-     * — a raw ambient-`$db` file that never imports the interface.
+     * the scan reaches 353 production files with no unexplained extra-`\DB`
+     * calls. (A prior exception here, `$db->deleteById()` in
+     * `app/admin/verify/send_email.php`, no longer applies — that file was
+     * deleted in #1613.)
      */
     public function testInterfaceTypedDbCallsOnlyUseInterfaceMethods(): void
     {

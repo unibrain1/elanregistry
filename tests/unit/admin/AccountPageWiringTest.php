@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
  * Owner::find() only throws OwnerDatabaseException on a genuine \Throwable
  * from the DB layer — there is no input- or environment-driven way to
  * trigger that deterministically over a real request without an actual DB
- * fault. Following VerifyCarWiringTest.php's established precedent (#1505
+ * fault. Following the established source-text-assertion precedent (#1505
  * PR A), the catch block is instead asserted against the file's source
  * text.
  *
