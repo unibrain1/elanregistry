@@ -1,6 +1,6 @@
 # Elan Registry v2.29.5 Release Notes
 
-**Release Date:** August 27, 2026
+**Release Date:** August 29, 2026
 **Type:** Patch Release - Domain-Class Integrity
 
 ## Required Actions After Deployment
@@ -26,6 +26,10 @@
    migration.
 4. Run the one-time data-cleanup script from #1491 on test, verify affected
    row counts drop to 0, then run on prod.
+5. **Note:** #1613 removes `app/admin/verify/` entirely. Any already-mailed
+   verification links will 404 after this deploys — expected and confirmed
+   safe, since every such link already either 404'd or failed CSRF
+   validation before this release. No cleanup action needed.
 
 ## User-Facing Changes
 
@@ -54,10 +58,10 @@
 - [#1491](https://github.com/elan-registry/registry/issues/1491) — tech-debt: legacy trailing/leading whitespace in cars table string columns; also fixes CarValidator not sanitizing fname/lname
 - [#1505](https://github.com/elan-registry/registry/issues/1505) — fix: stop silently returning false/null/[] on DB errors across Owner and CarRepository, including unchecked transaction integrity
 - [#1519](https://github.com/elan-registry/registry/issues/1519) — refactor: move Token::check() CSRF validation out of the Car entity
-- [#1656](https://github.com/elan-registry/registry/issues/1656) — fix: CarModel::exists()/byValue() silently swallow DB errors as "not found" (folded into #1505's fix)
 - [#1613](https://github.com/elan-registry/registry/issues/1613) — fix: remove the broken, unused car-owner verification directory
 - [#1618](https://github.com/elan-registry/registry/issues/1618) — test: Owner.php — ownership history, location-sync error paths, and quality-badge drift guard
 - [#1653](https://github.com/elan-registry/registry/issues/1653) — fix: Car.php catches Exception instead of Throwable at 3 call sites
 - [#1654](https://github.com/elan-registry/registry/issues/1654) — chore: add OwnerException abstract base; retire dead OwnerNotFoundException catches
+- [#1656](https://github.com/elan-registry/registry/issues/1656) — fix: CarModel::exists()/byValue() silently swallow DB errors as "not found" (folded into #1505's fix)
 - [#1660](https://github.com/elan-registry/registry/issues/1660) — test: admin owner-mgmt tab and maintenance.php have no Playwright smoke coverage
 - [#1722](https://github.com/elan-registry/registry/issues/1722) — tech-debt: elan_image_max has two conflicting defaults (6 and 10) (resolved as a side effect of #1067 deleting the file the divergent default lived in — see #1067's PR description)
