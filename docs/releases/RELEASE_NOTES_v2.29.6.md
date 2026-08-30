@@ -21,7 +21,7 @@ Changes visible only to administrators (admin dashboard, maintenance tools, sett
 
 ### Improvements
 
-- WIP: [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader
+- [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader; consolidated into error/500.php as the single handler for all 4xx/5xx codes
 - WIP: [#1800](https://github.com/elan-registry/registry/issues/1800) — chore: contact the 4 owners whose car photos were lost and invite re-upload
 - WIP: [#1539](https://github.com/elan-registry/registry/issues/1539) — fix: bare directory URLs return 403 and /docs/assets/ blanket redirect 404s document-content.css
 - WIP: [#1689](https://github.com/elan-registry/registry/issues/1689) — fix: .git/.svn probes log as 127.0.0.1 — source-address handling makes them un-blockable and may indicate spoofable client IP
@@ -46,7 +46,7 @@ CI/test-infrastructure work, not user- or admin-facing:
 
 ## Issues Resolved
 
-- WIP: [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader
+- [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader; consolidated into error/500.php as the single handler for all 4xx/5xx codes
 - WIP: [#1452](https://github.com/elan-registry/registry/issues/1452) — fix: non-atomic car-create — cars.image committed before files moved (root cause of #1403)
 - WIP: [#1800](https://github.com/elan-registry/registry/issues/1800) — chore: contact the 4 owners whose car photos were lost and invite re-upload
 - WIP: [#1539](https://github.com/elan-registry/registry/issues/1539) — fix: bare directory URLs return 403 and /docs/assets/ blanket redirect 404s document-content.css (consolidated with #1595)
