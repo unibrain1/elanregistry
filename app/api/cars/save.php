@@ -898,13 +898,35 @@ function mvTmpImages(array &$cardetails, array &$errors): void
     }
 
     if (!empty($unmovedFilenames)) {
-        $car = new Car((int) $cardetails['id']);
-        $result = $car->removeImages($unmovedFilenames);
-        if ($result['updated']) {
-            $cardetails['image'] = $car->data()->image;
-        } elseif ($result['casConflict']) {
+        try {
+            $car = new Car((int) $cardetails['id']);
+            $result = $car->removeImages($unmovedFilenames);
+            if ($result['updated']) {
+                $cardetails['image'] = $car->data()->image;
+            } elseif ($result['casConflict']) {
+                logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR,
+                    "mvTmpImages: CAS conflict cleaning up unmoved images for car ID {$cardetails['id']}");
+                $errors[] = 'Failed to clean up unmoved image references for car ID ' . $cardetails['id'];
+            } else {
+                // Unexpected: none of $unmovedFilenames matched the car's stored image
+                // list, even though they were just decoded from that same field above.
+                // Should not happen in correct operation — surface it rather than let a
+                // real data-consistency bug pass silently.
+                logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR,
+                    "mvTmpImages: removeImages() no-op for car ID {$cardetails['id']} — "
+                    . 'none of the unmoved filenames were found in the stored image list: '
+                    . implode(', ', $unmovedFilenames));
+                $errors[] = 'Failed to clean up unmoved image references for car ID ' . $cardetails['id'];
+            }
+        } catch (\Throwable $e) {
+            // Cleanup is best-effort: the car row is already committed by this point
+            // (addCar() ran before mvTmpImages()), so a DB error here must not be
+            // allowed to look like car creation itself failed. Log and fall through —
+            // $errors[] from the move failure above already drives the caller's
+            // "images could not be moved" response.
             logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR,
-                "mvTmpImages: CAS conflict cleaning up unmoved images for car ID {$cardetails['id']}");
+                'mvTmpImages: unexpected error cleaning up unmoved images for car ID '
+                . $cardetails['id'] . ' [' . get_class($e) . ']: ' . $e->getMessage());
         }
     }
 }

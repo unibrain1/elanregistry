@@ -361,7 +361,12 @@ class CarImageProcessor
      *
      * @param object $carData Car data object (must have ->image and ->id properties)
      * @param array<int, string> $filenames Image filenames to remove
-     * @return array{updated: bool, casConflict: bool} Result of the removal attempt
+     * @return array{updated: bool, casConflict: bool} Result of the removal attempt.
+     *         updated=false, casConflict=false means none of $filenames were present
+     *         in the car's current image list — callers should treat this as
+     *         unexpected (e.g. log it) when they only pass filenames just decoded
+     *         from this same row, since a genuine no-op then signals a
+     *         data-consistency issue rather than routine "nothing to remove".
      * @throws ImageProcessingException If encoding fails
      */
     public function removeImages(object $carData, array $filenames): array

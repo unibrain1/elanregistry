@@ -145,4 +145,58 @@ final class CarImageProcessorTest extends TestCase
         $this->expectException(CarConcurrentModificationException::class);
         $processor->removeImage($carData, 'test.jpg');
     }
+
+    // ============================================================
+    // removeImages (plural) tests
+    // ============================================================
+
+    public function testRemoveImagesShortCircuitsOnEmptyFilenamesArray(): void
+    {
+        $repo = $this->createMock(CarRepository::class);
+        $repo->expects($this->never())->method('updateImage');
+        $processor = new CarImageProcessor($repo);
+
+        $carData = (object) ['id' => 1, 'image' => '["test.jpg","other.jpg"]'];
+        $result = $processor->removeImages($carData, []);
+        $this->assertSame(['updated' => false, 'casConflict' => false], $result);
+        // Untouched — short-circuit must not mutate the passed-in car data.
+        $this->assertSame('["test.jpg","other.jpg"]', $carData->image);
+    }
+
+    public function testRemoveImagesReturnsNoOpWhenCarDataImageIsEmpty(): void
+    {
+        $repo = $this->createMock(CarRepository::class);
+        $repo->expects($this->never())->method('updateImage');
+        $processor = new CarImageProcessor($repo);
+
+        $carData = (object) ['id' => 1, 'image' => ''];
+        $result = $processor->removeImages($carData, ['test.jpg', 'other.jpg']);
+        $this->assertSame(['updated' => false, 'casConflict' => false], $result);
+    }
+
+    public function testRemoveImagesHandlesCsvFormat(): void
+    {
+        $repo = $this->createMock(CarRepository::class);
+        $repo->expects($this->once())->method('updateImage')->willReturn(true);
+        $processor = new CarImageProcessor($repo);
+
+        $carData = (object) ['id' => 1, 'image' => 'test.jpg,other.jpg'];
+        $result = $processor->removeImages($carData, ['test.jpg']);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+        $this->assertSame('["other.jpg"]', $carData->image);
+    }
+
+    public function testRemoveImagesRemovesOnlyFilenamesPresentInMixedList(): void
+    {
+        $repo = $this->createMock(CarRepository::class);
+        $repo->expects($this->once())->method('updateImage')->willReturn(true);
+        $processor = new CarImageProcessor($repo);
+
+        $carData = (object) ['id' => 1, 'image' => '["a.jpg","b.jpg","c.jpg"]'];
+        // 'x.jpg' and 'y.jpg' are not present in the current image list — only
+        // 'a.jpg' and 'c.jpg' should actually be removed.
+        $result = $processor->removeImages($carData, ['a.jpg', 'x.jpg', 'c.jpg', 'y.jpg']);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+        $this->assertSame('["b.jpg"]', $carData->image);
+    }
 }

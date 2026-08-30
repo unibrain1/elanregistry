@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Car\CarAdministrationService;
 use ElanRegistry\Car\CarImageProcessor;
 use ElanRegistry\Car\CarRepository;
 use ElanRegistry\Exceptions\CarConcurrentModificationException;
+use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Resize;
 
 use PHPUnit\Framework\Attributes\Group;
@@ -379,6 +381,115 @@ final class CarImageLifecycleTest extends IntegrationTestCase
             $row->image,
             'The concurrent writer\'s value must survive — the CAS conflict must not be silently overwritten'
         );
+    }
+
+    /**
+     * removeImages() (plural) against a mixed-provenance filename list — one
+     * filename standing in for mvTmpImages()'s legacy-format-skip branch, one
+     * standing in for its rename()-failure branch — must strip both from the
+     * stored image list in a single CAS write. The 3 existing removeImages()
+     * tests above each use a homogeneous list (all-mkdir-failure or
+     * all-rename-failure); this test is the one case exercising what
+     * mvTmpImages() actually produces when different files fail for different
+     * reasons in the same request.
+     */
+    #[Group('fast')]
+    public function testRemoveImagesStripsMixedProvenanceFilenamesInSingleCasWrite(): void
+    {
+        $movedFilename = $this->uploadOneTestImage();
+        // Stands in for mvTmpImages()'s legacy-format-skip branch (save.php:876-887).
+        $legacySkipFilename = 'legacy_format_name.jpg';
+        // Stands in for mvTmpImages()'s rename()-failure branch (save.php:890-897).
+        $renameFailureFilename = CarImageProcessor::generateSecureFilename('jpg');
+
+        $imageJson = $this->processor->encodeImages([$movedFilename, $legacySkipFilename, $renameFailureFilename]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $carData = $this->repo->findById($this->testCarId);
+        $this->assertIsObject($carData);
+
+        $result = $this->processor->removeImages($carData, [$legacySkipFilename, $renameFailureFilename]);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+
+        $decoded = json_decode($row->image, true);
+        $this->assertIsArray($decoded);
+        $this->assertSame(
+            [$movedFilename],
+            $decoded,
+            'Both the legacy-skip and rename-failure filenames must be stripped; only the successfully moved one remains'
+        );
+        $this->assertSame($row->image, $carData->image);
+    }
+
+    /**
+     * Car::removeImages() clears the cached _images property on success, forcing
+     * a subsequent images() call to reflect the DB state rather than serving a
+     * stale in-memory list built by the original find().
+     *
+     * decodeAndProcessImages() (called from find()) only includes filenames that
+     * exist on disk at the real ELAN_IMAGE_DIR path — this harness writes test
+     * images under a synthetic tempRoot instead (see class docblock), so the
+     * cached list the constructor's find() populates is empty either way. What
+     * this test actually verifies is the cache-clear mechanics: _images starts
+     * non-null (an empty array, populated by find()) and removeImages() resets
+     * it to null, so a later images() call would trigger a fresh decode rather
+     * than short-circuiting on a stale non-null value — reflected here via
+     * Reflection since images() itself can't distinguish "null, never loaded"
+     * from "empty array, loaded and confirmed empty" through its public return.
+     */
+    #[Group('fast')]
+    public function testCarRemoveImagesClearsCachedImagesOnSuccess(): void
+    {
+        $filename = $this->uploadOneTestImage();
+        $imageJson = $this->processor->encodeImages([$filename]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $car = new Car($this->testCarId);
+
+        $imagesProperty = new \ReflectionProperty(Car::class, '_images');
+        $this->assertNotNull(
+            $imagesProperty->getValue($car),
+            'find() in the constructor must populate _images (even as an empty array), not leave it null'
+        );
+
+        $result = $car->removeImages([$filename]);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+
+        $this->assertNull(
+            $imagesProperty->getValue($car),
+            'removeImages() must reset _images to null so the next images() call forces a fresh reload rather than serving cached data'
+        );
+        $this->assertSame([], $car->images(), 'images() must not throw on the cleared cache — it falls back to an empty array until reloaded');
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+        $this->assertSame('', $row->image, 'Removing the only image must leave the empty-list sentinel');
+    }
+
+    /**
+     * Car::removeImages() must fail loudly with CarNotFoundException on a car
+     * that was never loaded from the DB — the same guard removeImage()
+     * (singular) already has, per Car.php:445-449.
+     */
+    #[Group('fast')]
+    public function testCarRemoveImagesThrowsCarNotFoundExceptionWhenCarDoesNotExist(): void
+    {
+        $car = new Car(0);
+        $this->assertFalse($car->exists());
+
+        $this->expectException(CarNotFoundException::class);
+        $car->removeImages(['whatever.jpg']);
     }
 
     /**
