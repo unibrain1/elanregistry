@@ -431,6 +431,33 @@ class Car
         return $result;
     }
 
+    /**
+     * Remove multiple images from the car's image list in a single write.
+     *
+     * Unlike removeImage(), this does not throw on a CAS conflict — see
+     * CarImageProcessor::removeImages() for details.
+     *
+     * @param array<int, string> $filenames Image filenames to remove
+     * @return array{updated: bool, casConflict: bool} Result of the removal attempt
+     * @throws CarNotFoundException If the car does not exist
+     * @throws Exception If encoding fails
+     */
+    public function removeImages(array $filenames): array
+    {
+        if (!$this->exists()) {
+            throw new CarNotFoundException('The requested car could not be found or may have already been removed.');
+        }
+
+        $result = $this->getImageProcessor()->removeImages($this->_data, $filenames);
+
+        if ($result['updated']) {
+            // Clear cached images to force reload
+            $this->_images = null;
+        }
+
+        return $result;
+    }
+
     // ============================================================
     // ADMINISTRATION OPERATIONS
     // ============================================================

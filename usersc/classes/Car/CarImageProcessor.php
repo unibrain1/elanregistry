@@ -350,4 +350,53 @@ class CarImageProcessor
         $carData->image = $imageJson;
         return true;
     }
+
+    /**
+     * Remove multiple images from a car's image list in a single write.
+     *
+     * Unlike removeImage(), this does not throw on a CAS conflict — it is
+     * used from compensating-cleanup paths (e.g. save.php's mvTmpImages())
+     * that already have their own error-reporting mechanism and must not
+     * have that flow interrupted by an exception.
+     *
+     * @param object $carData Car data object (must have ->image and ->id properties)
+     * @param array<int, string> $filenames Image filenames to remove
+     * @return array{updated: bool, casConflict: bool} Result of the removal attempt
+     * @throws ImageProcessingException If encoding fails
+     */
+    public function removeImages(object $carData, array $filenames): array
+    {
+        if (empty($filenames)) {
+            return ['updated' => false, 'casConflict' => false];
+        }
+
+        $currentImages = [];
+        if (!empty($carData->image)) {
+            $decoded = json_decode($carData->image);
+            if ($decoded !== null) {
+                $currentImages = is_array($decoded) ? $decoded : [$decoded];
+            } else {
+                $currentImages = explode(',', $carData->image);
+            }
+        }
+
+        $remainingImages = array_values(array_diff($currentImages, $filenames));
+
+        if ($remainingImages === $currentImages) {
+            return ['updated' => false, 'casConflict' => false];
+        }
+
+        $imageJson = empty($remainingImages) ? '' : json_encode($remainingImages);
+        if ($imageJson === false) {
+            throw new ImageProcessingException('Unable to process car images. Please try again or contact support.');
+        }
+
+        $cas = $this->repo->updateImage((int) $carData->id, $imageJson, $carData->image);
+        if (!$cas) {
+            return ['updated' => false, 'casConflict' => true];
+        }
+
+        $carData->image = $imageJson;
+        return ['updated' => true, 'casConflict' => false];
+    }
 }

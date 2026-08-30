@@ -855,18 +855,21 @@ function mvTmpImages(array &$cardetails, array &$errors): void
     $filePath = $targetFilePath . $cardetails['id'] . '/';
     $userId   = isset($user) ? (int)$user->data()->id : 0;
 
-    if (!is_dir($filePath)) {
-        if (!mkdir($filePath, 0755, true)) {
-            logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR, "mvTmpImages: failed to create directory: {$filePath}");
-            $errors[] = 'Failed to create image directory for car ID ' . $cardetails['id'];
-            return;
-        }
-    }
-
     // Images can be encoded as JSON or simple CSV
     $carImages = json_decode($cardetails['image']);
     if (is_null($carImages)) {
         $carImages = explode(',', $cardetails['image']);
+    }
+
+    $unmovedFilenames = [];
+
+    if (!is_dir($filePath)) {
+        if (!mkdir($filePath, 0755, true)) {
+            logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR, "mvTmpImages: failed to create directory: {$filePath}");
+            $errors[] = 'Failed to create image directory for car ID ' . $cardetails['id'];
+            $unmovedFilenames = array_map('strval', $carImages);
+            $carImages = [];
+        }
     }
 
     foreach ($carImages as $carimage) {
@@ -879,6 +882,7 @@ function mvTmpImages(array &$cardetails, array &$errors): void
             logger($userId, LogCategories::LOG_CATEGORY_CAR_ACTIONS,
                 'mvTmpImages: skipping legacy-format filename (no temp file to move): '
                 . htmlspecialchars((string) $carimage, ENT_QUOTES, 'UTF-8'));
+            $unmovedFilenames[] = (string) $carimage;
             continue;
         }
         $tmpfile = pathinfo($carimage);
@@ -888,7 +892,19 @@ function mvTmpImages(array &$cardetails, array &$errors): void
             if (!rename($name, $filePath . $file['basename'])) {
                 logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR, "mvTmpImages: failed to move {$name} to {$filePath}{$file['basename']}");
                 $errors[] = "Failed to move image file: {$file['basename']}";
+                $unmovedFilenames[] = (string) $carimage;
             }
+        }
+    }
+
+    if (!empty($unmovedFilenames)) {
+        $car = new Car((int) $cardetails['id']);
+        $result = $car->removeImages($unmovedFilenames);
+        if ($result['updated']) {
+            $cardetails['image'] = $car->data()->image;
+        } elseif ($result['casConflict']) {
+            logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR,
+                "mvTmpImages: CAS conflict cleaning up unmoved images for car ID {$cardetails['id']}");
         }
     }
 }
