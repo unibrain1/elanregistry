@@ -14,6 +14,7 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 ### Improvements
 
 - [#1452](https://github.com/elan-registry/registry/issues/1452) — fix: non-atomic car-create — cars.image committed before files moved (root cause of #1403); a failed file move during car creation now strips the unmoved filenames from the stored image list instead of leaving the record pointing at files that don't exist
+- [#1539](https://github.com/elan-registry/registry/issues/1539) — fix: bare directory URLs (`/app/owner/`, `/app/owner/reports/`, `/docs/stories/`) returned a raw 403 instead of redirecting to a useful page, and a stale redirect chain broke `/app/reports/`; also fixes a guide page's stylesheet (`document-content.css`) 404ing due to a blanket redirect that was never meant to catch it — relocated the file to `app/assets/css/` (consolidated with #1595)
 
 ## Admin-Facing Changes
 
@@ -23,7 +24,6 @@ Changes visible only to administrators (admin dashboard, maintenance tools, sett
 
 - [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader; consolidated into error/500.php as the single handler for all 4xx/5xx codes
 - WIP: [#1800](https://github.com/elan-registry/registry/issues/1800) — chore: contact the 4 owners whose car photos were lost and invite re-upload
-- WIP: [#1539](https://github.com/elan-registry/registry/issues/1539) — fix: bare directory URLs return 403 and /docs/assets/ blanket redirect 404s document-content.css
 - WIP: [#1689](https://github.com/elan-registry/registry/issues/1689) — fix: .git/.svn probes log as 127.0.0.1 — source-address handling makes them un-blockable and may indicate spoofable client IP
 
 ## Developer Notes
@@ -49,7 +49,7 @@ CI/test-infrastructure work, not user- or admin-facing:
 - [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader; consolidated into error/500.php as the single handler for all 4xx/5xx codes
 - [#1452](https://github.com/elan-registry/registry/issues/1452) — fix: non-atomic car-create — cars.image committed before files moved (root cause of #1403); a failed file move during car creation now strips the unmoved filenames from the stored image list instead of leaving the record pointing at files that don't exist
 - WIP: [#1800](https://github.com/elan-registry/registry/issues/1800) — chore: contact the 4 owners whose car photos were lost and invite re-upload
-- WIP: [#1539](https://github.com/elan-registry/registry/issues/1539) — fix: bare directory URLs return 403 and /docs/assets/ blanket redirect 404s document-content.css (consolidated with #1595)
+- [#1539](https://github.com/elan-registry/registry/issues/1539) — fix: bare directory URLs (`/app/owner/`, `/app/owner/reports/`, `/docs/stories/`) returned a raw 403 instead of redirecting to a useful page, and a stale redirect chain broke `/app/reports/`; also fixes a guide page's stylesheet (`document-content.css`) 404ing due to a blanket redirect that was never meant to catch it — relocated the file to `app/assets/css/` (consolidated with #1595)
 - WIP: [#1788](https://github.com/elan-registry/registry/issues/1788) — test: local MAMP DB snapshot is missing car id 1 (CAR_ID_STANDARD), blocking Playwright fixture-dependent tests
 - WIP: [#1765](https://github.com/elan-registry/registry/issues/1765) — bug: ajax-endpoints.spec.js has 2 real failures once login/baseURL is fixed (dead map-markers endpoint, CSRF check discrepancy)
 - WIP: [#1253](https://github.com/elan-registry/registry/issues/1253) — test: add local Playwright tests for owner-only pages (contact-owner, privacy, user settings, verify)
