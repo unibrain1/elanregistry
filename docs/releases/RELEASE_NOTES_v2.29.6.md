@@ -13,7 +13,7 @@ Changes visible to public registry visitors (car listings, owner pages, search, 
 
 ### Improvements
 
-- WIP: [#1452](https://github.com/elan-registry/registry/issues/1452) — fix: non-atomic car-create — cars.image committed before files moved (root cause of #1403)
+- [#1452](https://github.com/elan-registry/registry/issues/1452) — fix: non-atomic car-create — cars.image committed before files moved (root cause of #1403); a failed file move during car creation now strips the unmoved filenames from the stored image list instead of leaving the record pointing at files that don't exist
 
 ## Admin-Facing Changes
 

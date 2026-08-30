@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/IntegrationTestCase.php';
 
+use ElanRegistry\Car\Car;
 use ElanRegistry\Car\CarAdministrationService;
 use ElanRegistry\Car\CarImageProcessor;
 use ElanRegistry\Car\CarRepository;
 use ElanRegistry\Exceptions\CarConcurrentModificationException;
+use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Resize;
 
 use PHPUnit\Framework\Attributes\Group;
@@ -245,6 +247,249 @@ final class CarImageLifecycleTest extends IntegrationTestCase
         // #1629 (car deletion), at a different call site; documents current behavior
         // as a regression baseline rather than asserting the fix that doesn't exist yet.
         $this->assertUploadedFilesExist($filename);
+    }
+
+    /**
+     * removeImages() (plural) is the compensating-cleanup primitive mvTmpImages()
+     * uses when rename() fails to move one or more files out of userimages/temp/
+     * (#1452). This test exercises CarImageProcessor::removeImages() directly with
+     * a filename list representing "these files did not make it to disk" rather
+     * than driving the full addCar() -> mvTmpImages() HTTP flow: mvTmpImages() is
+     * a plain function in app/api/cars/save.php that depends on globals
+     * ($targetFilePath, $user) and a full users/init.php bootstrap that this
+     * integration harness does not load, so reproducing an actual rename()
+     * failure through that entry point isn't practical here. What IS verified
+     * end-to-end is the exact postcondition mvTmpImages() relies on: after
+     * removeImages() runs against the filenames that failed to move, the stored
+     * image list in cars.image no longer references them — the same DB-level
+     * assertion the full flow would produce.
+     */
+    #[Group('fast')]
+    public function testRemoveImagesStripsUnmovedFilenameAfterSimulatedRenameFailure(): void
+    {
+        $movedFilename = $this->uploadOneTestImage();
+        $unmovedFilename = CarImageProcessor::generateSecureFilename('jpg');
+
+        // Both filenames are recorded in cars.image as if mvTmpImages() had already
+        // decoded $cardetails['image'] before attempting to move each file — but only
+        // $movedFilename actually exists in $this->imageDir (uploadOneTestImage() wrote
+        // it there). $unmovedFilename stands in for a file whose rename() call failed:
+        // it is listed in the DB but was never moved into place.
+        $imageJson = $this->processor->encodeImages([$movedFilename, $unmovedFilename]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $carData = $this->repo->findById($this->testCarId);
+        $this->assertIsObject($carData);
+
+        $result = $this->processor->removeImages($carData, [$unmovedFilename]);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+
+        $decoded = json_decode($row->image, true);
+        $this->assertIsArray($decoded);
+        $this->assertSame([$movedFilename], $decoded, 'Only the unmoved filename must be stripped; the moved one must remain');
+
+        // The in-memory car object passed to removeImages() is updated in place too —
+        // this is what lets mvTmpImages() read $car->data()->image after the call.
+        $this->assertSame($row->image, $carData->image);
+    }
+
+    /**
+     * mvTmpImages()'s mkdir()-failure branch (app/api/cars/save.php:866-875) treats
+     * every filename in the decoded image list as unmoved — none of them could have
+     * been moved, since the destination directory itself never got created. This
+     * test exercises the resulting removeImages() call with the full filename list,
+     * confirming the DB column collapses to the empty-list sentinel ('') rather than
+     * retaining any of the never-moved filenames — mirroring removeImage()'s existing
+     * empty-list convention (see testRemoveImageSucceedsButLeavesFilesOnDisk above).
+     */
+    #[Group('fast')]
+    public function testRemoveImagesClearsImageColumnWhenAllFilenamesUnmovedAfterSimulatedMkdirFailure(): void
+    {
+        $unmovedA = CarImageProcessor::generateSecureFilename('jpg');
+        $unmovedB = CarImageProcessor::generateSecureFilename('jpg');
+
+        // Neither file was ever written to $this->imageDir — standing in for the
+        // mkdir()-failure branch, where $filePath never exists and so no image could
+        // possibly have been moved into it.
+        $imageJson = $this->processor->encodeImages([$unmovedA, $unmovedB]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $carData = $this->repo->findById($this->testCarId);
+        $this->assertIsObject($carData);
+
+        $result = $this->processor->removeImages($carData, [$unmovedA, $unmovedB]);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+        $this->assertSame('', $row->image, 'Clearing every listed filename must leave the empty-list sentinel, not an empty JSON array');
+        $this->assertSame('', $carData->image);
+    }
+
+    /**
+     * removeImages() on a stale car object must not throw (unlike the singular
+     * removeImage()) — it is used from mvTmpImages()'s compensating-cleanup path,
+     * which must not have the in-flight addCar() response interrupted by an
+     * exception. A CAS conflict is instead reported back via the result array so
+     * the caller can log it and move on.
+     */
+    #[Group('fast')]
+    public function testRemoveImagesReportsCasConflictWithoutThrowing(): void
+    {
+        $filename = $this->uploadOneTestImage();
+        $imageJson = $this->processor->encodeImages([$filename]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $staleCarData = $this->repo->findById($this->testCarId);
+        $this->assertIsObject($staleCarData);
+        $this->assertSame($imageJson, $staleCarData->image);
+
+        $concurrent = $this->db->query(
+            'UPDATE cars SET image = ? WHERE id = ?',
+            [json_encode(['img_b_fake.jpg']), $this->testCarId]
+        );
+        if ($concurrent->error()) {
+            $this->fail("Concurrent update failed for car {$this->testCarId}: " . $concurrent->errorString());
+        }
+
+        $result = $this->processor->removeImages($staleCarData, [$filename]);
+        $this->assertSame(['updated' => false, 'casConflict' => true], $result);
+
+        // The stale in-memory object must be left untouched — only a successful CAS
+        // write is allowed to mutate $carData->image.
+        $this->assertSame($imageJson, $staleCarData->image);
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+        $this->assertSame(
+            json_encode(['img_b_fake.jpg']),
+            $row->image,
+            'The concurrent writer\'s value must survive — the CAS conflict must not be silently overwritten'
+        );
+    }
+
+    /**
+     * removeImages() (plural) against a mixed-provenance filename list — one
+     * filename standing in for mvTmpImages()'s legacy-format-skip branch, one
+     * standing in for its rename()-failure branch — must strip both from the
+     * stored image list in a single CAS write. The 3 existing removeImages()
+     * tests above each use a homogeneous list (all-mkdir-failure or
+     * all-rename-failure); this test is the one case exercising what
+     * mvTmpImages() actually produces when different files fail for different
+     * reasons in the same request.
+     */
+    #[Group('fast')]
+    public function testRemoveImagesStripsMixedProvenanceFilenamesInSingleCasWrite(): void
+    {
+        $movedFilename = $this->uploadOneTestImage();
+        // Stands in for mvTmpImages()'s legacy-format-skip branch (save.php:876-887).
+        $legacySkipFilename = 'legacy_format_name.jpg';
+        // Stands in for mvTmpImages()'s rename()-failure branch (save.php:890-897).
+        $renameFailureFilename = CarImageProcessor::generateSecureFilename('jpg');
+
+        $imageJson = $this->processor->encodeImages([$movedFilename, $legacySkipFilename, $renameFailureFilename]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $carData = $this->repo->findById($this->testCarId);
+        $this->assertIsObject($carData);
+
+        $result = $this->processor->removeImages($carData, [$legacySkipFilename, $renameFailureFilename]);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+
+        $decoded = json_decode($row->image, true);
+        $this->assertIsArray($decoded);
+        $this->assertSame(
+            [$movedFilename],
+            $decoded,
+            'Both the legacy-skip and rename-failure filenames must be stripped; only the successfully moved one remains'
+        );
+        $this->assertSame($row->image, $carData->image);
+    }
+
+    /**
+     * Car::removeImages() clears the cached _images property on success, forcing
+     * a subsequent images() call to reflect the DB state rather than serving a
+     * stale in-memory list built by the original find().
+     *
+     * decodeAndProcessImages() (called from find()) only includes filenames that
+     * exist on disk at the real ELAN_IMAGE_DIR path — this harness writes test
+     * images under a synthetic tempRoot instead (see class docblock), so the
+     * cached list the constructor's find() populates is empty either way. What
+     * this test actually verifies is the cache-clear mechanics: _images starts
+     * non-null (an empty array, populated by find()) and removeImages() resets
+     * it to null, so a later images() call would trigger a fresh decode rather
+     * than short-circuiting on a stale non-null value — reflected here via
+     * Reflection since images() itself can't distinguish "null, never loaded"
+     * from "empty array, loaded and confirmed empty" through its public return.
+     */
+    #[Group('fast')]
+    public function testCarRemoveImagesClearsCachedImagesOnSuccess(): void
+    {
+        $filename = $this->uploadOneTestImage();
+        $imageJson = $this->processor->encodeImages([$filename]);
+        $this->assertTrue($this->repo->updateImage($this->testCarId, $imageJson, ''));
+
+        $car = new Car($this->testCarId);
+
+        $imagesProperty = new \ReflectionProperty(Car::class, '_images');
+        $this->assertNotNull(
+            $imagesProperty->getValue($car),
+            'find() in the constructor must populate _images (even as an empty array), not leave it null'
+        );
+
+        $result = $car->removeImages([$filename]);
+        $this->assertSame(['updated' => true, 'casConflict' => false], $result);
+
+        $this->assertNull(
+            $imagesProperty->getValue($car),
+            'removeImages() must reset _images to null so the next images() call forces a fresh reload rather than serving cached data'
+        );
+        $this->assertSame([], $car->images(), 'images() must not throw on the cleared cache — it falls back to an empty array until reloaded');
+
+        $stored = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        if ($stored->error()) {
+            $this->fail("Verification query failed for car {$this->testCarId}: " . $stored->errorString());
+        }
+        $row = $stored->first();
+        $this->assertIsObject($row);
+        $this->assertSame('', $row->image, 'Removing the only image must leave the empty-list sentinel');
+    }
+
+    /**
+     * Car::removeImages() must fail loudly with CarNotFoundException on a car
+     * that was never loaded from the DB — the same guard removeImage()
+     * (singular) already has, per Car.php:445-449.
+     */
+    #[Group('fast')]
+    public function testCarRemoveImagesThrowsCarNotFoundExceptionWhenCarDoesNotExist(): void
+    {
+        $car = new Car(0);
+        $this->assertFalse($car->exists());
+
+        $this->expectException(CarNotFoundException::class);
+        $car->removeImages(['whatever.jpg']);
     }
 
     /**

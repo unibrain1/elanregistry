@@ -842,6 +842,18 @@ function fetchImages(int $car_id): void
 /**
  * Move temporary images to permanent car directory
  *
+ * Only called from the addCar path (after buildImageDetails() and
+ * uploadImages() have both run), so every filename in $cardetails['image']
+ * has already been through uploadImages()'s isValidFilename() filter (or, for
+ * a no-upload addCar, cleared to an empty list) — the legacy-format-skip
+ * branch inside the loop below is therefore not currently reachable, but is
+ * kept as a defensive no-op skip. See the inline comment on that branch.
+ *
+ * Per file (base filename), moving from temp storage can touch multiple
+ * files on disk: the original upload plus every resized thumbnail variant.
+ * $unmovedFilenames only tracks whether the BASE file failed to move — see
+ * the inline comment above the inner loop for why.
+ *
  * @param array $cardetails Car details containing ID and image info
  * @param array $errors     Errors array passed by reference — appended to on failure
  * @return void
@@ -855,40 +867,102 @@ function mvTmpImages(array &$cardetails, array &$errors): void
     $filePath = $targetFilePath . $cardetails['id'] . '/';
     $userId   = isset($user) ? (int)$user->data()->id : 0;
 
-    if (!is_dir($filePath)) {
-        if (!mkdir($filePath, 0755, true)) {
-            logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR, "mvTmpImages: failed to create directory: {$filePath}");
-            $errors[] = 'Failed to create image directory for car ID ' . $cardetails['id'];
-            return;
-        }
-    }
-
     // Images can be encoded as JSON or simple CSV
     $carImages = json_decode($cardetails['image']);
     if (is_null($carImages)) {
         $carImages = explode(',', $cardetails['image']);
     }
 
+    $unmovedFilenames = [];
+
+    if (!is_dir($filePath)) {
+        if (!mkdir($filePath, 0755, true)) {
+            logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR, "mvTmpImages: failed to create directory: {$filePath}");
+            $errors[] = 'Failed to create image directory for car ID ' . $cardetails['id'];
+            $unmovedFilenames = array_map('strval', $carImages);
+            $carImages = [];
+        }
+    }
+
     foreach ($carImages as $carimage) {
         if (!CarImageProcessor::isValidFilename((string) $carimage)) {
-            // Reachable on addCar when the filenames POST param contains a legacy-format
-            // name (passes isSafeFilename but not isValidFilename) and no files are
-            // uploaded (blob sentinel causes uploadImages() to return before overwriting
-            // $cardetails['image']). No temp file exists for a legacy name, so the
-            // continue is a safe no-op skip.
+            // NOTE: not currently reachable via addCar — see the trace in this
+            // function's docblock. Kept as a defensive skip in case a future
+            // caller reaches mvTmpImages() with a legacy-format filename: no
+            // temp file would exist for it, so the continue is a safe no-op.
             logger($userId, LogCategories::LOG_CATEGORY_CAR_ACTIONS,
                 'mvTmpImages: skipping legacy-format filename (no temp file to move): '
                 . htmlspecialchars((string) $carimage, ENT_QUOTES, 'UTF-8'));
+            $unmovedFilenames[] = (string) $carimage;
             continue;
         }
         $tmpfile = pathinfo($carimage);
 
+        // Each base filename's glob matches BOTH the original upload and every
+        // "{basename}-resized-{size}.{ext}" thumbnail variant created by
+        // uploadImages() (see ELAN_IMAGE_THUMBNAIL_SIZES usage above). Only the
+        // base (non-resized) file's presence/move-success determines whether the
+        // image displays at all (CarImageProcessor::decodeAndProcessImages()
+        // checks is_file() on the base filename only) — a resized variant is
+        // purely derived/optional. So $unmovedFilenames, which drives the
+        // compensating Car::removeImages() cleanup below, must only receive
+        // $carimage when the BASE file itself failed to move or was never found;
+        // a failed variant move is still logged/reported via $errors[] but must
+        // not strip the base filename from cars.image.
+        $baseMoved = false;
+        $baseFound = false;
+
         foreach (glob($tempPath . $tmpfile['filename'] . '*' . $tmpfile['extension']) as $name) {
             $file = pathinfo($name);
+            $isBase = !CarImageProcessor::isResizedVariant($file['basename']);
+
+            if ($isBase) {
+                $baseFound = true;
+            }
+
             if (!rename($name, $filePath . $file['basename'])) {
                 logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR, "mvTmpImages: failed to move {$name} to {$filePath}{$file['basename']}");
                 $errors[] = "Failed to move image file: {$file['basename']}";
+            } elseif ($isBase) {
+                $baseMoved = true;
             }
+        }
+
+        if (!$baseFound || !$baseMoved) {
+            $unmovedFilenames[] = (string) $carimage;
+        }
+    }
+
+    if (!empty($unmovedFilenames)) {
+        try {
+            $car = new Car((int) $cardetails['id']);
+            $result = $car->removeImages($unmovedFilenames);
+            if ($result['updated']) {
+                $cardetails['image'] = $car->data()->image;
+            } elseif ($result['casConflict']) {
+                logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR,
+                    "mvTmpImages: CAS conflict cleaning up unmoved images for car ID {$cardetails['id']}");
+                $errors[] = 'Failed to clean up unmoved image references for car ID ' . $cardetails['id'];
+            } else {
+                // Unexpected: none of $unmovedFilenames matched the car's stored image
+                // list, even though they were just decoded from that same field above.
+                // Should not happen in correct operation — surface it rather than let a
+                // real data-consistency bug pass silently.
+                logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR,
+                    "mvTmpImages: removeImages() no-op for car ID {$cardetails['id']} — "
+                    . 'none of the unmoved filenames were found in the stored image list: '
+                    . implode(', ', $unmovedFilenames));
+                $errors[] = 'Failed to clean up unmoved image references for car ID ' . $cardetails['id'];
+            }
+        } catch (\Throwable $e) {
+            // Cleanup is best-effort: the car row is already committed by this point
+            // (addCar() ran before mvTmpImages()), so a DB error here must not be
+            // allowed to look like car creation itself failed. Log and fall through —
+            // $errors[] from the move failure above already drives the caller's
+            // "images could not be moved" response.
+            logger($userId, LogCategories::LOG_CATEGORY_FILE_ERROR,
+                'mvTmpImages: unexpected error cleaning up unmoved images for car ID '
+                . $cardetails['id'] . ' [' . get_class($e) . ']: ' . $e->getMessage());
         }
     }
 }

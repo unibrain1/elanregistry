@@ -216,6 +216,27 @@ class CarImageProcessor
     }
 
     /**
+     * Check whether a filename is a resized variant of a base image, as opposed
+     * to the original upload itself.
+     *
+     * Resized variants are named `{basename}-resized-{size}.{ext}` (see
+     * uploadImages() in save.php, and the srcset builder in CarView.php). Only
+     * the base (non-resized) file's existence determines whether an image
+     * displays at all — see decodeAndProcessImages() above, which checks
+     * is_file() on the base filename only. Resized variants are purely
+     * derived/optional, so callers deciding whether a base filename is
+     * "unmoved"/"missing" must not conflate a variant's failure with the
+     * base file's own failure.
+     *
+     * @param string $filename Filename to classify (basename only, no directory)
+     * @return bool True if $filename matches the `-resized-{size}.` variant pattern
+     */
+    public static function isResizedVariant(string $filename): bool
+    {
+        return (bool) preg_match('/-resized-\d+\.[^.]+\z/', $filename);
+    }
+
+    /**
      * Encode an array of images to JSON for database storage
      *
      * @param array<mixed> $images Array of image data
@@ -349,5 +370,60 @@ class CarImageProcessor
         }
         $carData->image = $imageJson;
         return true;
+    }
+
+    /**
+     * Remove multiple images from a car's image list in a single write.
+     *
+     * Unlike removeImage(), this does not throw on a CAS conflict — it is
+     * used from compensating-cleanup paths (e.g. save.php's mvTmpImages())
+     * that already have their own error-reporting mechanism and must not
+     * have that flow interrupted by an exception.
+     *
+     * @param object $carData Car data object (must have ->image and ->id properties)
+     * @param array<int, string> $filenames Image filenames to remove
+     * @return array{updated: bool, casConflict: bool} Result of the removal attempt.
+     *         updated=false, casConflict=false means none of $filenames were present
+     *         in the car's current image list — callers should treat this as
+     *         unexpected (e.g. log it) when they only pass filenames just decoded
+     *         from this same row, since a genuine no-op then signals a
+     *         data-consistency issue rather than routine "nothing to remove".
+     * @throws ImageProcessingException If encoding fails
+     * @throws CarDatabaseException If database update fails
+     */
+    public function removeImages(object $carData, array $filenames): array
+    {
+        if (empty($filenames)) {
+            return ['updated' => false, 'casConflict' => false];
+        }
+
+        $currentImages = [];
+        if (!empty($carData->image)) {
+            $decoded = json_decode($carData->image);
+            if ($decoded !== null) {
+                $currentImages = is_array($decoded) ? $decoded : [$decoded];
+            } else {
+                $currentImages = explode(',', $carData->image);
+            }
+        }
+
+        $remainingImages = array_values(array_diff($currentImages, $filenames));
+
+        if ($remainingImages === $currentImages) {
+            return ['updated' => false, 'casConflict' => false];
+        }
+
+        $imageJson = empty($remainingImages) ? '' : json_encode($remainingImages);
+        if ($imageJson === false) {
+            throw new ImageProcessingException('Unable to process car images. Please try again or contact support.');
+        }
+
+        $cas = $this->repo->updateImage((int) $carData->id, $imageJson, $carData->image);
+        if (!$cas) {
+            return ['updated' => false, 'casConflict' => true];
+        }
+
+        $carData->image = $imageJson;
+        return ['updated' => true, 'casConflict' => false];
     }
 }
