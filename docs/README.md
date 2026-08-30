@@ -123,3 +123,4 @@ in the relevant PHP file. No build step required.
 [arch-wiki]: https://github.com/elan-registry/registry/wiki/Elan-Registry-Architecture-and-Database-Design
 [us-wiki]: https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns
 [install-wiki]: https://github.com/elan-registry/registry/wiki/Registry-Installation
+<!-- throwaway verification commit, will be deleted -->
