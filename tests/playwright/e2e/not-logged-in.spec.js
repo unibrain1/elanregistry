@@ -644,6 +644,13 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
       const location = response.headers()['location'] ?? '';
       const locationPath = toLocationPath(location);
       expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
+
+      // Follow through to the destination — a redirect to a page that's been
+      // locked down to authenticated-only would silently send anonymous
+      // visitors/crawlers into a login wall instead of the intended content,
+      // and the assertions above alone wouldn't catch that regression.
+      const followed = await request.get(`${BASE}${to}`);
+      expect(followed.status(), `Expected 200 for redirect target ${to}`).toBe(200);
     });
   });
 
