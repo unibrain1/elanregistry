@@ -21,7 +21,6 @@ Changes visible only to administrators (admin dashboard, maintenance tools, sett
 
 ### Improvements
 
-- WIP: [#1557](https://github.com/elan-registry/registry/issues/1557) — security: loader.php's settings query fails open if the row is missing
 - WIP: [#1468](https://github.com/elan-registry/registry/issues/1468) — fix: sanitizeHTML() strips all attribute values, breaking `<a href>` links in flash messages
 - WIP: [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader
 - WIP: [#1800](https://github.com/elan-registry/registry/issues/1800) — chore: contact the 4 owners whose car photos were lost and invite re-upload
@@ -48,7 +47,6 @@ CI/test-infrastructure work, not user- or admin-facing:
 
 ## Issues Resolved
 
-- WIP: [#1557](https://github.com/elan-registry/registry/issues/1557) — security: loader.php's settings query fails open if the row is missing
 - WIP: [#1468](https://github.com/elan-registry/registry/issues/1468) — fix: sanitizeHTML() strips all attribute values, breaking <a href> links in flash messages
 - WIP: [#1830](https://github.com/elan-registry/registry/issues/1830) — fix: error/404.php and error/403.php silently stopped logging at v2.26.2 — bare LogCategories no longer resolves under the Composer autoloader
 - WIP: [#1452](https://github.com/elan-registry/registry/issues/1452) — fix: non-atomic car-create — cars.image committed before files moved (root cause of #1403)
