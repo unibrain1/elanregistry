@@ -627,6 +627,14 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
       to: '/docs/car-stories.php',
       label: 'docs/stories/ bare-directory 403 → car-stories.php',
     },
+    {
+      // The exact URL GSC originally flagged (Context section of #1539) — the
+      // legacy #1040 bare-directory rule must land in a single hop, not chain
+      // through /app/owner/reports/ first.
+      from: '/app/reports/',
+      to: '/app/owner/reports/statistics.php',
+      label: 'app/reports/ (legacy, GSC-flagged) → statistics.php, single hop',
+    },
   ];
 
   redirects.forEach(({ from, to, label }) => {
