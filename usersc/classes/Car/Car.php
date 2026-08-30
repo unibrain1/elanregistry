@@ -440,7 +440,8 @@ class Car
      * @param array<int, string> $filenames Image filenames to remove
      * @return array{updated: bool, casConflict: bool} Result of the removal attempt
      * @throws CarNotFoundException If the car does not exist
-     * @throws Exception If encoding fails
+     * @throws ImageProcessingException If encoding fails
+     * @throws CarDatabaseException If database update fails
      */
     public function removeImages(array $filenames): array
     {

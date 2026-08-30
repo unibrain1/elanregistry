@@ -199,4 +199,125 @@ final class CarImageProcessorTest extends TestCase
         $this->assertSame(['updated' => true, 'casConflict' => false], $result);
         $this->assertSame('["b.jpg"]', $carData->image);
     }
+
+    // ============================================================
+    // isResizedVariant tests
+    //
+    // Backs the mvTmpImages() fix in app/api/cars/save.php (issue #1452
+    // review follow-up): a base filename's temp-directory glob() matches both
+    // the original upload and every "-resized-{size}." thumbnail variant, and
+    // only the base file's move success may determine whether the base
+    // filename is treated as "unmoved" for the cars.image cleanup path.
+    // ============================================================
+
+    public function testIsResizedVariantTrueForThumbnailFilename(): void
+    {
+        $this->assertTrue(CarImageProcessor::isResizedVariant('img_abc123-resized-300.jpg'));
+    }
+
+    public function testIsResizedVariantTrueForEachConfiguredSize(): void
+    {
+        foreach ([100, 300, 768, 1024, 2048] as $size) {
+            $this->assertTrue(
+                CarImageProcessor::isResizedVariant("img_abc123-resized-{$size}.jpg"),
+                "Expected size {$size} to be classified as a resized variant"
+            );
+        }
+    }
+
+    public function testIsResizedVariantFalseForBaseFilename(): void
+    {
+        $this->assertFalse(CarImageProcessor::isResizedVariant('img_abc123.jpg'));
+    }
+
+    public function testIsResizedVariantFalseForBaseFilenameContainingResizedSubstringWithoutSizeSuffix(): void
+    {
+        // "resized" appearing in a filename without the "-resized-{digits}."
+        // shape must not be misclassified as a variant.
+        $this->assertFalse(CarImageProcessor::isResizedVariant('img_resized_photo.jpg'));
+    }
+
+    /**
+     * Reproduces the exact granularity mismatch from the mvTmpImages() bug:
+     * given one base file and its resized variants, the base-vs-variant
+     * classification for each glob() result — the same classification
+     * mvTmpImages() now uses to decide $baseFound/$baseMoved — must resolve
+     * to "unmoved" only via the base file, never via a variant.
+     */
+    public function testBaseFileMoveSuccessWithVariantMoveFailureIsNotUnmoved(): void
+    {
+        $globResults = [
+            'img_abc123.jpg',
+            'img_abc123-resized-100.jpg',
+            'img_abc123-resized-300.jpg',
+        ];
+        // Simulates: base file moved successfully, one variant's rename() failed.
+        $moveSucceeded = [
+            'img_abc123.jpg' => true,
+            'img_abc123-resized-100.jpg' => true,
+            'img_abc123-resized-300.jpg' => false,
+        ];
+
+        $baseFound = false;
+        $baseMoved = false;
+        foreach ($globResults as $name) {
+            $isBase = !CarImageProcessor::isResizedVariant($name);
+            if ($isBase) {
+                $baseFound = true;
+            }
+            if ($moveSucceeded[$name] && $isBase) {
+                $baseMoved = true;
+            }
+        }
+
+        $isUnmoved = !$baseFound || !$baseMoved;
+        $this->assertFalse($isUnmoved, 'Base file moved successfully — must not be treated as unmoved despite a failed variant move');
+    }
+
+    public function testBaseFileMoveFailureIsUnmovedRegardlessOfVariants(): void
+    {
+        $globResults = [
+            'img_abc123.jpg',
+            'img_abc123-resized-100.jpg',
+        ];
+        $moveSucceeded = [
+            'img_abc123.jpg' => false,
+            'img_abc123-resized-100.jpg' => true,
+        ];
+
+        $baseFound = false;
+        $baseMoved = false;
+        foreach ($globResults as $name) {
+            $isBase = !CarImageProcessor::isResizedVariant($name);
+            if ($isBase) {
+                $baseFound = true;
+            }
+            if ($moveSucceeded[$name] && $isBase) {
+                $baseMoved = true;
+            }
+        }
+
+        $isUnmoved = !$baseFound || !$baseMoved;
+        $this->assertTrue($isUnmoved, 'Base file failed to move — must be treated as unmoved even though a variant moved');
+    }
+
+    public function testBaseFileNeverFoundIsUnmoved(): void
+    {
+        // Base file missing from temp storage entirely — only variants present,
+        // and the variant's own move succeeds (it just doesn't matter here).
+        $globResults = ['img_abc123-resized-100.jpg'];
+
+        $baseFound = false;
+        $baseMoved = false;
+        foreach ($globResults as $name) {
+            $isBase = !CarImageProcessor::isResizedVariant($name);
+            if ($isBase) {
+                $baseFound = true;
+                $baseMoved = true;
+            }
+        }
+
+        $isUnmoved = !$baseFound || !$baseMoved;
+        $this->assertTrue($isUnmoved, 'Base file never found in glob() results — must be treated as unmoved');
+    }
 }

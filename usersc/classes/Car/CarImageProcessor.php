@@ -216,6 +216,27 @@ class CarImageProcessor
     }
 
     /**
+     * Check whether a filename is a resized variant of a base image, as opposed
+     * to the original upload itself.
+     *
+     * Resized variants are named `{basename}-resized-{size}.{ext}` (see
+     * uploadImages() in save.php, and the srcset builder in CarView.php). Only
+     * the base (non-resized) file's existence determines whether an image
+     * displays at all — see decodeAndProcessImages() above, which checks
+     * is_file() on the base filename only. Resized variants are purely
+     * derived/optional, so callers deciding whether a base filename is
+     * "unmoved"/"missing" must not conflate a variant's failure with the
+     * base file's own failure.
+     *
+     * @param string $filename Filename to classify (basename only, no directory)
+     * @return bool True if $filename matches the `-resized-{size}.` variant pattern
+     */
+    public static function isResizedVariant(string $filename): bool
+    {
+        return (bool) preg_match('/-resized-\d+\.[^.]+\z/', $filename);
+    }
+
+    /**
      * Encode an array of images to JSON for database storage
      *
      * @param array<mixed> $images Array of image data
@@ -368,6 +389,7 @@ class CarImageProcessor
      *         from this same row, since a genuine no-op then signals a
      *         data-consistency issue rather than routine "nothing to remove".
      * @throws ImageProcessingException If encoding fails
+     * @throws CarDatabaseException If database update fails
      */
     public function removeImages(object $carData, array $filenames): array
     {
