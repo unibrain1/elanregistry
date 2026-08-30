@@ -33,10 +33,10 @@ Changes visible only to administrators (admin dashboard, maintenance tools, sett
 Dependency bumps (Dependabot), tracked in this milestone rather than merged
 directly to `main`:
 
-- WIP: [#1833](https://github.com/elan-registry/registry/pull/1833) — chore(deps-dev): bump phpstan/phpstan from 2.2.8 to 2.2.9
-- WIP: [#1834](https://github.com/elan-registry/registry/pull/1834) — chore(deps): bump vlucas/phpdotenv from 5.6.4 to 5.7.0
-- WIP: [#1835](https://github.com/elan-registry/registry/pull/1835) — chore(deps-dev): bump eslint from 10.8.1 to 10.9.1
-- WIP: [#1836](https://github.com/elan-registry/registry/pull/1836) — chore(deps): bump maplibre-gl from 6.4.1 to 6.6.0
+- [#1833](https://github.com/elan-registry/registry/pull/1833) — chore(deps-dev): bump phpstan/phpstan from 2.2.8 to 2.2.9
+- [#1834](https://github.com/elan-registry/registry/pull/1834) — chore(deps): bump vlucas/phpdotenv from 5.6.4 to 5.7.0
+- [#1835](https://github.com/elan-registry/registry/pull/1835) — chore(deps-dev): bump eslint from 10.8.1 to 10.9.1
+- [#1836](https://github.com/elan-registry/registry/pull/1836) — chore(deps): bump maplibre-gl from 6.4.1 to 6.6.0
 
 CI/test-infrastructure work, not user- or admin-facing:
 
@@ -60,7 +60,7 @@ CI/test-infrastructure work, not user- or admin-facing:
 - WIP: [#1781](https://github.com/elan-registry/registry/issues/1781) — bug: e2e/factory-registry-link.spec.js and other 'logged-in' project tests never run — no such Playwright project exists
 - WIP: [#1443](https://github.com/elan-registry/registry/issues/1443) — ci: run Playwright browser tests in CI (de-MAMP the suite first)
 - WIP: [#1689](https://github.com/elan-registry/registry/issues/1689) — fix: .git/.svn probes log as 127.0.0.1 — source-address handling makes them un-blockable and may indicate spoofable client IP
-- WIP: [#1833](https://github.com/elan-registry/registry/pull/1833) — chore(deps-dev): bump phpstan/phpstan from 2.2.8 to 2.2.9
-- WIP: [#1834](https://github.com/elan-registry/registry/pull/1834) — chore(deps): bump vlucas/phpdotenv from 5.6.4 to 5.7.0
-- WIP: [#1835](https://github.com/elan-registry/registry/pull/1835) — chore(deps-dev): bump eslint from 10.8.1 to 10.9.1
-- WIP: [#1836](https://github.com/elan-registry/registry/pull/1836) — chore(deps): bump maplibre-gl from 6.4.1 to 6.6.0
+- [#1833](https://github.com/elan-registry/registry/pull/1833) — chore(deps-dev): bump phpstan/phpstan from 2.2.8 to 2.2.9
+- [#1834](https://github.com/elan-registry/registry/pull/1834) — chore(deps): bump vlucas/phpdotenv from 5.6.4 to 5.7.0
+- [#1835](https://github.com/elan-registry/registry/pull/1835) — chore(deps-dev): bump eslint from 10.8.1 to 10.9.1
+- [#1836](https://github.com/elan-registry/registry/pull/1836) — chore(deps): bump maplibre-gl from 6.4.1 to 6.6.0
