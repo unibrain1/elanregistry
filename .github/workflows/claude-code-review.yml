@@ -82,13 +82,14 @@ on:
 
 jobs:
   # Lightweight review for PRs targeting milestone branches. Runs on every
-  # push to a non-draft PR, OR on demand via workflow_dispatch so /finish-issue
-  # can review a draft PR before marking it ready for merge.
+  # push regardless of draft state (PRs are opened as draft by default —
+  # see /commit-push-pr — and the author drives review/fix cycles via
+  # /address-pr-comments before marking the PR ready), OR on demand via
+  # workflow_dispatch as a manual recovery/re-run mechanism.
   pr-to-milestone-review:
     if: |
       (
         github.event_name == 'pull_request' &&
-        github.event.pull_request.draft == false &&
         startsWith(github.event.pull_request.base.ref, 'milestone/') &&
         !contains(github.event.pull_request.title, '[skip-review]') &&
         !contains(github.event.pull_request.title, '[WIP]') &&

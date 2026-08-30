@@ -36,6 +36,60 @@ gh pr list --head "$(git branch --show-current)" --state open \
 
 If no PR found, stop and tell the user to run `/commit-push-pr` first.
 
+## Step 1.5: Ensure the automated review for the latest push has posted
+
+PRs are opened as draft (`/commit-push-pr`) and `pr-to-milestone-review`
+(`claude-code-review.yml`) runs automatically on every push regardless of
+draft state — so a review should already be in flight for the current HEAD.
+**Do not assume it landed** — the same event can be silently suppressed by
+GitHub's abuse/rate throttle, and even a "successful" job run does not
+guarantee a comment was posted (workflow-file-match guard, turn exhaustion).
+
+Check for a review comment matching the current HEAD SHA:
+
+```bash
+HEAD_SHA=$(gh pr view <pr-number> --repo elan-registry/registry --json headRefOid --jq .headRefOid)
+gh api "repos/elan-registry/registry/issues/<pr-number>/comments" \
+  --jq '[.[] | select(.body | test("#{1,6}\\s+Strengths|\\*\\*Strengths\\*\\*"))] | length'
+```
+
+Poll every ~15s for up to ~2 minutes (`pr-to-milestone-review` is the
+lightweight Sonnet job).
+
+**If a matching comment is found:** proceed to Step 2 — its findings feed
+into Step 4's triage same as any other comment.
+
+**If none appears after the poll window:**
+
+1. Check whether the PR opted out of review via `[skip-review]`/`[WIP]` in
+   the title:
+
+   ```bash
+   gh pr view <pr-number> --json title -q .title --repo elan-registry/registry
+   ```
+
+   If either tag is present, stop here — review is intentionally skipped,
+   not missing. Proceed to Step 2 (there's simply nothing from this source).
+
+2. Otherwise, re-trigger manually:
+
+   ```bash
+   gh workflow run claude-code-review.yml \
+     --ref main \
+     --field pr_number=<pr-number> \
+     --repo elan-registry/registry
+   ```
+
+3. Wait for the new run and re-check for the comment the same way. If it
+   still doesn't appear and the PR's diff touches
+   `.github/workflows/claude-code-review.yml`, this is the self-referential
+   workflow-file skip case — report it distinctly; re-triggering will not
+   fix it until the workflow file change is merged to `main`.
+
+4. Report to the user if recovery was needed and what happened — never
+   silently proceed without a confirmed comment or an explicit, reported
+   reason recovery isn't applicable.
+
 ## Step 2: Fetch Review Comments
 
 ```bash
@@ -207,7 +261,8 @@ PR #NNN is clean and ready to merge.
 - Advisory items reviewed: N (M addressed, K deferred)
 - CI status: all checks passing
 
-Next step: /finish-issue [NNN] — squash-merge and close the issue
+Next step: /finish-issue [NNN] — mark ready for review, squash-merge, and
+close the issue
 ```
 
 ## Important
