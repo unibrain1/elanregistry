@@ -139,12 +139,6 @@ parameters:
 			path: app/views/email/_member_to_owner.php
 
 		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 1
-			path: error/500.php
-
-		-
 			message: '#^Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects class\-string\<Server\>\|Server, string given\.$#'
 			identifier: argument.type
 			count: 1
