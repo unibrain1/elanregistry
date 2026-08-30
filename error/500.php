@@ -2,11 +2,14 @@
 /**
  * Generic Error Page Handler
  *
- * Displays branded error pages for HTTP errors:
- * 400, 401, 405, 408, 500, 502, 504
+ * Canonical handler for all site error pages: 400, 401, 403, 404, 405, 408,
+ * 500, 502, 504. Despite the filename, this file is not 500-specific — the
+ * actual status code is read from $_SERVER['REDIRECT_STATUS'] at runtime.
+ * The name is retained for continuity (minimizes the .htaccess diff and
+ * keeps the most mechanically complete existing handler as the base).
  *
- * Gracefully falls back when specific error code not available.
- * Specific 403 and 404 pages are in dedicated files.
+ * Gracefully falls back to a generic 500-style message for any status code
+ * not present in $errorMessages/$logCategoryMap.
  *
  * @package ElanRegistry
  * @since 2.12.0
@@ -14,16 +17,20 @@
 
 declare(strict_types=1);
 
-// Get the HTTP status code from server variables
-$statusCode = (int)($_SERVER['REDIRECT_STATUS'] ?? http_response_code() ?? 500);
+use ElanRegistry\LogCategories;
+
+// Get the HTTP status code from server variables. http_response_code()
+// returns int|false (never null), so its result can't itself be chained
+// with ?? — a plain OR-like fallback via ?: is used instead.
+$currentResponseCode = http_response_code();
+$statusCode = (int)($_SERVER['REDIRECT_STATUS'] ?? ($currentResponseCode ?: 500));
 
 // Set proper HTTP response code
 http_response_code($statusCode);
 
 // Anti-clickjacking headers (set explicitly in case init.php fails to load).
 // Intentionally minimal: frame-ancestors only. If a <form> is ever added to
-// this page, add form-action 'self' here and mirror the change in
-// error/403.php and error/404.php before shipping.
+// this page, add form-action 'self' here before shipping.
 header("X-Frame-Options: SAMEORIGIN");
 header("Content-Security-Policy: frame-ancestors 'self'");
 
@@ -60,16 +67,18 @@ $userId = ($isLoggedIn && isset($userData->id)) ? (int)$userData->id : 0;
 
 // Determine log category based on error code
 $logCategoryMap = [
-    400 => 'ValidationError',
-    401 => 'AccessDenied',
-    405 => 'SystemError',
-    408 => 'SystemError',
-    500 => 'SystemError',
-    502 => 'SystemError',
-    504 => 'SystemError',
+    400 => LogCategories::LOG_CATEGORY_VALIDATION_ERROR,
+    401 => LogCategories::LOG_CATEGORY_ACCESS_DENIED,
+    403 => LogCategories::LOG_CATEGORY_ACCESS_DENIED,
+    404 => LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND,
+    405 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+    408 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+    500 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+    502 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+    504 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
 ];
 
-$logCategory = $logCategoryMap[$statusCode] ?? 'SystemError';
+$logCategory = $logCategoryMap[$statusCode] ?? LogCategories::LOG_CATEGORY_SYSTEM_ERROR;
 
 $logMessage = sprintf(
     "%d Error | URI: %s | Referer: %s | IP: %s | Method: %s | User-Agent: %s",
@@ -81,7 +90,19 @@ $logMessage = sprintf(
     substr($user_agent, 0, 150)
 );
 
-if (function_exists('logger')) {
+// 404s on static-asset paths (images, css, js, sourcemaps) are routine
+// noise — bots and stale links account for a large volume of these — and
+// would otherwise recreate the log-volume problem closed as won't-fix in
+// #1477. All other codes, including 404s on non-static paths, log normally.
+$skipLogging = false;
+if ($statusCode === 404) {
+    $staticExtensions = ['jpg', 'jpeg', 'png', 'gif', 'css', 'js', 'map'];
+    $requestPath = parse_url($request_uri ?? '', PHP_URL_PATH) ?: '';
+    $ext = strtolower(pathinfo($requestPath, PATHINFO_EXTENSION));
+    $skipLogging = in_array($ext, $staticExtensions, true);
+}
+
+if (!$skipLogging && function_exists('logger')) {
     try {
         logger($userId, $logCategory, $logMessage);
     } catch (Throwable $e) {
@@ -100,6 +121,16 @@ $errorMessages = [
         'title' => 'Unauthorized',
         'message' => 'You must be authenticated to access this resource.',
         'icon_type' => 'lock'
+    ],
+    403 => [
+        'title' => 'Access Forbidden',
+        'message' => "You don't have permission to access this resource. This area may require special privileges or authentication.",
+        'icon_type' => 'lock'
+    ],
+    404 => [
+        'title' => 'Page Not Found',
+        'message' => "The page you're looking for doesn't exist, has been moved, or the URL was mistyped.",
+        'icon_type' => 'search'
     ],
     405 => [
         'title' => 'Method Not Allowed',
@@ -138,6 +169,42 @@ $errorInfo = $errorMessages[$statusCode] ?? [
 $errorTitle = $errorInfo['title'];
 $errorMessage = $errorInfo['message'];
 $iconType = $errorInfo['icon_type'];
+
+// Icon SVGs per icon_type. lock/search sourced from the former dedicated
+// 403.php/404.php pages; warning/hourglass/error share one generic icon
+// (as the pre-consolidation 500.php did for all codes) — no new SVGs
+// invented for those, out of scope for this consolidation.
+$lockIconSvg = <<<SVG
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="11" width="14" height="10" rx="2" fill="#d9230f"/>
+                        <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11"
+                              stroke="#d9230f" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="12" cy="16" r="1.5" fill="white"/>
+                        <rect x="11.25" y="16" width="1.5" height="3" fill="white"/>
+                    </svg>
+SVG;
+
+$searchIconSvg = <<<SVG
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="11" cy="11" r="7" stroke="#d9230f" stroke-width="2" fill="none"/>
+                        <path d="M15.5 15.5L20 20" stroke="#d9230f" stroke-width="2" stroke-linecap="round"/>
+                        <text x="11" y="14" text-anchor="middle" fill="#d9230f" font-size="8" font-weight="bold">?</text>
+                    </svg>
+SVG;
+
+$genericIconSvg = <<<SVG
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="#d9230f" stroke-width="2" fill="none"/>
+                        <line x1="12" y1="8" x2="12" y2="12" stroke="#d9230f" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="12" cy="16" r="0.5" fill="#d9230f"/>
+                    </svg>
+SVG;
+
+$errorIconSvg = match ($iconType) {
+    'lock' => $lockIconSvg,
+    'search' => $searchIconSvg,
+    default => $genericIconSvg,
+};
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -310,12 +377,7 @@ $iconType = $errorInfo['icon_type'];
                 <?php endif; ?>
 
                 <div class="error-icon">
-                    <!-- Generic error icon SVG -->
-                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" stroke="#d9230f" stroke-width="2" fill="none"/>
-                        <line x1="12" y1="8" x2="12" y2="12" stroke="#d9230f" stroke-width="2" stroke-linecap="round"/>
-                        <circle cx="12" cy="16" r="0.5" fill="#d9230f"/>
-                    </svg>
+                    <?= $errorIconSvg ?>
                 </div>
 
                 <div class="error-code"><?= $statusCode ?></div>

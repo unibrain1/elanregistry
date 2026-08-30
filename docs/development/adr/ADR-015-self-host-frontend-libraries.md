@@ -85,8 +85,9 @@ continue to be loaded from their existing self-hosted locations in `users/`.
 > `usersc/` — it loads exclusively from UserSpice's own self-hosted copy at
 > `users/css/bootstrap.min.css` / `users/js/bootstrap.bundle.min.js`
 > (currently 5.3.8), used consistently by the Customizer template
-> (`header.php`) and the three standalone error pages
-> (`error/403.php`, `error/404.php`, `error/500.php`). A project-vendored
+> (`header.php`) and the error page handler
+> (`error/500.php` — consolidated from three separate files into this one
+> canonical handler for all 4xx/5xx codes in #1830). A project-vendored
 > `usersc/` copy (5.3.3) previously existed and was used inconsistently by
 > different pages; it has been removed in favor of a single version
 > everywhere. `users/css/bootstrap.min.css.map` and

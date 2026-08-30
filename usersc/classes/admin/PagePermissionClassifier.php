@@ -143,7 +143,11 @@ class PagePermissionClassifier
             return false;
         }
 
-        // Error pages (404.php, 403.php, etc.) in root should be PUBLIC
+        // Error pages (400.php, 404.php, etc.) in root should be PUBLIC. Note:
+        // this pattern only matches 40x.php names; error/500.php (which, since
+        // #1830, is the sole consolidated handler for all 4xx/5xx codes) isn't
+        // named 40x.php and is classified by a later, broader rule instead —
+        // unchanged, pre-existing behavior, not part of #1830's scope.
         if (preg_match('#^40\d\.php$#', $pagePath)) {
             return false;
         }
