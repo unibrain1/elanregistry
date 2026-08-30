@@ -151,6 +151,43 @@ class ErrorPageHeadersTest extends IntegrationTestCase
     }
 
     /**
+     * Icon rendering is new output-mapping logic introduced by #1830's
+     * consolidation ($iconSvgMap/match on icon_type) — a future edit to the
+     * match arms could silently render the wrong icon for a status code
+     * without any other test catching it, so this asserts the distinctive
+     * markup for each icon shape appears for the codes that should use it.
+     */
+    #[DataProvider('iconRenderingProvider')]
+    public function testRendersExpectedIconForStatusCode(int $statusCode, string $distinctiveMarkup): void
+    {
+        $requestUri = '/icon-test-' . uniqid();
+        $this->logCleanupPatterns[] = "%{$requestUri}%";
+
+        $output = $this->renderErrorPage($statusCode, $requestUri);
+
+        $this->assertStringContainsString(
+            $distinctiveMarkup,
+            $output,
+            "Status {$statusCode} should render the expected icon markup"
+        );
+    }
+
+    /**
+     * @return array<string, array{int, string}>
+     */
+    public static function iconRenderingProvider(): array
+    {
+        return [
+            // 403/404 use dedicated icons sourced from the former 403.php/404.php.
+            '403 renders lock icon' => [403, '<rect x="5" y="11" width="14" height="10" rx="2" fill="#d9230f"/>'],
+            '404 renders search icon' => [404, '<circle cx="11" cy="11" r="7" stroke="#d9230f" stroke-width="2" fill="none"/>'],
+            // Every other code falls through match()'s default arm to the shared generic icon.
+            '400 renders generic icon' => [400, '<line x1="12" y1="8" x2="12" y2="12" stroke="#d9230f" stroke-width="2" stroke-linecap="round"/>'],
+            '500 renders generic icon' => [500, '<line x1="12" y1="8" x2="12" y2="12" stroke="#d9230f" stroke-width="2" stroke-linecap="round"/>'],
+        ];
+    }
+
+    /**
      * @return array<string, array<string>>
      */
     public static function nonStaticNotFoundPathProvider(): array
@@ -167,7 +204,22 @@ class ErrorPageHeadersTest extends IntegrationTestCase
     {
         $before = $this->countMatchingLogs(LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND, "%{$requestUri}%");
 
-        $this->renderErrorPage(404, $requestUri);
+        $output = $this->renderErrorPage(404, $requestUri);
+
+        // "Zero rows written" is indistinguishable from "the subprocess crashed
+        // before reaching logger()" unless we also confirm it actually ran to
+        // completion — this positively confirms the page rendered rather than
+        // vacuously passing on a silent subprocess failure.
+        $this->assertStringContainsString(
+            '</html>',
+            $output,
+            "renderErrorPage() for {$requestUri} should have completed and rendered the page, not crashed"
+        );
+        $this->assertStringNotContainsStringIgnoringCase(
+            'Fatal error',
+            $output,
+            "renderErrorPage() for {$requestUri} should not emit a fatal error"
+        );
 
         $after = $this->countMatchingLogs(LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND, "%{$requestUri}%");
 

@@ -146,8 +146,12 @@ class PagePermissionClassifier
         // Error pages (400.php, 404.php, etc.) in root should be PUBLIC. Note:
         // this pattern only matches 40x.php names; error/500.php (which, since
         // #1830, is the sole consolidated handler for all 4xx/5xx codes) isn't
-        // named 40x.php and is classified by a later, broader rule instead —
-        // unchanged, pre-existing behavior, not part of #1830's scope.
+        // named 40x.php and doesn't match this rule — but it's also never run
+        // through this classifier at all: it has no securePage() call, so
+        // error/ is correctly absent from z_us_root.php's $path array (see
+        // CLAUDE.md's "New PHP Directories" convention), and it never gets a
+        // `pages` table row for this method to classify in the first place.
+        // Unchanged, pre-existing behavior, not part of #1830's scope.
         if (preg_match('#^40\d\.php$#', $pagePath)) {
             return false;
         }

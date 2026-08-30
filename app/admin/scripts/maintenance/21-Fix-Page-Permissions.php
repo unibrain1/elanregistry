@@ -46,8 +46,9 @@ use ElanRegistry\LogCategories;
  * PUBLIC PAGES (will be set to private=0 with no permissions):
  * - Everything else in app/* that doesn't match PRIVATE patterns
  * - Error pages in root: 400.php, 404.php, etc. (error/500.php — the sole
- *   consolidated handler for all 4xx/5xx codes since #1830 — is public via a
- *   separate classification rule, not this 40x.php pattern)
+ *   consolidated handler for all 4xx/5xx codes since #1830 — doesn't match
+ *   this 40x.php pattern and isn't processed by this script at all: it has
+ *   no securePage() call, so it never gets a `pages` table row to classify)
  * - docs/* (except docs/*admin*) - Documentation pages
  * - Examples: app/owner/cars/index.php, app/owner/cars/details.php, app/owner/reports/statistics.php, docs/guides/index.php
  *
