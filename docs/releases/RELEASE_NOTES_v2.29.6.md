@@ -38,7 +38,7 @@ directly to `main`:
 
 CI/test-infrastructure work, not user- or admin-facing:
 
-- WIP: [#1788](https://github.com/elan-registry/registry/issues/1788) — test: local MAMP DB snapshot is missing car id 1 (CAR_ID_STANDARD), blocking Playwright fixture-dependent tests
+- [#1788](https://github.com/elan-registry/registry/issues/1788) — test: `CAR_ID_STANDARD` in Playwright fixtures is now overridable via a `CAR_ID_STANDARD` env var (falls back to id 1), so local MAMP snapshots with different car-id numbering no longer skip or fail fixture-dependent tests
 - WIP: [#1765](https://github.com/elan-registry/registry/issues/1765) — bug: ajax-endpoints.spec.js has 2 real failures once login/baseURL is fixed (dead map-markers endpoint, CSRF check discrepancy)
 - WIP: [#1253](https://github.com/elan-registry/registry/issues/1253) — test: add local Playwright tests for owner-only pages (contact-owner, privacy, user settings, verify)
 - WIP: [#1781](https://github.com/elan-registry/registry/issues/1781) — bug: e2e/factory-registry-link.spec.js and other 'logged-in' project tests never run — no such Playwright project exists
@@ -50,7 +50,7 @@ CI/test-infrastructure work, not user- or admin-facing:
 - [#1452](https://github.com/elan-registry/registry/issues/1452) — fix: non-atomic car-create — cars.image committed before files moved (root cause of #1403); a failed file move during car creation now strips the unmoved filenames from the stored image list instead of leaving the record pointing at files that don't exist
 - WIP: [#1800](https://github.com/elan-registry/registry/issues/1800) — chore: contact the 4 owners whose car photos were lost and invite re-upload
 - [#1539](https://github.com/elan-registry/registry/issues/1539) — fix: bare directory URLs (`/app/owner/`, `/app/owner/reports/`, `/docs/stories/`) returned a raw 403 instead of redirecting to a useful page, and a stale redirect chain broke `/app/reports/`; also fixes a guide page's stylesheet (`document-content.css`) 404ing due to a blanket redirect that was never meant to catch it — relocated the file to `app/assets/css/` (consolidated with #1595)
-- WIP: [#1788](https://github.com/elan-registry/registry/issues/1788) — test: local MAMP DB snapshot is missing car id 1 (CAR_ID_STANDARD), blocking Playwright fixture-dependent tests
+- [#1788](https://github.com/elan-registry/registry/issues/1788) — test: `CAR_ID_STANDARD` in Playwright fixtures is now overridable via a `CAR_ID_STANDARD` env var (falls back to id 1), so local MAMP snapshots with different car-id numbering no longer skip or fail fixture-dependent tests
 - WIP: [#1765](https://github.com/elan-registry/registry/issues/1765) — bug: ajax-endpoints.spec.js has 2 real failures once login/baseURL is fixed (dead map-markers endpoint, CSRF check discrepancy)
 - WIP: [#1253](https://github.com/elan-registry/registry/issues/1253) — test: add local Playwright tests for owner-only pages (contact-owner, privacy, user settings, verify)
 - WIP: [#1781](https://github.com/elan-registry/registry/issues/1781) — bug: e2e/factory-registry-link.spec.js and other 'logged-in' project tests never run — no such Playwright project exists
