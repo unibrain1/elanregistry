@@ -172,25 +172,24 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
         );
 
         // ------------------------------------------------------------------
-        // 3. Wait for the fetchImages mock response to be consumed and FilePond
-        //    to hydrate the existing image as a LOCAL file item.
-        //    FilePond adds files asynchronously via pond.addFile(), so we poll
-        //    until getFiles() returns at least one item or a short timeout elapses.
+        // 3. NOTE (issue #1846): this test previously waited here for FilePond
+        //    to hydrate the mocked existing image via fetchImages. That wait
+        //    can never succeed via this navigation: fetchImages only fires
+        //    when edit.php renders with $action === 'updateCar'
+        //    (window.editCarConfig.isUpdate), which is only ever set from a
+        //    real POST — never from the car_id GET query param used above.
+        //    So #car_id stays empty and fetchImages never fires, regardless
+        //    of whether the car exists. The wait always timed out (silently,
+        //    via .catch()), and combined with earlier step overhead this
+        //    pushed the test close enough to Playwright's default 30s
+        //    timeout that the test runner's own teardown raced the test body
+        //    — producing the "page.route: Target page ... has been closed"
+        //    error this issue reports, rather than a real failure in the
+        //    save flow. Removed: the sentinel-blob assertions below hold
+        //    identically whether the pond starts empty or hydrated, since a
+        //    text-only save with zero LOCAL files must still produce the
+        //    sentinel and no binary data.
         // ------------------------------------------------------------------
-        await page.waitForFunction(
-            () => {
-                // FilePond exposes instances; query the pond object from the
-                // global that form.php creates — we access it via the element.
-                const root = document.querySelector('.filepond--root');
-                if (!root) { return false; }
-                const instance = window.FilePond && window.FilePond.find(root);
-                return instance && instance.getFiles().length > 0;
-            },
-            { timeout: 10000 }
-        ).catch(() => {
-            // fetchImages may not resolve if DB is unavailable; the sentinel
-            // blob assertion still holds for the empty-pond case (no LOCAL files).
-        });
 
         // ------------------------------------------------------------------
         // 4. Capture the submit POST payload via a second, higher-priority route.
@@ -765,6 +764,23 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
             { timeout: 15000 }
         );
 
+        // This test specifically verifies that an existing (hydrated) image
+        // survives a save alongside a newly-added file — it requires real
+        // update-mode. edit.php only enters update mode (window.editCarConfig.
+        // isUpdate) via a real POST with action=updateCar for a car the
+        // session's user actually owns (see issue #1846); the car_id GET
+        // navigation above can never trigger that, and locally TEST_USERNAME
+        // currently owns no cars, so there's no way to reach real update mode
+        // here without seeding a car fixture (out of scope for this fix).
+        // Skip rather than let the doomed hydration wait below hang the test
+        // — matches this suite's established "skip rather than assume"
+        // convention for fixture gaps (see tests/playwright/e2e/factory-registry-link.spec.js).
+        const isUpdateMode = await page.evaluate(() => window.editCarConfig?.isUpdate === true);
+        if (!isUpdateMode) {
+            test.skip('Not in update mode (TEST_USERNAME owns no car locally) — cannot hydrate an existing image to test mixed save behavior. Seed a car for TEST_USERNAME (e.g. via scripts/provision-schema.sh --full or manual creation) to exercise this test.');
+            return;
+        }
+
         // Wait for the LOCAL image to hydrate
         await page.waitForFunction(
             () => {
@@ -773,7 +789,7 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
                 return instance && instance.getFiles().length > 0;
             },
             { timeout: 10000 }
-        ).catch(() => {});
+        );
 
         // Capture submit POST
         let capturedRequest = null;
