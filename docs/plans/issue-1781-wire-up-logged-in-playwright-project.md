@@ -401,3 +401,30 @@ it still matches `auth.setup.js` alone.
 Final re-verification after all fixes: `logged-in` project — 21 passed, 1
 skipped, 0 failed (unchanged from pre-review baseline); `chromium` 236
 tests/35 files, `Mobile Chrome` 13 tests/1 file (unchanged).
+
+## Third Review Round (CI, post-push)
+
+The automated `pr-to-milestone-review` CI check (posted after the fixes
+above were pushed) raised one further **Important** finding worth recording:
+without `TEST_USERNAME`/`TEST_PASSWORD`, the `logged-in` project's ~22 tests
+still *execute* (unauthenticated) rather than being individually skipped,
+and most don't assert anything auth-specific — so most pass regardless of
+session state. It specifically questioned why `factory-registry-link.spec.js`
+(7 of those tests, navigating to a `securePage()`-gated page) passed
+anonymously rather than being denied/timing out.
+
+**Verified directly, not dismissed:** `app/owner/cars/factory.php` is
+intentionally public — confirmed via a cookieless `curl` returning `200`
+with no session at all. Its `securePage($php_self)` call permits anonymous
+access by this page's own permission configuration; the reviewer's
+suspicion (a possible bug) was reasonable from static reading of the code
+but didn't hold once checked against actual runtime behavior. Not a bug.
+
+**What was accurate and acted on:** the CLAUDE.md wording added earlier in
+this PR ("skips gracefully if those are unset") overstated the actual
+behavior — the *setup* step skips cleanly, but the *test* files still run
+unauthenticated rather than being skipped themselves, which only produces a
+uniformly clean skip for pages that require auth (menu/account tests) —
+pages that are intentionally public (factory.php) still pass regardless.
+Reworded `CLAUDE.md`'s Playwright command note to describe this accurately
+rather than overpromise.
