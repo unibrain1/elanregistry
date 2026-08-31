@@ -71,7 +71,7 @@ test.describe('chassis-availability.php — length validation', () => {
 
     test('chassis exactly 15 chars is accepted (at-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/chassis-availability.php', {
-            data: { ...baseValid, csrf: csrfToken },
+            form: { ...baseValid, csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -83,7 +83,7 @@ test.describe('chassis-availability.php — length validation', () => {
 
     test('chassis 16 chars rejected with 400 (over-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/chassis-availability.php', {
-            data: {
+            form: {
                 ...baseValid,
                 chassis: '1234567890123456', // 16 chars — over limit
                 csrf: csrfToken,
@@ -97,7 +97,7 @@ test.describe('chassis-availability.php — length validation', () => {
 
     test('year in valid range is accepted (1963–1974)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/chassis-availability.php', {
-            data: { ...baseValid, year: '1973', csrf: csrfToken },
+            form: { ...baseValid, year: '1973', csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -108,7 +108,7 @@ test.describe('chassis-availability.php — length validation', () => {
 
     test('year out of range rejected with 400 (1975 > max)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/chassis-availability.php', {
-            data: {
+            form: {
                 ...baseValid,
                 year: '1975', // above the 1963–1974 domain
                 csrf: csrfToken,
@@ -122,7 +122,7 @@ test.describe('chassis-availability.php — length validation', () => {
 
     test('year out of range rejected with 400 (1962 < min)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/chassis-availability.php', {
-            data: {
+            form: {
                 ...baseValid,
                 year: '1962', // below the 1963–1974 domain
                 csrf: csrfToken,
@@ -138,7 +138,7 @@ test.describe('chassis-availability.php — length validation', () => {
         // 26 A's + |B|C = exactly 30 chars, valid 3-part format
         const model30 = 'A'.repeat(26) + '|B|C';
         const resp = await page.request.post('app/api/cars/chassis-availability.php', {
-            data: { ...baseValid, model: model30, csrf: csrfToken },
+            form: { ...baseValid, model: model30, csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -152,7 +152,7 @@ test.describe('chassis-availability.php — length validation', () => {
         // 27 A's + |B|C = exactly 31 chars (over the 30-char limit)
         const model31 = 'A'.repeat(27) + '|B|C';
         const resp = await page.request.post('app/api/cars/chassis-availability.php', {
-            data: {
+            form: {
                 ...baseValid,
                 model: model31,
                 csrf: csrfToken,
@@ -206,7 +206,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('chassis exactly 15 chars is accepted (at-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: { ...baseValid, csrf: csrfToken },
+            form: { ...baseValid, csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -217,7 +217,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('color exactly 25 chars is accepted (at-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: { ...baseValid, csrf: csrfToken },
+            form: { ...baseValid, csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -228,7 +228,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('engine exactly 15 chars is accepted (at-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: { ...baseValid, csrf: csrfToken },
+            form: { ...baseValid, csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -239,7 +239,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('comments exactly 1000 chars is accepted (at-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: { ...baseValid, csrf: csrfToken },
+            form: { ...baseValid, csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -251,7 +251,7 @@ test.describe('transfer-request.php — length validation', () => {
     test('model exactly 30 chars is accepted (at-limit)', async ({ page }) => {
         // 26 A's + |B|C = exactly 30 chars, valid 3-part format
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: { ...baseValid, model: 'A'.repeat(26) + '|B|C', csrf: csrfToken },
+            form: { ...baseValid, model: 'A'.repeat(26) + '|B|C', csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -263,7 +263,7 @@ test.describe('transfer-request.php — length validation', () => {
     test('series exactly 12 chars is accepted (at-limit)', async ({ page }) => {
         // 12 A's + |B|C = 16-char model (under 30), series='A'.repeat(12) is at limit
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: { ...baseValid, model: 'A'.repeat(12) + '|B|C', csrf: csrfToken },
+            form: { ...baseValid, model: 'A'.repeat(12) + '|B|C', csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -275,7 +275,7 @@ test.describe('transfer-request.php — length validation', () => {
     test('variant exactly 15 chars is accepted (at-limit)', async ({ page }) => {
         // S4 + 15 B's + C = 20-char model (under 30), variant='B'.repeat(15) is at limit
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: { ...baseValid, model: 'S4|' + 'B'.repeat(15) + '|C', csrf: csrfToken },
+            form: { ...baseValid, model: 'S4|' + 'B'.repeat(15) + '|C', csrf: csrfToken },
         });
         const body = await resp.json();
         expect(body).toHaveProperty('success');
@@ -293,7 +293,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('chassis 16 chars rejected with 400 (over-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 chassis: '1234567890123456', // 16 chars
                 csrf: csrfToken,
@@ -311,7 +311,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('year out of range rejected with 400 (1975 > max)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 year: '1975', // above the 1963–1974 domain
                 csrf: csrfToken,
@@ -329,7 +329,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('year out of range rejected with 400 (1962 < min)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 year: '1962', // below the 1963–1974 domain
                 csrf: csrfToken,
@@ -347,7 +347,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('color 26 chars rejected with 400 (over-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 color: '01234567890123456789012345', // 26 chars
                 csrf: csrfToken,
@@ -365,7 +365,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('engine 16 chars rejected with 400 (over-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 engine: '1234567890123456', // 16 chars
                 csrf: csrfToken,
@@ -383,7 +383,7 @@ test.describe('transfer-request.php — length validation', () => {
 
     test('comments 1001 chars rejected with 400 (over-limit)', async ({ page }) => {
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 comments: 'A'.repeat(1001),
                 csrf: csrfToken,
@@ -403,7 +403,7 @@ test.describe('transfer-request.php — length validation', () => {
     test('model 31 chars rejected with 400 (over-limit)', async ({ page }) => {
         // 27 A's + |B|C = 31 chars (over the 30-char limit); valid format
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 model: 'A'.repeat(27) + '|B|C',
                 csrf: csrfToken,
@@ -422,7 +422,7 @@ test.describe('transfer-request.php — length validation', () => {
     test('series (model part 1) 13 chars rejected with 400 (over-limit)', async ({ page }) => {
         // 13 A's + |B|C = 17-char model (under 30), but series part is 13 chars (over 12-char limit)
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 model: 'A'.repeat(13) + '|B|C',
                 csrf: csrfToken,
@@ -441,7 +441,7 @@ test.describe('transfer-request.php — length validation', () => {
     test('variant (model part 2) 16 chars rejected with 400 (over-limit)', async ({ page }) => {
         // S4 + 16 B's + C = 21-char model (under 30), but variant part is 16 chars (over 15-char limit)
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 model: 'S4|' + 'B'.repeat(16) + '|C',
                 csrf: csrfToken,
@@ -460,7 +460,7 @@ test.describe('transfer-request.php — length validation', () => {
     test('type (model part 3) 4 chars rejected with 400 (over-limit)', async ({ page }) => {
         // S4|SE|ABCD = 10-char model (under 30), but type part is 4 chars (over 3-char limit)
         const resp = await page.request.post('app/api/cars/transfer-request.php', {
-            data: {
+            form: {
                 ...baseValid,
                 model: 'S4|SE|ABCD',
                 csrf: csrfToken,
