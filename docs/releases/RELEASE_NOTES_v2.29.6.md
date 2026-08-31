@@ -40,6 +40,7 @@ directly to `main`:
 
 CI/test-infrastructure work, not user- or admin-facing:
 
+- [#1829](https://github.com/elan-registry/registry/issues/1829) — tech-debt: removed the internal `Token::check()` CSRF validation from `Car::delete()` (and its now-unused `$token` parameter) — the endpoint-level CSRF check in `app/admin/index.php`, `Car::delete()`'s only production caller, already validates the token unconditionally before the delete path is reachable; mirrors the same refactor #1519/#1813 applied to `Car::create()`/`Car::update()` and clears the last internal `Token::check()` call in `usersc/classes/`, unblocking the Semgrep rule planned in #1465
 - [#1788](https://github.com/elan-registry/registry/issues/1788) — test: `CAR_ID_STANDARD` in Playwright fixtures is now overridable via a `CAR_ID_STANDARD` env var (falls back to id 1), so local MAMP snapshots with different car-id numbering no longer skip or fail fixture-dependent tests
 - [#1765](https://github.com/elan-registry/registry/issues/1765) — test: removed a stale `ajax-endpoints.spec.js` test referencing a Google Maps XML endpoint deleted during the MapLibre migration; the other finding (a CSRF check discrepancy) had already been resolved as a side effect of an unrelated PR (#1790)
 - [#1253](https://github.com/elan-registry/registry/issues/1253) — test: added local Playwright coverage for `privacy.php`, `user_settings.php`, and the unverified-state path of `verify.php` (`contact/owner.php` landed separately via #1585); the "verified" success-path for `verify.php` is deliberately deferred, no DB fixture exists for it yet
@@ -60,6 +61,7 @@ CI/test-infrastructure work, not user- or admin-facing:
 - WIP: [#1781](https://github.com/elan-registry/registry/issues/1781) — bug: e2e/factory-registry-link.spec.js and other 'logged-in' project tests never run — no such Playwright project exists
 - WIP: [#1443](https://github.com/elan-registry/registry/issues/1443) — ci: run Playwright browser tests in CI (de-MAMP the suite first)
 - WIP: [#1689](https://github.com/elan-registry/registry/issues/1689) — fix: .git/.svn probes log as 127.0.0.1 — source-address handling makes them un-blockable and may indicate spoofable client IP
+- [#1829](https://github.com/elan-registry/registry/issues/1829) — tech-debt: removed the internal `Token::check()` CSRF validation from `Car::delete()` (and its now-unused `$token` parameter) — the endpoint-level CSRF check in `app/admin/index.php`, `Car::delete()`'s only production caller, already validates the token unconditionally before the delete path is reachable; mirrors the same refactor #1519/#1813 applied to `Car::create()`/`Car::update()` and clears the last internal `Token::check()` call in `usersc/classes/`, unblocking the Semgrep rule planned in #1465
 - [#1833](https://github.com/elan-registry/registry/pull/1833) — chore(deps-dev): bump phpstan/phpstan from 2.2.8 to 2.2.9
 - [#1834](https://github.com/elan-registry/registry/pull/1834) — chore(deps): bump vlucas/phpdotenv from 5.6.4 to 5.7.0
 - [#1835](https://github.com/elan-registry/registry/pull/1835) — chore(deps-dev): bump eslint from 10.8.1 to 10.9.1

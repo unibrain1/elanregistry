@@ -5,7 +5,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/IntegrationTestCase.php';
 
 use ElanRegistry\Car\Car;
-use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 
 use PHPUnit\Framework\Attributes\Group;
@@ -13,8 +12,9 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * Test cases for Car deletion functionality
  *
- * Tests cover car deletion operations with CSRF protection, transaction handling,
- * audit trail creation, and error scenarios.
+ * Tests cover car deletion operations, transaction handling, audit trail
+ * creation, and error scenarios. CSRF protection is validated at the HTTP
+ * layer (app/admin/index.php), not inside Car::delete() — see #1519, #1829.
  */
 #[Group('integration')]
 final class CarDeletionTest extends IntegrationTestCase
@@ -43,43 +43,18 @@ final class CarDeletionTest extends IntegrationTestCase
     }
 
     /**
-     * Test successful car deletion with valid CSRF token
+     * Test successful car deletion
      */
     #[Group('fast')]
-    public function testDeleteCarSuccessWithValidToken(): void
+    public function testDeleteCarSucceeds(): void
     {
         $car = new Car($this->testCarId);
         $this->assertTrue($car->exists());
 
-        $token = Token::generate();
-        $result = $car->delete('Test deletion', $token, $this->testUserId);
+        $result = $car->delete('Test deletion', $this->testUserId);
 
         $this->assertTrue($result);
         $this->assertFalse($car->exists());
-    }
-
-    /**
-     * Test car deletion fails with invalid CSRF token
-     */
-    #[Group('fast')]
-    public function testDeleteCarFailsWithInvalidToken(): void
-    {
-        $this->expectException(CarDeletionException::class);
-
-        $car = new Car($this->testCarId);
-        $car->delete('Test deletion', 'invalid-token-12345', $this->testUserId);
-    }
-
-    /**
-     * Test car deletion fails with empty token
-     */
-    #[Group('fast')]
-    public function testDeleteCarFailsWithEmptyToken(): void
-    {
-        $this->expectException(CarDeletionException::class);
-
-        $car = new Car($this->testCarId);
-        $car->delete('Test deletion', '', $this->testUserId);
     }
 
     /**
@@ -91,7 +66,7 @@ final class CarDeletionTest extends IntegrationTestCase
         $this->expectException(CarNotFoundException::class);
 
         $car = new Car(99999);
-        $car->delete('Test deletion', Token::generate(), $this->testUserId);
+        $car->delete('Test deletion', $this->testUserId);
     }
 
     /**
@@ -106,7 +81,7 @@ final class CarDeletionTest extends IntegrationTestCase
         $car = new Car($this->testCarId);
         $carId = $car->data()->id;
 
-        $result = $car->delete('Test deletion for audit', Token::generate(), $this->testUserId);
+        $result = $car->delete('Test deletion for audit', $this->testUserId);
 
         $this->assertTrue($result);
 
@@ -129,7 +104,7 @@ final class CarDeletionTest extends IntegrationTestCase
     {
         // First deletion — must succeed
         $car = new Car($this->testCarId);
-        $car->delete('First deletion', Token::generate(), $this->testUserId);
+        $car->delete('First deletion', $this->testUserId);
 
         // tearDown will attempt to clean up $this->testCarId; if the car is
         // already gone the cleanup silently ignores the missing row.
@@ -137,7 +112,7 @@ final class CarDeletionTest extends IntegrationTestCase
         // Second deletion on the same ID — car no longer exists
         $this->expectException(CarNotFoundException::class);
         $car2 = new Car($this->testCarId);
-        $car2->delete('Second deletion', Token::generate(), $this->testUserId);
+        $car2->delete('Second deletion', $this->testUserId);
     }
 
     /**
@@ -155,8 +130,7 @@ final class CarDeletionTest extends IntegrationTestCase
         unset($GLOBALS['user']);
 
         try {
-            $token = Token::generate();
-            $result = $car->delete('Explicit actingUserId test', $token, $this->testUserId);
+            $result = $car->delete('Explicit actingUserId test', $this->testUserId);
             $this->assertTrue($result);
         } finally {
             if ($savedUser !== null) {
