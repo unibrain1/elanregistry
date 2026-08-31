@@ -1,14 +1,24 @@
 // playwright.config.js
 require('dotenv').config({ path: '.env.local' });
 const { defineConfig, devices } = require('@playwright/test');
+const path = require('path');
+
+// storageState paths are resolved once at config-load time, before any
+// project runs — so if TEST_USERNAME/TEST_PASSWORD are unset, auth.setup.js
+// will skip (leaving no file) and every `logged-in` test would fail with
+// ENOENT instead of skipping. Checking the credentials directly here (not
+// just file existence, which can't self-heal on a fresh checkout — the file
+// legitimately doesn't exist yet until `setup` first runs successfully)
+// lets the project include storageState only when auth.setup.js is actually
+// going to produce or already has produced it.
+const authFile = path.join(__dirname, 'tests/playwright/.auth/user.json');
+const hasCredentials = !!(process.env.TEST_USERNAME && process.env.TEST_PASSWORD);
 
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
 module.exports = defineConfig({
   testDir: './tests/playwright',
-  /* Exclude E2E tests (they use playwright.config.prod.js) */
-  testIgnore: '**/e2e/**',
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -40,12 +50,43 @@ module.exports = defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/mobile-responsive.spec.js',
+      testIgnore: ['**/e2e/**', '**/mobile-responsive.spec.js'],
     },
     {
       name: 'Mobile Chrome',
       use: { ...devices['iPhone SE'] },
       testMatch: '**/mobile-responsive.spec.js',
+      testIgnore: '**/e2e/**',
+    },
+    {
+      name: 'setup',
+      testMatch: /(?:^|\/)e2e\/.*\.setup\.js$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // NOTE: this is an exact-filename allowlist, not a directory/suffix
+      // match — deliberately narrow so it can't accidentally also match
+      // not-logged-in.spec.js (see #1781's regex-anchoring fix). The
+      // trade-off: any NEW spec file added under e2e/ that needs an
+      // authenticated session must be added to this alternation explicitly,
+      // or it will be silently unreachable (chromium/Mobile Chrome both
+      // testIgnore e2e/** entirely) — the same failure mode #1781 exists to
+      // fix. When adding such a file, add it here too.
+      name: 'logged-in',
+      testMatch: /(?:^|\/)(logged-in|factory-registry-link)\.spec\.js$/,
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        // Only set storageState when credentials are actually configured —
+        // otherwise auth.setup.js will skip (no file produced) and every
+        // test here would fail on ENOENT instead of running unauthenticated
+        // long enough to hit real (expected) failures. Without credentials,
+        // these tests still execute against an anonymous session rather
+        // than being skipped individually — acceptable here since the
+        // project-level goal is "don't hard-fail on missing local setup,"
+        // not "every test must self-skip."
+        ...(hasCredentials ? { storageState: authFile } : {}),
+      },
     },
   ],
 
