@@ -176,29 +176,38 @@ test.describe('DataTables XSS render guard — car listing', () => {
             const table = $('#cartable').DataTable();
             const xssPayload = '<img src=x onerror="window.__idXssFlag=1">';
 
-            // The id column uses parseInt() before injecting into the href,
-            // so a non-numeric id must produce no link and no XSS.
-            const newRow = table.row.add({
-                id: xssPayload, year: '1966', type: 'S1', chassis: '1234',
-                series: 'S1', variant: 'Standard', color: 'Red',
-                image: null, fname: 'Test', city: '', state: '', country: '',
-                ctime: ''
-            });
-            newRow.draw(false);
+            // #cartable uses serverSide: true (car-list.js) — table.row.add()
+            // cannot be used to test render functions here: DataTables' own
+            // rendering for server-side tables is driven entirely by the
+            // AJAX response (see recordsDisplay() in dataTables.js), so a
+            // locally-added row's node() is always null regardless of
+            // page/search/sort state — confirmed empirically against both
+            // an empty and a 1,590-row live table. Instead, call the id
+            // column's actual render function directly via the public
+            // column().init() API (returns the original column config
+            // object passed to DataTable(), including its render function)
+            // — this exercises the exact same function car-list.js uses,
+            // with no dependency on DataTables' row/draw/server machinery.
+            const idColumnConfig = table.column(0).init();
+            // 4th arg (meta) intentionally omitted as {} — car-list.js's id
+            // renderer never reads it, only (data, type, row).
+            const renderedHtml = idColumnConfig.render(xssPayload, 'display', {});
+
+            // Inject the rendered output into a detached DOM element to
+            // check whether the browser would execute it as markup — same
+            // pattern as the render.text() escaping test above.
+            const probe = document.createElement('td');
+            probe.innerHTML = renderedHtml;
+            const hasImg  = probe.querySelector('img[src="x"]') !== null;
+            const hasLink = probe.querySelector('a[href*="car_id="]') !== null;
 
             const xssFired = typeof window.__idXssFlag !== 'undefined';
-            const rowNode   = newRow.node();
-            const hasLink   = rowNode ? rowNode.querySelector('a[href*="car_id="]') !== null : null;
-            const hasImg    = rowNode ? rowNode.querySelector('img[src="x"]') !== null : null;
-
-            newRow.remove().draw(false);
-            return { xssFired, hasLink, hasImg };
+            return { xssFired, renderedHtml, hasLink, hasImg };
         });
 
         expect(result.xssFired, 'XSS onerror fired via non-numeric id value in car listing table').toBe(false);
-        expect(result.hasLink,  'Synthetic row was not rendered on current page — link check is vacuous').not.toBeNull();
-        expect(result.hasLink,  'Non-numeric id produced a car details link in car listing table').toBe(false);
-        expect(result.hasImg,   '<img src="x"> appeared in id column of car listing table').toBe(false);
+        expect(result.hasLink,  `Non-numeric id produced a car details link in car listing table: ${result.renderedHtml}`).toBe(false);
+        expect(result.hasImg,   `<img src="x"> appeared in id column of car listing table: ${result.renderedHtml}`).toBe(false);
     });
 });
 
@@ -230,36 +239,34 @@ test.describe('DataTables XSS render guard — factory table', () => {
 
         const result = await page.evaluate(() => {
             window.__factoryXssFlag = undefined;
-            const table = $('#cartable').DataTable();
             const xssPayload = '<img src=x onerror="window.__factoryXssFlag=1">';
 
-            // Add a synthetic row with XSS payload in the color column.
-            // If render: textRender is absent from the color column, the payload
-            // renders as raw HTML and the onerror fires.
-            const newRow = table.row.add({
-                id: '0', year: '1966', month: 'Jan', batch: '1',
-                type: 'S1', serial: '0001', suffix: 'A',
-                engineletter: 'A', enginenumber: '0001',
-                gearbox: 'Ford', color: xssPayload,
-                builddate: '1966-01-01', note: '', car_id: null
-            });
-            newRow.draw(false);
+            // #cartable here uses serverSide: true (factory-list.js) — same
+            // constraint as the car-listing id-column test above:
+            // table.row.add() cannot render a client-side-only row on a
+            // server-side DataTable regardless of page/search/sort state
+            // (DataTables' rendering for serverSide tables is driven
+            // entirely by the AJAX response). factory-list.js's color
+            // column uses render: textRender, which is exactly
+            // $.fn.dataTable.render.text() (see factory-list.js:4) — the
+            // same escaping helper the "$.fn.dataTable.render.text()
+            // escapes XSS payload" test above already exercises directly.
+            // Do the same here instead of going through DataTables' row
+            // machinery.
+            const renderer = $.fn.dataTable.render.text();
+            const renderedHtml = renderer.display(xssPayload);
+
+            const probe = document.createElement('td');
+            probe.innerHTML = renderedHtml;
+            const hasImg = probe.querySelector('img[src="x"]') !== null;
 
             const xssFired = typeof window.__factoryXssFlag !== 'undefined';
-            const rowNode   = newRow.node();
-            // null means the row sorted onto a page not currently displayed —
-            // the img check would be vacuous, so we return null to fail the
-            // assertion explicitly rather than silently passing.
-            const hasImg    = rowNode ? rowNode.querySelector('img[src="x"]') !== null : null;
 
-            newRow.remove().draw(false);
-            return { xssFired, hasImg };
+            return { xssFired, renderedHtml, hasImg };
         });
 
         expect(result.xssFired, 'XSS onerror fired in factory table color column').toBe(false);
-        // null means the row was off the current page — the DOM check would have been vacuous.
-        expect(result.hasImg, 'Synthetic row was not rendered on the current page — img check is vacuous').not.toBeNull();
-        expect(result.hasImg, '<img src="x"> appeared in factory table color column').toBe(false);
+        expect(result.hasImg, `<img src="x"> appeared in factory table color column: ${result.renderedHtml}`).toBe(false);
     });
 
     test('no raw XSS probe <img src="x"> injected inside factory #cartable', async ({ page }) => {

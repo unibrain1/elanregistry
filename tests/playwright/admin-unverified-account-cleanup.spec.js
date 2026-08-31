@@ -18,8 +18,12 @@ test.describe('Admin Account Cleanup Tab', () => {
     });
 
     test('page loads with threshold form and both table skeletons', async ({ page }) => {
-        const acInput  = page.locator('input[name="ac_threshold"]');
-        const acvInput = page.locator('input[name="acv_threshold"]');
+        // Scope by id, not name — the visible inputs are the only ones with
+        // an id attribute; three hidden mirrors (delete/restore forms) share
+        // the same name attribute, which makes a bare name selector match 4
+        // elements and trip Playwright's strict mode.
+        const acInput  = page.locator('#ac_threshold');
+        const acvInput = page.locator('#acv_threshold');
 
         await expect(acInput).toBeVisible();
         await expect(acvInput).toBeVisible();
