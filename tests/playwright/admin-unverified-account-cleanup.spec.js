@@ -19,9 +19,16 @@ test.describe('Admin Account Cleanup Tab', () => {
 
     test('page loads with threshold form and both table skeletons', async ({ page }) => {
         // Scope by id, not name — the visible inputs are the only ones with
-        // an id attribute; three hidden mirrors (delete/restore forms) share
-        // the same name attribute, which makes a bare name selector match 4
-        // elements and trip Playwright's strict mode.
+        // an id attribute. A bare name selector matches 4 elements at
+        // runtime (verified via page.locator(...).count() and inspecting
+        // each element's outerHTML/closest form): the visible input, plus
+        // 3 hidden mirrors — tab-account_cleanup.php's single
+        // "$prefix.'DeleteForm'" template (line 313) renders twice, once
+        // per prefix ("acu" and "acv"), each producing its own hidden
+        // ac_threshold input (line 316) — that's 2 of the 3 — plus the
+        // separate, statically-declared arcRestoreForm (line 386). A plain
+        // grep for the literal name="ac_threshold" string undercounts this
+        // to 3 total, since the templated form only appears once in source.
         const acInput  = page.locator('#ac_threshold');
         const acvInput = page.locator('#acv_threshold');
 
