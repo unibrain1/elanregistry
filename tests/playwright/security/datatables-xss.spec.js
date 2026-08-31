@@ -35,11 +35,21 @@ const { ensureLoggedIn, waitForDataTables } = require('../auth-helper.js');
  *   4. No raw `<img>` element whose `src` is "x" (the classic onerror probe)
  *      exists anywhere inside `#cartable` after DataTables renders.
  *
- * For the factory and car-history tables, tests use DataTables' `row.add()`
- * API to inject a synthetic row containing an XSS payload in-memory, then
- * verify the rendered DOM is safe. This directly exercises the column render
- * functions and would fail if `render: textRender` were removed from any
- * text column.
+ * For the car-history table, tests use DataTables' `row.add()` API to inject
+ * a synthetic row containing an XSS payload in-memory, then verify the
+ * rendered DOM is safe — this table (car_details.js) has no `serverSide`
+ * config, so `row.add()`-created rows render normally.
+ *
+ * The car-listing (id column) and factory (color column) tables instead call
+ * their column render functions directly — via `column().init().render()`
+ * or `$.fn.dataTable.render.text()` — rather than going through
+ * DataTables' row/draw machinery. Both of those tables' `#cartable`
+ * instances use `serverSide: true`, under which DataTables' rendering is
+ * driven entirely by the AJAX response; a `row.add()`-created row never
+ * produces a renderable DOM node regardless of page/search/sort state (see
+ * #1853). Calling the render function directly is a faithful invocation of
+ * the exact function production wires to each column and would fail if
+ * `render: textRender` (or the equivalent custom function) were removed.
  *
  * Tests that navigate to authenticated pages require TEST_USERNAME /
  * TEST_PASSWORD in .env.local and skip gracefully if absent.
@@ -214,11 +224,11 @@ test.describe('DataTables XSS render guard — car listing', () => {
 // ---------------------------------------------------------------------------
 // Section 2: Factory table (app/owner/cars/factory.php → #cartable)
 //
-// Uses DataTables row.add() to inject a synthetic row with an XSS payload in
-// the color column, verifies the rendered DOM is safe, then removes the row.
-// This directly exercises the column render functions: if render: textRender
-// is removed from any text column, the onerror handler fires or an <img>
-// element appears.
+// This table uses serverSide: true, so table.row.add() cannot be used to
+// test render output (see #1853) — instead calls the color column's render
+// function (textRender = $.fn.dataTable.render.text()) directly and checks
+// the returned HTML string for injected markup. Fails if render: textRender
+// is removed from the color column.
 // ---------------------------------------------------------------------------
 
 test.describe('DataTables XSS render guard — factory table', () => {
