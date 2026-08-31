@@ -455,10 +455,16 @@ next step rather than a plain-text menu:
 
 - Question: "Plan approved. What next?"
 - Options: `Run /execute-plan now` (recommended — this is the only real next
-  step in the workflow), `Ask more questions / discuss the plan first`
+  step in the workflow), `Compact context first` (recommended before a long
+  next step — the plan is already persisted to `docs/plans/`, so compacting
+  here is safe and won't lose it), `Ask more questions / discuss the plan
+  first`
 - If the user picks `/execute-plan`, invoke it immediately via the Skill
   tool (`Skill({skill: "execute-plan"})`) rather than telling the user to
   type it themselves.
+- If the user picks `Compact context first`, tell them to run `/compact`
+  themselves — it's a client-level operation, not something this command can
+  trigger via a tool.
 - If the user picks the discuss option, drop back into normal conversation —
   do not re-offer the same question on every reply; only re-present it once
   the discussion reaches a natural stopping point or the user asks "what's

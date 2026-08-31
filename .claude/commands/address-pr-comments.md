@@ -265,6 +265,19 @@ Next step: /finish-issue [NNN] — mark ready for review, squash-merge, and
 close the issue
 ```
 
+Then use AskUserQuestion:
+
+- Question: "PR is clean. What next?"
+- Options: `Run /finish-issue` (recommended), `Compact context first`
+  (recommended before a long next step — blocking/advisory items are
+  resolved and pushed, so compacting here is safe and won't lose that
+  state), `Ask more questions / discuss first`
+- If the user picks `/finish-issue`, invoke it immediately via the Skill
+  tool rather than telling them to type it.
+- If the user picks `Compact context first`, tell them to run `/compact`
+  themselves — it's a client-level operation, not something this command can
+  trigger via a tool.
+
 ## Important
 
 - **Never force-merge over failing checks.** If CI still fails after fixes,

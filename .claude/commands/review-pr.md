@@ -346,7 +346,10 @@ start, or skipped.
 
 - Report: "Local review clean — no blocking issues, no open recommendations."
   Include the Suites executed table so the claim is backed by real counts.
-- Proceed to `/commit-push-pr` or `/commit`
+- Proceed to `/commit-push-pr` or `/commit`. Compacting context first is also
+  reasonable before that step — the review is already recorded in this
+  report, so nothing is lost. `/compact` is a client-level operation the user
+  runs themselves, not something this command can trigger via a tool.
 
 ---
 
