@@ -1,7 +1,6 @@
 // playwright.config.js
 require('dotenv').config({ path: '.env.local' });
 const { defineConfig, devices } = require('@playwright/test');
-const fs = require('fs');
 const path = require('path');
 
 // storageState paths are resolved once at config-load time, before any
