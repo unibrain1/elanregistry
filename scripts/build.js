@@ -36,6 +36,7 @@ const jsFiles = [
 const cssFiles = [
   'app/assets/css/edit_car.css',
   'app/assets/css/location-picker.css',
+  'app/assets/css/document-content.css',
   'app/admin/assets/admin-core.css',
 ];
 

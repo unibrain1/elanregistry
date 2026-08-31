@@ -450,7 +450,7 @@ if (!securePage($php_self)) {
         Because the heredoc content is echoed as a raw string rather than processed as a PHP template,
         the individual elements (<code>&lt;h1&gt;</code>, <code>&lt;table&gt;</code>,
         <code>&lt;code&gt;</code>, etc.) cannot receive Bootstrap utility classes inline.
-        <code>docs/assets/document-content.css</code> provides scoped typography for those raw elements
+        <code>app/assets/css/document-content.css</code> provides scoped typography for those raw elements
         within the <code>.document-content</code> wrapper without touching global styles. Breadcrumb styles are not included here — Bootstrap&rsquo;s
         <code>.breadcrumb</code> component handles those via the global <code>--bs-link-color</code>
         override in <code>customizer.css</code>.
@@ -569,7 +569,7 @@ function example(): string {
 
 </div>
 
-<link rel="stylesheet" href="<?= $us_url_root ?>docs/assets/document-content.css">
+<link rel="stylesheet" href="<?= $us_url_root ?>app/assets/css/document-content.min.css?v=<?= ASSET_VERSION ?>">
 <script nonce="<?= htmlspecialchars($userspice_nonce ?? '') ?>" src="<?= $us_url_root ?>users/js/chart.umd.min.js"></script>
 <script src="<?= $us_url_root ?>app/admin/assets/js/design-system.min.js?v=<?= ASSET_VERSION ?>"></script>
 
