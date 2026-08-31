@@ -151,16 +151,25 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     // Navigate to car listing page to establish session
     await page.goto('app/owner/cars/index.php', { waitUntil: 'networkidle' });
 
+    // app/api/cars/list.php requires a valid CSRF token on every POST
+    // (see Token::check() at list.php:40-42) — production's own JS
+    // consumer (car-list.js) always sends one. Fetch a real token the same
+    // way the rest of this file's non-hardcoded-CSRF tests do.
+    const csrf = await getCsrfFromSettingsPage(page);
+    test.skip(!csrf, 'Could not obtain CSRF token from user_settings.php');
+
     const response = await page.request.post('app/api/cars/list.php', {
       form: {
         draw: '1',
         start: '0',
-        length: '10'
+        length: '10',
+        csrf
       }
     });
 
     // The beforeEach hook already established an authenticated session,
-    // so this DataTables endpoint should always return 200.
+    // and a real CSRF token is now included, so this DataTables endpoint
+    // should always return 200.
     expect(response.status()).toBe(200);
 
     try {
