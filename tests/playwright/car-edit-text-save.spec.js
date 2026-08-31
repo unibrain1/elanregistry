@@ -21,7 +21,7 @@
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');
-const { CAR_ID_STANDARD, CAR_ID_WITH_SPECIAL_CHARS } = require('./fixtures.js');
+const { CAR_ID_STANDARD, CAR_ID_WITH_SPECIAL_CHARS, CAR_ID_WITH_HISTORY } = require('./fixtures.js');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -734,54 +734,67 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
     //   - No sentinel blob is sent (hasNewFiles is true)
     // -----------------------------------------------------------------------
     test('mixed save: existing image preserved in filenames, only new file in file[]', async ({ page }) => {
-        // Mock fetchImages to hydrate one existing LOCAL image
-        await page.route('**/app/api/cars/save.php', async (route, request) => {
-            const postData = request.postData() || '';
-            if (postData.includes('action=fetchImages')) {
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({
-                        success: true,
-                        images: [{ path: 'http://localhost:9999/ElanRegistry/Registry/usersc/uploads/cars/1/existing-photo.jpg', basename: 'existing-photo.jpg' }]
-                    })
-                });
-                return;
-            }
-            await route.fallback();
-        });
+        // This test specifically verifies that an existing (hydrated) image
+        // survives a save alongside a newly-added file — it requires real
+        // update-mode (window.editCarConfig.isUpdate). edit.php only ever
+        // sets that via a real POST with action=updateCar (see issue #1846
+        // — a plain car_id GET query param never triggers it). Reproduce
+        // the real "Update Car" button's POST directly (mirrors
+        // app/views/cars/_car_hero_actions.php and the precedent in
+        // car-edit-missing-car.spec.js) using CAR_ID_WITH_HISTORY — a real,
+        // existing car. TEST_USERNAME is provisioned as an Administrator
+        // (permission_id=2), so updateCarDetails()'s admin/editor bypass
+        // (edit.php's hasPerm([2,3]) check) grants access regardless of
+        // whether TEST_USERNAME owns this specific car.
+        await page.goto('app/owner/cars/edit.php', { waitUntil: 'domcontentloaded' });
 
-        await page.goto(`app/owner/cars/edit.php?car_id=${CAR_ID_STANDARD}`, { waitUntil: 'domcontentloaded' });
-
-        const currentUrl = page.url();
-        if (currentUrl.includes('login')) {
+        const initialUrl = page.url();
+        if (initialUrl.includes('login') || initialUrl.includes('Please Log In')) {
             test.skip('Session not established');
             return;
         }
+
+        const csrfToken = await page.locator('#csrf').inputValue();
+        expect(csrfToken, 'edit.php must render a #csrf hidden field to obtain a token from').toBeTruthy();
+
+        // Do NOT mock fetchImages here — CAR_ID_WITH_HISTORY is a real car
+        // with real existing photo(s) already in the DB, so fetchImages
+        // returns genuine data once update mode is reached below. Asserting
+        // against the real returned filename(s) (captured after hydration)
+        // is more robust than hardcoding an assumed name, and avoids a mock
+        // losing a timing race against the POST-triggered page reload.
+
+        await Promise.all([
+            page.waitForLoadState('domcontentloaded'),
+            page.evaluate(({ csrf, carId }) => {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = window.location.pathname;
+                const fields = { csrf, action: 'updateCar', car_id: String(carId) };
+                for (const [name, value] of Object.entries(fields)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+                document.body.appendChild(form);
+                form.submit();
+            }, { csrf: csrfToken, carId: CAR_ID_WITH_HISTORY }),
+        ]);
 
         await page.waitForFunction(
             () => typeof window.FilePond !== 'undefined' && document.querySelector('.filepond--root') !== null,
             { timeout: 15000 }
         );
 
-        // This test specifically verifies that an existing (hydrated) image
-        // survives a save alongside a newly-added file — it requires real
-        // update-mode. edit.php only enters update mode (window.editCarConfig.
-        // isUpdate) via a real POST with action=updateCar for a car the
-        // session's user actually owns (see issue #1846); the car_id GET
-        // navigation above can never trigger that, and locally TEST_USERNAME
-        // currently owns no cars, so there's no way to reach real update mode
-        // here without seeding a car fixture (out of scope for this fix).
-        // Skip rather than let the doomed hydration wait below hang the test
-        // — matches this suite's established "skip rather than assume"
-        // convention for fixture gaps (see tests/playwright/e2e/factory-registry-link.spec.js).
         const isUpdateMode = await page.evaluate(() => window.editCarConfig?.isUpdate === true);
-        if (!isUpdateMode) {
-            test.skip('Not in update mode (TEST_USERNAME owns no car locally) — cannot hydrate an existing image to test mixed save behavior. Seed a car for TEST_USERNAME (e.g. via scripts/provision-schema.sh --full or manual creation) to exercise this test.');
-            return;
-        }
+        expect(
+            isUpdateMode,
+            'POST with action=updateCar must render edit.php in real update mode — if this fails, verify TEST_USERNAME still has admin/editor access and CAR_ID_WITH_HISTORY still exists'
+        ).toBe(true);
 
-        // Wait for the LOCAL image to hydrate
+        // Wait for the real existing image(s) to hydrate
         await page.waitForFunction(
             () => {
                 const root = document.querySelector('.filepond--root');
@@ -790,6 +803,17 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
             },
             { timeout: 10000 }
         );
+
+        // Capture the real hydrated filename(s) so the later assertion checks
+        // against actual DB-backed data instead of an assumed mock value.
+        const hydratedFilenames = await page.evaluate(() => {
+            const root = document.querySelector('.filepond--root');
+            const instance = window.FilePond && window.FilePond.find(root);
+            return instance.getFiles()
+                .filter(f => f.origin === window.FilePond.FileOrigin.LOCAL)
+                .map(f => f.getMetadata('serverFilename'));
+        });
+        expect(hydratedFilenames.length, 'CAR_ID_WITH_HISTORY must have at least one existing photo to hydrate').toBeGreaterThan(0);
 
         // Capture submit POST
         let capturedRequest = null;
@@ -863,13 +887,15 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
         expect(boundaryMatch).not.toBeNull();
         const fields = parseMultipart(capturedRequest.buffer, boundaryMatch[1]);
 
-        // filenames= must contain the existing image (LOCAL file order preserved)
+        // filenames= must contain every real existing image (LOCAL file order preserved)
         const filenamesField = (fields.get('filenames') || [])[0];
         expect(filenamesField, 'filenames= field must be present').toBeDefined();
-        expect(
-            filenamesField.value,
-            'filenames= must include the existing LOCAL image basename'
-        ).toContain('existing-photo.jpg');
+        for (const hydratedName of hydratedFilenames) {
+            expect(
+                filenamesField.value,
+                `filenames= must include the existing LOCAL image basename "${hydratedName}"`
+            ).toContain(hydratedName);
+        }
 
         // No sentinel blob — hasNewFiles is true
         const fileEntries = fields.get('file[]') || [];

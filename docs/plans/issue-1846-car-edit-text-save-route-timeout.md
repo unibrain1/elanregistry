@@ -155,8 +155,42 @@ change touching test infrastructure broadly, not just this file.
 
 - No new test files. Two existing tests in `car-edit-text-save.spec.js`
   fixed in place.
-- Verification: run the full file, confirm 6 tests pass + 1 test either
-  passes (if the local DB happens to have a car for `TEST_USERNAME`) or
-  skips cleanly with a clear message (if not, matching the current local
-  state of zero cars). Re-run multiple times to rule out the exact
-  timing-dependent hang this issue reports.
+- Verification: run the full file, confirm all 7 tests pass genuinely, no
+  hangs, no skips masking real coverage gaps. Re-run multiple times to
+  rule out the exact timing-dependent hang this issue reports.
+
+## Post-Push Review Finding (PR #1866) — Corrected
+
+The CI review (`pr-to-milestone-review`) found a **Blocking** issue in the
+originally-implemented fix for test #737: the `window.editCarConfig.isUpdate`
+skip-guard checked a value from a GET navigation that can **never** set
+`isUpdate` to `true`, regardless of whether `TEST_USERNAME` owns a car —
+making the skip permanent and unconditional in every environment, not just
+locally. The skip message's framing ("seed a car to unblock this") was
+actively misleading, since even a seeded car wouldn't have fixed anything —
+the test never attempted the POST needed to reach update mode at all. The
+review correctly identified a working precedent already in this test suite:
+`tests/playwright/car-edit-missing-car.spec.js`'s self-submitting POST-form
+pattern (mirroring the real "Update Car" button's actual markup).
+
+**Corrected fix:** rewrote the test to perform that same real POST
+(`action=updateCar`) against `CAR_ID_WITH_HISTORY` (a real, existing car,
+fixture `1091`) instead of a GET. Verified empirically that `TEST_USERNAME`'s
+Administrator permissions (`hasPerm([2,3])` bypass in
+`updateCarDetails()`) grant update access regardless of car ownership, so
+no car-seeding is needed at all — the original assumption that this test
+was blocked on a missing fixture was itself wrong.
+
+Discovered during this fix: mocking `fetchImages` to return a fabricated
+image name didn't work once genuinely in update mode — the real DB-backed
+image for car 1091 loads before/instead of the mock resolves (a timing
+interaction with the POST-triggered page reload, not investigated further
+since a better fix was available). **Removed the fetchImages mock
+entirely** and instead capture whatever real filename(s) hydrate, then
+assert those specific names survive in the outgoing `filenames=` field —
+more robust than asserting against an assumed mock value, and exercises
+the test's actual intent (mixed old+new file handling) against real data.
+
+Verified: all 7 tests in the file pass genuinely (0 skipped), stable
+across repeated runs (4 isolated runs of the corrected test, 2 full-file
+runs).
