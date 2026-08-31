@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { waitForDataTables } = require('../auth-helper.js');
 
 test.describe('Factory Page - Registry Link Feature', () => {
   // Run these tests with the logged-in project
@@ -10,7 +11,7 @@ test.describe('Factory Page - Registry Link Feature', () => {
 
   test('should load factory page without errors', async ({ page }) => {
     // Navigate to Factory page
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
     await page.waitForLoadState('domcontentloaded');
 
     console.log('✓ Factory page loaded');
@@ -44,7 +45,7 @@ test.describe('Factory Page - Registry Link Feature', () => {
   });
 
   test('should display Registry Link column in table header', async ({ page }) => {
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
     await page.waitForLoadState('domcontentloaded');
 
     // Look for Registry Link column header
@@ -60,10 +61,10 @@ test.describe('Factory Page - Registry Link Feature', () => {
     // not guarantee a chassis match exists. Skip rather than assume, same
     // caution as the pagination test below.
 
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
 
     // Wait for table to load
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
+    await waitForDataTables(page);
     console.log('✓ DataTable loaded');
 
     // Registry Link renders synchronously with DataTable draw — no AJAX wait needed
@@ -90,10 +91,10 @@ test.describe('Factory Page - Registry Link Feature', () => {
     // data as the matched-chassis test above — see its comment. Skip rather
     // than assume.
 
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
 
     // Wait for table to load
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
+    await waitForDataTables(page);
     console.log('✓ DataTable loaded');
 
     // Registry Link renders synchronously — wait for containers to appear
@@ -114,9 +115,9 @@ test.describe('Factory Page - Registry Link Feature', () => {
   });
 
   test('should handle null/missing chassis gracefully', async ({ page }) => {
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
 
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
+    await waitForDataTables(page);
     console.log('✓ DataTable loaded');
 
     await page.waitForSelector('.registry-link-container', { timeout: 10000 });
@@ -130,10 +131,10 @@ test.describe('Factory Page - Registry Link Feature', () => {
   });
 
   test('should maintain Registry Link functionality across pagination', async ({ page }) => {
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
 
     // Wait for initial table
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
+    await waitForDataTables(page);
     await page.waitForSelector('.registry-link-container', { timeout: 10000 });
     console.log('✓ Page 1 loaded');
 
@@ -175,10 +176,10 @@ test.describe('Factory Page - Registry Link Feature', () => {
   test('should load Registry Links within reasonable time', async ({ page }) => {
     const startTime = Date.now();
 
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
 
     // Wait for table
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
+    await waitForDataTables(page);
 
     // Registry Link renders synchronously — wait for containers to appear
     await page.waitForSelector('.registry-link-container', { timeout: 10000 });
@@ -200,10 +201,10 @@ test.describe('Factory Page - Registry Link Feature', () => {
   });
 
   test('"View Car" button should navigate to car details page', async ({ page, context }) => {
-    await page.goto('/app/owner/cars/factory.php');
+    await page.goto('app/owner/cars/factory.php');
 
     // Wait for table and AJAX
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
+    await waitForDataTables(page);
     await page.waitForSelector('.registry-link-container', { timeout: 10000 });
 
     // Find a View Car button
@@ -235,8 +236,8 @@ test.describe('Factory Page - Registry Link Feature', () => {
       }
     });
 
-    await page.goto('/app/owner/cars/factory.php');
-    await page.waitForSelector('.dataTables_wrapper', { timeout: 10000 });
+    await page.goto('app/owner/cars/factory.php');
+    await waitForDataTables(page);
     await page.waitForSelector('.registry-link-container', { timeout: 10000 });
 
     expect(chassisLookupRequests).toHaveLength(0);

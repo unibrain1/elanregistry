@@ -9,12 +9,13 @@ test.describe('Elan Registry - Menu Verification (Logged In)', () => {
   });
 
   test('should show correct menu items when logged in with proper ordering', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('');
     await page.waitForLoadState('domcontentloaded');
 
-    // Get all navigation links (adjust selector based on actual menu structure)
-    // Common selectors: 'nav a', 'header nav a', '.menu a', '.navigation a'
-    const navLinks = await page.locator('nav a, header nav a, .menu a, .navigation a').allTextContents();
+    // Menu markup (usersc/templates/customizer/file_nav_custom.php) is a
+    // bare <ul class="us_menu"> with no <nav>/<header> wrapper — target the
+    // actual Customizer menu class rather than semantic tags that aren't used.
+    const navLinks = await page.locator('.us_menu a').allTextContents();
 
     console.log('\n=== Menu Items Found ===');
     navLinks.forEach((text, index) => {
@@ -22,23 +23,27 @@ test.describe('Elan Registry - Menu Verification (Logged In)', () => {
     });
 
     // Verify "Add Car" link exists (replaces "Register")
-    const addCarLink = page.locator('nav a:has-text("Add Car"), header a:has-text("Add Car")');
+    const addCarLink = page.locator('.us_menu a:has-text("Add Car")');
     await expect(addCarLink.first()).toBeVisible();
     console.log('\n✓ "Add Car" menu item found (replaces "Register")');
 
-    // Verify "Feedback" link exists (new menu item)
-    const feedbackLink = page.locator('nav a:has-text("Feedback"), header a:has-text("Feedback")');
-    await expect(feedbackLink.first()).toBeVisible();
+    // "Feedback" and "Account" live inside the collapsed username dropdown
+    // (file_nav_custom.php's .us_sub-menu under the account toggle) — present
+    // in the DOM but not visible until the dropdown is opened, same as the
+    // "Reference" dropdown items checked further below. Check attachment,
+    // not visibility, matching that established convention in this file.
+    const feedbackLink = page.locator('.us_menu a:has-text("Feedback")');
+    await expect(feedbackLink.first()).toBeAttached();
     console.log('✓ "Feedback" menu item found (new when logged in)');
 
     // Verify "Account" link exists (replaces "Login")
-    const accountLink = page.locator('nav a:has-text("Account"), header a:has-text("Account")');
-    await expect(accountLink.first()).toBeVisible();
+    const accountLink = page.locator('.us_menu a:has-text("Account")');
+    await expect(accountLink.first()).toBeAttached();
     console.log('✓ "Account" menu item found (replaces "Login")');
 
     // Verify "Register" and "Login" links do NOT exist in navigation
-    const registerCount = await page.locator('nav a:has-text("Register"), header a:has-text("Register")').count();
-    const loginCount = await page.locator('nav a:has-text("Log In"), header a:has-text("Login")').count();
+    const registerCount = await page.locator('.us_menu a:has-text("Register")').count();
+    const loginCount = await page.locator('.us_menu a:has-text("Log In")').count();
 
     expect(registerCount).toBe(0);
     expect(loginCount).toBe(0);
@@ -54,7 +59,7 @@ test.describe('Elan Registry - Menu Verification (Logged In)', () => {
     ];
 
     for (const menuItem of expectedVisibleMenuItems) {
-      const link = page.locator(`nav a:has-text("${menuItem}"), header a:has-text("${menuItem}")`);
+      const link = page.locator(`.us_menu a:has-text("${menuItem}")`);
       await expect(link.first()).toBeVisible();
     }
     console.log('✓ All top-level menu items present and visible');
@@ -67,7 +72,7 @@ test.describe('Elan Registry - Menu Verification (Logged In)', () => {
     ];
 
     for (const menuItem of dropdownItems) {
-      const link = page.locator(`nav a:has-text("${menuItem}"), header a:has-text("${menuItem}")`);
+      const link = page.locator(`.us_menu a:has-text("${menuItem}")`);
       await expect(link.first()).toBeDefined();
     }
     console.log('✓ All dropdown menu items exist');
@@ -84,13 +89,21 @@ test.describe('Elan Registry - Car Update Functionality (Logged In)', () => {
 
   test('should be able to update car information', async ({ page }) => {
     // Navigate to account page
-    await page.goto('/users/account.php');
+    await page.goto('users/account.php');
     await page.waitForLoadState('domcontentloaded');
 
     console.log('✓ Navigated to account page');
 
+    // The "Update Car" button only renders inside account.php's per-car loop
+    // (app/views/cars/_car_hero_actions.php) — if TEST_USERNAME has no
+    // registered cars locally, there's nothing to click. Skip rather than
+    // assume, same convention used for fixture-dependent factory-page tests.
+    const updateCarButton = page.locator('button:has-text("Update Car"), a:has-text("Update Car")');
+    const hasCarToUpdate = await updateCarButton.count() > 0;
+    test.skip(!hasCarToUpdate, 'TEST_USERNAME account has no registered cars locally — nothing to update');
+
     // Click "Update Car" button to enter the update workflow
-    await page.click('button:has-text("Update Car"), a:has-text("Update Car")');
+    await updateCarButton.first().click();
     await page.waitForLoadState('domcontentloaded');
     console.log('✓ Entered car update workflow');
 
@@ -137,14 +150,14 @@ test.describe('Elan Registry - All Pages (Logged In)', () => {
   });
 
   const pages = [
-    { path: '/', name: 'Home' },
-    { path: '/app/owner/cars/index.php', name: 'List Cars' },
-    { path: '/app/owner/reports/statistics.php', name: 'Statistics' },
-    { path: '/docs/reference/identification-guide.php', name: 'Identification Guide' },
-    { path: '/app/owner/cars/factory.php', name: 'Factory Data' },
-    { path: '/docs/reference/index.php', name: 'Reference Library' },
-    { path: '/docs/car-stories.php', name: 'Car Stories' },
-    { path: '/docs/guides/index.php', name: 'Guides' },
+    { path: '', name: 'Home' },
+    { path: 'app/owner/cars/index.php', name: 'List Cars' },
+    { path: 'app/owner/reports/statistics.php', name: 'Statistics' },
+    { path: 'docs/reference/identification-guide.php', name: 'Identification Guide' },
+    { path: 'app/owner/cars/factory.php', name: 'Factory Data' },
+    { path: 'docs/reference/index.php', name: 'Reference Library' },
+    { path: 'docs/car-stories.php', name: 'Car Stories' },
+    { path: 'docs/guides/index.php', name: 'Guides' },
   ];
 
   pages.forEach(({ path, name }) => {
@@ -176,14 +189,14 @@ test.describe('Internal Links Discovery and Testing (Logged In)', () => {
   });
 
   const pages = [
-    { path: '/', name: 'Home' },
-    { path: '/app/owner/cars/index.php', name: 'List Cars' },
-    { path: '/app/owner/reports/statistics.php', name: 'Statistics' },
-    { path: '/docs/reference/identification-guide.php', name: 'Identification Guide' },
-    { path: '/app/owner/cars/factory.php', name: 'Factory Data' },
-    { path: '/docs/reference/index.php', name: 'Reference Library' },
-    { path: '/docs/car-stories.php', name: 'Car Stories' },
-    { path: '/docs/guides/index.php', name: 'Guides' },
+    { path: '', name: 'Home' },
+    { path: 'app/owner/cars/index.php', name: 'List Cars' },
+    { path: 'app/owner/reports/statistics.php', name: 'Statistics' },
+    { path: 'docs/reference/identification-guide.php', name: 'Identification Guide' },
+    { path: 'app/owner/cars/factory.php', name: 'Factory Data' },
+    { path: 'docs/reference/index.php', name: 'Reference Library' },
+    { path: 'docs/car-stories.php', name: 'Car Stories' },
+    { path: 'docs/guides/index.php', name: 'Guides' },
   ];
 
   test('find all internal links across all pages when logged in (excluding header)', async ({ page }) => {
@@ -331,8 +344,15 @@ test.describe('Internal Links Discovery and Testing (Logged In)', () => {
     for (const linkPath of downloadableLinks) {
       try {
         const context = page.context();
-        const baseURL = 'https://elanregistry.org';
-        const fullURL = linkPath.startsWith('http') ? linkPath : baseURL + linkPath;
+        // linkPath is an absolute-path href scraped directly from the
+        // rendered page (e.g. '/ElanRegistry/Registry/docs/pdf-viewer.php?...'
+        // locally, '/docs/pdf-viewer.php?...' when deployed) — it already
+        // includes whatever path prefix this environment uses. Resolve it
+        // against the current page's own origin rather than a hardcoded
+        // 'https://elanregistry.org', which previously made this always
+        // target prod regardless of which config ran the test, 404ing on
+        // local's path-prefixed URLs.
+        const fullURL = linkPath.startsWith('http') ? linkPath : new URL(linkPath, page.url()).toString();
 
         const response = await context.request.head(fullURL);
         const status = response.status();

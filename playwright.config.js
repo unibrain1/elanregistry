@@ -7,8 +7,6 @@ const { defineConfig, devices } = require('@playwright/test');
  */
 module.exports = defineConfig({
   testDir: './tests/playwright',
-  /* Exclude E2E tests (they use playwright.config.prod.js) */
-  testIgnore: '**/e2e/**',
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -40,12 +38,27 @@ module.exports = defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/mobile-responsive.spec.js',
+      testIgnore: ['**/e2e/**', '**/mobile-responsive.spec.js'],
     },
     {
       name: 'Mobile Chrome',
       use: { ...devices['iPhone SE'] },
       testMatch: '**/mobile-responsive.spec.js',
+      testIgnore: '**/e2e/**',
+    },
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'logged-in',
+      testMatch: /(?:^|\/)(logged-in|factory-registry-link)\.spec\.js$/,
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests/playwright/.auth/user.json',
+      },
     },
   ],
 
