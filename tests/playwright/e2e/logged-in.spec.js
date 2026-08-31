@@ -88,8 +88,14 @@ test.describe('Elan Registry - Car Update Functionality (Logged In)', () => {
   });
 
   test('should be able to update car information', async ({ page }) => {
-    // Navigate to account page
-    await page.goto('users/account.php');
+    // Navigate to account page. NOTE: usersc/account.php, not
+    // users/account.php — the latter is the upstream UserSpice profile
+    // page and never includes app/views/cars/_car_hero_actions.php (the
+    // partial that renders the "Update Car" button), so this test's
+    // hasCarToUpdate guard previously fired unconditionally regardless of
+    // fixture data. usersc/account.php is ElanRegistry's customized page
+    // that actually lists the user's cars.
+    await page.goto('usersc/account.php');
     await page.waitForLoadState('domcontentloaded');
 
     console.log('✓ Navigated to account page');

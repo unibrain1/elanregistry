@@ -1,6 +1,19 @@
 // playwright.config.js
 require('dotenv').config({ path: '.env.local' });
 const { defineConfig, devices } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+
+// storageState paths are resolved once at config-load time, before any
+// project runs — so if TEST_USERNAME/TEST_PASSWORD are unset, auth.setup.js
+// will skip (leaving no file) and every `logged-in` test would fail with
+// ENOENT instead of skipping. Checking the credentials directly here (not
+// just file existence, which can't self-heal on a fresh checkout — the file
+// legitimately doesn't exist yet until `setup` first runs successfully)
+// lets the project include storageState only when auth.setup.js is actually
+// going to produce or already has produced it.
+const authFile = path.join(__dirname, 'tests/playwright/.auth/user.json');
+const hasCredentials = !!(process.env.TEST_USERNAME && process.env.TEST_PASSWORD);
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -48,7 +61,7 @@ module.exports = defineConfig({
     },
     {
       name: 'setup',
-      testMatch: /.*\.setup\.js/,
+      testMatch: /(?:^|\/)e2e\/.*\.setup\.js$/,
       use: { ...devices['Desktop Chrome'] },
     },
     {
@@ -65,7 +78,15 @@ module.exports = defineConfig({
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests/playwright/.auth/user.json',
+        // Only set storageState when credentials are actually configured —
+        // otherwise auth.setup.js will skip (no file produced) and every
+        // test here would fail on ENOENT instead of running unauthenticated
+        // long enough to hit real (expected) failures. Without credentials,
+        // these tests still execute against an anonymous session rather
+        // than being skipped individually — acceptable here since the
+        // project-level goal is "don't hard-fail on missing local setup,"
+        // not "every test must self-skip."
+        ...(hasCredentials ? { storageState: authFile } : {}),
       },
     },
   ],

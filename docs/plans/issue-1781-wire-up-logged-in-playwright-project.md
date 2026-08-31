@@ -354,3 +354,50 @@ already used by `auth-helper.js`'s `login()`).
   non-zero executed-test counts (previously: 0 collected / all skipped),
   then the full local suite to confirm no regression to the untouched
   `chromium`/`Mobile Chrome` projects.
+
+## Post-PR Review Findings (PR #1860)
+
+The `/review-pr` code-reviewer agent (launched during `/execute-plan`,
+before push) surfaced its full report after the PR was already open. Two
+genuine **Blocking** issues in the pushed diff, both fixed and verified:
+
+1. **`storageState` ENOENT crash instead of graceful skip.** The
+   `logged-in` project's `use.storageState` pointed unconditionally at
+   `tests/playwright/.auth/user.json`. Since Playwright resolves
+   `storageState` once at config-load time (not per-test, and not
+   re-checked after `setup` runs), a fresh checkout or any run with
+   `TEST_USERNAME`/`TEST_PASSWORD` unset would have `auth.setup.js` skip
+   (producing no file) while every dependent `logged-in` test still tried
+   to read that nonexistent file — 12 hard `ENOENT` failures, reproduced
+   directly, not the "skips gracefully" behavior claimed in CLAUDE.md and
+   the release notes. **Fix:** check `TEST_USERNAME`/`TEST_PASSWORD`
+   directly at config-load time (`hasCredentials`, not file existence,
+   since the file legitimately doesn't exist yet pre-`setup` on a fresh
+   checkout) and only set `storageState` when credentials are present.
+   Verified: with `.env.local` fully removed and no auth file present, the
+   suite now runs 19 passed/2 skipped/1 failed (the 1 failure is the menu
+   test correctly finding no "Add Car" link while unauthenticated — a real,
+   meaningful failure, not a config crash) instead of 12 ENOENT crashes.
+2. **Car-update test navigated to the wrong page.** `test.goto('users/account.php')`
+   targets upstream UserSpice's profile page, not `usersc/account.php` —
+   ElanRegistry's customized page that actually lists a user's cars and is
+   the only page that includes `app/views/cars/_car_hero_actions.php` (the
+   partial rendering the "Update Car" button). The `test.skip()` guard
+   added earlier in this plan's own Implementation Checklist was
+   technically correct in isolation but was masking this wrong-URL bug —
+   it fired unconditionally regardless of whether `TEST_USERNAME` owned
+   cars, since the button could never exist on that page at all. **Fix:**
+   corrected to `usersc/account.php`. Confirmed the account still
+   genuinely has zero cars locally (test still skips, correctly, for the
+   real fixture-gap reason this time — verified via the account page's own
+   authenticated snapshot showing "My Cars 0").
+
+One Recommendation also addressed: the `setup` project's `testMatch` was
+unanchored (`/.*\.setup\.js/`, no directory scoping), risking silently
+absorbing any future `*.setup.js` file added anywhere under
+`tests/playwright/`. Anchored to `/(?:^|\/)e2e\/.*\.setup\.js$/`; reverified
+it still matches `auth.setup.js` alone.
+
+Final re-verification after all fixes: `logged-in` project — 21 passed, 1
+skipped, 0 failed (unchanged from pre-review baseline); `chromium` 236
+tests/35 files, `Mobile Chrome` 13 tests/1 file (unchanged).
