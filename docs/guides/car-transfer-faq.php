@@ -9,7 +9,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.ph
 use ElanRegistry\Documentation\DocumentPortalTemplate;
 
 if (!securePage($php_self)) {
-    Redirect::to($us_url_root . '403.php');
+    die();
 }
 
 $title       = 'Car Transfer FAQ';
