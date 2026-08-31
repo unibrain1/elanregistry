@@ -299,6 +299,32 @@ already used by `auth-helper.js`'s `login()`).
       out-of-scope finding (`toBeDefined()` no-op assertion on the
       "Reference" dropdown items check) filed separately as
       [#1859](https://github.com/elan-registry/registry/issues/1859).
+- [x] Ran `/review-pr` (code-reviewer + pr-test-analyzer in parallel) before
+      pushing. `pr-test-analyzer` found one genuine **Blocking** issue:
+      `auth.setup.js`'s `test.skip()` when `TEST_USERNAME`/`TEST_PASSWORD`
+      are unset does not prevent the dependent `logged-in` project from
+      running — Playwright's `dependencies: ['setup']` only blocks
+      dependents on setup *failure*, not *skip*, so a stale
+      `tests/playwright/.auth/user.json` from a prior run would be silently
+      reused, running tests under a possibly-expired session instead of
+      skipping. Confirmed reproducible (a stale file was present on disk).
+      **Fixed:** `auth.setup.js` now `fs.rmSync(authFile, { force: true })`
+      before the skip. Verified by temporarily disabling `.env.local`
+      entirely (backed up first, restored after, diffed identical) — stale
+      file confirmed deleted, setup test confirmed skipped. Re-ran the full
+      `logged-in` project afterward with real credentials restored:
+      21 passed, 1 skipped, 0 failed — unchanged.
+      Also flagged (Recommendation, addressed): the `logged-in` project's
+      `testMatch` is an exact-filename allowlist — any future authenticated
+      spec added under `e2e/` needs to be added to the regex explicitly or
+      it will be silently unreachable (same failure class as this issue).
+      Added an inline comment in `playwright.config.js` documenting this
+      trade-off and the required action for future spec authors, rather
+      than broadening the match (a directory/suffix-based match risks
+      re-capturing `not-logged-in.spec.js`, the exact bug the anchoring fix
+      just resolved).
+      Also independently reconfirmed the `toBeDefined()` finding already
+      tracked as #1859 — no new issue needed.
 
 ## Test Plan
 

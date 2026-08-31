@@ -52,6 +52,14 @@ module.exports = defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      // NOTE: this is an exact-filename allowlist, not a directory/suffix
+      // match — deliberately narrow so it can't accidentally also match
+      // not-logged-in.spec.js (see #1781's regex-anchoring fix). The
+      // trade-off: any NEW spec file added under e2e/ that needs an
+      // authenticated session must be added to this alternation explicitly,
+      // or it will be silently unreachable (chromium/Mobile Chrome both
+      // testIgnore e2e/** entirely) — the same failure mode #1781 exists to
+      // fix. When adding such a file, add it here too.
       name: 'logged-in',
       testMatch: /(?:^|\/)(logged-in|factory-registry-link)\.spec\.js$/,
       dependencies: ['setup'],
