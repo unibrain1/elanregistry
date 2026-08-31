@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace ElanRegistry\Car;
 
 use Exception;
-use Token;
 use ElanRegistry\AppConstants;
 use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarCreationException;
 use ElanRegistry\Exceptions\CarDatabaseException;
-use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\Exceptions\ImageProcessingException;
@@ -466,20 +464,17 @@ class Car
     /**
      * Delete the car and all associated records
      *
+     * CSRF is validated by the caller (HTTP layer, admin/index.php) before
+     * delete() is called — see #1519, #1829.
+     *
      * @param string $reason Reason for deletion (for audit trail)
-     * @param string $token CSRF token (required)
      * @param int $actingUserId ID of the admin performing the action — caller MUST verify
      *                         the user is authenticated and authorized before invoking
      * @return bool True if deletion was successful
      * @throws Exception If validation fails or database operation fails
      */
-    public function delete(string $reason, string $token, int $actingUserId): bool
+    public function delete(string $reason, int $actingUserId): bool
     {
-        if (!Token::check($token)) {
-            logger($actingUserId, LogCategories::LOG_CATEGORY_ACCESS_DENIED, 'Car deletion rejected: invalid CSRF token');
-            throw new CarDeletionException('CSRF token validation failed - possible security issue.');
-        }
-
         if (!$this->exists()) {
             logger($actingUserId, LogCategories::LOG_CATEGORY_CAR_DELETION, 'Car not found - cannot delete car ID: unknown');
             throw new CarNotFoundException('The car could not be found or may have already been removed.');

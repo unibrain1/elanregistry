@@ -43,6 +43,31 @@ test.describe('Admin confirmation modal — index', () => {
         await expect(page.locator('#confirmationModal')).not.toBeVisible();
     });
 
+    test('car deletion is rejected with an invalid CSRF token (#1829)', async ({ page }) => {
+        // Car::delete() dropped its internal Token::check() in #1829 — CSRF is
+        // now enforced only by the gate at app/admin/index.php:176-178, before
+        // the command switch (including case "delete") is ever reached. This
+        // proves that gate actually rejects the delete command end-to-end,
+        // rather than relying on code inspection alone. Uses CAR_ID_NONEXISTENT
+        // so even a rejection failure can't delete a real car — the CSRF gate
+        // runs before the car-lookup/exists() check either way.
+        const response = await page.request.post('app/admin/index.php', {
+            form: {
+                command: 'delete',
+                car_id: '999999999',
+                confirmation: 'DELETE',
+                reason: 'Playwright CSRF rejection test',
+                csrf: 'invalid_token'
+            }
+        });
+
+        // token_error.php dies with a plain HTML page (no distinct HTTP status
+        // or JSON) — assert on its rendered content instead of status code.
+        const body = await response.text();
+        expect(body).toContain('There was an error with your form');
+        expect(body).not.toContain('permanently deleted');
+    });
+
     test('no JS errors on page load', async ({ page }) => {
         const errors = [];
         page.on('console', msg => {

@@ -346,7 +346,7 @@ if (ElanInput::existsPost()) {
                             break;
                         }
                         $chassis = $car->data()->chassis;
-                        $car->delete($reason, $token, $currentUserId);
+                        $car->delete($reason, $currentUserId);
                         $successes[] = "Car ID $car_id ($chassis) has been permanently deleted";
                     } catch (CarNotFoundException $e) {
                         // Race: car deleted between the exists() check and delete().
@@ -354,7 +354,8 @@ if (ElanInput::existsPost()) {
                             "Car ID $car_id not found during deletion attempt");
                         $errors[] = "Car ID $car_id not found";
                     } catch (CarDeletionException | CarDatabaseException $e) {
-                        // Car::delete() logs CSRF failures; CarAdministrationService::delete() logs DB failures.
+                        // CarAdministrationService::delete() logs DB failures; CSRF is validated
+                        // above (line ~176) before this switch is reached.
                         $errors[] = "Failed to delete car. Check the system log for details.";
                     } catch (\Throwable $e) {
                         logger($currentUserId, LogCategories::LOG_CATEGORY_CAR_DELETION,

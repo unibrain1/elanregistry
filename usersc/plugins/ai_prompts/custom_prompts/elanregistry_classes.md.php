@@ -67,7 +67,7 @@ $car->update([
 ]);
 
 // Delete (hard delete; cars_hist trigger records the audit trail)
-$car->delete('Reason for deletion', Token::generate(), currentUserId());
+$car->delete('Reason for deletion', currentUserId());
 ```
 
 **Key database tables:** `cars` (primary), `cars_hist` (trigger-written audit trail),
