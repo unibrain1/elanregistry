@@ -179,22 +179,6 @@ test.describe('Registry-Specific AJAX Endpoints', () => {
     }
   });
 
-  test('map markers XML endpoint returns valid data', async ({ page }) => {
-    // Test the Google Maps markers endpoint
-    const response = await page.request.get('app/cars/mapmarkers.xml.php');
-
-    expect(response.status()).toBe(200);
-
-    const responseText = await response.text();
-
-    // Should contain XML structure for map markers
-    expect(responseText).toContain('<markers>');
-    expect(responseText).toContain('</markers>');
-
-    // Content should be valid XML or at least structured
-    expect(responseText.length).toBeGreaterThan(20);
-  });
-
   test('owner contact endpoint requires authentication', async ({ page }) => {
     // Test the owner-to-owner contact system
     const response = await page.request.post('app/api/contact/send-owner-email.php', {
