@@ -39,25 +39,45 @@ Ask:
 
 Wait for the answer.
 
-### Step 3: Classify — Severity
+### Step 3: Classify — Necessity (in scope) or Emergency (out of scope)
 
-Ask:
+For an **in-scope** find, ask:
 
-> "How severe is this?"
+> "Can this issue's acceptance criteria be met without fixing this?"
 
-- **High** — security vulnerability, data loss risk, or incorrect visible behaviour
-- **Low** — cosmetic, code quality, dead code, or minor internal inconsistency
+- **No** — the fix is required for the current issue to be done
+- **Yes** — the current issue is complete without it
+
+For an **out-of-scope** find, ask:
+
+> "Is production broken, is data at risk, or is this a security exposure?"
+
+- **Yes** — an emergency
+- **No** — everything else
 
 Wait for the answer.
 
 ### Step 4: Apply the decision matrix and act
 
-| Containment | Severity | Action |
+| Containment | Classification | Action |
 | --- | --- | --- |
-| In scope | High | **Fix in current PR** — fold into current scope |
-| In scope | Low | **Fix in current PR** if < ~30 min; otherwise defer |
-| Out of scope | High | **Fix in current milestone** — new issue, elevated priority |
-| Out of scope | Low | **Defer** — new issue with `triage` label, no milestone |
+| In scope | Needed for the acceptance criteria | **Fix in current PR** |
+| In scope | Not needed for the acceptance criteria | **Defer** — new issue, however small the fix looks |
+| Out of scope | Production broken / data at risk / security exposure | **Hotfix track** — branch from `main`, patch release outside the milestone |
+| Out of scope | Anything else | **Defer** — new issue with `triage` label, no milestone |
+
+**Why "it's only 30 minutes" is no longer a cell in this matrix.** The rule
+this replaces let any in-scope low-severity find be folded in if it looked
+like under half an hour of work. That estimate is self-assessed, made at the
+moment of maximum enthusiasm, and it is the most common way a diff grows past
+its plan. The test is now whether the acceptance criteria can be met without
+the fix — not how long the fix looks.
+
+**Why an out-of-scope emergency no longer joins the current milestone.** A
+sealed milestone is what makes the release predictable. Genuine emergencies
+don't wait for the next planning session, but they ship as a patch release
+from `main`, leaving the current milestone's scope untouched. Everything else
+queues.
 
 #### Fix in current PR
 
@@ -66,7 +86,12 @@ Wait for the answer.
 
 No new issue needed. Add a "Found in passing" item to the plan and PR body.
 
-#### Fix in current milestone
+#### Hotfix track
+
+Only for production being broken, data at risk, or a security exposure. Branch
+from `main`, not from the milestone branch, and ship as a patch release
+outside the current milestone — do **not** add the issue to the open
+milestone, which stays sealed at its planned scope.
 
 Prefix `CONCISE_TITLE` with `bug:` (or the closest matching type if this
 isn't actually a defect — e.g. `security:`) — this issue has no acceptance
@@ -78,11 +103,11 @@ gh issue create \
   --repo elan-registry/registry \
   --title "bug: CONCISE_TITLE" \
   --body "Pre-existing issue found while working on #CURRENT_ISSUE.\n\nDESCRIPTION" \
-  --label "bug,triage" \
-  --milestone "CURRENT_MILESTONE_TITLE"
+  --label "bug,triage,signal:defect"
 ```
 
-> "Created issue #NNN in the current milestone."
+> "Created issue #NNN on the hotfix track — the current milestone is
+> unchanged."
 
 #### Defer
 
@@ -95,7 +120,7 @@ gh issue create \
   --repo elan-registry/registry \
   --title "TYPE: CONCISE_TITLE" \
   --body "Pre-existing issue found while working on #CURRENT_ISSUE.\n\nDESCRIPTION" \
-  --label "triage"
+  --label "triage,signal:discovered"
 ```
 
 > "Created issue #NNN with the `triage` label for later review."
@@ -107,9 +132,9 @@ current task. Do not interrupt the flow further.
 
 ## Quick reference
 
-| Example found issue | Containment | Severity | Action |
+| Example found issue | Containment | Classification | Action |
 | --- | --- | --- | --- |
-| Missing null check in a file you're already editing | In scope | High | Fix in current PR |
-| Dead code in a file you're already editing | In scope | Low | Fix in current PR |
-| SQL query without prepared statement in a different module | Out of scope | High | Fix in current milestone |
-| Unused variable in an unrelated helper | Out of scope | Low | Defer |
+| Missing null check on a path this issue's criteria depend on | In scope | Needed | Fix in current PR |
+| Dead code in a file you're already editing | In scope | Not needed | Defer |
+| SQL query without prepared statement in a different module | Out of scope | Security exposure | Hotfix track |
+| Unused variable in an unrelated helper | Out of scope | Anything else | Defer |

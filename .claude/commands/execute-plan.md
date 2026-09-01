@@ -261,31 +261,62 @@ then re-check the `CHANGED_FILES` loop above returns nothing for it.
 **If no changed file appears in the baseline:** proceed to Step 7 with
 nothing to do here.
 
-### Step 7: Security and Architect Review
+### Step 7: The single review round — all reviewers, in parallel, before the push
 
-- **Run `/security-review`** (security-reviewer agent) if the plan's Database
-  & Security Considerations section is non-empty, or any changed file
-  touches forms/SQL/auth. Address Critical/High findings before proceeding.
-- **Launch `senior-architect`** for final review of the complete diff:
-  security verification, database verification, code quality, standards
-  adherence, test coverage, documentation completeness. Defaults to Opus;
-  pass `model: "sonnet"` explicitly for Small/Medium-tier plans if a cheaper
-  run is preferred.
-- **If any changed file added a new public method with structured-input
-  parameters (array/DB row/JSON) or new/modified SQL**, also launch
-  `silent-failure-hunter` on that file alongside the architect — cheap
-  relative to a later `/review-pr` round, and this is exactly the class of
-  issue architect review (design/security/coverage-focused) has missed here
-  before: a wrong-typed value reaching a strictly-typed private helper as an
-  uncaught `\TypeError` instead of the method's documented exception. Skip
-  this agent when neither condition applies — it is not a blanket addition
-  to every plan.
+**Launch every applicable reviewer at once, against the same commit.** Not in
+sequence, and not spread across the push:
 
-Address any findings — loop back to Step 5 (software-developer agents) for
-fixes, then re-run the specific review that flagged the issue, not the whole
-step.
+- **senior-architect** — the complete diff: architecture fit, code quality,
+  standards adherence, documentation completeness. Defaults to Opus; pass
+  `model: "sonnet"` for Small/Medium-tier plans.
+- **security-reviewer** — if the plan's Database & Security Considerations
+  section is non-empty, or any changed file touches forms, SQL, or auth.
+- **code-reviewer** — CLAUDE.md and CODING_STANDARDS.md conformance.
+- **pr-test-analyzer** — coverage of the plan's acceptance criteria.
+- **silent-failure-hunter** — if the diff adds or changes any catch block,
+  fallback, or error path, **or** adds a new public method with
+  structured-input parameters (array/DB row/JSON) or new/modified SQL. That
+  second trigger is the class of issue architect review (design/security/
+  coverage-focused) has missed here before: a wrong-typed value reaching a
+  strictly-typed private helper as an uncaught `\TypeError` instead of the
+  method's documented exception. Skip when neither condition applies — it is
+  not a blanket addition to every plan.
 
-Mark the corresponding checklist items `[x]` once each review is clean.
+These are the same agents `/review-pr` runs. They run **here**, before the
+push — not after it.
+
+**Why parallel and why before the push.** Serial reviewers each see a
+different artifact, which guarantees that round N+1 finds something round N
+never looked at. Sampled issue PRs #1838, #1841, #1845 and #1860 were each
+implemented once and reviewed two to four times, every round producing its own
+commit — and in two of the four, a round existed only to repair a defect the
+*previous* round's fix introduced. The fix commit is always the least
+scrutinised code in the PR.
+
+**Triage every finding once, into three buckets:**
+
+| Bucket | Test | Action |
+| --- | --- | --- |
+| **Blocking** | Verified, reproducible, and in this diff | Fix now, this PR |
+| **Advisory** | Real, but not this issue's job | New issue via `/found` |
+| **Note** | Wording, style, docs nuance | Fix only if already on that line |
+
+Fix all Blocking findings in **one** commit, then re-check **only that
+commit's diff**, with only the reviewers whose findings it addressed. That is
+round two, it is cheap, and it is exactly where the two self-inflicted
+regressions above would have been caught.
+
+**The two-round ceiling.** If a third round is needed, stop. Three rounds of
+fixes on one issue means the plan was wrong, not that the reviewers are
+thorough — use AskUserQuestion to re-gate the plan rather than continuing to
+patch:
+
+- Question: "This is the third review round on #NNN. What's the call?"
+- Options: `Re-scope the plan` (recommended — the remaining findings suggest
+  the approach, not the code, is the problem), `Split the rest into a
+  follow-up issue`, `Keep fixing in this PR` (say why)
+
+Mark the corresponding checklist items `[x]` once the round is clean.
 
 ### Step 8: Confirm Plan Completeness
 

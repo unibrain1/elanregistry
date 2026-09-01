@@ -270,6 +270,29 @@ since they touch different files.
 - Commit the finalized release notes if changes were made (or amend the
   Step 5.5 commit if it hasn't been pushed yet, to keep history clean)
 
+### Step 6.5: Release retrospective — three questions
+
+Five minutes, appended to the release notes under a `## Retrospective`
+heading. One line each is enough; the value is entirely in answering the first
+one honestly.
+
+Ask the user, one at a time:
+
+1. > "What did we ship in this release that nobody needed?"
+
+   Be specific — name the issue. This is the only feedback loop that improves
+   the planning gate, and a few honest answers will do more to stop make-work
+   than any rule in the workflow.
+
+2. > "What did we learn about this theme's audience?"
+
+3. > "What signal arrived during this milestone that we ignored — and was that
+   > right?"
+
+Record the answers in the release notes and carry question 1's answer into the
+next `/start-milestone` Step 4.4, so the theme is chosen knowing what the last
+one over-built.
+
 ### Step 7: Update wiki documentation
 
 **Default: skip.** Wiki updates are only needed when the milestone changes architecture, database schema, PHP classes, external integrations, or user-visible flows.

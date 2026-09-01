@@ -126,13 +126,45 @@ gh api "repos/elan-registry/registry/issues?milestone=<NUMBER>&state=open&per_pa
 
 Use the API result as the authoritative issue list.
 
+### Step 4.4: State the milestone theme
+
+Before reviewing the issues, state what this release is *for*, in one sentence
+naming an audience and an outcome:
+
+> "An owner can manage their own car photos without emailing an admin."
+>
+> "A visitor arriving from a search engine lands on something that makes
+> sense."
+
+Not a category. "Photo improvements" has no audience, no outcome and no finish
+line — and a milestone without a finish line drifts until the list is empty
+rather than until the work is done.
+
+Ask the user:
+
+> "State this milestone's theme in one sentence — who it's for, and what they
+> can do afterwards that they can't do now. I'll test every issue against it."
+
+Record the answer. It becomes the yardstick for Step 4.5, the milestone
+description in Step 7, and the release criterion: **the milestone ships when
+the theme sentence is true, not when the issue list is empty.**
+
 ### Step 4.5: Issue quality review
 
 Before ordering, analyze the full issue list inline and produce two outputs:
 
-**A. Issues to consider closing** — flag any issue that meets one or more of
-these criteria:
+**A. Issues that have not earned a place** — flag any issue that meets one or
+more of these criteria:
 
+- **Off-theme**: the issue does not serve the Step 4.4 theme sentence. This is
+  the primary filter, and it is not a judgement about the issue's worth — good
+  work belonging to a different theme is *deferred*, not closed. Testing
+  against a theme is a comparison, which is easy; testing worth in the
+  abstract is not, and almost always returns "well, it's not worthless"
+- **Edge case that fails gracefully**: few real owners take this path in a
+  year, and not handling it degrades quietly rather than badly. Build the
+  guard, not the feature — a clear error beats a code path maintained forever
+  for three people
 - **Make-work / no real value**: the change produces no meaningful improvement
   — purely stylistic, cosmetic renaming with no functional impact, or
   "cleaning up" something that isn't actually causing a problem
@@ -176,12 +208,37 @@ fit together. This is a recommendation only — no action is taken.
 
 After displaying the review, ask two questions in sequence:
 
-**Question 1 — Closures:**
+**Question 1 — Inclusion (the default is out, not in):**
 
-> "Which of the flagged issues (if any) should I close? List numbers separated
-> by commas, or press Enter to keep all and continue."
+Do not ask which issues to remove. Ask which ones earn their place:
 
-If the user provides issue numbers to close, close each one on GitHub:
+> "Which of these serve the theme? List the numbers. Anything you don't list
+> comes out of the milestone — deferred, not closed."
+
+Making inclusion the answer rather than the default is the point of this step:
+declining to make a commitment is far easier than reversing one already made,
+and by the time an issue is sitting in a milestone the commitment has been
+made.
+
+**Cap the result.** A sealed milestone holds **3–6 theme issues, plus at most
+one housekeeping issue** — `signal:forced` work (security advisory, dependency
+EOL, platform change) that fits no theme but has to happen. If more than six
+survive, ask which are the first six; the remainder return to the backlog. Two
+kinds of work bypass the theme test entirely: `signal:forced`, and anything a
+standing gate depends on (a broken CI gate makes every other check
+decorative).
+
+**Deferring** — the normal outcome for off-theme work — clears the milestone
+and leaves the issue open:
+
+```bash
+gh issue edit NNN --repo elan-registry/registry --remove-milestone
+```
+
+**Closing** is for issues that fail the three planning questions outright:
+*who noticed?* / *what do they do today instead?* / *what breaks if this never
+ships?* If the honest answers are "nobody", "nothing — the workaround is
+fine", and "nothing", close it:
 
 ```bash
 gh issue close NNN --repo elan-registry/registry \
