@@ -65,20 +65,41 @@ if (!isset($request_uri)) {
 // Log the error for administrator review
 $userId = ($isLoggedIn && isset($userData->id)) ? (int)$userData->id : 0;
 
-// Determine log category based on error code
-$logCategoryMap = [
-    400 => LogCategories::LOG_CATEGORY_VALIDATION_ERROR,
-    401 => LogCategories::LOG_CATEGORY_ACCESS_DENIED,
-    403 => LogCategories::LOG_CATEGORY_ACCESS_DENIED,
-    404 => LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND,
-    405 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
-    408 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
-    500 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
-    502 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
-    504 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
-];
-
-$logCategory = $logCategoryMap[$statusCode] ?? LogCategories::LOG_CATEGORY_SYSTEM_ERROR;
+// Determine log category based on error code. Guarded by class_exists():
+// the Composer autoloader is only registered inside users/init.php, which
+// this page loads inside a try/catch above precisely because it may be
+// missing or fail before the autoloader registers. Referencing
+// LogCategories:: constants unconditionally in that state would fatal this
+// page too — exactly when a working error page matters most. Falls back to
+// the same string literals LogCategories::LOG_CATEGORY_* resolve to, so
+// logger() (if reachable at all) still receives a valid category.
+if (class_exists(LogCategories::class)) {
+    $logCategoryMap = [
+        400 => LogCategories::LOG_CATEGORY_VALIDATION_ERROR,
+        401 => LogCategories::LOG_CATEGORY_ACCESS_DENIED,
+        403 => LogCategories::LOG_CATEGORY_ACCESS_DENIED,
+        404 => LogCategories::LOG_CATEGORY_PAGE_NOT_FOUND,
+        405 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+        408 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+        500 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+        502 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+        504 => LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+    ];
+    $logCategory = $logCategoryMap[$statusCode] ?? LogCategories::LOG_CATEGORY_SYSTEM_ERROR;
+} else {
+    $logCategoryMap = [
+        400 => 'ValidationError',
+        401 => 'AccessDenied',
+        403 => 'AccessDenied',
+        404 => 'PageNotFound',
+        405 => 'SystemError',
+        408 => 'SystemError',
+        500 => 'SystemError',
+        502 => 'SystemError',
+        504 => 'SystemError',
+    ];
+    $logCategory = $logCategoryMap[$statusCode] ?? 'SystemError';
+}
 
 $logMessage = sprintf(
     "%d Error | URI: %s | Referer: %s | IP: %s | Method: %s | User-Agent: %s",
