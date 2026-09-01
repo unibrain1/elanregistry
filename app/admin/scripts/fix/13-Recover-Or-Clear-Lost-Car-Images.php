@@ -219,6 +219,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                     $results = [
                         'files_copied' => 0,
                         'files_missing' => 0,
+                        'fallback_used' => 0,
                         'rows_updated' => 0,
                         'rows_skipped' => 0,
                         'errors' => 0,
@@ -297,6 +298,12 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                         if (file_exists($fallbackSrc)) {
                                             logProgress("True 768px derivative missing, using -resized-600 as fallback for: {$variant}", 'warning');
                                             $src = $fallbackSrc;
+                                            // Tracked separately from files_copied so the summary can
+                                            // distinguish "N genuine copies" from "N copies, M of which
+                                            // are lower-resolution stand-ins" — otherwise this fact is
+                                            // only visible in scrollback at the same log level as
+                                            // routine non-prod noise. Caught by PR re-review.
+                                            $results['fallback_used']++;
                                         }
                                     }
 
@@ -423,7 +430,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                         }
 
                         logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT,
-                            "Recover-or-clear lost car images completed - Files copied: {$results['files_copied']}, Files missing: {$results['files_missing']}, Rows updated: {$results['rows_updated']}, Rows skipped: {$results['rows_skipped']}, Errors: {$results['errors']}");
+                            "Recover-or-clear lost car images completed - Files copied: {$results['files_copied']} ({$results['fallback_used']} via -resized-600 fallback), Files missing: {$results['files_missing']}, Rows updated: {$results['rows_updated']}, Rows skipped: {$results['rows_skipped']}, Errors: {$results['errors']}");
 
                         $fatalError = null;
                     } catch (BackupException $e) {
@@ -459,6 +466,14 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                         logProgress($fatalError, 'error');
                     }
                     logProgress("Files copied: {$results['files_copied']}", 'success');
+                    if ($results['fallback_used'] > 0) {
+                        // Distinct from the routine "files missing" warning below — this specifically
+                        // means N of the copied files are lower-resolution -resized-600 bytes sitting
+                        // at a -resized-768 destination path, not a true 768px derivative. Surfaced
+                        // here (not just in scrollback) so it can't be missed by reading the summary
+                        // alone. Caught by PR re-review.
+                        logProgress("⚠ Of the above, copied via -resized-600 fallback (NOT true 768px — run script 24 after confirming stable): {$results['fallback_used']}", 'warning');
+                    }
                     if ($results['files_missing'] > 0) {
                         logProgress("Files missing (expected on non-prod): {$results['files_missing']}", 'warning');
                     }
@@ -475,7 +490,9 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                     logProgress('  • Verify cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' render the placeholder image, not a 404', 'info');
                     logProgress('  • Send the #1800 outreach emails for cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' (Martin Boysen / car ' . RECOVERED_CAR_ID . ' no longer needs one)', 'info');
                     logProgress('  • Once confirmed stable, manually remove userimages/' . RECOVERED_FROM_CAR_ID . '/ in a separate cleanup pass (tracked under #1222, not this script)', 'info');
-                    logProgress('  • Run app/admin/scripts/maintenance/24-Regenerate-Optimized-Thumbnails.php to generate a genuine 768px derivative for car ' . RECOVERED_CAR_ID . "'s photos — this script used the retired -resized-600 as a stand-in since the source files predate the 768px thumbnail migration", 'info');
+                    if ($results['fallback_used'] > 0) {
+                        logProgress('  • Run app/admin/scripts/maintenance/24-Regenerate-Optimized-Thumbnails.php to generate a genuine 768px derivative for car ' . RECOVERED_CAR_ID . "'s photos — {$results['fallback_used']} of them are currently the retired -resized-600 file standing in for -resized-768", 'info');
+                    }
                     if ($results['errors'] > 0) {
                         logProgress('  • ⚠ Errors were reported above — review each before sending outreach emails or considering this migration complete', 'warning');
                     }
