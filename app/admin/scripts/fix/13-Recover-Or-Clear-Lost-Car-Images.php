@@ -148,7 +148,11 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                 <ul class="mb-0">
                                     <li>Copies 5 original images + 25 resized derivatives from
                                         <code>userimages/1738/</code> to
-                                        <code>userimages/1739/</code></li>
+                                        <code>userimages/1739/</code> — the source files predate
+                                        the 768px thumbnail migration, so the retired
+                                        <code>-resized-600</code> file is used as a stand-in for
+                                        the missing <code>-resized-768</code> (see Post-Processing
+                                        Steps for generating a genuine 768px derivative afterward)</li>
                                     <li>Updates car 1739's <code>cars.image</code> column to the
                                         recovered filenames — but only if every file copied
                                         successfully; skips the DB update entirely otherwise so
@@ -236,8 +240,17 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                         logProgress('STEP 2: Copy recovered images for car ' . RECOVERED_CAR_ID . ' from car ' . RECOVERED_FROM_CAR_ID . "'s directory", 'step');
                         logProgress(SECTION_SEPARATOR, 'step');
 
-                        $sourceDir = $abs_us_root . 'userimages/' . RECOVERED_FROM_CAR_ID . '/';
-                        $destDir = $abs_us_root . 'userimages/' . RECOVERED_CAR_ID . '/';
+                        // Matches the path construction every other userimages/ writer in this
+                        // codebase uses (app/api/cars/save.php, Car.php, thumbnail regen script)
+                        // — $abs_us_root alone is DOCUMENT_ROOT, which under MAMP's multi-project
+                        // layout is the shared Web/ parent, not this app's own root; $us_url_root
+                        // supplies the app's subpath segment (empty on prod, where this app IS
+                        // the site root). Omitting it here was a real bug, caught when a local
+                        // dry run reported "Source directory not found:
+                        // /Users/.../Web/userimages/1738/" — missing the /ElanRegistry/Registry/
+                        // segment entirely.
+                        $sourceDir = $abs_us_root . $us_url_root . ELAN_IMAGE_DIR . RECOVERED_FROM_CAR_ID . '/';
+                        $destDir = $abs_us_root . $us_url_root . ELAN_IMAGE_DIR . RECOVERED_CAR_ID . '/';
                         // Gates STEP 3: if any expected file fails to copy, cars.image must
                         // NOT be updated to reference it — a DB write asserting a file exists
                         // that isn't actually on disk would trade a missing-photo placeholder
@@ -268,6 +281,24 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                 foreach ($variants as $variant) {
                                     $src = $sourceDir . $variant;
                                     $dest = $destDir . $variant;
+
+                                    if (!file_exists($src) && str_contains($variant, '-resized-768')) {
+                                        // These source files predate the 100/300/768/1024/2048
+                                        // thumbnail-size migration (app/admin/scripts/maintenance/
+                                        // 24-Regenerate-Optimized-Thumbnails.php) and only have the
+                                        // retired -resized-600 size. Confirmed present in BOTH the
+                                        // local dev copy and the actual production userimages/1738/
+                                        // (rsync-verified) — not an environment quirk. Fall back to
+                                        // copying -resized-600 as a stand-in -resized-768 rather than
+                                        // leaving the car without a 768px derivative at all; script 24
+                                        // is the correct place to later generate a genuine 768px
+                                        // derivative from the original once these files are restored.
+                                        $fallbackSrc = $sourceDir . str_replace('-resized-768', '-resized-600', $variant);
+                                        if (file_exists($fallbackSrc)) {
+                                            logProgress("True 768px derivative missing, using -resized-600 as fallback for: {$variant}", 'warning');
+                                            $src = $fallbackSrc;
+                                        }
+                                    }
 
                                     if (!file_exists($src)) {
                                         logProgress("Missing (expected on non-prod): {$variant}", 'warning');
@@ -444,6 +475,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                     logProgress('  • Verify cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' render the placeholder image, not a 404', 'info');
                     logProgress('  • Send the #1800 outreach emails for cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' (Martin Boysen / car ' . RECOVERED_CAR_ID . ' no longer needs one)', 'info');
                     logProgress('  • Once confirmed stable, manually remove userimages/' . RECOVERED_FROM_CAR_ID . '/ in a separate cleanup pass (tracked under #1222, not this script)', 'info');
+                    logProgress('  • Run app/admin/scripts/maintenance/24-Regenerate-Optimized-Thumbnails.php to generate a genuine 768px derivative for car ' . RECOVERED_CAR_ID . "'s photos — this script used the retired -resized-600 as a stand-in since the source files predate the 768px thumbnail migration", 'info');
                     if ($results['errors'] > 0) {
                         logProgress('  • ⚠ Errors were reported above — review each before sending outreach emails or considering this migration complete', 'warning');
                     }
