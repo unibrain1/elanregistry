@@ -407,16 +407,71 @@ session. Acknowledging quickly is the courtesy; reordering the release is not.
 Free capture means the backlog grows faster than it drains, and a large
 backlog is where make-work hides: old ideas start to read like commitments.
 
-**Age-out with evidence rescue:**
+### Age-out with evidence rescue
 
-- An issue with no activity for **180 days** gets a `stale` warning label and
-  a comment.
+- An issue **created more than 180 days ago** with no rescuing activity gets a
+  `stale` warning label and a comment.
 - **14 days later** it closes as `stale-no-demand`, with a comment explaining
   that silence was treated as a vote against and that a new signal reopens it.
-- **Exempt:** anything in a milestone, `signal:forced`, and security issues.
+- **Exempt:** anything in a milestone, `signal:forced`, security issues, and
+  anything load-bearing for a standing gate (see below).
 - **Rescue:** a new signal — an owner asks, analytics show the gap — reopens
-  the issue with the new evidence attached. Nothing is lost; it just has to
-  re-earn its place.
+  the issue with the new evidence attached.
+
+### Age from creation, not from last activity
+
+The obvious implementation — GitHub's stale action, which keys on
+`updated_at` — does not work on this repository, and the backlog proves it.
+
+At the time of writing the oldest `updated_at` across 136 open issues is 28
+days old, so a 180-day activity rule would never fire once. The timestamps
+show why: seventeen issues share `2026-08-25T21:03–21:04`, seven share
+`2026-08-10T15:33`, four share `2026-08-31T16:07` — issues created weeks or
+months apart, updated within seconds of each other. Those are bulk label and
+milestone operations. **Housekeeping resets the clock on everything it
+touches**, which makes an activity-based rule self-defeating.
+
+So:
+
+- Age from **`created_at`**.
+- **Label-only and milestone-only edits are not activity.** Only a human
+  comment, or a new signal, counts as a rescue.
+- Bot comments are not activity either.
+
+### The rule is prospective — it cannot clean up what you already have
+
+Even keyed on creation date, the oldest open issue is ~128 days old, so the
+first age-outs are months away. Decay stops the backlog re-accumulating; it
+does nothing about the backlog that already exists.
+
+That needs a **one-time cull**, in one sitting, before the workflow starts.
+
+1. **Cluster first.** Merge symptoms into root causes — this is mechanical and
+   needs no judgement about value. Worked examples from the current backlog:
+   `DB::query()` not throwing (#1761) is the root cause of #1719, #1720 and
+   probably #1700 — four issues, one fix. The PHPStan level ladder (#1323 →
+   #1524 → #1525) is one decision filed as three. #1512/#1513/#1514 are three
+   files from a single review sweep. #1462 and #1655 are both titled
+   "low-severity maintainability bundle" — bundles of bundles.
+2. **Run the three planning questions over the clusters**, not issue by issue.
+3. **Keep** anything that is a defect that fails *badly*, a security issue, or
+   load-bearing for a standing gate.
+4. **Close the rest** as `stale-no-demand`, so a new signal reopens them.
+
+Expect to close a lot. "Remove dead `Car::owner()` accessor — no callers
+anywhere" is a fine observation and a fine PR if you are already in the file;
+as a tracked commitment competing for release slots it fails question three
+cleanly.
+
+### Gate-critical issues bypass the theme test
+
+Two kinds of work skip the theme gate: `signal:forced`, and anything a
+standing gate depends on. A gate you do not trust makes every other rule in
+this document decorative, so its repairs are never "someday". Current
+examples: **#1752** (decouple the integration suite from `DB::getInstance()`
+so CI can actually run the integration gate — the prerequisite for Rule 4 in
+§3b) and **#1843** (the review gate false-fails on prose headings beginning
+with "Blocking" — the Rule 5 mechanism misfiring).
 
 Closing an idea is a normal, healthy outcome here, not an admission of
 failure.
