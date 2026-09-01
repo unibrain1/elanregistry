@@ -1430,7 +1430,14 @@ function loadMapMarkers(map) {
 
     if (car.image) {
       const img = document.createElement("img");
-      img.src = window.statisticsConfig.imageUrl + car.image;
+      const dotIndex = car.image.lastIndexOf(".");
+      const resizedSrc =
+        dotIndex === -1
+          ? car.image
+          : car.image.substring(0, dotIndex) +
+            "-resized-100" +
+            car.image.substring(dotIndex);
+      img.src = window.statisticsConfig.imageUrl + resizedSrc;
       img.alt = "Car photo";
       img.style.cssText =
         "width:100px;height:75px;object-fit:cover;float:right;margin:0 0 8px 10px;border-radius:4px;";
@@ -1496,9 +1503,14 @@ function loadMapMarkers(map) {
     dot.className = "elan-marker " + seriesClass;
     el.appendChild(dot);
 
-    const popup = new maplibregl.Popup({ offset: 25 }).setDOMContent(
-      buildPopupNode(car)
-    );
+    const popup = new maplibregl.Popup({ offset: 25 });
+    let popupBuilt = false;
+    popup.on("open", function () {
+      if (!popupBuilt) {
+        popup.setDOMContent(buildPopupNode(car));
+        popupBuilt = true;
+      }
+    });
 
     new maplibregl.Marker({ element: el, anchor: "bottom" })
       .setLngLat([car.lon, car.lat])

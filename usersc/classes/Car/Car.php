@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace ElanRegistry\Car;
 
 use Exception;
-use Token;
 use ElanRegistry\AppConstants;
 use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarCreationException;
 use ElanRegistry\Exceptions\CarDatabaseException;
-use ElanRegistry\Exceptions\CarDeletionException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\Exceptions\ImageProcessingException;
@@ -431,6 +429,34 @@ class Car
         return $result;
     }
 
+    /**
+     * Remove multiple images from the car's image list in a single write.
+     *
+     * Unlike removeImage(), this does not throw on a CAS conflict — see
+     * CarImageProcessor::removeImages() for details.
+     *
+     * @param array<int, string> $filenames Image filenames to remove
+     * @return array{updated: bool, casConflict: bool} Result of the removal attempt
+     * @throws CarNotFoundException If the car does not exist
+     * @throws ImageProcessingException If encoding fails
+     * @throws CarDatabaseException If database update fails
+     */
+    public function removeImages(array $filenames): array
+    {
+        if (!$this->exists()) {
+            throw new CarNotFoundException('The requested car could not be found or may have already been removed.');
+        }
+
+        $result = $this->getImageProcessor()->removeImages($this->_data, $filenames);
+
+        if ($result['updated']) {
+            // Clear cached images to force reload
+            $this->_images = null;
+        }
+
+        return $result;
+    }
+
     // ============================================================
     // ADMINISTRATION OPERATIONS
     // ============================================================
@@ -438,20 +464,19 @@ class Car
     /**
      * Delete the car and all associated records
      *
+     * This method does not validate CSRF itself — the caller MUST do so
+     * before invoking delete() (see #1519, #1829; today's only caller,
+     * admin/index.php, validates it unconditionally before reaching this
+     * call).
+     *
      * @param string $reason Reason for deletion (for audit trail)
-     * @param string $token CSRF token (required)
      * @param int $actingUserId ID of the admin performing the action — caller MUST verify
      *                         the user is authenticated and authorized before invoking
      * @return bool True if deletion was successful
      * @throws Exception If validation fails or database operation fails
      */
-    public function delete(string $reason, string $token, int $actingUserId): bool
+    public function delete(string $reason, int $actingUserId): bool
     {
-        if (!Token::check($token)) {
-            logger($actingUserId, LogCategories::LOG_CATEGORY_ACCESS_DENIED, 'Car deletion rejected: invalid CSRF token');
-            throw new CarDeletionException('CSRF token validation failed - possible security issue.');
-        }
-
         if (!$this->exists()) {
             logger($actingUserId, LogCategories::LOG_CATEGORY_CAR_DELETION, 'Car not found - cannot delete car ID: unknown');
             throw new CarNotFoundException('The car could not be found or may have already been removed.');

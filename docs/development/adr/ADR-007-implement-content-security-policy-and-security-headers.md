@@ -729,7 +729,7 @@ Add a `Permissions-Policy` header to restrict browser feature access
 - **Security Headers:** [usersc/includes/security_headers.php](../../usersc/includes/security_headers.php)
 - **Root .htaccess:** [.htaccess](../../.htaccess)
 - **Scripts Directory .htaccess:** [scripts/.htaccess](../../scripts/.htaccess)
-- **Error Pages:** [error/403.php](../../error/403.php), [error/404.php](../../error/404.php), [error/500.php](../../error/500.php)
+- **Error Pages:** [error/500.php](../../error/500.php) (consolidated handler for all 4xx/5xx codes since #1830)
 - **Footer (ElanRegistryAPI):** [usersc/includes/footer.php](../../usersc/includes/footer.php)
 - **Join Page:** [usersc/join.php](../../usersc/join.php)
 

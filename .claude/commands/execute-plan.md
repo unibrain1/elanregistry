@@ -292,10 +292,15 @@ full remaining sequence at once:
 
 - Question: "Implementation complete. What next?"
 - Options: `/simplify` (recommended — clean up the code before committing),
-  `/commit` (skip straight to committing), `Ask more questions / discuss
-  first`
+  `/commit` (skip straight to committing), `Compact context first`
+  (recommended before a long next step — the plan file already has every
+  item verified complete, so compacting here is safe and won't lose it),
+  `Ask more questions / discuss first`
 - If the user picks a command, invoke it immediately via the Skill tool
   rather than telling them to type it.
+- If the user picks `Compact context first`, tell them to run `/compact`
+  themselves — it's a client-level operation, not something this command can
+  trigger via a tool.
 
 The full remaining sequence, each step handed off the same way once the
 prior one completes — do not present this whole list to the user at once,

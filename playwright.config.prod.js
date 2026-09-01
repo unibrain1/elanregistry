@@ -32,7 +32,7 @@ module.exports = defineConfig({
       ? [
           {
             name: "logged-in",
-            testMatch: /.*logged-in\.spec\.js/,
+            testMatch: /(?:^|\/)(logged-in|factory-registry-link)\.spec\.js$/,
             use: {
               ...devices["Desktop Chrome"],
               // Use saved authentication state

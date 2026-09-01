@@ -596,6 +596,130 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
   });
 });
 
+test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () => {
+  test.beforeEach(async ({ }, testInfo) => {
+    if (testInfo.project.name !== 'not-logged-in') {
+      testInfo.skip();
+    }
+  });
+
+  const BASE = 'https://elanregistry.org';
+
+  // Normalizes absolute Location headers to path + query for comparison
+  const toLocationPath = (location) =>
+    location.startsWith('http')
+      ? new URL(location).pathname + new URL(location).search
+      : location;
+
+  const redirects = [
+    {
+      from: '/app/owner/reports/',
+      to: '/app/owner/reports/statistics.php',
+      label: 'app/owner/reports/ bare-directory 403 → statistics.php',
+    },
+    {
+      from: '/app/owner/',
+      to: '/app/owner/cars/',
+      label: 'app/owner/ bare-directory 403 → cars/',
+    },
+    {
+      from: '/docs/stories/',
+      to: '/docs/car-stories.php',
+      label: 'docs/stories/ bare-directory 403 → car-stories.php',
+    },
+    {
+      // The exact URL GSC originally flagged (Context section of #1539) — the
+      // legacy #1040 bare-directory rule must land in a single hop, not chain
+      // through /app/owner/reports/ first.
+      from: '/app/reports/',
+      to: '/app/owner/reports/statistics.php',
+      label: 'app/reports/ (legacy, GSC-flagged) → statistics.php, single hop',
+    },
+  ];
+
+  redirects.forEach(({ from, to, label }) => {
+    test(`301: ${label}`, async ({ request }) => {
+      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      expect(response.status(), `Expected 301 for ${from}`).toBe(301);
+      const location = response.headers()['location'] ?? '';
+      const locationPath = toLocationPath(location);
+      expect(locationPath, `Expected Location: ${to} for ${from}`).toBe(to);
+
+      // Follow through to the destination — a redirect to a page that's been
+      // locked down to authenticated-only would silently send anonymous
+      // visitors/crawlers into a login wall instead of the intended content,
+      // and the assertions above alone wouldn't catch that regression.
+      const followed = await request.get(`${BASE}${to}`);
+      expect(followed.status(), `Expected 200 for redirect target ${to}`).toBe(200);
+    });
+  });
+
+  test('regression guard: /app/owner/reports/statistics.php requested directly is NOT redirected (mod_alias prefix-match trap)', async ({ request }) => {
+    // The bare-directory RedirectMatch above is anchored (^...$), but a naive
+    // unanchored Redirect on /app/owner/reports/ would also prefix-match this
+    // exact file path and mangle it into .../statistics.phpstatistics.php.
+    // This guards that the anchored rule does NOT catch the file itself.
+    const response = await request.get(`${BASE}/app/owner/reports/statistics.php`, { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+  });
+
+  test('regression guard: /app/reports/statistics.php redirects in a single hop, not a 301->301 chain', async ({ request }) => {
+    // Before this fix, the bare-directory rule for /app/reports/ could catch
+    // this specific-file path first depending on rule order, chaining through
+    // /app/owner/reports/ (itself now a 403->redirect) before finally landing
+    // on statistics.php. The specific-file rule must be matched first so this
+    // resolves in exactly one hop.
+    const response = await request.get(`${BASE}/app/reports/statistics.php`, { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    const location = response.headers()['location'] ?? '';
+    const locationPath = toLocationPath(location);
+    expect(locationPath).toBe('/app/owner/reports/statistics.php');
+  });
+
+  test('GET /app/ bare directory renders the branded error/500.php handler, not a raw server 403', async ({ request }) => {
+    // Options -Indexes with no index.php in app/ produces a genuine 403, but
+    // .htaccess's ErrorDocument 403 (line 5) already routes that to the
+    // branded handler — this is existing behavior, locked in as a regression
+    // guard rather than new behavior from this PR. Status 403 alone would
+    // also pass for Apache's bare default error page, so the body is checked
+    // for the handler's known markup (title "Access Forbidden" + its
+    // error-card wrapper class) to actually distinguish "branded" from
+    // "raw" — this couples the test to error/500.php's copy, which is an
+    // accepted, maintainable trade-off since that text is stable, non-dynamic
+    // page chrome, not user data.
+    const response = await request.get(`${BASE}/app/`, { maxRedirects: 0 });
+    expect(response.status()).toBe(403);
+    const body = await response.text();
+    expect(body).toContain('error-card');
+    expect(body).toContain('Access Forbidden');
+  });
+
+  test('GET /docs/assets/document-content.css (old path) redirects to docs/reference/assets/, which 404s — the file was moved, not copied', async ({ request }) => {
+    // document-content.css was relocated to app/assets/css/, not copied. The
+    // pre-existing blanket rule (Redirect 301 /docs/assets/ /docs/reference/assets/,
+    // #1369) still fires for this now-nonexistent old path, since the rule
+    // itself was untouched by this fix — it just no longer matters for this
+    // file. This test locks in that the old path still 301s (unchanged
+    // legacy behavior) rather than asserting a direct 404, which would be
+    // incorrect given the blanket rule is still in place.
+    const response = await request.get(`${BASE}/docs/assets/document-content.css`, { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    const location = response.headers()['location'] ?? '';
+    const locationPath = toLocationPath(location);
+    expect(locationPath).toBe('/docs/reference/assets/document-content.css');
+
+    // Follow the redirect: nothing was ever copied to docs/reference/assets/,
+    // so the chain terminates in a 404, not a working asset.
+    const followed = await request.get(`${BASE}${locationPath}`);
+    expect(followed.status()).toBe(404);
+  });
+
+  test('GET /app/assets/css/document-content.min.css (new path) resolves 200 with no redirect', async ({ request }) => {
+    const response = await request.get(`${BASE}/app/assets/css/document-content.min.css`, { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+  });
+});
+
 test.describe('GSC 404 cleanup redirects (#1409)', () => {
   test.beforeEach(async ({ }, testInfo) => {
     if (testInfo.project.name !== 'not-logged-in') {

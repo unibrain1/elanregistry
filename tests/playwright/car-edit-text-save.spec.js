@@ -21,7 +21,7 @@
 
 const { test, expect } = require('@playwright/test');
 const { ensureLoggedIn } = require('./auth-helper.js');
-const { CAR_ID_STANDARD, CAR_ID_WITH_SPECIAL_CHARS } = require('./fixtures.js');
+const { CAR_ID_STANDARD, CAR_ID_WITH_SPECIAL_CHARS, CAR_ID_WITH_HISTORY } = require('./fixtures.js');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -172,25 +172,24 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
         );
 
         // ------------------------------------------------------------------
-        // 3. Wait for the fetchImages mock response to be consumed and FilePond
-        //    to hydrate the existing image as a LOCAL file item.
-        //    FilePond adds files asynchronously via pond.addFile(), so we poll
-        //    until getFiles() returns at least one item or a short timeout elapses.
+        // 3. NOTE (issue #1846): this test previously waited here for FilePond
+        //    to hydrate the mocked existing image via fetchImages. That wait
+        //    can never succeed via this navigation: fetchImages only fires
+        //    when edit.php renders with $action === 'updateCar'
+        //    (window.editCarConfig.isUpdate), which is only ever set from a
+        //    real POST — never from the car_id GET query param used above.
+        //    So #car_id stays empty and fetchImages never fires, regardless
+        //    of whether the car exists. The wait always timed out (silently,
+        //    via .catch()), and combined with earlier step overhead this
+        //    pushed the test close enough to Playwright's default 30s
+        //    timeout that the test runner's own teardown raced the test body
+        //    — producing the "page.route: Target page ... has been closed"
+        //    error this issue reports, rather than a real failure in the
+        //    save flow. Removed: the sentinel-blob assertions below hold
+        //    identically whether the pond starts empty or hydrated, since a
+        //    text-only save with zero LOCAL files must still produce the
+        //    sentinel and no binary data.
         // ------------------------------------------------------------------
-        await page.waitForFunction(
-            () => {
-                // FilePond exposes instances; query the pond object from the
-                // global that form.php creates — we access it via the element.
-                const root = document.querySelector('.filepond--root');
-                if (!root) { return false; }
-                const instance = window.FilePond && window.FilePond.find(root);
-                return instance && instance.getFiles().length > 0;
-            },
-            { timeout: 10000 }
-        ).catch(() => {
-            // fetchImages may not resolve if DB is unavailable; the sentinel
-            // blob assertion still holds for the empty-pond case (no LOCAL files).
-        });
 
         // ------------------------------------------------------------------
         // 4. Capture the submit POST payload via a second, higher-priority route.
@@ -735,37 +734,67 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
     //   - No sentinel blob is sent (hasNewFiles is true)
     // -----------------------------------------------------------------------
     test('mixed save: existing image preserved in filenames, only new file in file[]', async ({ page }) => {
-        // Mock fetchImages to hydrate one existing LOCAL image
-        await page.route('**/app/api/cars/save.php', async (route, request) => {
-            const postData = request.postData() || '';
-            if (postData.includes('action=fetchImages')) {
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({
-                        success: true,
-                        images: [{ path: 'http://localhost:9999/ElanRegistry/Registry/usersc/uploads/cars/1/existing-photo.jpg', basename: 'existing-photo.jpg' }]
-                    })
-                });
-                return;
-            }
-            await route.fallback();
-        });
+        // This test specifically verifies that an existing (hydrated) image
+        // survives a save alongside a newly-added file — it requires real
+        // update-mode (window.editCarConfig.isUpdate). edit.php only ever
+        // sets that via a real POST with action=updateCar (see issue #1846
+        // — a plain car_id GET query param never triggers it). Reproduce
+        // the real "Update Car" button's POST directly (mirrors
+        // app/views/cars/_car_hero_actions.php and the precedent in
+        // car-edit-missing-car.spec.js) using CAR_ID_WITH_HISTORY — a real,
+        // existing car. TEST_USERNAME is provisioned as an Administrator
+        // (permission_id=2), so updateCarDetails()'s admin/editor bypass
+        // (edit.php's hasPerm([2,3]) check) grants access regardless of
+        // whether TEST_USERNAME owns this specific car.
+        await page.goto('app/owner/cars/edit.php', { waitUntil: 'domcontentloaded' });
 
-        await page.goto(`app/owner/cars/edit.php?car_id=${CAR_ID_STANDARD}`, { waitUntil: 'domcontentloaded' });
-
-        const currentUrl = page.url();
-        if (currentUrl.includes('login')) {
+        const initialUrl = page.url();
+        if (initialUrl.includes('login') || initialUrl.includes('Please Log In')) {
             test.skip('Session not established');
             return;
         }
+
+        const csrfToken = await page.locator('#csrf').inputValue();
+        expect(csrfToken, 'edit.php must render a #csrf hidden field to obtain a token from').toBeTruthy();
+
+        // Do NOT mock fetchImages here — CAR_ID_WITH_HISTORY is a real car
+        // with real existing photo(s) already in the DB, so fetchImages
+        // returns genuine data once update mode is reached below. Asserting
+        // against the real returned filename(s) (captured after hydration)
+        // is more robust than hardcoding an assumed name, and avoids a mock
+        // losing a timing race against the POST-triggered page reload.
+
+        await Promise.all([
+            page.waitForLoadState('domcontentloaded'),
+            page.evaluate(({ csrf, carId }) => {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = window.location.pathname;
+                const fields = { csrf, action: 'updateCar', car_id: String(carId) };
+                for (const [name, value] of Object.entries(fields)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+                document.body.appendChild(form);
+                form.submit();
+            }, { csrf: csrfToken, carId: CAR_ID_WITH_HISTORY }),
+        ]);
 
         await page.waitForFunction(
             () => typeof window.FilePond !== 'undefined' && document.querySelector('.filepond--root') !== null,
             { timeout: 15000 }
         );
 
-        // Wait for the LOCAL image to hydrate
+        const isUpdateMode = await page.evaluate(() => window.editCarConfig?.isUpdate === true);
+        expect(
+            isUpdateMode,
+            'POST with action=updateCar must render edit.php in real update mode — if this fails, verify TEST_USERNAME still has admin/editor access and CAR_ID_WITH_HISTORY still exists'
+        ).toBe(true);
+
+        // Wait for the real existing image(s) to hydrate
         await page.waitForFunction(
             () => {
                 const root = document.querySelector('.filepond--root');
@@ -773,7 +802,18 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
                 return instance && instance.getFiles().length > 0;
             },
             { timeout: 10000 }
-        ).catch(() => {});
+        );
+
+        // Capture the real hydrated filename(s) so the later assertion checks
+        // against actual DB-backed data instead of an assumed mock value.
+        const hydratedFilenames = await page.evaluate(() => {
+            const root = document.querySelector('.filepond--root');
+            const instance = window.FilePond && window.FilePond.find(root);
+            return instance.getFiles()
+                .filter(f => f.origin === window.FilePond.FileOrigin.LOCAL)
+                .map(f => f.getMetadata('serverFilename'));
+        });
+        expect(hydratedFilenames.length, 'CAR_ID_WITH_HISTORY must have at least one existing photo to hydrate').toBeGreaterThan(0);
 
         // Capture submit POST
         let capturedRequest = null;
@@ -847,13 +887,15 @@ test.describe('Car edit form — text-only save (regression #796)', () => {
         expect(boundaryMatch).not.toBeNull();
         const fields = parseMultipart(capturedRequest.buffer, boundaryMatch[1]);
 
-        // filenames= must contain the existing image (LOCAL file order preserved)
+        // filenames= must contain every real existing image (LOCAL file order preserved)
         const filenamesField = (fields.get('filenames') || [])[0];
         expect(filenamesField, 'filenames= field must be present').toBeDefined();
-        expect(
-            filenamesField.value,
-            'filenames= must include the existing LOCAL image basename'
-        ).toContain('existing-photo.jpg');
+        for (const hydratedName of hydratedFilenames) {
+            expect(
+                filenamesField.value,
+                `filenames= must include the existing LOCAL image basename "${hydratedName}"`
+            ).toContain(hydratedName);
+        }
 
         // No sentinel blob — hasNewFiles is true
         const fileEntries = fields.get('file[]') || [];

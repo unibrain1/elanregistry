@@ -173,7 +173,15 @@ npm run lint:fix                # ESLint with auto-fix
 
 # Local Playwright tests (requires MAMP at localhost:9999)
 npm run playwright:install      # Install browsers
-npm run playwright:test         # All local tests
+npm run playwright:test         # All local tests, incl. a logged-in e2e project
+                                 # (tests/playwright/e2e/logged-in.spec.js,
+                                 # factory-registry-link.spec.js) that auto-authenticates
+                                 # via TEST_USERNAME/TEST_PASSWORD in .env.local. If those
+                                 # are unset, the auth setup step itself skips cleanly, but
+                                 # the logged-in tests still run — unauthenticated, not
+                                 # skipped — so some (menu/account tests expecting a logged-
+                                 # in session) will fail while others (factory.php, which is
+                                 # intentionally public) still pass
 npm run playwright:security     # Security tests
 npm run playwright:maps         # Maps & charts tests
 npm run playwright:csp          # CSP validation tests

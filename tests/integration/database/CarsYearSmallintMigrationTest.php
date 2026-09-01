@@ -476,7 +476,7 @@ final class CarsYearSmallintMigrationTest extends IntegrationTestCase
         $this->localCarIds[] = $carId;
 
         $car    = new Car($carId);
-        $result = $car->delete('Migration test deletion', Token::generate(), $this->testUserId);
+        $result = $car->delete('Migration test deletion', $this->testUserId);
 
         $this->assertTrue($result, 'Car::delete() must return true on success');
 

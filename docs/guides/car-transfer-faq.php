@@ -9,7 +9,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.ph
 use ElanRegistry\Documentation\DocumentPortalTemplate;
 
 if (!securePage($php_self)) {
-    Redirect::to($us_url_root . '403.php');
+    die();
 }
 
 $title       = 'Car Transfer FAQ';
@@ -518,6 +518,6 @@ GUIDEHTML;
         </div>
     </div>
 </div>
-<link rel="stylesheet" href="<?= $us_url_root ?>docs/assets/document-content.css">
+<link rel="stylesheet" href="<?= $us_url_root ?>app/assets/css/document-content.min.css?v=<?= ASSET_VERSION ?>">
 
 <?php require_once $abs_us_root . $us_url_root . 'users/includes/html_footer.php'; ?>

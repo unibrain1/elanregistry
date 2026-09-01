@@ -398,10 +398,15 @@ Use AskUserQuestion rather than a plain-text menu:
 - Options, built from the above: `Run /start-issue <next-issue>` (only offer
   if an open issue was identified — label it "next in sprint plan sequence"
   when that's why it was picked), `Run /finish-milestone $ARGUMENTS` (only
-  offer if no open issues remain in the milestone), `Ask more questions /
+  offer if no open issues remain in the milestone), `Compact context first`
+  (recommended before a long next step — the issue is closed and merged, so
+  compacting here is safe and won't lose that state), `Ask more questions /
   discuss first`
 - If the user picks a command, invoke it immediately via the Skill tool
   rather than telling them to type it.
+- If the user picks `Compact context first`, tell them to run `/compact`
+  themselves — it's a client-level operation, not something this command can
+  trigger via a tool.
 - If the user picks the discuss option, drop into normal conversation and
   don't re-offer until they ask what's next.
 
