@@ -178,7 +178,7 @@ Section 6 is mandatory and must not be empty. If an agent can't name anything
 it chose not to build, it hasn't thought about scope.
 
 **Approve → the agent runs to a green PR unsupervised:** implement, tests,
-lint, static analysis, self-review, PR opened.
+then the single review round below, then push.
 
 **Deviation rule.** If implementation needs anything outside the approved
 plan — a new file, a new dependency, a behaviour change, an extra branch —
@@ -232,6 +232,137 @@ tier rules exist and pass, CI is green, docs touched by the change are updated,
 and the PR body states any delta from the approved plan. Not before.
 
 ---
+
+## 3b. Review and CI
+
+### What the evidence shows
+
+Four consecutive issue PRs, sampled end to end:
+
+| PR | Commits | Shape |
+| --- | --- | --- |
+| #1838 | 2 | implement → `/review-pr` fact-check + coverage → fix |
+| #1845 | 3 | implement → review → fix → review → fix |
+| #1841 | 3 | implement → review → fix → **review caught a regression in that fix** |
+| #1860 | 5 | implement → test-analyzer → code-reviewer (2 Blocking) → **ESLint on the fix** → CI review |
+
+Every PR was **implemented once and reviewed two to four times, serially,
+after the push** — each round producing its own commit. Two of the four had a
+round whose only job was to repair a defect the previous round's fix
+introduced.
+
+Round count is not a proxy for quality. #1838 passed two review rounds; its
+one production-consequential defect — an unguarded `LogCategories::` reference
+that would fatal `error/500.php` exactly when the autoloader is missing, which
+is precisely when a branded error page matters — survived both and was caught
+days later by the milestone-level review (`e920d29`). The two rounds it did
+get produced a comment-accuracy correction and test-coverage additions.
+
+The cause is structural: **review is running as a phase that repeats after the
+work, rather than a gate that runs once on a finished artifact.** Each fix
+commit is the least-scrutinised code in the PR, and it reopens the artifact
+for the next round.
+
+### Rule 1 — One round, all reviewers at once, before the push
+
+Fan every applicable reviewer — code review, test analysis, silent-failure,
+security when the change touches auth or input — **in parallel, against the
+same commit, before pushing**. Collect every finding into one list, triage it
+once, fix it in one commit, then push.
+
+Serial reviewers each see a different artifact, which guarantees that round
+N+1 finds something round N never looked at. Parallel reviewers see the same
+artifact once.
+
+### Rule 2 — The two-round ceiling
+
+After the fix commit, re-check **only the fix**, scoped to its own diff, with
+only the reviewers whose findings it addressed. That is round two, and it is
+cheap — it is also exactly where #1841's and #1860's self-inflicted defects
+would have been caught.
+
+**A third round means the plan was wrong.** Stop patching, return to the plan
+gate, and re-scope. Three rounds of fixes on one PR is a planning failure
+wearing a review costume.
+
+### Rule 3 — Severity contract
+
+Every reviewer, local or CI, sorts findings into exactly three buckets:
+
+| Bucket | Test | Action |
+| --- | --- | --- |
+| **Blocking** | Verified, reproducible, and in this diff | Fix now, this PR |
+| **Advisory** | Real, but not this PR's job | New issue, `signal:discovered` |
+| **Note** | Wording, style, docs nuance | Fix only if already touching that line |
+
+#1860's final round was a CLAUDE.md wording correction. That is a Note. It
+should not have produced a commit, and it certainly should not have gated a
+merge.
+
+### Rule 4 — The local gate must be the CI gate, exactly
+
+CI catches things locally-green branches didn't, because the two gates aren't
+the same gate. Today's asymmetries:
+
+| Gap | Local | CI |
+| --- | --- | --- |
+| Coding standards | Staged files only, in a temp dir | Whole repository |
+| Unit tests | Only if a `.php`/`.json`/`phpunit.xml` file is staged | Always |
+| Unit test groups | `test:quick` — runs everything | `test:quick:ci` — excludes `known-broken`, `requires-upstream-install`, `regression` |
+| Integration suite | Pre-push | **Never runs** |
+| Playwright | Local only | **Never runs** |
+| Markdown lint | Pre-commit | **Never runs** |
+| CodeQL, Semgrep | **No local equivalent** | Every PR |
+
+A change to a `.js`, `.html`, `.htaccess` or spec file runs no unit tests
+locally and the full suite in CI. `test:quick` and `test:quick:ci` cannot
+agree by construction. Both of those are green-locally-red-in-CI generators.
+
+Fix: **one command, `composer ci:local`, that runs precisely what CI runs, in
+CI's configuration** — `test:quick:ci`, `test:regression:ci`, PHPStan, coding
+standards over the whole repo, ESLint, `check:docs`. Pre-push runs that and
+nothing else. Then move the one-sided gates onto both sides: markdownlint into
+CI, and the integration and Playwright suites into CI (they are the two
+suites that today can only fail on your machine).
+
+### Rule 5 — CI review is a backstop, so it should report, not block
+
+The Claude review runs on **every push** and a `Blocking` heading fails the
+build. It is the one CI gate with no local equivalent and non-deterministic
+output — a new diff produces new findings, indefinitely. The workflow's own
+comments record the failure mode: on #1688 the same unverified hypothesis
+blocked the merge three rounds running, and the review itself said it could
+not check the library source.
+
+Once Rule 1 puts every reviewer in front of the artifact before the push, the
+CI reviewer is a second opinion on already-reviewed code. Recommendation:
+
+- **Issue PR → milestone: advisory.** It posts, it doesn't fail the build.
+- **Milestone → main: blocking, as today.** One PR, a release at stake, and
+  the level of abstraction where it demonstrably earns its keep — `e920d29`
+  is a bug only the milestone review found.
+
+If that's too loose, the narrower version: keep it blocking, but restrict
+`Blocking` to an enumerated list — security, data loss, breaking API change.
+Everything else posts as Advisory or Note. Under that rule #1860's wording nit
+never gates a merge and #1838's autoloader fatal still would.
+
+### Rule 6 — The test suite is production code
+
+Of the twelve most recent non-dependabot PRs, eight were test-infrastructure
+repair or coverage: locator drift, fixture drift, timeouts, a missing CSRF
+token, environment drift, and a Playwright project that never existed and
+silently collected zero tests. That last class is the dangerous one — a suite
+that collects nothing passes.
+
+- A spec failing for a non-product reason is a **defect in the suite**, not a
+  flake. It is fixed in the same PR when it blocks, and filed as
+  `signal:defect` when it doesn't.
+- **Assert expected collection counts** so a suite that silently collects
+  nothing fails instead of passing.
+- Suite repair competes for milestone slots like everything else — but it
+  bypasses the theme test, because a suite you don't trust makes every other
+  gate in this document decorative.
 
 ## 4. Ship — closing the milestone
 
@@ -346,5 +477,9 @@ Small, and mostly one-time:
 | Plan gate | Is the Not-doing list empty? | Send the plan back |
 | Mid-issue | Is this needed for the acceptance criteria? | New issue, next planning |
 | Testing | Can a real user reach this branch? | Don't test it |
+| Before pushing | Did every reviewer see this same commit, at once? | Serial review — you'll get a ladder |
+| After a fix commit | Is this the third round? | The plan was wrong — re-gate it |
+| Any finding | Verified, in this diff, and this PR's job? | Advisory or Note, not Blocking |
+| CI red | Does `composer ci:local` reproduce it? | The gates have drifted — close the gap |
 | Release | Is the theme sentence true? | Ship anyway / not yet, per the answer |
 | Retro | What did we ship that nobody needed? | Feed it back into the gate |
