@@ -5,7 +5,13 @@
 
 ## Required Actions After Deployment
 
-TBD — filled in as issues are completed.
+None. This milestone requires no manual post-deployment steps — no new
+environment variables, migrations, or feature flags. The fix script for
+[#1800](https://github.com/elan-registry/registry/issues/1800) (recovering car
+1739's images and clearing broken refs for 3 unrecoverable cars) has already
+been run against production and its effects verified; it is not an
+outstanding action. Owner outreach for the 3 unrecoverable cars is tracked and
+closed via [#1800](https://github.com/elan-registry/registry/issues/1800).
 
 ## User-Facing Changes
 
