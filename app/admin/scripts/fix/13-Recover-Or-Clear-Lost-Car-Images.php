@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ElanRegistry\Admin\BackupManager;
 use ElanRegistry\Exceptions\BackupException;
+use ElanRegistry\Car\CarImageProcessor;
 use ElanRegistry\Car\CarRepository;
 use ElanRegistry\LogCategories;
 
@@ -19,32 +20,38 @@ use ElanRegistry\LogCategories;
  * invite re-upload.
  *
  * FINDING (2026-09-01, during outreach-email drafting): car 1739's photos
- * are NOT actually lost. History shows car 1738 was deleted and
- * immediately recreated as car 1739 at the identical timestamp
- * (2025-05-14 16:11:40) — a duplicate/re-save in the same request. The
- * pipeline-processed image files from that upload were written to
- * userimages/1738/ (the pre-recreation car ID) and never moved to
- * userimages/1739/ when the ID changed. All 5 originals plus all 5
- * resized derivatives (100/300/600/1024/2048) are intact under the old
- * ID. Confirmed via a production userimages rsync + a same-day production
- * DB dump import into a local scratch schema — not guessed from the
- * dump alone.
+ * are NOT actually lost. On 2026-09-01 an admin ran the "duplicate" merge
+ * action (app/admin/index.php's Manage Cars tab) on cars 1738 and 1739 —
+ * confirmed via cars_hist row id 10782, whose comment text is verbatim the
+ * $mergeComment template that action produces. CarAdministrationService::
+ * merge() correctly transferred car_hist rows and deleted car 1738, but it
+ * never touches userimages/ on disk (see #1867, filed to fix that gap for
+ * future merges) — so car 1738's photos were left behind under the deleted
+ * car's directory instead of following the merge to 1739. All 5 originals
+ * plus all 5 resized derivatives (100/300/768/1024/2048) are intact under
+ * the old ID. Confirmed via a production userimages rsync + a same-day
+ * production DB dump import into a local scratch schema — not guessed from
+ * the dump alone. (An earlier draft of this docblock speculated a
+ * "delete + immediately recreate" app bug; that was wrong — this was a
+ * real, deliberate admin merge action, and the fix scope here is unchanged
+ * either way: recover the orphaned files.)
  *
  * Cars 1049, 1455, and 1670 have no matching files anywhere in
  * production userimages (verified by filename search across the full
- * tree, including userimages/orphan/) — genuinely unrecoverable, matches
- * #1800 as filed. This script clears their `cars.image` reference to
- * `[]` so the car page renders its placeholder instead of a 404, per
- * #1800's acceptance criteria for the "owner has no originals to give us"
- * / no-response path. The owner-outreach emails (see
- * docs/plans/issue-1800-owner-emails.md on milestone/v2.29.6) still go out
- * for 1049/1455/1670 — this script does not skip contacting those owners,
- * it only pre-clears the reference so their entry isn't broken while they
- * decide whether to re-upload. If an owner does re-upload, the normal
- * upload flow overwrites this `[]` value.
+ * tree, including userimages/orphan/), and no merge/duplicate history of
+ * their own — genuinely unrecoverable, matches #1800 as filed. This script
+ * clears their `cars.image` reference to `[]` so the car page renders its
+ * placeholder instead of a 404, per #1800's acceptance criteria for the
+ * "owner has no originals to give us" / no-response path. The
+ * owner-outreach emails (see the Plans repo — not tracked in this repo,
+ * see CLAUDE.md's "Working documents... live outside this repo" rule) still
+ * go out for 1049/1455/1670 — this script does not skip contacting those
+ * owners, it only pre-clears the reference so their entry isn't broken
+ * while they decide whether to re-upload. If an owner does re-upload, the
+ * normal upload flow overwrites this `[]` value.
  *
  * ROLLBACK: Restore `cars` from the BackupManager snapshot created at
- * script start. The file move (STEP 1) is also reversible — this script
+ * script start. The file copy (STEP 2) is also reversible — this script
  * copies rather than deletes the source files under userimages/1738/, so
  * the originals remain there until manually removed in a later, separate
  * cleanup pass (out of scope here — see #1222, the general orphan/
@@ -52,15 +59,18 @@ use ElanRegistry\LogCategories;
  *
  * DEPLOYMENT INSTRUCTIONS:
  * Run once on test (if a test-environment copy of userimages/1738/ exists
- * — otherwise STEP 1 will report 0 files found and skip cleanly, which is
- * expected and fine for a test-only dry run of STEP 2/3), verify, then run
+ * — otherwise STEP 2 will report 0 files found and skip cleanly, which is
+ * expected and fine for a test-only dry run of STEP 3/4), verify, then run
  * once on prod via Admin → Maintenance tab. This script is expected to run
- * exactly once; it is idempotent for STEP 2/3 (the optimistic-concurrency
+ * exactly once; it is idempotent for STEP 3/4 (the optimistic-concurrency
  * WHERE clause in CarRepository::updateImage() means a second run simply
  * reports 0 rows updated once cars.image no longer matches its
- * pre-migration value) but STEP 1's file copy will re-copy (harmless,
+ * pre-migration value) but STEP 2's file copy will re-copy (harmless,
  * same bytes) if re-run before the manual cleanup pass removes the
- * source directory.
+ * source directory. STEP 3 (car 1739's image-column update) is gated on
+ * STEP 2 completing with zero copy errors — see the $stepTwoErrors guard
+ * below — so a partial file copy can never be paired with a DB update that
+ * asserts files exist which didn't actually get copied.
  */
 
 require_once '../../../../users/init.php';
@@ -81,9 +91,10 @@ set_error_handler(function (int $errno, string $errstr, string $errfile, int $er
 $db = DB::getInstance();
 $backupManager = new BackupManager(dbi(), $abs_us_root . $us_url_root . BACKUP_BASE_DIR, (int) $user->data()->id);
 $carRepository = new CarRepository(dbi());
+$carImageProcessor = new CarImageProcessor($carRepository);
 
 // Car 1739's recovered image set — pipeline-processed filenames, confirmed
-// present (original + all 5 resized derivatives) under the pre-recreation
+// present (original + all 5 resized derivatives) under the merged-away
 // car ID 1738. Order matches the car's own cars_hist INSERT row (id 10781).
 const RECOVERED_CAR_ID = 1739;
 const RECOVERED_FROM_CAR_ID = 1738;
@@ -94,7 +105,12 @@ const RECOVERED_FILENAMES = [
     'img_6825232bba5509.91496603.jpg',
     'img_6825232c2458d5.38006963.jpg',
 ];
-const RESIZED_SUFFIXES = ['-resized-100', '-resized-300', '-resized-600', '-resized-1024', '-resized-2048'];
+// Matches ELAN_IMAGE_THUMBNAIL_SIZES (usersc/includes/config.php) — 600 was
+// retired in favor of 768 (see app/admin/scripts/maintenance/24-Regenerate-
+// Optimized-Thumbnails.php). An earlier draft of this script used the
+// retired 600 size, which would have silently skipped the real 768px
+// derivative on prod; caught by PR review before this script ever ran.
+const RESIZED_SUFFIXES = ['-resized-100', '-resized-300', '-resized-768', '-resized-1024', '-resized-2048'];
 
 // Cars confirmed to have no matching files anywhere in production
 // userimages (including userimages/orphan/) — clear the reference so the
@@ -121,9 +137,10 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                             <p class="mb-3">
                                 One-time data migration for the four cars identified in
                                 #1800 as having unrecoverable photos. Recovers car 1739's
-                                photos (found intact under a stale pre-recreation car ID)
-                                and clears the broken image reference on the three cars
-                                whose files are genuinely gone.
+                                photos (orphaned under a merged-away car ID by an admin
+                                merge action that predates #1867's fix) and clears the
+                                broken image reference on the three cars whose files are
+                                genuinely gone.
                             </p>
 
                             <div class="alert alert-info">
@@ -133,14 +150,18 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                         <code>userimages/1738/</code> to
                                         <code>userimages/1739/</code></li>
                                     <li>Updates car 1739's <code>cars.image</code> column to the
-                                        recovered filenames (optimistic-concurrency guarded —
-                                        no-ops if the column no longer matches its known
-                                        pre-migration value)</li>
+                                        recovered filenames — but only if every file copied
+                                        successfully; skips the DB update entirely otherwise so
+                                        <code>cars.image</code> never references a file that
+                                        isn't actually on disk</li>
                                     <li>Clears <code>cars.image</code> to <code>[]</code> for cars
-                                        1049, 1455, and 1670 (same guard) so their pages render
+                                        1049, 1455, and 1670 (optimistic-concurrency guarded — a
+                                        mismatch is treated as a concurrent modification worth
+                                        investigating, not a routine no-op) so their pages render
                                         the placeholder instead of a 404</li>
                                     <li>Creates a <code>cars</code> table backup before any write</li>
-                                    <li>Logs a summary of files copied and rows updated</li>
+                                    <li>Logs a summary of files copied and rows updated, always
+                                        printed even if a step fails partway through</li>
                                 </ul>
                             </div>
 
@@ -156,6 +177,10 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                     <li>Owners of 1049/1455/1670 still need the outreach email
                                         sent per #1800 — this script only pre-clears the broken
                                         reference, it does not substitute for owner contact</li>
+                                    <li>If the summary reports any errors, review them before
+                                        sending outreach emails — an error may mean a car's
+                                        <code>cars.image</code> changed since this script was
+                                        written (e.g. the owner already re-uploaded)</li>
                                 </ul>
                             </div>
 
@@ -213,10 +238,16 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
 
                         $sourceDir = $abs_us_root . 'userimages/' . RECOVERED_FROM_CAR_ID . '/';
                         $destDir = $abs_us_root . 'userimages/' . RECOVERED_CAR_ID . '/';
+                        // Gates STEP 3: if any expected file fails to copy, cars.image must
+                        // NOT be updated to reference it — a DB write asserting a file exists
+                        // that isn't actually on disk would trade a missing-photo placeholder
+                        // for a silent 404, which is strictly worse. Caught by PR review.
+                        $stepTwoErrors = 0;
 
                         if (!is_dir($sourceDir)) {
                             logProgress("Source directory not found: {$sourceDir} — skipping copy (expected on an environment without a copy of production userimages, e.g. test)", 'warning');
                             $results['files_missing'] += count(RECOVERED_FILENAMES) * (1 + count(RESIZED_SUFFIXES));
+                            $stepTwoErrors++; // no source dir on prod would also be a real problem — treat as blocking
                         } else {
                             if (!is_dir($destDir)) {
                                 if (!mkdir($destDir, 0755, true) && !is_dir($destDir)) {
@@ -241,17 +272,28 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                     if (!file_exists($src)) {
                                         logProgress("Missing (expected on non-prod): {$variant}", 'warning');
                                         $results['files_missing']++;
+                                        $stepTwoErrors++;
                                         continue;
                                     }
 
                                     if (file_exists($dest)) {
-                                        logProgress("Already present at destination, skipping: {$variant}", 'info');
-                                        continue;
+                                        // Size-compared, not just existence-checked: a prior run
+                                        // killed mid-copy could leave a truncated file that
+                                        // file_exists() alone can't distinguish from a complete
+                                        // one. Caught by PR review.
+                                        if (filesize($dest) === filesize($src)) {
+                                            logProgress("Already present at destination, skipping: {$variant}", 'info');
+                                            continue;
+                                        }
+                                        logProgress("Destination exists but size differs from source ({$variant}) — re-copying to repair a likely partial prior copy", 'warning');
                                     }
 
                                     if (!copy($src, $dest)) {
-                                        logProgress("FAILED to copy: {$variant}", 'error');
+                                        $lastError = error_get_last();
+                                        $reason = $lastError['message'] ?? 'unknown reason';
+                                        logProgress("FAILED to copy: {$variant} — {$reason}", 'error');
                                         $results['errors']++;
+                                        $stepTwoErrors++;
                                         continue;
                                     }
 
@@ -267,24 +309,36 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                         logProgress('STEP 3: Update cars.image for car ' . RECOVERED_CAR_ID, 'step');
                         logProgress(SECTION_SEPARATOR, 'step');
 
-                        $car1739Row = $db->query('SELECT image FROM cars WHERE id = ?', [RECOVERED_CAR_ID])->first();
-                        if ($car1739Row === null) {
-                            logProgress('Car ' . RECOVERED_CAR_ID . ' not found — skipping image update', 'warning');
-                            $results['rows_skipped']++;
+                        if ($stepTwoErrors > 0) {
+                            logProgress('STEP 3 SKIPPED: ' . $stepTwoErrors . ' file(s) failed to copy or were missing in STEP 2 — updating cars.image now would reference files that are not actually on disk.', 'error');
+                            $results['errors']++;
                         } else {
-                            $expectedJson = (string) $car1739Row->image;
-                            $newJson = json_encode(RECOVERED_FILENAMES, JSON_UNESCAPED_SLASHES);
-
-                            if ($expectedJson === $newJson) {
-                                logProgress('Car ' . RECOVERED_CAR_ID . ' already has the recovered filenames — nothing to update', 'info');
+                            $car1739Row = $db->query('SELECT image FROM cars WHERE id = ?', [RECOVERED_CAR_ID])->first();
+                            if (empty($car1739Row)) {
+                                logProgress('Car ' . RECOVERED_CAR_ID . ' not found — skipping image update', 'warning');
+                                $results['rows_skipped']++;
                             } else {
-                                $updated = $carRepository->updateImage(RECOVERED_CAR_ID, $newJson, $expectedJson);
-                                if ($updated) {
-                                    logProgress('Car ' . RECOVERED_CAR_ID . " image column updated to recovered filenames", 'success');
-                                    $results['rows_updated']++;
+                                $expectedJson = (string) $car1739Row->image;
+                                $newJson = $carImageProcessor->encodeImages(RECOVERED_FILENAMES);
+
+                                if ($expectedJson === $newJson) {
+                                    logProgress('Car ' . RECOVERED_CAR_ID . ' already has the recovered filenames — nothing to update', 'info');
                                 } else {
-                                    logProgress('Car ' . RECOVERED_CAR_ID . " image column did not match expected pre-migration value ({$expectedJson}) — not updated (likely already handled or changed since this script was written)", 'warning');
-                                    $results['rows_skipped']++;
+                                    $updated = $carRepository->updateImage(RECOVERED_CAR_ID, $newJson, $expectedJson);
+                                    if ($updated) {
+                                        logProgress('Car ' . RECOVERED_CAR_ID . " image column updated to recovered filenames", 'success');
+                                        $results['rows_updated']++;
+                                    } else {
+                                        // updateImage() returning false means the optimistic-concurrency
+                                        // WHERE clause matched 0 rows — since $expectedJson was read
+                                        // moments ago in this same run, this means the row changed
+                                        // between that read and this write (a genuine concurrent
+                                        // modification), not routine idempotency. Flagged as an error,
+                                        // not a shrug-worthy warning, so it isn't missed before sending
+                                        // outreach emails. Caught by PR review.
+                                        logProgress('Car ' . RECOVERED_CAR_ID . " image column changed since this script read it (expected: {$expectedJson}) — another process modified this row during this run. Investigate before proceeding; do not assume this is routine.", 'error');
+                                        $results['errors']++;
+                                    }
                                 }
                             }
                         }
@@ -296,69 +350,102 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                         logProgress(SECTION_SEPARATOR, 'step');
 
                         foreach (UNRECOVERABLE_CAR_IDS as $carId) {
-                            $row = $db->query('SELECT image FROM cars WHERE id = ?', [$carId])->first();
-                            if ($row === null) {
-                                logProgress("Car {$carId} not found — skipping", 'warning');
-                                $results['rows_skipped']++;
-                                continue;
-                            }
+                            try {
+                                $row = $db->query('SELECT image FROM cars WHERE id = ?', [$carId])->first();
+                                if (empty($row)) {
+                                    logProgress("Car {$carId} not found — skipping", 'warning');
+                                    $results['rows_skipped']++;
+                                    continue;
+                                }
 
-                            $expectedJson = (string) $row->image;
-                            $newJson = '[]';
+                                $expectedJson = (string) $row->image;
+                                $newJson = '[]';
 
-                            if ($expectedJson === $newJson) {
-                                logProgress("Car {$carId} image column already cleared — nothing to update", 'info');
-                                continue;
-                            }
+                                if ($expectedJson === $newJson) {
+                                    logProgress("Car {$carId} image column already cleared — nothing to update", 'info');
+                                    continue;
+                                }
 
-                            $updated = $carRepository->updateImage($carId, $newJson, $expectedJson);
-                            if ($updated) {
-                                logProgress("Car {$carId} image column cleared (was: {$expectedJson})", 'success');
-                                $results['rows_updated']++;
-                            } else {
-                                logProgress("Car {$carId} image column did not match expected pre-migration value ({$expectedJson}) — not updated (likely already handled or changed since this script was written)", 'warning');
-                                $results['rows_skipped']++;
+                                $updated = $carRepository->updateImage($carId, $newJson, $expectedJson);
+                                if ($updated) {
+                                    logProgress("Car {$carId} image column cleared (was: {$expectedJson})", 'success');
+                                    $results['rows_updated']++;
+                                } else {
+                                    // Same reasoning as STEP 3: this row was just read in this same
+                                    // run, so a mismatch here means a genuine concurrent modification,
+                                    // not routine idempotency — e.g. the owner re-uploaded a photo in
+                                    // the window between #1800's investigation and this script running.
+                                    // If that happened, sending the "your photos are lost" outreach
+                                    // email for this car would be actively wrong. Caught by PR review.
+                                    logProgress("Car {$carId} image column changed since this script read it (expected: {$expectedJson}) — another process modified this row during this run. Do NOT send the outreach email for this car until investigated.", 'error');
+                                    $results['errors']++;
+                                }
+                            } catch (\Throwable $e) {
+                                // A single car's failure must not abort the remaining cars in this
+                                // loop — without this, one transient DB error could leave the
+                                // operator unable to tell which of the 3 cars were actually cleared.
+                                // Caught by PR review.
+                                logProgress("FAILED to process car {$carId}: " . $e->getMessage(), 'error');
+                                $results['errors']++;
+                                logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, "Car {$carId} clear failed: " . $e->getMessage());
                             }
                         }
-
-                        // Log script completion
-                        $db->insert('fix_script_runs', [
-                            'script_name' => '13-Recover-Or-Clear-Lost-Car-Images.php',
-                            'completed_at' => date('Y-m-d H:i:s'),
-                        ]);
 
                         logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT,
                             "Recover-or-clear lost car images completed - Files copied: {$results['files_copied']}, Files missing: {$results['files_missing']}, Rows updated: {$results['rows_updated']}, Rows skipped: {$results['rows_skipped']}, Errors: {$results['errors']}");
 
-                        // Display summary
-                        logProgress('', 'info');
-                        logProgress(SECTION_SEPARATOR, 'step');
-                        logProgress('MIGRATION COMPLETE', 'step');
-                        logProgress(SECTION_SEPARATOR, 'step');
-                        logProgress("Files copied: {$results['files_copied']}", 'success');
-                        if ($results['files_missing'] > 0) {
-                            logProgress("Files missing (expected on non-prod): {$results['files_missing']}", 'warning');
-                        }
-                        logProgress("Rows updated: {$results['rows_updated']}", 'success');
-                        if ($results['rows_skipped'] > 0) {
-                            logProgress("Rows skipped: {$results['rows_skipped']}", 'warning');
-                        }
-                        if ($results['errors'] > 0) {
-                            logProgress("Errors: {$results['errors']}", 'error');
-                        }
-                        logProgress('', 'info');
-                        logProgress('Post-Processing Steps:', 'info');
-                        logProgress('  • Verify car ' . RECOVERED_CAR_ID . "'s page renders its 5 recovered photos with no 404s", 'info');
-                        logProgress('  • Verify cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' render the placeholder image, not a 404', 'info');
-                        logProgress('  • Send the #1800 outreach emails for cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' (Martin Boysen / car ' . RECOVERED_CAR_ID . ' no longer needs one)', 'info');
-                        logProgress('  • Once confirmed stable, manually remove userimages/' . RECOVERED_FROM_CAR_ID . '/ in a separate cleanup pass (tracked under #1222, not this script)', 'info');
-
+                        $fatalError = null;
                     } catch (BackupException $e) {
-                        logProgress('FATAL ERROR creating backup: ' . $e->getMessage(), 'error');
+                        $fatalError = 'FATAL ERROR creating backup: ' . $e->getMessage();
                         logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, 'Fatal backup error: ' . $e->getMessage());
                     } catch (Exception $e) {
-                        logProgress('FATAL ERROR: ' . $e->getMessage(), 'error');
+                        $fatalError = 'FATAL ERROR: ' . $e->getMessage();
                         logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, 'Fatal error: ' . $e->getMessage());
+                    }
+
+                    // Uses the shared helper (not a raw $db->insert()) so a failure recording
+                    // completion is logged and surfaced as a warning without being misreported
+                    // as a failure of the actual recovery work above, which may have already
+                    // succeeded. Caught by PR review.
+                    admin_script_record_completion(
+                        __FILE__,
+                        (int) $user->data()->id,
+                        function (string $msg) use (&$results): void {
+                            $results['errors']++;
+                            logProgress($msg, 'warning');
+                        }
+                    );
+
+                    // Summary is printed regardless of whether a fatal error occurred above,
+                    // so a mid-run failure (e.g. STEP 4's second or third car) doesn't leave the
+                    // operator to manually reconstruct which cars were actually processed from
+                    // scrollback alone. Caught by PR review.
+                    logProgress('', 'info');
+                    logProgress(SECTION_SEPARATOR, 'step');
+                    logProgress($fatalError !== null ? 'MIGRATION STOPPED EARLY' : 'MIGRATION COMPLETE', 'step');
+                    logProgress(SECTION_SEPARATOR, 'step');
+                    if ($fatalError !== null) {
+                        logProgress($fatalError, 'error');
+                    }
+                    logProgress("Files copied: {$results['files_copied']}", 'success');
+                    if ($results['files_missing'] > 0) {
+                        logProgress("Files missing (expected on non-prod): {$results['files_missing']}", 'warning');
+                    }
+                    logProgress("Rows updated: {$results['rows_updated']}", 'success');
+                    if ($results['rows_skipped'] > 0) {
+                        logProgress("Rows skipped: {$results['rows_skipped']}", 'warning');
+                    }
+                    if ($results['errors'] > 0) {
+                        logProgress("Errors: {$results['errors']}", 'error');
+                    }
+                    logProgress('', 'info');
+                    logProgress('Post-Processing Steps:', 'info');
+                    logProgress('  • Verify car ' . RECOVERED_CAR_ID . "'s page renders its 5 recovered photos with no 404s", 'info');
+                    logProgress('  • Verify cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' render the placeholder image, not a 404', 'info');
+                    logProgress('  • Send the #1800 outreach emails for cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' (Martin Boysen / car ' . RECOVERED_CAR_ID . ' no longer needs one)', 'info');
+                    logProgress('  • Once confirmed stable, manually remove userimages/' . RECOVERED_FROM_CAR_ID . '/ in a separate cleanup pass (tracked under #1222, not this script)', 'info');
+                    if ($results['errors'] > 0) {
+                        logProgress('  • ⚠ Errors were reported above — review each before sending outreach emails or considering this migration complete', 'warning');
                     }
 
                     ?></pre>
