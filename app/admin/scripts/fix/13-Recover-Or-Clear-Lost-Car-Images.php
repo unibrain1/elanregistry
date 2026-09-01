@@ -19,22 +19,16 @@ use ElanRegistry\LogCategories;
  * Issue #1800: chore: contact the 4 owners whose car photos were lost and
  * invite re-upload.
  *
- * FINDING (2026-09-01, during outreach-email drafting): car 1739's photos
- * are NOT actually lost. On 2026-09-01 an admin ran the "duplicate" merge
- * action (app/admin/index.php's Manage Cars tab) on cars 1738 and 1739 —
- * confirmed via cars_hist row id 10782, whose comment text is verbatim the
- * $mergeComment template that action produces. CarAdministrationService::
- * merge() correctly transferred car_hist rows and deleted car 1738, but it
- * never touches userimages/ on disk (see #1867, filed to fix that gap for
- * future merges) — so car 1738's photos were left behind under the deleted
- * car's directory instead of following the merge to 1739. All 5 originals
- * plus all 5 resized derivatives (100/300/768/1024/2048) are intact under
- * the old ID. Confirmed via a production userimages rsync + a same-day
- * production DB dump import into a local scratch schema — not guessed from
- * the dump alone. (An earlier draft of this docblock speculated a
- * "delete + immediately recreate" app bug; that was wrong — this was a
- * real, deliberate admin merge action, and the fix scope here is unchanged
- * either way: recover the orphaned files.)
+ * Car 1739's photos are NOT actually lost. On 2026-09-01 an admin ran the
+ * "duplicate" merge action (app/admin/index.php's Manage Cars tab) on cars
+ * 1738 and 1739 — confirmed via cars_hist row id 10782, whose comment text
+ * is verbatim the $mergeComment template that action produces.
+ * CarAdministrationService::merge() correctly transferred car_hist rows and
+ * deleted car 1738, but it never touches userimages/ on disk (see #1867,
+ * filed to fix that gap for future merges) — so car 1738's photos were left
+ * behind under the deleted car's directory instead of following the merge
+ * to 1739. All 5 originals plus all 5 resized derivatives
+ * (100/300/768/1024/2048) are intact under the old ID.
  *
  * Cars 1049, 1455, and 1670 have no matching files anywhere in
  * production userimages (verified by filename search across the full
@@ -107,9 +101,7 @@ const RECOVERED_FILENAMES = [
 ];
 // Matches ELAN_IMAGE_THUMBNAIL_SIZES (usersc/includes/config.php) — 600 was
 // retired in favor of 768 (see app/admin/scripts/maintenance/24-Regenerate-
-// Optimized-Thumbnails.php). An earlier draft of this script used the
-// retired 600 size, which would have silently skipped the real 768px
-// derivative on prod; caught by PR review before this script ever ran.
+// Optimized-Thumbnails.php).
 const RESIZED_SUFFIXES = ['-resized-100', '-resized-300', '-resized-768', '-resized-1024', '-resized-2048'];
 
 // Cars confirmed to have no matching files anywhere in production
@@ -246,16 +238,13 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                         // — $abs_us_root alone is DOCUMENT_ROOT, which under MAMP's multi-project
                         // layout is the shared Web/ parent, not this app's own root; $us_url_root
                         // supplies the app's subpath segment (empty on prod, where this app IS
-                        // the site root). Omitting it here was a real bug, caught when a local
-                        // dry run reported "Source directory not found:
-                        // /Users/.../Web/userimages/1738/" — missing the /ElanRegistry/Registry/
-                        // segment entirely.
+                        // the site root).
                         $sourceDir = $abs_us_root . $us_url_root . ELAN_IMAGE_DIR . RECOVERED_FROM_CAR_ID . '/';
                         $destDir = $abs_us_root . $us_url_root . ELAN_IMAGE_DIR . RECOVERED_CAR_ID . '/';
                         // Gates STEP 3: if any expected file fails to copy, cars.image must
                         // NOT be updated to reference it — a DB write asserting a file exists
                         // that isn't actually on disk would trade a missing-photo placeholder
-                        // for a silent 404, which is strictly worse. Caught by PR review.
+                        // for a silent 404, which is strictly worse.
                         $stepTwoErrors = 0;
 
                         if (!is_dir($sourceDir)) {
@@ -287,13 +276,11 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                         // These source files predate the 100/300/768/1024/2048
                                         // thumbnail-size migration (app/admin/scripts/maintenance/
                                         // 24-Regenerate-Optimized-Thumbnails.php) and only have the
-                                        // retired -resized-600 size. Confirmed present in BOTH the
-                                        // local dev copy and the actual production userimages/1738/
-                                        // (rsync-verified) — not an environment quirk. Fall back to
-                                        // copying -resized-600 as a stand-in -resized-768 rather than
-                                        // leaving the car without a 768px derivative at all; script 24
-                                        // is the correct place to later generate a genuine 768px
-                                        // derivative from the original once these files are restored.
+                                        // retired -resized-600 size. Fall back to copying -resized-600
+                                        // as a stand-in -resized-768 rather than leaving the car
+                                        // without a 768px derivative at all; script 24 is the correct
+                                        // place to later generate a genuine 768px derivative from the
+                                        // original once these files are restored.
                                         $fallbackSrc = $sourceDir . str_replace('-resized-768', '-resized-600', $variant);
                                         if (file_exists($fallbackSrc)) {
                                             logProgress("True 768px derivative missing, using -resized-600 as fallback for: {$variant}", 'warning');
@@ -302,7 +289,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                             // distinguish "N genuine copies" from "N copies, M of which
                                             // are lower-resolution stand-ins" — otherwise this fact is
                                             // only visible in scrollback at the same log level as
-                                            // routine non-prod noise. Caught by PR re-review.
+                                            // routine non-prod noise.
                                             $results['fallback_used']++;
                                         }
                                     }
@@ -318,7 +305,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                         // Size-compared, not just existence-checked: a prior run
                                         // killed mid-copy could leave a truncated file that
                                         // file_exists() alone can't distinguish from a complete
-                                        // one. Caught by PR review.
+                                        // one.
                                         if (filesize($dest) === filesize($src)) {
                                             logProgress("Already present at destination, skipping: {$variant}", 'info');
                                             continue;
@@ -368,12 +355,13 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                         $results['rows_updated']++;
                                     } else {
                                         // updateImage() returning false means the optimistic-concurrency
-                                        // WHERE clause matched 0 rows — since $expectedJson was read
-                                        // moments ago in this same run, this means the row changed
-                                        // between that read and this write (a genuine concurrent
-                                        // modification), not routine idempotency. Flagged as an error,
-                                        // not a shrug-worthy warning, so it isn't missed before sending
-                                        // outreach emails. Caught by PR review.
+                                        // WHERE clause matched 0 rows. Because this script is intended
+                                        // to run exactly once and $expectedJson was read moments ago in
+                                        // this same run, a mismatch here means the row changed between
+                                        // that read and this write, not routine idempotency — flagged as
+                                        // an error, not a shrug-worthy warning, so it isn't missed before
+                                        // sending outreach emails. (This reasoning does not generalize to
+                                        // a script designed to be re-run.)
                                         logProgress('Car ' . RECOVERED_CAR_ID . " image column changed since this script read it (expected: {$expectedJson}) — another process modified this row during this run. Investigate before proceeding; do not assume this is routine.", 'error');
                                         $results['errors']++;
                                     }
@@ -414,7 +402,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                     // not routine idempotency — e.g. the owner re-uploaded a photo in
                                     // the window between #1800's investigation and this script running.
                                     // If that happened, sending the "your photos are lost" outreach
-                                    // email for this car would be actively wrong. Caught by PR review.
+                                    // email for this car would be actively wrong.
                                     logProgress("Car {$carId} image column changed since this script read it (expected: {$expectedJson}) — another process modified this row during this run. Do NOT send the outreach email for this car until investigated.", 'error');
                                     $results['errors']++;
                                 }
@@ -422,7 +410,6 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                                 // A single car's failure must not abort the remaining cars in this
                                 // loop — without this, one transient DB error could leave the
                                 // operator unable to tell which of the 3 cars were actually cleared.
-                                // Caught by PR review.
                                 logProgress("FAILED to process car {$carId}: " . $e->getMessage(), 'error');
                                 $results['errors']++;
                                 logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, "Car {$carId} clear failed: " . $e->getMessage());
@@ -444,7 +431,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                     // Uses the shared helper (not a raw $db->insert()) so a failure recording
                     // completion is logged and surfaced as a warning without being misreported
                     // as a failure of the actual recovery work above, which may have already
-                    // succeeded. Caught by PR review.
+                    // succeeded.
                     admin_script_record_completion(
                         __FILE__,
                         (int) $user->data()->id,
@@ -457,7 +444,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                     // Summary is printed regardless of whether a fatal error occurred above,
                     // so a mid-run failure (e.g. STEP 4's second or third car) doesn't leave the
                     // operator to manually reconstruct which cars were actually processed from
-                    // scrollback alone. Caught by PR review.
+                    // scrollback alone.
                     logProgress('', 'info');
                     logProgress(SECTION_SEPARATOR, 'step');
                     logProgress($fatalError !== null ? 'MIGRATION STOPPED EARLY' : 'MIGRATION COMPLETE', 'step');
@@ -471,7 +458,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                         // means N of the copied files are lower-resolution -resized-600 bytes sitting
                         // at a -resized-768 destination path, not a true 768px derivative. Surfaced
                         // here (not just in scrollback) so it can't be missed by reading the summary
-                        // alone. Caught by PR re-review.
+                        // alone.
                         logProgress("⚠ Of the above, copied via -resized-600 fallback (NOT true 768px — run script 24 after confirming stable): {$results['fallback_used']}", 'warning');
                     }
                     if ($results['files_missing'] > 0) {
@@ -488,7 +475,7 @@ const UNRECOVERABLE_CAR_IDS = [1049, 1455, 1670];
                     logProgress('Post-Processing Steps:', 'info');
                     logProgress('  • Verify car ' . RECOVERED_CAR_ID . "'s page renders its 5 recovered photos with no 404s", 'info');
                     logProgress('  • Verify cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' render the placeholder image, not a 404', 'info');
-                    logProgress('  • Send the #1800 outreach emails for cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' (Martin Boysen / car ' . RECOVERED_CAR_ID . ' no longer needs one)', 'info');
+                    logProgress('  • Send the #1800 outreach emails for cars ' . implode(', ', UNRECOVERABLE_CAR_IDS) . ' (car ' . RECOVERED_CAR_ID . ' no longer needs one)', 'info');
                     logProgress('  • Once confirmed stable, manually remove userimages/' . RECOVERED_FROM_CAR_ID . '/ in a separate cleanup pass (tracked under #1222, not this script)', 'info');
                     if ($results['fallback_used'] > 0) {
                         logProgress('  • Run app/admin/scripts/maintenance/24-Regenerate-Optimized-Thumbnails.php to generate a genuine 768px derivative for car ' . RECOVERED_CAR_ID . "'s photos — {$results['fallback_used']} of them are currently the retired -resized-600 file standing in for -resized-768", 'info');

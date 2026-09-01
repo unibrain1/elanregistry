@@ -476,4 +476,30 @@ test.describe('transfer-request.php — length validation', () => {
         // Error: "Type must be 3 characters or less"
         expect(body.message).toMatch(/must be 3 characters/i);
     });
+
+    // -------------------------------------------------------------------
+    // Malformed model — user message must not echo the raw submitted value
+    // -------------------------------------------------------------------
+    // Regression guard for #1854: CarValidator::parseModel() failures are the
+    // one throw site in transfer-request.php where the technical/log message
+    // and the user-facing message intentionally diverge (every other throw
+    // site in this file reuses the same string for both). Pins that the raw
+    // $model value never reaches the client, even though it's included in the
+    // technical message for logs.
+
+    test('malformed model returns a generic message, not the raw submitted value', async ({ page }) => {
+        const rawModel = 'not-a-valid-model-format';
+        const resp = await page.request.post('app/api/cars/transfer-request.php', {
+            form: { ...baseValid, model: rawModel, csrf: csrfToken },
+        });
+        const body = await resp.json();
+        if (body.message && /too many/i.test(body.message)) {
+            test.skip(true, 'Rate limited — skipping; run in a fresh session or wait for the rate-limit window to reset');
+            return;
+        }
+        expect(resp.status()).toBe(400);
+        expect(body).toHaveProperty('success', false);
+        expect(body.message).toMatch(/Invalid model format\. Expected series\|variant\|type/i);
+        expect(body.message).not.toContain(rawModel);
+    });
 });

@@ -18,8 +18,7 @@
 // (_verify_success.php). That requires a real DB user row with a valid,
 // unexpired vericode, and no such fixture exists today. Building one (a new
 // fixture user + a hash_equals()-matching vericode) is separate, tracked work
-// — this is a known, deliberate gap, not an oversight. See
-// docs/plans/issue-1253-owner-page-playwright-coverage.md.
+// — this is a known, deliberate gap, not an oversight. See #1253.
 //
 // Requires local MAMP at http://localhost:9999/ElanRegistry/Registry
 

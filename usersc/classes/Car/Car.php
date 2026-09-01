@@ -464,8 +464,10 @@ class Car
     /**
      * Delete the car and all associated records
      *
-     * CSRF is validated by the caller (HTTP layer, admin/index.php) before
-     * delete() is called — see #1519, #1829.
+     * This method does not validate CSRF itself — the caller MUST do so
+     * before invoking delete() (see #1519, #1829; today's only caller,
+     * admin/index.php, validates it unconditionally before reaching this
+     * call).
      *
      * @param string $reason Reason for deletion (for audit trail)
      * @param int $actingUserId ID of the admin performing the action — caller MUST verify
