@@ -374,11 +374,26 @@ jobs:
           # a re-review recapping a previously-resolved finding under a
           # heading like "### Blocking finding from the previous round:
           # resolved" is prose, not a live findings section, and must not
-          # match (#1843) — filtered by checking the matched line for
+          # match (#1843) — filtered by checking each matched line for
           # recap/resolution language rather than by narrowing the heading
           # match itself.
-          BLOCKING_LINE=$(echo "$REVIEW_BODY" | grep -E '^#{1,6}[[:space:]]+Blocking([[:space:]]|$)|^\*\*Blocking\*\*([[:space:]]|$)' | head -1)
-          if [ -n "$BLOCKING_LINE" ] && ! echo "$BLOCKING_LINE" | grep -qiE 'resolved|previous round|prior round|earlier round'; then
+          #
+          # Count every non-excluded match across the WHOLE body rather than
+          # inspecting only the first (`head -1`) — a comment can contain a
+          # resolved-recap heading earlier and a genuine new Blocking section
+          # later; taking only the first match would silently pass on the
+          # excluded recap line and never see the real section below it.
+          #
+          # `|| true` guards the pipeline itself: this job's default shell
+          # runs with `-e -o pipefail` (no explicit `shell:` override), so
+          # the common case — no Blocking heading anywhere, both greps exit
+          # 1 for "no match" — would otherwise abort the step before
+          # BLOCKING_COUNT is ever assigned, failing the check by shell
+          # accident rather than by finding anything.
+          BLOCKING_COUNT=$(echo "$REVIEW_BODY" \
+            | grep -E '^#{1,6}[[:space:]]+Blocking([[:space:]]|$)|^\*\*Blocking\*\*([[:space:]]|$)' \
+            | grep -cviE 'resolved|previous round|prior round|earlier round' || true)
+          if [ "$BLOCKING_COUNT" -gt 0 ]; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
@@ -641,11 +656,26 @@ jobs:
           # a re-review recapping a previously-resolved finding under a
           # heading like "### Blocking finding from the previous round:
           # resolved" is prose, not a live findings section, and must not
-          # match (#1843) — filtered by checking the matched line for
+          # match (#1843) — filtered by checking each matched line for
           # recap/resolution language rather than by narrowing the heading
           # match itself.
-          BLOCKING_LINE=$(echo "$REVIEW_BODY" | grep -E '^#{1,6}[[:space:]]+Blocking([[:space:]]|$)|^\*\*Blocking\*\*([[:space:]]|$)' | head -1)
-          if [ -n "$BLOCKING_LINE" ] && ! echo "$BLOCKING_LINE" | grep -qiE 'resolved|previous round|prior round|earlier round'; then
+          #
+          # Count every non-excluded match across the WHOLE body rather than
+          # inspecting only the first (`head -1`) — a comment can contain a
+          # resolved-recap heading earlier and a genuine new Blocking section
+          # later; taking only the first match would silently pass on the
+          # excluded recap line and never see the real section below it.
+          #
+          # `|| true` guards the pipeline itself: this job's default shell
+          # runs with `-e -o pipefail` (no explicit `shell:` override), so
+          # the common case — no Blocking heading anywhere, both greps exit
+          # 1 for "no match" — would otherwise abort the step before
+          # BLOCKING_COUNT is ever assigned, failing the check by shell
+          # accident rather than by finding anything.
+          BLOCKING_COUNT=$(echo "$REVIEW_BODY" \
+            | grep -E '^#{1,6}[[:space:]]+Blocking([[:space:]]|$)|^\*\*Blocking\*\*([[:space:]]|$)' \
+            | grep -cviE 'resolved|previous round|prior round|earlier round' || true)
+          if [ "$BLOCKING_COUNT" -gt 0 ]; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
