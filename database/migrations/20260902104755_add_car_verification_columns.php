@@ -106,6 +106,13 @@ final class AddCarVerificationColumns extends AbstractMigration
     public function down(): void
     {
         // --- 1. Drop the cars_hist columns --------------------------------
+        // Briefly leaves the *new* (post-migration) trigger bodies referencing
+        // columns that no longer exist, between this step and step 2 restoring
+        // the pre-migration bodies. Harmless for a normal, non-concurrent
+        // `migrate:rollback` — no INSERT/UPDATE/DELETE on `cars` runs between
+        // the two DDL statements in that path — but worth knowing if this
+        // migration is ever adapted to run against a live, concurrently-written
+        // table.
         $hist = $this->table('cars_hist');
         foreach (['owner_last_updated', 'vericode_sent_at', 'email_bounced'] as $column) {
             if ($hist->hasColumn($column)) {

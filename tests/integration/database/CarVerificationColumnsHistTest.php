@@ -361,4 +361,56 @@ final class CarVerificationColumnsHistTest extends IntegrationTestCase
             'cars_hist DELETE row must capture the final email_bounced value'
         );
     }
+
+    /**
+     * The migration's backfill (`UPDATE cars SET owner_last_updated = mtime,
+     * mtime = mtime WHERE owner_last_updated IS NULL`) runs before the trigger
+     * rebuild step, while the pre-migration cars_update trigger is still
+     * installed. Without the @disable_triggers guard it wraps the statement
+     * in, that trigger would fire once per row and insert a spurious 'UPDATE'
+     * cars_hist row for what is pure internal bookkeeping, not a real edit —
+     * this reproduces the exact guarded statement and proves it doesn't,
+     * mirroring CarsYearSmallintMigrationTest::test_disableTriggersGuard_suppressesUpdateHistory()
+     * for a different migration's guarded UPDATE.
+     */
+    #[Group('fast')]
+    public function testMigrationBackfillGuardSuppressesUpdateHistory(): void
+    {
+        $carId = $this->createTestCar($this->testUserId, ['owner_last_updated' => null]);
+
+        $histCountBefore = $this->db->query(
+            "SELECT COUNT(*) AS cnt FROM cars_hist WHERE car_id = ? AND operation = 'UPDATE'",
+            [$carId]
+        )->first()->cnt;
+
+        $this->db->query('SET @disable_triggers = 1');
+        $this->db->query(
+            'UPDATE cars SET owner_last_updated = mtime, mtime = mtime WHERE id = ? AND owner_last_updated IS NULL',
+            [$carId]
+        );
+        $this->db->query('SET @disable_triggers = NULL');
+
+        $histCountAfter = $this->db->query(
+            "SELECT COUNT(*) AS cnt FROM cars_hist WHERE car_id = ? AND operation = 'UPDATE'",
+            [$carId]
+        )->first()->cnt;
+
+        $this->assertSame(
+            (int) $histCountBefore,
+            (int) $histCountAfter,
+            'The migration backfill\'s @disable_triggers guard must prevent the cars_update '
+            . 'trigger from inserting a spurious cars_hist row — if this regresses, every '
+            . 'pre-existing car gets a bogus \'UPDATE\' entry the next time this backfill runs'
+        );
+
+        $carsRow = $this->db->query(
+            'SELECT owner_last_updated FROM cars WHERE id = ?',
+            [$carId]
+        )->first();
+
+        $this->assertNotNull(
+            $carsRow->owner_last_updated,
+            'The guarded UPDATE must still perform the backfill even though the trigger is suppressed'
+        );
+    }
 }
