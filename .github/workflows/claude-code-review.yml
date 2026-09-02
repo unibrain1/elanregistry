@@ -366,12 +366,19 @@ jobs:
           # = verified only; suspicions go under Important). Keep the two in
           # sync — loosening the prompt's bar silently loosens this gate.
           #
-          # The heading must be EXACTLY "Blocking" (only trailing whitespace
-          # allowed before end-of-line) — not just start with that word. A
-          # re-review recapping a previously-resolved finding under a heading
-          # like "### Blocking finding from the previous round: resolved" is
-          # prose, not a live findings section, and must not match (#1843).
-          if echo "$REVIEW_BODY" | grep -qE '^#{1,6}[[:space:]]*Blocking[[:space:]]*$|^\*\*Blocking\*\*[[:space:]]*$'; then
+          # A Blocking heading may carry trailing words ("### Blocking
+          # findings", "### Blocking issues") — match the word with a
+          # boundary, not an exact-line anchor, so a genuine section with
+          # extra heading text still trips the gate (a prior exact-match
+          # version silently fail-opened on that shape). Excluded separately:
+          # a re-review recapping a previously-resolved finding under a
+          # heading like "### Blocking finding from the previous round:
+          # resolved" is prose, not a live findings section, and must not
+          # match (#1843) — filtered by checking the matched line for
+          # recap/resolution language rather than by narrowing the heading
+          # match itself.
+          BLOCKING_LINE=$(echo "$REVIEW_BODY" | grep -E '^#{1,6}[[:space:]]+Blocking([[:space:]]|$)|^\*\*Blocking\*\*([[:space:]]|$)' | head -1)
+          if [ -n "$BLOCKING_LINE" ] && ! echo "$BLOCKING_LINE" | grep -qiE 'resolved|previous round|prior round|earlier round'; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
@@ -626,12 +633,19 @@ jobs:
           # = verified only; suspicions go under Important). Keep the two in
           # sync — loosening the prompt's bar silently loosens this gate.
           #
-          # The heading must be EXACTLY "Blocking" (only trailing whitespace
-          # allowed before end-of-line) — not just start with that word. A
-          # re-review recapping a previously-resolved finding under a heading
-          # like "### Blocking finding from the previous round: resolved" is
-          # prose, not a live findings section, and must not match (#1843).
-          if echo "$REVIEW_BODY" | grep -qE '^#{1,6}[[:space:]]*Blocking[[:space:]]*$|^\*\*Blocking\*\*[[:space:]]*$'; then
+          # A Blocking heading may carry trailing words ("### Blocking
+          # findings", "### Blocking issues") — match the word with a
+          # boundary, not an exact-line anchor, so a genuine section with
+          # extra heading text still trips the gate (a prior exact-match
+          # version silently fail-opened on that shape). Excluded separately:
+          # a re-review recapping a previously-resolved finding under a
+          # heading like "### Blocking finding from the previous round:
+          # resolved" is prose, not a live findings section, and must not
+          # match (#1843) — filtered by checking the matched line for
+          # recap/resolution language rather than by narrowing the heading
+          # match itself.
+          BLOCKING_LINE=$(echo "$REVIEW_BODY" | grep -E '^#{1,6}[[:space:]]+Blocking([[:space:]]|$)|^\*\*Blocking\*\*([[:space:]]|$)' | head -1)
+          if [ -n "$BLOCKING_LINE" ] && ! echo "$BLOCKING_LINE" | grep -qiE 'resolved|previous round|prior round|earlier round'; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
