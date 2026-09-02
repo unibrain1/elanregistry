@@ -23,6 +23,7 @@ Use this table to choose the right class for your task:
 | Access owner profile and user data | Owner | User profile integration, custom user methods | `$owner = new Owner($uid)` |
 | Validate VIN/chassis format | ChassisValidator | Specialized validation for vehicle identifiers | `$validator->validate('26/0001')` |
 | Direct DB queries on cars/history/factory data | CarRepository | Testable data-access layer, used by Car and API endpoints | `(new CarRepository($db))->findByChassisKey($year, $type, $chassis)` |
+| Verification codes, verification timestamps, email-bounce tracking | CarVerificationManager | Business-logic layer over CarRepository; validates and throws rather than returning falsy on failure | `(new CarVerificationManager($repo))->generateVerificationCode()` |
 | Create database backups | BackupManager | Backup/restore operations, database dumping | `$backup = new BackupManager(...)` |
 | Decode car images | CarImageProcessor | Decodes the `cars.image` JSON array into usable entries | `$processor->decodeAndProcessImages($car->image, ...)` |
 | Remove one image from a car | Car / CarImageProcessor | CAS-guarded single-filename removal; throws on concurrent modification | `$car->removeImage($filename)` |
@@ -475,6 +476,16 @@ to provide a focused, testable data access layer wrapping the `cars`,
   user-deletion hook
 - `updateVerificationCode(int $carId, string $verificationCode): bool` - Update a car's verification code
 - `updateLastVerified(int $carId, string $dateTime): bool` - Update a car's last-verified timestamp
+- `updateVerificationSentAt(int $carId, string $dateTime): bool` - Update the timestamp at which a verification email was sent
+- `updateEmailBounced(int $carId, bool $bounced): bool` - Set or clear a car's email-bounced flag
+- `updateOwnerLastUpdated(int $carId, string $dateTime): bool` - Update the
+  timestamp of the owner's last self-initiated edit; standalone primitive not
+  currently called by `Car::update()` (which folds the same write into its
+  single `updateCar()` call to avoid a duplicate `cars_hist` audit row — see
+  `Car::update()`'s `$isOwnerInitiated` parameter)
+- `findVerificationEligible(int $limit, int $offset): array` - Paginated
+  query for cars eligible for a verification email: not sold, deliverable
+  email, never verified or stale, and a stale owner-driven update
 - `updateSoldDate(int $carId, string $soldDate): bool` - Update a car's sold date
 - `updateImage(int $carId, string $newJson, string $expectedJson): bool` - Compare-and-swap update of the image JSON column; returns `false` on concurrent modification
 - `findByChassisKey(string $year, string $type, string $chassis): ?object` -
@@ -510,6 +521,58 @@ to provide a focused, testable data access layer wrapping the `cars`,
 
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) - Exception patterns
 - [DATABASE.md](DATABASE.md) - `cars`, `cars_hist`, `elan_factory_info` schema
+
+---
+
+### CarVerificationManager
+
+**Location**: `/usersc/classes/Car/CarVerificationManager.php`
+
+**Namespace**: `ElanRegistry\Car`
+
+**Purpose**: Business-logic layer for the car-owner verification lifecycle
+(verification codes, verification timestamps, email-bounce tracking).
+Constructor-injected with a `CarRepository`; validates input, delegates
+persistence to the repository, and mutates the passed-in `$carData` object
+on success.
+
+**Key Features**:
+
+- CSPRNG-backed verification code generation (`bin2hex(random_bytes(16))`,
+  128 bits of entropy)
+- Shared `persist()`/`updateBounced()` private helpers deduplicate the
+  validate → repo call → log-on-failure → throw pattern across all six
+  public methods
+- Every public method throws `CarDatabaseException` on failure (repository
+  returns `false`, or the repository call itself throws) rather than
+  returning a falsy value — callers do not need to check a return value for
+  failure
+
+**Methods**:
+
+- `setVerificationCode(object $carData, string $verificationCode): bool` - Persist a car's verification code (min. 8 characters)
+- `generateVerificationCode(): string` - Generate a new verification code; pure function, no repository call
+- `markVerified(object $carData): bool` - Record that a car has been verified (sets `last_verified` to now)
+- `setVerificationSentAt(object $carData, string $dateTime): bool` - Record when a verification email was sent
+- `setBounced(object $carData): bool` - Flag a car's owner email as bounced
+- `clearBounced(object $carData): bool` - Clear a car's bounced-email flag (admin reversal)
+- `markSold(object $carData, ?string $soldDate): bool` - Record a car as sold (`null` defaults to today)
+
+**Exceptions**:
+
+- `CarDatabaseException` - Repository call failed or threw
+- `CarValidationException` - Invalid input (e.g. a verification code under 8 characters, a malformed sold date)
+
+**Used By**:
+
+- Backend foundation for the car-owner verification system (issue #1155);
+  no production caller yet as of v2.30.0 — the email-sending consumer that
+  will call these methods lands in a later verification-system milestone
+
+**See Also**:
+
+- [ERROR_HANDLING.md](ERROR_HANDLING.md) - Exception patterns
+- [DATABASE.md](DATABASE.md) - `cars.vericode`, `cars.last_verified`, `cars.owner_last_updated`, `cars.vericode_sent_at`, `cars.email_bounced`, `cars.solddate`
 
 ---
 

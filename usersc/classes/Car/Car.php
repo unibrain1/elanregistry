@@ -186,10 +186,14 @@ class Car
      * Update an existing car record
      *
      * @param array $fields Car data to update
+     * @param bool $isOwnerInitiated True when the update originates from an owner-facing
+     *                               edit flow, which additionally refreshes the car's
+     *                               owner_last_updated freshness timestamp. Defaults to
+     *                               false so admin and internal callers are unaffected.
      * @return bool True if update succeeds
      * @throws Exception If validation fails or database operation fails
      */
-    public function update(array $fields = []): bool
+    public function update(array $fields = [], bool $isOwnerInitiated = false): bool
     {
         if (empty($fields) || !isset($fields['id'])) {
             logger($fields['user_id'] ?? 0, LogCategories::LOG_CATEGORY_VALIDATION_ERROR, 'Car update failed: No data or ID provided');
@@ -242,6 +246,13 @@ class Car
                 || ($value !== '' && $value !== null),
             ARRAY_FILTER_USE_BOTH
         );
+
+        // Fold into the single updateCar() call below rather than a separate
+        // update, so a genuine owner edit produces exactly one UPDATE and one
+        // cars_hist audit row instead of two.
+        if ($isOwnerInitiated) {
+            $filteredFields['owner_last_updated'] = date(AppConstants::DATETIME_FORMAT);
+        }
 
         $repo = $this->getRepository();
         $updateResult = $repo->updateCar($carId, $filteredFields);
