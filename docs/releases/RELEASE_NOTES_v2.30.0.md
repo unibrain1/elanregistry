@@ -14,9 +14,12 @@
 
 ## User-Facing Changes
 
-None in this release — this milestone is internal foundation work. No
-verification email sends, no new pages, and no visible verification status
-appear until v2.30.2 (Automatic Bounce and Delivery) and v2.30.4 (Freshness
+None in this release. This is the first of six milestones building the Car
+Verification System — its goal is that anyone researching a car can see how
+fresh its record is, kept current with as little admin upkeep as possible.
+This milestone lays the data-model and infrastructure foundation; no
+verification email sends, new pages, or visible verification status appear
+until v2.30.2 (Automatic Bounce and Delivery) and v2.30.4 (Freshness
 Surfaced) land.
 
 ## Admin-Facing Changes
