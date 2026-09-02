@@ -58,11 +58,20 @@ final class AddCarVerificationColumns extends AbstractMigration
         // rewrites mtime to the migration's run time and destroys every real
         // modification timestamp in the table. Assigning the column explicitly
         // suppresses the ON UPDATE clause and preserves the existing value.
+        //
+        // @disable_triggers suppresses cars_update for this UPDATE: at this point
+        // in up() the pre-migration trigger is still installed (rebuilt in step 4
+        // below), and without suppression it would fire once per row, flooding
+        // cars_hist with a bogus 'UPDATE' entry for internal bookkeeping that
+        // isn't a real edit — the same project-wide escape hatch used by bulk
+        // maintenance scripts (see 20260709000000's docblock).
         $adapter = $this->getAdapter();
         $adapter->beginTransaction();
+        $this->execute('SET @disable_triggers = 1');
         $this->execute(
             'UPDATE cars SET owner_last_updated = mtime, mtime = mtime WHERE owner_last_updated IS NULL'
         );
+        $this->execute('SET @disable_triggers = NULL');
         $adapter->commitTransaction();
 
         // --- 3. Mirror the columns onto `cars_hist` -----------------------
