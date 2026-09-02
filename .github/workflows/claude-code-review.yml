@@ -365,7 +365,13 @@ jobs:
           # from a hypothesis, so the calibration lives in the prompt (Blocking
           # = verified only; suspicions go under Important). Keep the two in
           # sync — loosening the prompt's bar silently loosens this gate.
-          if echo "$REVIEW_BODY" | grep -qE '^#{1,6}[[:space:]]+Blocking|^\*\*Blocking\*\*'; then
+          #
+          # The heading must be EXACTLY "Blocking" (only trailing whitespace
+          # allowed before end-of-line) — not just start with that word. A
+          # re-review recapping a previously-resolved finding under a heading
+          # like "### Blocking finding from the previous round: resolved" is
+          # prose, not a live findings section, and must not match (#1843).
+          if echo "$REVIEW_BODY" | grep -qE '^#{1,6}[[:space:]]*Blocking[[:space:]]*$|^\*\*Blocking\*\*[[:space:]]*$'; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
@@ -619,7 +625,13 @@ jobs:
           # from a hypothesis, so the calibration lives in the prompt (Blocking
           # = verified only; suspicions go under Important). Keep the two in
           # sync — loosening the prompt's bar silently loosens this gate.
-          if echo "$REVIEW_BODY" | grep -qE '^#{1,6}[[:space:]]+Blocking|^\*\*Blocking\*\*'; then
+          #
+          # The heading must be EXACTLY "Blocking" (only trailing whitespace
+          # allowed before end-of-line) — not just start with that word. A
+          # re-review recapping a previously-resolved finding under a heading
+          # like "### Blocking finding from the previous round: resolved" is
+          # prose, not a live findings section, and must not match (#1843).
+          if echo "$REVIEW_BODY" | grep -qE '^#{1,6}[[:space:]]*Blocking[[:space:]]*$|^\*\*Blocking\*\*[[:space:]]*$'; then
             echo "::error::Review posted Blocking findings — fix them before merging. See the PR comment for details."
             exit 1
           fi
