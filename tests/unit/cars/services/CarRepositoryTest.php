@@ -655,4 +655,127 @@ final class CarRepositoryTest extends TestCase
         $this->expectExceptionMessageMatches('/findByChassisKey failed/');
         $repo->findByChassisKey('1973', '36', 'TEST001');
     }
+
+    // =========================================================================
+    // Verification system backend tests (issue #1155)
+    // =========================================================================
+
+    public function testUpdateVerificationSentAtReturnsTrue(): void
+    {
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->updateVerificationSentAt(1, '2026-07-05 12:00:00');
+        $this->assertTrue($result);
+    }
+
+    public function testUpdateEmailBouncedReturnsTrue(): void
+    {
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->updateEmailBounced(1, true);
+        $this->assertTrue($result);
+    }
+
+    public function testUpdateOwnerLastUpdatedReturnsTrue(): void
+    {
+        $repo   = new CarRepository($this->makeEmptyResultDb());
+        $result = $repo->updateOwnerLastUpdated(1, '2026-07-05 12:00:00');
+        $this->assertTrue($result);
+    }
+
+    /**
+     * findVerificationEligible() must build a WHERE clause covering every
+     * eligibility condition: not sold, deliverable email, never-verified or
+     * stale verification, and a stale owner-driven update, ordered oldest first.
+     */
+    public function testFindVerificationEligibleQueryContainsExpectedConditions(): void
+    {
+        $capturedSql = null;
+        $db = $this->makeDbMock();
+        $db->expects($this->once())
+            ->method('query')
+            ->willReturnCallback(
+                function (string $sql, array $params = []) use (&$capturedSql, $db): DatabaseInterface {
+                    $capturedSql = $sql;
+                    return $db;
+                }
+            );
+        $db->method('error')->willReturn(false);
+        $db->method('results')->willReturn([]);
+
+        $repo = new CarRepository($db);
+        $repo->findVerificationEligible(10, 0);
+
+        $this->assertNotNull($capturedSql, 'findVerificationEligible() must call DB::query()');
+        $this->assertStringContainsString("(solddate IS NULL OR solddate = '')", $capturedSql);
+        $this->assertStringContainsString('email_bounced = 0', $capturedSql);
+        $this->assertStringContainsString("email != ''", $capturedSql);
+        $this->assertStringContainsString(
+            '(last_verified IS NULL OR last_verified < NOW() - INTERVAL 2 YEAR)',
+            $capturedSql
+        );
+        $this->assertStringContainsString(
+            'COALESCE(owner_last_updated, mtime) < NOW() - INTERVAL 2 YEAR',
+            $capturedSql
+        );
+        $this->assertStringContainsString('ORDER BY last_verified ASC', $capturedSql);
+    }
+
+    /**
+     * LIMIT/OFFSET are cast with max(0, ...) before interpolation — negative
+     * inputs must render as 0 in the query, never as a negative number.
+     */
+    public function testFindVerificationEligibleClampsNegativeLimitAndOffset(): void
+    {
+        $capturedSql = null;
+        $db = $this->makeDbMock();
+        $db->expects($this->once())
+            ->method('query')
+            ->willReturnCallback(
+                function (string $sql, array $params = []) use (&$capturedSql, $db): DatabaseInterface {
+                    $capturedSql = $sql;
+                    return $db;
+                }
+            );
+        $db->method('error')->willReturn(false);
+        $db->method('results')->willReturn([]);
+
+        $repo = new CarRepository($db);
+        $repo->findVerificationEligible(-5, -10);
+
+        $this->assertNotNull($capturedSql);
+        $this->assertStringContainsString('LIMIT 0 OFFSET 0', $capturedSql);
+    }
+
+    /**
+     * findVerificationEligible() returns the rows from DB::results() on the happy path.
+     */
+    public function testFindVerificationEligibleReturnsRows(): void
+    {
+        $db = $this->makeDbMock();
+        $db->expects($this->once())->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(false);
+        $db->method('results')->willReturn([(object) ['id' => 1, 'chassis' => 'TEST001']]);
+
+        $repo = new CarRepository($db);
+        $result = $repo->findVerificationEligible(10, 0);
+
+        $this->assertCount(1, $result);
+        $this->assertSame(1, $result[0]->id);
+    }
+
+    /**
+     * findVerificationEligible() throws CarDatabaseException when the query fails.
+     */
+    public function testFindVerificationEligibleThrowsCarDatabaseExceptionOnQueryError(): void
+    {
+        $db = $this->makeDbMock();
+        $db->expects($this->once())->method('query')->willReturnSelf();
+        $db->method('error')->willReturn(true);
+        $db->method('errorString')->willReturn('Connection lost');
+
+        $repo = new CarRepository($db);
+
+        $this->expectException(CarDatabaseException::class);
+        $this->expectExceptionMessageMatches('/findVerificationEligible failed/');
+        $repo->findVerificationEligible(10, 0);
+    }
 }

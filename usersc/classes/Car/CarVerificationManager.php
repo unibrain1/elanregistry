@@ -116,4 +116,92 @@ class CarVerificationManager
         logger(0, LogCategories::LOG_CATEGORY_CAR_SOLD, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
         throw new CarDatabaseException('Unable to save changes. Please try again.');
     }
+
+    /**
+     * Generate a cryptographically secure verification code
+     *
+     * Returns a 32-character lowercase hexadecimal string (16 random bytes).
+     *
+     * @return string The generated verification code
+     */
+    public function generateVerificationCode(): string
+    {
+        return bin2hex(random_bytes(16));
+    }
+
+    /**
+     * Record when a verification email was sent for a car
+     *
+     * @param object $carData Car data object (must have ->id property)
+     * @param string $dateTime Timestamp the verification email was sent
+     * @return bool True if the timestamp was recorded successfully
+     * @throws CarDatabaseException If database update fails
+     */
+    public function setVerificationSentAt(object $carData, string $dateTime): bool
+    {
+        try {
+            $updateSuccess = $this->repo->updateVerificationSentAt((int) $carData->id, $dateTime);
+        } catch (\Throwable $e) {
+            logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Failed to set verification sent timestamp: ' . $e->getMessage());
+            throw new CarDatabaseException('Verification timestamp could not be updated. Please try again or contact support.');
+        }
+
+        if ($updateSuccess) {
+            $carData->vericode_sent_at = $dateTime;
+            return true;
+        }
+
+        logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
+        throw new CarDatabaseException('Unable to save changes. Please try again.');
+    }
+
+    /**
+     * Flag a car's owner email as bounced
+     *
+     * @param object $carData Car data object (must have ->id property)
+     * @return bool True if the bounce flag was set successfully
+     * @throws CarDatabaseException If database update fails
+     */
+    public function setBounced(object $carData): bool
+    {
+        try {
+            $updateSuccess = $this->repo->updateEmailBounced((int) $carData->id, true);
+        } catch (\Throwable $e) {
+            logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Failed to flag email as bounced: ' . $e->getMessage());
+            throw new CarDatabaseException('Bounce status could not be updated. Please try again or contact support.');
+        }
+
+        if ($updateSuccess) {
+            $carData->email_bounced = 1;
+            return true;
+        }
+
+        logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
+        throw new CarDatabaseException('Unable to save changes. Please try again.');
+    }
+
+    /**
+     * Clear a car's bounced email flag (admin reversal)
+     *
+     * @param object $carData Car data object (must have ->id property)
+     * @return bool True if the bounce flag was cleared successfully
+     * @throws CarDatabaseException If database update fails
+     */
+    public function clearBounced(object $carData): bool
+    {
+        try {
+            $updateSuccess = $this->repo->updateEmailBounced((int) $carData->id, false);
+        } catch (\Throwable $e) {
+            logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Failed to clear bounced email flag: ' . $e->getMessage());
+            throw new CarDatabaseException('Bounce status could not be cleared. Please try again or contact support.');
+        }
+
+        if ($updateSuccess) {
+            $carData->email_bounced = 0;
+            return true;
+        }
+
+        logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
+        throw new CarDatabaseException('Unable to save changes. Please try again.');
+    }
 }

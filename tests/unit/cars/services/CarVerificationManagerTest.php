@@ -183,4 +183,113 @@ final class CarVerificationManagerTest extends TestCase
         $carData = (object) ['id' => 1, 'solddate' => null];
         $this->manager->markSold($carData, '2024-06-15');
     }
+
+    public function testGenerateVerificationCodeReturnsThirtyTwoCharHexString(): void
+    {
+        $this->mockRepo->expects($this->never())->method('updateVerificationCode');
+
+        $code = $this->manager->generateVerificationCode();
+
+        $this->assertSame(32, strlen($code));
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $code);
+    }
+
+    public function testGenerateVerificationCodeReturnsDifferentValues(): void
+    {
+        $this->mockRepo->expects($this->never())->method('updateVerificationCode');
+
+        $this->assertNotSame(
+            $this->manager->generateVerificationCode(),
+            $this->manager->generateVerificationCode()
+        );
+    }
+
+    public function testSetVerificationSentAtSucceeds(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateVerificationSentAt')->willReturn(true);
+
+        $carData = (object) ['id' => 1, 'vericode_sent_at' => null];
+        $result = $this->manager->setVerificationSentAt($carData, '2024-06-15 10:30:00');
+        $this->assertTrue($result);
+        $this->assertEquals('2024-06-15 10:30:00', $carData->vericode_sent_at);
+    }
+
+    public function testSetVerificationSentAtThrowsCarDatabaseExceptionWhenRepositoryReturnsFalse(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateVerificationSentAt')->willReturn(false);
+        $this->expectException(CarDatabaseException::class);
+
+        $carData = (object) ['id' => 1, 'vericode_sent_at' => null];
+        $this->manager->setVerificationSentAt($carData, '2024-06-15 10:30:00');
+    }
+
+    public function testSetVerificationSentAtThrowsCarDatabaseExceptionWhenRepositoryThrows(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateVerificationSentAt')
+            ->willThrowException(new \RuntimeException('DB connection lost'));
+        $this->expectException(CarDatabaseException::class);
+
+        $carData = (object) ['id' => 1, 'vericode_sent_at' => null];
+        $this->manager->setVerificationSentAt($carData, '2024-06-15 10:30:00');
+    }
+
+    public function testSetBouncedSucceeds(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateEmailBounced')
+            ->with(1, true)->willReturn(true);
+
+        $carData = (object) ['id' => 1, 'email_bounced' => 0];
+        $result = $this->manager->setBounced($carData);
+        $this->assertTrue($result);
+        $this->assertSame(1, $carData->email_bounced);
+    }
+
+    public function testSetBouncedThrowsCarDatabaseExceptionWhenRepositoryReturnsFalse(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateEmailBounced')->willReturn(false);
+        $this->expectException(CarDatabaseException::class);
+
+        $carData = (object) ['id' => 1, 'email_bounced' => 0];
+        $this->manager->setBounced($carData);
+    }
+
+    public function testSetBouncedThrowsCarDatabaseExceptionWhenRepositoryThrows(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateEmailBounced')
+            ->willThrowException(new \RuntimeException('DB connection lost'));
+        $this->expectException(CarDatabaseException::class);
+
+        $carData = (object) ['id' => 1, 'email_bounced' => 0];
+        $this->manager->setBounced($carData);
+    }
+
+    public function testClearBouncedSucceeds(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateEmailBounced')
+            ->with(1, false)->willReturn(true);
+
+        $carData = (object) ['id' => 1, 'email_bounced' => 1];
+        $result = $this->manager->clearBounced($carData);
+        $this->assertTrue($result);
+        $this->assertSame(0, $carData->email_bounced);
+    }
+
+    public function testClearBouncedThrowsCarDatabaseExceptionWhenRepositoryReturnsFalse(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateEmailBounced')->willReturn(false);
+        $this->expectException(CarDatabaseException::class);
+
+        $carData = (object) ['id' => 1, 'email_bounced' => 1];
+        $this->manager->clearBounced($carData);
+    }
+
+    public function testClearBouncedThrowsCarDatabaseExceptionWhenRepositoryThrows(): void
+    {
+        $this->mockRepo->expects($this->once())->method('updateEmailBounced')
+            ->willThrowException(new \RuntimeException('DB connection lost'));
+        $this->expectException(CarDatabaseException::class);
+
+        $carData = (object) ['id' => 1, 'email_bounced' => 1];
+        $this->manager->clearBounced($carData);
+    }
 }

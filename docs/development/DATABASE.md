@@ -121,6 +121,9 @@ For the full workflow, see
 | `city`, `state`, `country` | `varchar(100)` | Owner location (synced, INDEXED) |
 | `lat`, `lon` | `float` | Geographic coordinates (synced) |
 | `website` | `varchar(100)` | Owner website (synced) |
+| `owner_last_updated` | `datetime NULL` | Timestamp of owner's last action on this car (used for verification system) |
+| `vericode_sent_at` | `datetime NULL` | Timestamp when verification code was sent to owner |
+| `email_bounced` | `TINYINT(1) NOT NULL DEFAULT 0` | Flag indicating whether verification emails bounced. Set to `1` if email failed; `0` if deliverable or not yet tested. |
 
 **Note**: Owner-related fields (email, fname, lname, join_date, city, state,
 country, lat, lon, website) are denormalized for performance and are
@@ -133,7 +136,7 @@ automatically synchronized from user profiles when user data changes.
 | `operation` | `varchar(32)` | Operation type (INSERT/UPDATE/DELETE) |
 | `car_id` | `int UNSIGNED` | Original car ID |
 | `timestamp` | `timestamp` | Change timestamp |
-| *(All car columns)* | | Mirror of `cars` table structure including `chassis_override`. `year` is `SMALLINT UNSIGNED NULL` to match cars. |
+| *(All car columns)* | | Mirror of `cars` table structure including `chassis_override`, `owner_last_updated`, `vericode_sent_at`, and `email_bounced`. `year` is `SMALLINT UNSIGNED NULL` to match cars. |
 
 > #### Removed: `car_user` and `car_user_hist`
 >
@@ -322,9 +325,10 @@ by the Phinx migration
 
 **Trigger Details**:
 
-- All triggers capture complete car record snapshots including owner data and `chassis_override`
-- All triggers use current schema (no deprecated columns); `chassis_override` added in #915
+- All triggers capture complete car record snapshots including owner data, `chassis_override`, and verification system columns (`owner_last_updated`, `vericode_sent_at`, `email_bounced`)
+- All triggers use current schema (no deprecated columns); `chassis_override` added in #915, verification columns added in #1155
 - Each trigger records operation type (INSERT/UPDATE/DELETE) and timestamp
+- The `cars_update` trigger captures pre-update values (via `OLD.*`) for all columns except `chassis_override`, which captures the new value (`NEW.chassis_override`) — this asymmetry is deliberate and preserves the audit trail semantics
 
 **Car-User Relationship Triggers** — removed in v2.26.2 along with the
 `car_user` / `car_user_hist` tables (issue #1162). Ownership changes are audited
