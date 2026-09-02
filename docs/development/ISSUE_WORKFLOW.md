@@ -68,6 +68,52 @@ Every issue records one mandatory field beyond the existing templates — the
 is real — but they carry a higher bar at planning: they need a second reason
 to exist beyond "it annoyed me once."
 
+### The signal records origin, not every later measurement
+
+The label is set once, at capture, from where the idea came from. A later
+measurement **corroborates or refutes** an issue; it does not re-originate it,
+and it does not change the label.
+
+This matters because the weekly monitoring run re-measures a standing set of
+issues every time it fires. If measurement rewrote provenance, every issue it
+ever touched would drift to `signal:analytics` within a few weeks and the
+label would stop discriminating between an issue produced by evidence and one
+merely checked against it — which is the only distinction it exists to make.
+
+Worked example, the 2026-09-01 run. It measured five open issues:
+
+| Issue | What the run measured | Origin | Label |
+| --- | --- | --- | --- |
+| #1689 | `/.git/` probes: 0 | Monitoring's own finding, 2026-08-17 baseline | `signal:analytics` |
+| #1817 | Not reproduced, no `history.php`-referred 404 | Monitoring's own finding, 2026-08-28 run | `signal:analytics` |
+| #1401 | 2 requests to `/.well-known/passkey-endpoints` | Filed 2026-07-29, before monitoring existed | `signal:operator` — unchanged |
+| #1474 | Type 26 mirror: 1 request, 200, no `_over.gif` 404s | Filed 2026-08-03, before monitoring existed | `signal:defect` — unchanged |
+| #1779 | One login → one `login` + one `Security` row | `/found` capture while working #1760 | `signal:discovered` — unchanged |
+
+Only the first two were *produced* by a measurement. The other three were
+verified by one.
+
+**Corroboration is evidence for the planning gate, not a relabel.** Record it
+as a comment on the issue and use it at Step 4.5 — that is where a measurement
+does its work:
+
+- **#1474** — one request in the window, and the defect did not fire. That is
+  the edge-case test's third row exactly: few users, fails gracefully → don't
+  build it. Close or defer.
+- **#1401** — "evaluate and enable Passkey support" is an L-sized feature
+  whose entire demand evidence is two probe requests. It fails *who noticed?*
+  cleanly.
+
+Two things do change a label, and only these two:
+
+1. **A rescue.** An issue reopened by a genuinely new signal takes that
+   signal's label — the new evidence is now why it is open.
+2. **A mis-classification**, corrected on evidence, not on impression.
+
+Never infer `signal:owner` or `signal:analytics`. Apply them only with a real
+message or a real measurement to point at, and for `signal:analytics` only
+when that measurement is what produced the issue.
+
 Two more things belong in the issue at capture time, and nothing else:
 
 - **The one-line beneficiary.** "Owners with no photos on their car cannot…"
@@ -103,7 +149,7 @@ A theme is a sentence with an audience and an outcome:
 
 > ✅ "An owner can manage their own car photos without emailing an admin."
 > ✅ "A visitor arriving from a search engine lands on something that makes
->    sense."
+> sense."
 > ❌ "Photo improvements." — no audience, no outcome, no finish line.
 
 A theme you can't state that way isn't a theme, it's a category — and
@@ -295,7 +341,7 @@ Every reviewer, local or CI, sorts findings into exactly three buckets:
 | **Advisory** | Real, but not this PR's job | New issue, `signal:discovered` |
 | **Note** | Wording, style, docs nuance | Fix only if already touching that line |
 
-#1860's final round was a CLAUDE.md wording correction. That is a Note. It
+PR #1860's final round was a CLAUDE.md wording correction. That is a Note. It
 should not have produced a commit, and it certainly should not have gated a
 merge.
 
@@ -535,6 +581,7 @@ Small, and mostly one-time:
 | Before pushing | Did every reviewer see this same commit, at once? | Serial review — you'll get a ladder |
 | After a fix commit | Is this the third round? | The plan was wrong — re-gate it |
 | Any finding | Verified, in this diff, and this PR's job? | Advisory or Note, not Blocking |
+| A run measures an old issue | Did this measurement *produce* the issue? | Corroboration — comment, don't relabel |
 | CI red | Does `composer ci:local` reproduce it? | The gates have drifted — close the gap |
 | Release | Is the theme sentence true? | Ship anyway / not yet, per the answer |
 | Retro | What did we ship that nobody needed? | Feed it back into the gate |
