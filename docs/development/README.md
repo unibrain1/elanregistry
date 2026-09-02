@@ -28,6 +28,8 @@
 
 ## Operations
 
+- [ISSUE_WORKFLOW.md](ISSUE_WORKFLOW.md) — Capture, planning, build, and ship
+  loops — signal labels, the theme gate, review rules, backlog hygiene
 - [DEPLOYMENT.md](DEPLOYMENT.md) — Git remotes, CI checks, release procedures
 - [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md) — Brevo setup and configuration
 - [FIX_SCRIPTS.md](FIX_SCRIPTS.md) — Admin fix/maintenance script guidelines

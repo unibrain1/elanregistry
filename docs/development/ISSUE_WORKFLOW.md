@@ -460,7 +460,7 @@ backlog is where make-work hides: old ideas start to read like commitments.
 - **14 days later** it closes as `stale-no-demand`, with a comment explaining
   that silence was treated as a vote against and that a new signal reopens it.
 - **Exempt:** anything in a milestone, `signal:forced`, security issues, and
-  anything load-bearing for a standing gate (see below).
+  anything labelled `gate-critical` (see below).
 - **Rescue:** a new signal — an owner asks, analytics show the gap — reopens
   the issue with the new evidence attached.
 
@@ -512,12 +512,15 @@ cleanly.
 ### Gate-critical issues bypass the theme test
 
 Two kinds of work skip the theme gate: `signal:forced`, and anything a
-standing gate depends on. A gate you do not trust makes every other rule in
-this document decorative, so its repairs are never "someday". Current
-examples: **#1752** (decouple the integration suite from `DB::getInstance()`
-so CI can actually run the integration gate — the prerequisite for Rule 4 in
-§3b) and **#1843** (the review gate false-fails on prose headings beginning
-with "Blocking" — the Rule 5 mechanism misfiring).
+standing gate depends on, marked with the `gate-critical` label. A gate you do
+not trust makes every other rule in this document decorative, so its repairs
+are never "someday". `gate-critical` is applied by hand — there's no signal
+that implies it — and, like `signal:forced`, exempts the issue from backlog
+age-out regardless of how old it gets. Current holders: **#1752** (decouple
+the integration suite from `DB::getInstance()` so CI can actually run the
+integration gate — the prerequisite for Rule 4 in §3b) and **#1843** (the
+review gate false-fails on prose headings beginning with "Blocking" — the
+Rule 5 mechanism misfiring).
 
 Closing an idea is a normal, healthy outcome here, not an admission of
 failure.
@@ -556,16 +559,19 @@ you read at a check-in — there's nothing to keep in sync.
 Small, and mostly one-time:
 
 1. **Labels** — `signal:*` (6), `status:ready`, `status:blocked`, `stale`,
-   `stale-no-demand`, `help-wanted`.
+   `stale-no-demand`, `help-wanted`, `gate-critical`. Done as of 2026-09-02 —
+   all twelve exist, `signal:*` recoloured out of default grey, and
+   `gate-critical` applied to #1752 and #1843.
 2. **Issue templates** — add a required signal dropdown and the
    one-line-beneficiary field to both existing templates; remove the priority
    dropdown (priority is decided at planning against a theme, so a
-   capture-time priority is noise that ages badly).
+   capture-time priority is noise that ages badly). Done as of 2026-09-02.
 3. **Stale Action** — a scheduled GitHub Action implementing the 180+14 day
    rule with the exemptions above.
 4. **Three commands** — `/plan-milestone` (signal review → theme → gate →
-   seal), `/plan-issue` (produce the seven-section plan for approval), and
-   `/sprint-status` (render derived state).
+   seal), `/plan-issue` (produce the seven-section plan for approval — already
+   exists as `/start-issue`), and `/sprint-status` (render derived state).
+   `/plan-milestone` and `/sprint-status` done as of 2026-09-02.
 
 ## Quick reference
 
