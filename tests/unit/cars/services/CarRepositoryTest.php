@@ -705,9 +705,14 @@ final class CarRepositoryTest extends TestCase
         $repo->findVerificationEligible(10, 0);
 
         $this->assertNotNull($capturedSql, 'findVerificationEligible() must call DB::query()');
-        $this->assertStringContainsString("(solddate IS NULL OR solddate = '')", $capturedSql);
+        $this->assertStringContainsString('solddate IS NULL', $capturedSql);
+        $this->assertStringNotContainsString(
+            "solddate = ''",
+            $capturedSql,
+            "solddate is a DATE column; comparing it to '' is a hard SQL error under STRICT_TRANS_TABLES"
+        );
         $this->assertStringContainsString('email_bounced = 0', $capturedSql);
-        $this->assertStringContainsString("email != ''", $capturedSql);
+        $this->assertStringContainsString("email IS NOT NULL AND email != ''", $capturedSql);
         $this->assertStringContainsString(
             '(last_verified IS NULL OR last_verified < NOW() - INTERVAL 2 YEAR)',
             $capturedSql

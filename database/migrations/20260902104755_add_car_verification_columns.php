@@ -140,31 +140,13 @@ final class AddCarVerificationColumns extends AbstractMigration
 
         $trustFunctionCreatorsSet = $this->enableTrustFunctionCreators();
 
-        $this->execute('DROP TRIGGER IF EXISTS `cars_insert`');
-        $this->execute(
-            "CREATE TRIGGER `cars_insert` AFTER INSERT ON `cars` FOR EACH ROW BEGIN
-                 INSERT INTO cars_hist(
-                     operation, car_id, ctime, mtime, model, series, variant,
-                     year, type, chassis, chassis_override, color, engine, purchasedate, solddate, comments,
-                     image, user_id, email, fname, lname, join_date, city, state, country,
-                     lat, lon, website{$cols}
-                 )
-                 VALUES (
-                     'INSERT', NEW.id, NEW.ctime, NEW.mtime, NEW.model,
-                     NEW.series, NEW.variant, NEW.year, NEW.type, NEW.chassis, NEW.chassis_override,
-                     NEW.color, NEW.engine, NEW.purchasedate, NEW.solddate, NEW.comments, NEW.image,
-                     NEW.user_id, NEW.email, NEW.fname, NEW.lname, NEW.join_date, NEW.city,
-                     NEW.state, NEW.country, NEW.lat, NEW.lon, NEW.website{$newVal}
-                 );
-             END"
-        );
-
-        // The deliberate asymmetry — every value OLD.* except chassis_override,
-        // which records NEW — is reproduced verbatim from 20260709000000.
-        $this->execute('DROP TRIGGER IF EXISTS `cars_update`');
-        $this->execute(
-            "CREATE TRIGGER `cars_update` AFTER UPDATE ON `cars` FOR EACH ROW BEGIN
-                 IF @disable_triggers IS NULL THEN
+        // A thrown CREATE TRIGGER must not leave log_bin_trust_function_creators
+        // permanently relaxed server-wide — reset in finally so any exception
+        // between enable and the end of trigger creation still restores it.
+        try {
+            $this->execute('DROP TRIGGER IF EXISTS `cars_insert`');
+            $this->execute(
+                "CREATE TRIGGER `cars_insert` AFTER INSERT ON `cars` FOR EACH ROW BEGIN
                      INSERT INTO cars_hist(
                          operation, car_id, ctime, mtime, model, series, variant,
                          year, type, chassis, chassis_override, color, engine, purchasedate, solddate, comments,
@@ -172,36 +154,59 @@ final class AddCarVerificationColumns extends AbstractMigration
                          lat, lon, website{$cols}
                      )
                      VALUES (
-                         'UPDATE', OLD.id, OLD.ctime, OLD.mtime, OLD.model,
-                         OLD.series, OLD.variant, OLD.year, OLD.type, OLD.chassis, NEW.chassis_override,
+                         'INSERT', NEW.id, NEW.ctime, NEW.mtime, NEW.model,
+                         NEW.series, NEW.variant, NEW.year, NEW.type, NEW.chassis, NEW.chassis_override,
+                         NEW.color, NEW.engine, NEW.purchasedate, NEW.solddate, NEW.comments, NEW.image,
+                         NEW.user_id, NEW.email, NEW.fname, NEW.lname, NEW.join_date, NEW.city,
+                         NEW.state, NEW.country, NEW.lat, NEW.lon, NEW.website{$newVal}
+                     );
+                 END"
+            );
+
+            // The deliberate asymmetry — every value OLD.* except chassis_override,
+            // which records NEW — is reproduced verbatim from 20260709000000.
+            $this->execute('DROP TRIGGER IF EXISTS `cars_update`');
+            $this->execute(
+                "CREATE TRIGGER `cars_update` AFTER UPDATE ON `cars` FOR EACH ROW BEGIN
+                     IF @disable_triggers IS NULL THEN
+                         INSERT INTO cars_hist(
+                             operation, car_id, ctime, mtime, model, series, variant,
+                             year, type, chassis, chassis_override, color, engine, purchasedate, solddate, comments,
+                             image, user_id, email, fname, lname, join_date, city, state, country,
+                             lat, lon, website{$cols}
+                         )
+                         VALUES (
+                             'UPDATE', OLD.id, OLD.ctime, OLD.mtime, OLD.model,
+                             OLD.series, OLD.variant, OLD.year, OLD.type, OLD.chassis, NEW.chassis_override,
+                             OLD.color, OLD.engine, OLD.purchasedate, OLD.solddate, OLD.comments, OLD.image,
+                             OLD.user_id, OLD.email, OLD.fname, OLD.lname, OLD.join_date, OLD.city,
+                             OLD.state, OLD.country, OLD.lat, OLD.lon, OLD.website{$oldVal}
+                         );
+                     END IF;
+                 END"
+            );
+
+            $this->execute('DROP TRIGGER IF EXISTS `cars_delete`');
+            $this->execute(
+                "CREATE TRIGGER `cars_delete` AFTER DELETE ON `cars` FOR EACH ROW BEGIN
+                     INSERT INTO cars_hist(
+                         operation, car_id, ctime, mtime, model, series, variant,
+                         year, type, chassis, chassis_override, color, engine, purchasedate, solddate, comments,
+                         image, user_id, email, fname, lname, join_date, city, state, country,
+                         lat, lon, website{$cols}
+                     )
+                     VALUES (
+                         'DELETE', OLD.id, OLD.ctime, OLD.mtime, OLD.model,
+                         OLD.series, OLD.variant, OLD.year, OLD.type, OLD.chassis, OLD.chassis_override,
                          OLD.color, OLD.engine, OLD.purchasedate, OLD.solddate, OLD.comments, OLD.image,
                          OLD.user_id, OLD.email, OLD.fname, OLD.lname, OLD.join_date, OLD.city,
                          OLD.state, OLD.country, OLD.lat, OLD.lon, OLD.website{$oldVal}
                      );
-                 END IF;
-             END"
-        );
-
-        $this->execute('DROP TRIGGER IF EXISTS `cars_delete`');
-        $this->execute(
-            "CREATE TRIGGER `cars_delete` AFTER DELETE ON `cars` FOR EACH ROW BEGIN
-                 INSERT INTO cars_hist(
-                     operation, car_id, ctime, mtime, model, series, variant,
-                     year, type, chassis, chassis_override, color, engine, purchasedate, solddate, comments,
-                     image, user_id, email, fname, lname, join_date, city, state, country,
-                     lat, lon, website{$cols}
-                 )
-                 VALUES (
-                     'DELETE', OLD.id, OLD.ctime, OLD.mtime, OLD.model,
-                     OLD.series, OLD.variant, OLD.year, OLD.type, OLD.chassis, OLD.chassis_override,
-                     OLD.color, OLD.engine, OLD.purchasedate, OLD.solddate, OLD.comments, OLD.image,
-                     OLD.user_id, OLD.email, OLD.fname, OLD.lname, OLD.join_date, OLD.city,
-                     OLD.state, OLD.country, OLD.lat, OLD.lon, OLD.website{$oldVal}
-                 );
-             END"
-        );
-
-        $this->resetTrustFunctionCreators($trustFunctionCreatorsSet);
+                 END"
+            );
+        } finally {
+            $this->resetTrustFunctionCreators($trustFunctionCreatorsSet);
+        }
     }
 
     /**

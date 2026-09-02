@@ -7,7 +7,6 @@ namespace ElanRegistry\Car;
 use DateTime;
 use ElanRegistry\AppConstants;
 use ElanRegistry\Exceptions\CarDatabaseException;
-use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\LogCategories;
 
@@ -26,6 +25,56 @@ class CarVerificationManager
     public function __construct(private CarRepository $repo) {}
 
     /**
+     * Execute a repository update, translating failures into CarDatabaseException
+     *
+     * @param callable $update Repository call to execute; returns true on success
+     * @param string $logCategory LogCategories constant to log failures under
+     * @param string $failureMessage User-facing message thrown if the update call itself throws
+     * @param string $context Log message prefix used when the update call throws
+     * @return bool True on success
+     * @throws CarDatabaseException If the update call throws or the repository reports failure
+     */
+    private function persist(callable $update, string $logCategory, string $failureMessage, string $context): bool
+    {
+        try {
+            $updateSuccess = $update();
+        } catch (\Throwable $e) {
+            logger(0, $logCategory, $context . ': ' . $e->getMessage());
+            throw new CarDatabaseException($failureMessage);
+        }
+
+        if (!$updateSuccess) {
+            logger(0, $logCategory, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
+            throw new CarDatabaseException('Unable to save changes. Please try again.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Set or clear a car's bounced-email flag
+     *
+     * @param object $carData Car data object (must have ->id property)
+     * @param bool $bounced True to flag as bounced, false to clear
+     * @return bool True if the bounce flag was updated successfully
+     * @throws CarDatabaseException If database update fails
+     */
+    private function updateBounced(object $carData, bool $bounced): bool
+    {
+        $result = $this->persist(
+            fn () => $this->repo->updateEmailBounced((int) $carData->id, $bounced),
+            LogCategories::LOG_CATEGORY_EMAIL_BOUNCED,
+            $bounced
+                ? 'Bounce status could not be updated. Please try again or contact support.'
+                : 'Bounce status could not be cleared. Please try again or contact support.',
+            $bounced ? 'Failed to flag email as bounced' : 'Failed to clear bounced email flag',
+        );
+
+        $carData->email_bounced = $bounced ? 1 : 0;
+        return $result;
+    }
+
+    /**
      * Set a verification code on a car
      *
      * @param object $carData Car data object (must have ->id property)
@@ -40,20 +89,15 @@ class CarVerificationManager
             throw new CarValidationException('The verification code format is not valid.');
         }
 
-        try {
-            $updateSuccess = $this->repo->updateVerificationCode((int) $carData->id, $verificationCode);
-        } catch (\Throwable $e) {
-            logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Failed to set verification code: ' . $e->getMessage());
-            throw new CarDatabaseException('Verification code could not be updated. Please try again or contact support.');
-        }
+        $result = $this->persist(
+            fn () => $this->repo->updateVerificationCode((int) $carData->id, $verificationCode),
+            LogCategories::LOG_CATEGORY_CAR_VERIFICATION,
+            'Verification code could not be updated. Please try again or contact support.',
+            'Failed to set verification code',
+        );
 
-        if ($updateSuccess) {
-            $carData->vericode = $verificationCode;
-            return true;
-        }
-
-        logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
-        throw new CarDatabaseException('Unable to save changes. Please try again.');
+        $carData->vericode = $verificationCode;
+        return $result;
     }
 
     /**
@@ -67,20 +111,15 @@ class CarVerificationManager
     {
         $currentDateTime = date(AppConstants::DATETIME_FORMAT);
 
-        try {
-            $updateSuccess = $this->repo->updateLastVerified((int) $carData->id, $currentDateTime);
-        } catch (\Throwable $e) {
-            logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Failed to mark car as verified: ' . $e->getMessage());
-            throw new CarDatabaseException('Unable to mark car as verified. Please try again or contact support.');
-        }
+        $result = $this->persist(
+            fn () => $this->repo->updateLastVerified((int) $carData->id, $currentDateTime),
+            LogCategories::LOG_CATEGORY_CAR_VERIFICATION,
+            'Unable to mark car as verified. Please try again or contact support.',
+            'Failed to mark car as verified',
+        );
 
-        if ($updateSuccess) {
-            $carData->last_verified = $currentDateTime;
-            return true;
-        }
-
-        logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
-        throw new CarDatabaseException('Unable to save changes. Please try again.');
+        $carData->last_verified = $currentDateTime;
+        return $result;
     }
 
     /**
@@ -101,20 +140,15 @@ class CarVerificationManager
             throw new CarValidationException('The sold date format is not valid. Please use YYYY-MM-DD format.');
         }
 
-        try {
-            $updateSuccess = $this->repo->updateSoldDate((int) $carData->id, $soldDate);
-        } catch (\Throwable $e) {
-            logger(0, LogCategories::LOG_CATEGORY_CAR_SOLD, 'Failed to mark car as sold: ' . $e->getMessage());
-            throw new CarDatabaseException('Unable to mark car as sold. Please try again or contact support.');
-        }
+        $result = $this->persist(
+            fn () => $this->repo->updateSoldDate((int) $carData->id, $soldDate),
+            LogCategories::LOG_CATEGORY_CAR_SOLD,
+            'Unable to mark car as sold. Please try again or contact support.',
+            'Failed to mark car as sold',
+        );
 
-        if ($updateSuccess) {
-            $carData->solddate = $soldDate;
-            return true;
-        }
-
-        logger(0, LogCategories::LOG_CATEGORY_CAR_SOLD, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
-        throw new CarDatabaseException('Unable to save changes. Please try again.');
+        $carData->solddate = $soldDate;
+        return $result;
     }
 
     /**
@@ -139,20 +173,15 @@ class CarVerificationManager
      */
     public function setVerificationSentAt(object $carData, string $dateTime): bool
     {
-        try {
-            $updateSuccess = $this->repo->updateVerificationSentAt((int) $carData->id, $dateTime);
-        } catch (\Throwable $e) {
-            logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Failed to set verification sent timestamp: ' . $e->getMessage());
-            throw new CarDatabaseException('Verification timestamp could not be updated. Please try again or contact support.');
-        }
+        $result = $this->persist(
+            fn () => $this->repo->updateVerificationSentAt((int) $carData->id, $dateTime),
+            LogCategories::LOG_CATEGORY_CAR_VERIFICATION,
+            'Verification timestamp could not be updated. Please try again or contact support.',
+            'Failed to set verification sent timestamp',
+        );
 
-        if ($updateSuccess) {
-            $carData->vericode_sent_at = $dateTime;
-            return true;
-        }
-
-        logger(0, LogCategories::LOG_CATEGORY_CAR_VERIFICATION, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
-        throw new CarDatabaseException('Unable to save changes. Please try again.');
+        $carData->vericode_sent_at = $dateTime;
+        return $result;
     }
 
     /**
@@ -164,20 +193,7 @@ class CarVerificationManager
      */
     public function setBounced(object $carData): bool
     {
-        try {
-            $updateSuccess = $this->repo->updateEmailBounced((int) $carData->id, true);
-        } catch (\Throwable $e) {
-            logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Failed to flag email as bounced: ' . $e->getMessage());
-            throw new CarDatabaseException('Bounce status could not be updated. Please try again or contact support.');
-        }
-
-        if ($updateSuccess) {
-            $carData->email_bounced = 1;
-            return true;
-        }
-
-        logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
-        throw new CarDatabaseException('Unable to save changes. Please try again.');
+        return $this->updateBounced($carData, true);
     }
 
     /**
@@ -189,19 +205,6 @@ class CarVerificationManager
      */
     public function clearBounced(object $carData): bool
     {
-        try {
-            $updateSuccess = $this->repo->updateEmailBounced((int) $carData->id, false);
-        } catch (\Throwable $e) {
-            logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Failed to clear bounced email flag: ' . $e->getMessage());
-            throw new CarDatabaseException('Bounce status could not be cleared. Please try again or contact support.');
-        }
-
-        if ($updateSuccess) {
-            $carData->email_bounced = 0;
-            return true;
-        }
-
-        logger(0, LogCategories::LOG_CATEGORY_EMAIL_BOUNCED, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
-        throw new CarDatabaseException('Unable to save changes. Please try again.');
+        return $this->updateBounced($carData, false);
     }
 }

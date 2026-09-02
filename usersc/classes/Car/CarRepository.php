@@ -221,9 +221,10 @@ class CarRepository
     /**
      * Find cars eligible for a verification email, ordered oldest-verified first.
      *
-     * A car is eligible when it is not marked sold, has a deliverable email address,
-     * its last owner-driven update is more than two years old, and it has either never
-     * been verified (last_verified IS NULL) or was last verified more than two years ago.
+     * A car is eligible when it is not marked sold, has a non-null, non-empty
+     * (deliverable) email address, its last owner-driven update is more than two
+     * years old, and it has either never been verified (last_verified IS NULL) or
+     * was last verified more than two years ago.
      *
      * @param int $limit Maximum rows to return (values below 1 return no rows)
      * @param int $offset Rows to skip (negative values are treated as 0)
@@ -234,15 +235,24 @@ class CarRepository
     {
         // LIMIT/OFFSET are interpolated rather than bound: DB::query() binds every
         // parameter as PDO::PARAM_STR, and under emulated prepares that renders
-        // LIMIT '10', which MySQL rejects. Casting to int makes injection impossible.
+        // LIMIT '10', which MySQL rejects. Safe because $limit/$offset are typed
+        // `int` in this method's signature (PHP coerces at the call boundary under
+        // declare(strict_types=1)) and clamped non-negative below — never string
+        // data, so injection is not possible even though the values are interpolated.
         $limit  = max(0, $limit);
         $offset = max(0, $offset);
 
+        // solddate is a DATE column; under STRICT_TRANS_TABLES, comparing it to ''
+        // is a hard SQL error (ERROR 1525: Incorrect DATE value), not a no-op — the
+        // column has no empty-string state, only NULL. email similarly needs an
+        // explicit NULL check: `!= ''` alone is silently false (not true) for a
+        // NULL email under SQL's three-valued logic, which happens to be the
+        // desired exclusion but was previously undocumented as such.
         $result = $this->db->query(
             "SELECT * FROM cars
-              WHERE (solddate IS NULL OR solddate = '')
+              WHERE solddate IS NULL
                 AND email_bounced = 0
-                AND email != ''
+                AND email IS NOT NULL AND email != ''
                 AND (last_verified IS NULL OR last_verified < NOW() - INTERVAL 2 YEAR)
                 AND COALESCE(owner_last_updated, mtime) < NOW() - INTERVAL 2 YEAR
               ORDER BY last_verified ASC

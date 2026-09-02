@@ -241,6 +241,76 @@ final class CarVerificationColumnsHistTest extends IntegrationTestCase
     }
 
     /**
+     * Car::update() with $isOwnerInitiated = true must fold owner_last_updated
+     * into the SAME $filteredFields array as the rest of the changed car
+     * fields, producing exactly ONE `UPDATE cars SET ...` statement — not a
+     * separate call for owner_last_updated alone. Two statements would
+     * produce two cars_hist UPDATE rows for a single logical edit, doubling
+     * the audit trail (the bug this branch fixes).
+     *
+     * Proof: since the cars_update trigger captures OLD.* for both `color`
+     * and `owner_last_updated`, a single UPDATE statement that changes both
+     * must produce exactly one cars_hist row whose `color` AND
+     * `owner_last_updated` are BOTH the pre-update values. Two separate
+     * UPDATE statements could not produce this — each would only capture the
+     * OLD value of the column it individually changed.
+     */
+    #[Group('fast')]
+    public function testCarUpdateWithOwnerInitiatedFlagProducesSingleAuditRow(): void
+    {
+        $originalColor             = 'Original Test Color';
+        $originalOwnerLastUpdated  = '2026-01-01 00:00:00';
+
+        $carId = $this->createTestCar($this->testUserId, [
+            'color'              => $originalColor,
+            'owner_last_updated' => $originalOwnerLastUpdated,
+        ]);
+
+        $histCountBefore = (int) $this->db->query(
+            "SELECT COUNT(*) AS cnt FROM cars_hist WHERE car_id = ? AND operation = 'UPDATE'",
+            [$carId]
+        )->first()->cnt;
+
+        $car    = new Car($carId);
+        $result = $car->update(['id' => $carId, 'color' => 'New Test Color'], true);
+
+        $this->assertTrue($result, 'Car::update() with $isOwnerInitiated = true must return true');
+
+        $histRowsAfter = $this->db->query(
+            "SELECT color, owner_last_updated
+             FROM cars_hist
+             WHERE car_id = ? AND operation = 'UPDATE'
+             ORDER BY timestamp DESC, id DESC",
+            [$carId]
+        )->results();
+
+        $histCountAfter = count($histRowsAfter);
+
+        $this->assertSame(
+            $histCountBefore + 1,
+            $histCountAfter,
+            'Car::update($fields, true) must produce exactly ONE new cars_hist UPDATE row '
+            . '(one UPDATE statement), not two — check that owner_last_updated is folded '
+            . 'into the same $filteredFields array as the rest of the changed fields in Car::update()'
+        );
+
+        $newHistRow = $histRowsAfter[0];
+
+        $this->assertSame(
+            $originalColor,
+            (string) $newHistRow->color,
+            'The single cars_hist UPDATE row must capture the pre-update (OLD) color value'
+        );
+        $this->assertSame(
+            $originalOwnerLastUpdated,
+            (string) $newHistRow->owner_last_updated,
+            'The SAME cars_hist UPDATE row must ALSO capture the pre-update (OLD) '
+            . 'owner_last_updated value — proving both columns were captured by the same '
+            . 'trigger firing on the same UPDATE statement (i.e. genuinely one UPDATE, not two)'
+        );
+    }
+
+    /**
      * DELETE: deleting a car must produce a cars_hist DELETE row capturing
      * the three verification columns' final values (OLD.*, same convention
      * as every other column in the cars_delete trigger).
