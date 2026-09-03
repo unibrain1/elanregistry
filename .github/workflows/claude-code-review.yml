@@ -400,9 +400,17 @@ jobs:
             # such PRs. This branch only stops the gate misreporting *why*.
             WF_PATH='.github/workflows/claude-code-review.yml'
             HEAD_SHA=$(gh pr view "$PR_NUM" --repo "$REPO" --json headRefOid -q .headRefOid 2>/dev/null || echo "")
-            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || echo "main-unreadable")
-            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || echo "head-unreadable")
-            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
+            # Fail closed: a lookup that errors yields an empty string, and an
+            # empty string on either side disqualifies the warning path. The
+            # first cut used two different failure sentinels, so an unrelated
+            # API error made the SHAs "differ" and fell open to the warning
+            # (flagged on #1920). Only a real, successfully-fetched mismatch
+            # counts.
+            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || true)
+            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || true)
+            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] \
+               && [ -n "$MAIN_BLOB" ] && [ -n "$HEAD_BLOB" ] \
+               && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
               echo "::warning::No review posted — the action did not run because ${WF_PATH} at ${HEAD_SHA} differs from main's copy (self-referential guard). This PR must be reviewed by a human; the workflow change takes effect once merged."
               exit 0
             fi
@@ -710,9 +718,17 @@ jobs:
             # such PRs. This branch only stops the gate misreporting *why*.
             WF_PATH='.github/workflows/claude-code-review.yml'
             HEAD_SHA=$(gh pr view "$PR_NUM" --repo "$REPO" --json headRefOid -q .headRefOid 2>/dev/null || echo "")
-            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || echo "main-unreadable")
-            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || echo "head-unreadable")
-            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
+            # Fail closed: a lookup that errors yields an empty string, and an
+            # empty string on either side disqualifies the warning path. The
+            # first cut used two different failure sentinels, so an unrelated
+            # API error made the SHAs "differ" and fell open to the warning
+            # (flagged on #1920). Only a real, successfully-fetched mismatch
+            # counts.
+            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || true)
+            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || true)
+            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] \
+               && [ -n "$MAIN_BLOB" ] && [ -n "$HEAD_BLOB" ] \
+               && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
               echo "::warning::No review posted — the action did not run because ${WF_PATH} at ${HEAD_SHA} differs from main's copy (self-referential guard). This PR must be reviewed by a human; the workflow change takes effect once merged."
               exit 0
             fi
