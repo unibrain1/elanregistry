@@ -40,7 +40,7 @@ Surfaced) land.
 ## Issues Resolved
 
 - [#1155](https://github.com/elan-registry/registry/issues/1155) — feat: verification system backend — DB migrations, CarVerificationManager extensions, owner_last_updated tracking
-- WIP: [#1871](https://github.com/elan-registry/registry/issues/1871) — Spike: verify Brevo webhook behavior against our design assumptions
+- [#1871](https://github.com/elan-registry/registry/issues/1871) — Spike: verify Brevo webhook behavior against our design assumptions
 - WIP: [#1872](https://github.com/elan-registry/registry/issues/1872) — chore: install & verify UserSpice's cron transport on test and prod
 - [#1874](https://github.com/elan-registry/registry/issues/1874) — feat: add three missing primitives to EmailTemplate (highlighted row, button row, trusted-HTML row)
 - [#1878](https://github.com/elan-registry/registry/issues/1878) — bug: CarAdministrationService::transfer() does not clear solddate on transfer
