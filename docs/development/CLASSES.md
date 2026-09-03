@@ -784,53 +784,75 @@ $resize->saveImage($thumbnailPath);
 
 **Location**: `/usersc/classes/EmailTemplate.php`
 
-**Purpose**: Centralized email template system with branded HTML formatting.
+**Namespace**: `ElanRegistry`
+
+**Purpose**: Centralized branded HTML email template system. Instance-based
+(constructor loads `$baseUrl`/`$logoUrl` via `getBaseUrl()`); callers compose
+content with the `create*()` primitives below, then wrap it in `render()` for
+the full branded document.
 
 **Key Features**:
 
-- Consistent branded email design
-- Responsive HTML email layout
-- Header/footer management
-- Action button generation
-- Multi-section content support
-- Registry branding integration
+- Consistent branded header/footer, responsive layout (600px breakpoint)
+- Composable content primitives: message boxes, detail rows (plain,
+  highlighted, or trusted-HTML), free-text blocks, single or side-by-side
+  action buttons
+- Per-method escaping contract documented in the class's own docblock and in
+  [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md#emailtemplate-class) — some methods
+  (`createMessageBox()`'s `$content`, `createRawDetailRow()`'s `$trustedHtml`)
+  deliberately do NOT escape their input; see that contract before adding a
+  new caller
+
+**Methods**:
+
+- `render(string $subject, string $subtitle, string $content, array $options = []): string` -
+  Wrap composed `$content` in the full branded email document; escapes
+  `$subject`/`$subtitle`, `$content` is trusted HTML
+- `createMessageBox(string $title, string $content, string $style = 'default'): string` -
+  Titled, bordered content box (styles: `default`, `message`, `alert`,
+  `success`); escapes `$title` only, `$content` is raw HTML by design
+- `createDetailRow(string $label, string $value, bool $highlighted = false): string` -
+  Label/value row; escapes both always, regardless of `$highlighted`. When
+  `$highlighted` is true, renders with a `#FFF9E0` background and `#B8860B`
+  left border to flag a row needing attention
+- `createRawDetailRow(string $label, string $trustedHtml): string` -
+  Label/value row for embedding trusted HTML (an image, a link) as the
+  value; escapes `$label` only — `$trustedHtml` is caller-trusted and NOT
+  escaped
+- `createMessageContent(string $text, bool $italic = false): string` -
+  Free-text block with an accent border; escapes `$text`
+- `createButton(string $text, string $url, string $style = 'primary'): string` -
+  Single centered action button (styles: `primary`, `secondary`, `success`,
+  `danger`); escapes both `$text` and `$url`
+- `createButtonRow(array $buttons): string` - Two or more side-by-side action
+  buttons, collapsing to stacked on narrow viewports; each entry is
+  `['label' => string, 'url' => string, 'style' => string]` (`style`
+  optional, defaults to `primary`); escapes `label`/`url`/`style` per entry
+  and throws `\InvalidArgumentException` for fewer than two buttons or a
+  malformed entry
 
 **Common Usage**:
 
 ```php
-// Create email template
 $template = new EmailTemplate();
 
-// Build email with sections
-$html = $template->buildEmail(
-    'Transfer Request',
-    [
-        [
-            'title' => 'Transfer Details',
-            'content' => 'Car #26/0001 has been transferred...'
-        ],
-        [
-            'title' => 'Next Steps',
-            'content' => 'Please review and approve...'
-        ]
-    ],
-    [
-        'text' => 'View Transfer Request',
-        'url' => 'https://elanregistry.org/app/transfers/view.php?id=123'
-    ]
+$content = $template->createMessageBox(
+    'Transfer Details',
+    $template->createDetailRow('Car', 'Elan 26/0001')
+        . $template->createDetailRow('Engine Number', '', highlighted: true)
 );
+$content .= $template->createButtonRow([
+    ['label' => 'Approve', 'url' => $approveUrl, 'style' => 'success'],
+    ['label' => 'Decline', 'url' => $declineUrl, 'style' => 'danger'],
+]);
 
-// Send email
-// ... use with PHPMailer or other email system
+$html = $template->render('Transfer Request', 'Action needed', $content);
+// ... send $html via the project's email system, see EMAIL_SYSTEM.md
 ```
 
-**Email Structure**:
+**See Also**:
 
-- Branded header with logo
-- Multiple content sections with titles
-- Optional action button
-- Footer with registry information
-- Responsive design for mobile devices
+- [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md#emailtemplate-class) - Full per-method escaping contract and Brevo/sendinblue() sending pattern
 
 ### registrySendEmail()
 
