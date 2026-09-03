@@ -33,7 +33,8 @@ Surfaced) land.
 
 ### Bug Fixes
 
-- **Fixed plaintext-vericode bug** ([#1879](https://github.com/elan-registry/registry/issues/1879)): Email change from the project settings page no longer stores a vericode in a format the verifier rejects.
+- **Fixed plaintext-vericode bug** ([#1879](https://github.com/elan-registry/registry/issues/1879)): Email-change and password-reset flows on the
+  project settings page, and owner account creation, now hash the vericode before storing it, matching the verifier's expected format.
 - **Fixed transfer not clearing solddate** ([#1878](https://github.com/elan-registry/registry/issues/1878)): `CarAdministrationService::transfer()` now clears `solddate` on transfer, so transferred cars are no longer silently excluded from verification eligibility.
 
 ## Issues Resolved
