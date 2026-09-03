@@ -15,6 +15,7 @@ namespace ElanRegistry;
  * echo $template->render('Subject', 'Subtitle', $content);
  *
  * Escaping contract (per method):
+ * - render()              — escapes $subject and $subtitle; $content is trusted HTML (delegates to getBaseTemplate())
  * - createDetailRow()     — escapes both $label and $value, always, regardless of $highlighted
  * - createRawDetailRow()  — escapes $label only; $trustedHtml is caller-trusted and NOT escaped
  * - createMessageContent()— escapes $text
@@ -182,15 +183,21 @@ class EmailTemplate
      * lay the buttons out side by side reliably. Collapses to stacked
      * full-width buttons below the template's 600px responsive breakpoint.
      *
-     * 'label' and 'url' are runtime-validated (not just type-hinted) because
-     * callers may build $buttons from conditional/looped logic where a key
-     * can legitimately be omitted at the array-shape level; a missing key
-     * throws rather than rendering a broken button.
+     * 'label', 'url', and (when present) 'style' are runtime-validated — both
+     * for presence and for type — because callers may build $buttons from
+     * conditional/looped logic where a key can legitimately be omitted, or a
+     * value of the wrong type supplied, at the array-shape level; PHPStan's
+     * array-shape syntax only checks call sites it can see statically and
+     * cannot catch a shape violation in data assembled at runtime. A missing
+     * or wrongly-typed key throws \InvalidArgumentException rather than
+     * letting a non-string 'style' reach getButtonInlineStyles()'s typed
+     * parameter as an uncaught \TypeError, or rendering a broken button.
      *
-     * @param array<int, array{label?: string, url?: string, style?: string}> $buttons Button definitions; 'label' and 'url' required per entry, 'style' defaults to 'primary'
+     * @param array<int, array{label?: mixed, url?: mixed, style?: mixed}> $buttons Button definitions; 'label' and 'url' required strings per entry (type checked at runtime, see above), 'style' optional string defaulting to 'primary'
      * @return string HTML for button row
      * @throws \InvalidArgumentException When fewer than two buttons are supplied,
-     *                                    or any button entry is missing 'label' or 'url'
+     *                                    any button entry is missing 'label' or 'url',
+     *                                    or 'label'/'url'/'style' is present but not a string
      */
     public function createButtonRow(array $buttons): string
     {
@@ -202,18 +209,25 @@ class EmailTemplate
 
         $cells = [];
         foreach ($buttons as $i => $button) {
-            if (!isset($button['label'], $button['url'])) {
+            if (!isset($button['label'], $button['url'])
+                || !is_string($button['label'])
+                || !is_string($button['url'])
+            ) {
                 throw new \InvalidArgumentException(
-                    "createButtonRow(): button at index {$i} must have both 'label' and 'url'."
+                    "createButtonRow(): button at index {$i} must have both 'label' and 'url' as strings."
+                );
+            }
+            if (isset($button['style']) && !is_string($button['style'])) {
+                throw new \InvalidArgumentException(
+                    "createButtonRow(): button at index {$i} has a non-string 'style' value."
                 );
             }
             $style        = $button['style'] ?? 'primary';
             $inlineStyles = $this->getButtonInlineStyles($style);
-            // htmlspecialchars() also protects the class attribute below: $style is
-            // developer-supplied (never user input) but is interpolated unescaped
-            // into class="btn btn-{$style}" in createButton() itself, so escaping
-            // it here — even though this method doesn't reuse that exact line —
-            // keeps createButtonRow() from reproducing that same injection shape.
+            // $style is meant to be a developer-supplied constant, not user input, but
+            // it is still interpolated into class="btn btn-{$style}" below — escape it
+            // defensively so a future caller that derives $style from user/config data
+            // can't inject via the class attribute.
             $buttonClass  = 'btn btn-' . htmlspecialchars($style, ENT_QUOTES, 'UTF-8');
             $safeUrl      = htmlspecialchars($button['url'], ENT_QUOTES, 'UTF-8');
             $safeLabel    = htmlspecialchars($button['label'], ENT_QUOTES, 'UTF-8');

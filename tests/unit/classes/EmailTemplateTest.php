@@ -421,6 +421,41 @@ final class EmailTemplateTest extends TestCase
         ]);
     }
 
+    public function testCreateButtonRowThrowsWhenLabelIsNotAString(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['label' => 123, 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
+    public function testCreateButtonRowThrowsWhenUrlIsNotAString(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 123],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
+    /**
+     * Guards against createButtonRow() letting a non-string 'style' reach
+     * getButtonInlineStyles()'s typed parameter as an uncaught \TypeError
+     * instead of the method's own documented \InvalidArgumentException.
+     */
+    public function testCreateButtonRowThrowsWhenStyleIsNotAString(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one', 'style' => 5],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
     public function testCreateButtonRowIsCenteredTableBasedBlock(): void
     {
         $html = $this->template->createButtonRow([
