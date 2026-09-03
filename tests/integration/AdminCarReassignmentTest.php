@@ -100,7 +100,6 @@ final class AdminCarReassignmentTest extends IntegrationTestCase
     {
         $noOwnerRow = $this->db->query("SELECT id FROM users WHERE username = ?", ['noowner'])->first();
         $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer migrate (RegisterNoownerAccount)');
-        $noOwnerId = (int) $noOwnerRow->id;
 
         $ownerId = $this->createTestUser();
         $carId = $this->createTestCar($ownerId, ['solddate' => '2020-01-01']);
