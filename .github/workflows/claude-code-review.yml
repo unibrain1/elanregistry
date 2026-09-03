@@ -368,6 +368,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
           REPO: ${{ github.repository }}
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
         run: |
           # Anchor on a "Strengths" section — present in every Claude review
           # comment — so we match the review, not a stray human comment.
@@ -380,13 +381,29 @@ jobs:
           if [ -z "$REVIEW_BODY" ]; then
             # One cause of "nothing posted" is expected and self-inflicted:
             # claude-code-action refuses to run when this workflow file on the
-            # PR branch differs from main's copy ("Skipping action due to
-            # workflow validation"), so any PR that edits this file can never
-            # be reviewed by it (#1919). Downgrade that single case to a
-            # warning; every other empty-comment cause stays red (#1724).
-            if gh pr diff "$PR_NUM" --repo "$REPO" --name-only \
-                 | grep -qx '.github/workflows/claude-code-review.yml'; then
-              echo "::warning::No review posted — this PR modifies claude-code-review.yml, and the action skips PRs whose workflow file differs from main (self-referential guard). Review manually; the workflow takes effect once merged."
+            # PR head differs from main's copy ("Skipping action due to
+            # workflow validation"), so a PR that edits this file cannot be
+            # reviewed by it until merged (#1919). Downgrade that case to a
+            # warning — but only when it demonstrably happened, not when the
+            # file merely appears in the diff (the first cut did that, and a
+            # PR touching this file for any reason would have waived a real
+            # posting failure). Two conditions, both required:
+            #   1. the action produced no execution file — it never ran, as
+            #      opposed to running and failing to post (turns exhausted,
+            #      API error), which must stay red (#1724);
+            #   2. the workflow file's blob at the PR head differs from the
+            #      blob on main — the exact identical-content test the action
+            #      applies, checked by git blob SHA rather than by "is the
+            #      path in the diff".
+            # Residual: a PR that edits this file is unreviewable by design;
+            # that is the action's security model, and a human must review
+            # such PRs. This branch only stops the gate misreporting *why*.
+            WF_PATH='.github/workflows/claude-code-review.yml'
+            HEAD_SHA=$(gh pr view "$PR_NUM" --repo "$REPO" --json headRefOid -q .headRefOid 2>/dev/null || echo "")
+            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || echo "main-unreadable")
+            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || echo "head-unreadable")
+            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
+              echo "::warning::No review posted — the action did not run because ${WF_PATH} at ${HEAD_SHA} differs from main's copy (self-referential guard). This PR must be reviewed by a human; the workflow change takes effect once merged."
               exit 0
             fi
             echo "::error::No review comment was found at all (not even after the fallback-post step) — the review did not run or failed silently. Investigate before merging."
@@ -661,6 +678,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
         run: |
           # Anchor on a "Strengths" section — present in every Claude milestone
           # review — so we match the review, not a stray human comment.
@@ -673,13 +691,29 @@ jobs:
           if [ -z "$REVIEW_BODY" ]; then
             # One cause of "nothing posted" is expected and self-inflicted:
             # claude-code-action refuses to run when this workflow file on the
-            # PR branch differs from main's copy ("Skipping action due to
-            # workflow validation"), so any PR that edits this file can never
-            # be reviewed by it (#1919). Downgrade that single case to a
-            # warning; every other empty-comment cause stays red (#1724).
-            if gh pr diff "$PR_NUM" --repo "$REPO" --name-only \
-                 | grep -qx '.github/workflows/claude-code-review.yml'; then
-              echo "::warning::No review posted — this PR modifies claude-code-review.yml, and the action skips PRs whose workflow file differs from main (self-referential guard). Review manually; the workflow takes effect once merged."
+            # PR head differs from main's copy ("Skipping action due to
+            # workflow validation"), so a PR that edits this file cannot be
+            # reviewed by it until merged (#1919). Downgrade that case to a
+            # warning — but only when it demonstrably happened, not when the
+            # file merely appears in the diff (the first cut did that, and a
+            # PR touching this file for any reason would have waived a real
+            # posting failure). Two conditions, both required:
+            #   1. the action produced no execution file — it never ran, as
+            #      opposed to running and failing to post (turns exhausted,
+            #      API error), which must stay red (#1724);
+            #   2. the workflow file's blob at the PR head differs from the
+            #      blob on main — the exact identical-content test the action
+            #      applies, checked by git blob SHA rather than by "is the
+            #      path in the diff".
+            # Residual: a PR that edits this file is unreviewable by design;
+            # that is the action's security model, and a human must review
+            # such PRs. This branch only stops the gate misreporting *why*.
+            WF_PATH='.github/workflows/claude-code-review.yml'
+            HEAD_SHA=$(gh pr view "$PR_NUM" --repo "$REPO" --json headRefOid -q .headRefOid 2>/dev/null || echo "")
+            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || echo "main-unreadable")
+            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || echo "head-unreadable")
+            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
+              echo "::warning::No review posted — the action did not run because ${WF_PATH} at ${HEAD_SHA} differs from main's copy (self-referential guard). This PR must be reviewed by a human; the workflow change takes effect once merged."
               exit 0
             fi
             echo "::error::No review comment was found at all (not even after the fallback-post step) — the review did not run or failed silently. Investigate before merging."

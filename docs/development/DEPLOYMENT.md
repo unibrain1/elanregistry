@@ -75,7 +75,7 @@ quality, security, and project management compliance.
 | ----------------------------- | --------------------- | ------ | ------------------ |
 | **CodeQL Analysis**           | Security scanning     | ✅ Yes | All PRs to main    |
 | **GitGuardian Security**      | Secret detection      | ✅ Yes | All commits/PRs    |
-| **Claude Code Review**        | Coding standards      | ✅ Yes | PHP/JS/CSS changes |
+| **Claude Code Review**        | Coding standards      | ❌ No* | All PRs (see §3)   |
 | **Issue Management**          | Auto-label issues     | ❌ No  | Issue events       |
 | **PR Management**             | Link PRs to issues    | ❌ No  | PR events          |
 | **PHPUnit Unit + Regression** | Behavioral test suite | ❌ No* | All PRs            |
