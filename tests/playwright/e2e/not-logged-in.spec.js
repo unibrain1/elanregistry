@@ -513,7 +513,6 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
     }
   });
 
-
   const redirects = [
     {
       from: '/docs/embed.php?doc=Elan_26_36_Workshop_Manual.pdf',
@@ -586,7 +585,7 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       // Normalize absolute Location headers to path + query for comparison
@@ -604,7 +603,6 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
       testInfo.skip();
     }
   });
-
 
   // Normalizes absolute Location headers to path + query for comparison
   const toLocationPath = (location) =>
@@ -640,7 +638,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       const locationPath = toLocationPath(location);
@@ -650,7 +648,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
       // locked down to authenticated-only would silently send anonymous
       // visitors/crawlers into a login wall instead of the intended content,
       // and the assertions above alone wouldn't catch that regression.
-      const followed = await request.get(`${to}`);
+      const followed = await request.get(to);
       expect(followed.status(), `Expected 200 for redirect target ${to}`).toBe(200);
     });
   });
@@ -711,7 +709,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
 
     // Follow the redirect: nothing was ever copied to docs/reference/assets/,
     // so the chain terminates in a 404, not a working asset.
-    const followed = await request.get(`${locationPath}`);
+    const followed = await request.get(locationPath);
     expect(followed.status()).toBe(404);
   });
 
@@ -727,7 +725,6 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
       testInfo.skip();
     }
   });
-
 
   const redirects = [
     {
@@ -774,7 +771,7 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       // Normalize absolute Location headers to path + query for comparison
@@ -821,7 +818,6 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
     }
   });
 
-
   const redirects = [
     {
       from: '/docs/pdf-viewer.php?subdir=reference/assets&doc=elan_s1_s2_coupe_masterpartslist.pdf',
@@ -858,7 +854,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       // Normalize absolute Location headers to path + query for comparison
