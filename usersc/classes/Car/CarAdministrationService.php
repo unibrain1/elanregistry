@@ -176,9 +176,11 @@ class CarAdministrationService
                 'lon'       => $targetUser->lon      ?? null,
                 'website'   => $targetUser->website  ?? '',
             ];
-            // Omitted (not null) for the system account so the stored value is untouched.
+            // Ordinary transfer: clear it. For the system account the key is omitted
+            // entirely — DB::update() writes only the keys given, so the stored value
+            // is untouched; writing null here would erase it.
             if (!$isSystemAccount) {
-                $ownerFields['solddate'] = $soldDate;
+                $ownerFields['solddate'] = null;
             }
 
             // Validate owner fields before writing. $requireAll = false so only the

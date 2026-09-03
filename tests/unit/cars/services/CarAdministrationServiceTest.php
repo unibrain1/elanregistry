@@ -178,7 +178,7 @@ final class CarAdministrationServiceTest extends TestCase
     /**
      * Issue #1878: transferring a car to a real owner must clear `solddate`
      * on both the live `cars` row and the audit history row it writes —
-     * a car changing hands is no longer "sold" under its previous listing.
+     * a sale does not survive a change of owner.
      */
     public function testTransferClearsSoldDateOnCarsAndHistoryRow(): void
     {
@@ -211,10 +211,72 @@ final class CarAdministrationServiceTest extends TestCase
     }
 
     /**
-     * Issue #1878: transferring to the `noowner` system account (used by GDPR
-     * account deletion) must NOT clear `solddate` — that reassignment doesn't
-     * represent a real sale event, so the car's existing solddate should
-     * pass through unchanged rather than being blanked on the live row.
+     * Issue #1878: the solddate decision is keyed on the target's username,
+     * not on the unroutable SYSTEM_ACCOUNT_EMAIL sentinel. A real owner who
+     * happens to carry that email (or no username at all in the row) is still
+     * a change of owner and must have solddate cleared — otherwise a refactor
+     * that "simplifies" the check to the email would silently preserve
+     * solddate on any real owner with a malformed address, the same class of
+     * bug #1878 fixed.
+     */
+    public function testTransferClearsSoldDateIsKeyedOnUsernameNotEmail(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999', 'solddate' => '2020-01-01'];
+
+        // Case 1: sentinel email, ordinary username.
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+        $updateFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturn(true);
+        $this->service->transfer(
+            $carData,
+            1,
+            'Test transfer reason',
+            'NEWOWNER',
+            1,
+            new CarRepository($db),
+            $this->createOwnerDb(1, 'noowner@invalid')
+        );
+        $this->assertArrayHasKey('solddate', $updateFields, 'A real owner with the sentinel email is still a change of owner');
+        $this->assertNull($updateFields['solddate']);
+
+        // Case 2: target row carries no username key at all — must mean "real owner".
+        $ownerDb = $this->createStub(DatabaseInterface::class);
+        $ownerDb->method('query')->willReturnSelf();
+        $ownerDb->method('error')->willReturn(false);
+        $ownerDb->method('count')->willReturn(1);
+        $ownerDb->method('first')->willReturn((object) [
+            'id'    => 1,
+            'email' => 'test@example.com',
+            'fname' => 'Test',
+            'lname' => 'User',
+        ]);
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+        $updateFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturn(true);
+        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, new CarRepository($db), $ownerDb);
+        $this->assertArrayHasKey('solddate', $updateFields, 'A target row without a username must be treated as a real owner');
+        $this->assertNull($updateFields['solddate']);
+    }
+
+    /**
+     * Issue #1878: transferring to the `noowner` system account (the GDPR
+     * account-deletion and admin "no owner" paths) must NOT clear `solddate`
+     * — reassignment to the system account is not a change of owner, so the
+     * sold state is preserved on both the live row and the history row.
      */
     public function testTransferToSystemAccountPreservesSoldDate(): void
     {

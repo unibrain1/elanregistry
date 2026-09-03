@@ -240,8 +240,8 @@ final class CarTransferTest extends IntegrationTestCase
     }
 
     /**
-     * Test car transfer clears solddate on a previously-sold car, both on the
-     * cars row and on the app-written NEWOWNER cars_hist row.
+     * Issue #1878: car transfer clears solddate on a previously-sold car, both
+     * on the cars row and on the app-written NEWOWNER cars_hist row.
      */
     #[Group('fast')]
     public function testTransferClearsSoldDateOnPreviouslySoldCar(): void
@@ -269,7 +269,10 @@ final class CarTransferTest extends IntegrationTestCase
     }
 
     /**
-     * Test car transfer leaves solddate NULL for a car that was never sold.
+     * Issue #1878 guard: the clear path must write SQL NULL and nothing else.
+     * A never-sold car cannot distinguish "cleared" from "untouched", but it
+     * does catch a regression that writes a sentinel (e.g. '' — a hard error
+     * under STRICT_TRANS_TABLES on a DATE column — or '0000-00-00').
      */
     #[Group('fast')]
     public function testTransferLeavesNeverSoldCarSoldDateNull(): void

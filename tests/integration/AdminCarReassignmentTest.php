@@ -121,5 +121,16 @@ final class AdminCarReassignmentTest extends IntegrationTestCase
             $after->solddate,
             'Reassigning to the seeded noowner account must not clear solddate — it is not a change of owner'
         );
+
+        $hist = $this->db->query(
+            "SELECT solddate FROM cars_hist WHERE car_id = ? AND operation = 'NEWOWNER'",
+            [$carId]
+        );
+        $this->assertSame(1, $hist->count());
+        $this->assertSame(
+            '2020-01-01',
+            $hist->first()->solddate,
+            'The NEWOWNER history row must carry the preserved solddate for a noowner reassignment'
+        );
     }
 }
