@@ -3,9 +3,14 @@ name: Claude Code Review
 # Two automated review modes gated by PR base branch:
 #
 #   * -> milestone/*    : lightweight Sonnet backstop on every push. Focuses on
-#                         what static tools (PHPStan / CodeQL / Semgrep) can't
+#   * -> main (ad hoc)    what static tools (PHPStan / CodeQL / Semgrep) can't
 #                         see: silent failures, arch fit, test gaps, CLAUDE.md
 #                         violations. Assumes the author ran /review-pr locally.
+#                         The second shape is any non-milestone branch straight
+#                         to main — hotfixes, ad-hoc test/doc/CI fixes — which
+#                         previously matched neither job and shipped unreviewed
+#                         (PR #1915). Job name kept as pr-to-milestone-review:
+#                         commands and docs reference it.
 #
 #   milestone/* -> main : deep Fable review on PR open / ready_for_review /
 #                         deep-review label. Cross-issue integration, release-
@@ -64,7 +69,11 @@ name: Claude Code Review
 #   The model input is also deprecated in v1.0; pass --model via claude_args.
 #   The action also validates that the workflow file on the PR branch matches
 #   the default branch. PRs that modify this file will skip the review until
-#   merged — this is intentional security behaviour, not a bug.
+#   merged — this is intentional security behaviour, not a bug. The final
+#   gate step recognises that one case (this file is in the PR diff) and
+#   exits with a warning instead of failing; the *job* steps themselves
+#   still run from the PR branch's copy, so gate changes are exercised on
+#   the PR that makes them even though the review itself is not.
 
 on:
   pull_request:
@@ -81,7 +90,9 @@ on:
         type: number
 
 jobs:
-  # Lightweight review for PRs targeting milestone branches. Runs on every
+  # Lightweight review for PRs targeting milestone branches, and for
+  # non-milestone branches targeting main directly (hotfix / ad-hoc PRs —
+  # milestone/* -> main is the deep job below, not this one). Runs on every
   # push regardless of draft state (PRs are opened as draft by default —
   # see /commit-push-pr — and the author drives review/fix cycles via
   # /address-pr-comments before marking the PR ready), OR on demand via
@@ -90,7 +101,13 @@ jobs:
     if: |
       (
         github.event_name == 'pull_request' &&
-        startsWith(github.event.pull_request.base.ref, 'milestone/') &&
+        (
+          startsWith(github.event.pull_request.base.ref, 'milestone/') ||
+          (
+            github.event.pull_request.base.ref == 'main' &&
+            !startsWith(github.event.pull_request.head.ref, 'milestone/')
+          )
+        ) &&
         !contains(github.event.pull_request.title, '[skip-review]') &&
         !contains(github.event.pull_request.title, '[WIP]') &&
         github.event.action != 'labeled'
@@ -176,7 +193,10 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ steps.ctx.outputs.pr_number }}
 
-            You are reviewing an **issue-level PR** targeting a milestone branch.
+            You are reviewing either an **issue-level PR** targeting a milestone
+            branch, or an **ad-hoc / hotfix PR** from a non-milestone branch
+            straight to `main`. `baseRefName` from the command below tells you
+            which; apply the same bar to both.
 
             The PR title and branch names are deliberately NOT interpolated into
             this prompt: they are attacker-controlled on a fork PR, and text
@@ -348,6 +368,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
           REPO: ${{ github.repository }}
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
         run: |
           # Anchor on a "Strengths" section — present in every Claude review
           # comment — so we match the review, not a stray human comment.
@@ -358,6 +379,41 @@ jobs:
             --jq '[.[] | select(.body | test("#{1,6}\\s+Strengths|\\*\\*Strengths\\*\\*"))] | last | .body // ""' \
             2>/dev/null || echo "")
           if [ -z "$REVIEW_BODY" ]; then
+            # One cause of "nothing posted" is expected and self-inflicted:
+            # claude-code-action refuses to run when this workflow file on the
+            # PR head differs from main's copy ("Skipping action due to
+            # workflow validation"), so a PR that edits this file cannot be
+            # reviewed by it until merged (#1919). Downgrade that case to a
+            # warning — but only when it demonstrably happened, not when the
+            # file merely appears in the diff (the first cut did that, and a
+            # PR touching this file for any reason would have waived a real
+            # posting failure). Two conditions, both required:
+            #   1. the action produced no execution file — it never ran, as
+            #      opposed to running and failing to post (turns exhausted,
+            #      API error), which must stay red (#1724);
+            #   2. the workflow file's blob at the PR head differs from the
+            #      blob on main — the exact identical-content test the action
+            #      applies, checked by git blob SHA rather than by "is the
+            #      path in the diff".
+            # Residual: a PR that edits this file is unreviewable by design;
+            # that is the action's security model, and a human must review
+            # such PRs. This branch only stops the gate misreporting *why*.
+            WF_PATH='.github/workflows/claude-code-review.yml'
+            HEAD_SHA=$(gh pr view "$PR_NUM" --repo "$REPO" --json headRefOid -q .headRefOid 2>/dev/null || echo "")
+            # Fail closed: a lookup that errors yields an empty string, and an
+            # empty string on either side disqualifies the warning path. The
+            # first cut used two different failure sentinels, so an unrelated
+            # API error made the SHAs "differ" and fell open to the warning
+            # (flagged on #1920). Only a real, successfully-fetched mismatch
+            # counts.
+            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || true)
+            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || true)
+            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] \
+               && [ -n "$MAIN_BLOB" ] && [ -n "$HEAD_BLOB" ] \
+               && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
+              echo "::warning::No review posted — the action did not run because ${WF_PATH} at ${HEAD_SHA} differs from main's copy (self-referential guard). This PR must be reviewed by a human; the workflow change takes effect once merged."
+              exit 0
+            fi
             echo "::error::No review comment was found at all (not even after the fallback-post step) — the review did not run or failed silently. Investigate before merging."
             exit 1
           fi
@@ -630,6 +686,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
         run: |
           # Anchor on a "Strengths" section — present in every Claude milestone
           # review — so we match the review, not a stray human comment.
@@ -640,6 +697,41 @@ jobs:
             --jq '[.[] | select(.body | test("#{1,6}\\s+Strengths|\\*\\*Strengths\\*\\*"))] | last | .body // ""' \
             2>/dev/null || echo "")
           if [ -z "$REVIEW_BODY" ]; then
+            # One cause of "nothing posted" is expected and self-inflicted:
+            # claude-code-action refuses to run when this workflow file on the
+            # PR head differs from main's copy ("Skipping action due to
+            # workflow validation"), so a PR that edits this file cannot be
+            # reviewed by it until merged (#1919). Downgrade that case to a
+            # warning — but only when it demonstrably happened, not when the
+            # file merely appears in the diff (the first cut did that, and a
+            # PR touching this file for any reason would have waived a real
+            # posting failure). Two conditions, both required:
+            #   1. the action produced no execution file — it never ran, as
+            #      opposed to running and failing to post (turns exhausted,
+            #      API error), which must stay red (#1724);
+            #   2. the workflow file's blob at the PR head differs from the
+            #      blob on main — the exact identical-content test the action
+            #      applies, checked by git blob SHA rather than by "is the
+            #      path in the diff".
+            # Residual: a PR that edits this file is unreviewable by design;
+            # that is the action's security model, and a human must review
+            # such PRs. This branch only stops the gate misreporting *why*.
+            WF_PATH='.github/workflows/claude-code-review.yml'
+            HEAD_SHA=$(gh pr view "$PR_NUM" --repo "$REPO" --json headRefOid -q .headRefOid 2>/dev/null || echo "")
+            # Fail closed: a lookup that errors yields an empty string, and an
+            # empty string on either side disqualifies the warning path. The
+            # first cut used two different failure sentinels, so an unrelated
+            # API error made the SHAs "differ" and fell open to the warning
+            # (flagged on #1920). Only a real, successfully-fetched mismatch
+            # counts.
+            MAIN_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=main" --jq .sha 2>/dev/null || true)
+            HEAD_BLOB=$(gh api "repos/${REPO}/contents/${WF_PATH}?ref=${HEAD_SHA}" --jq .sha 2>/dev/null || true)
+            if [ -z "$EXECUTION_FILE" ] && [ -n "$HEAD_SHA" ] \
+               && [ -n "$MAIN_BLOB" ] && [ -n "$HEAD_BLOB" ] \
+               && [ "$MAIN_BLOB" != "$HEAD_BLOB" ]; then
+              echo "::warning::No review posted — the action did not run because ${WF_PATH} at ${HEAD_SHA} differs from main's copy (self-referential guard). This PR must be reviewed by a human; the workflow change takes effect once merged."
+              exit 0
+            fi
             echo "::error::No review comment was found at all (not even after the fallback-post step) — the review did not run or failed silently. Investigate before merging."
             exit 1
           fi

@@ -75,7 +75,7 @@ quality, security, and project management compliance.
 | ----------------------------- | --------------------- | ------ | ------------------ |
 | **CodeQL Analysis**           | Security scanning     | ✅ Yes | All PRs to main    |
 | **GitGuardian Security**      | Secret detection      | ✅ Yes | All commits/PRs    |
-| **Claude Code Review**        | Coding standards      | ✅ Yes | PHP/JS/CSS changes |
+| **Claude Code Review**        | Coding standards      | ❌ No* | All PRs (see §3)   |
 | **Issue Management**          | Auto-label issues     | ❌ No  | Issue events       |
 | **PR Management**             | Link PRs to issues    | ❌ No  | PR events          |
 | **PHPUnit Unit + Regression** | Behavioral test suite | ❌ No* | All PRs            |
@@ -108,7 +108,14 @@ before merge, not by GitHub blocking the merge button itself (see issue #1437).
 #### 3. **Claude Code Review**
 
 - **What it does**: Automated code review against Elan Registry coding standards
-- **When it runs**: When PR contains PHP, JS, CSS files or documentation changes
+- **When it runs**: On every push to a PR (no path filter). Two modes, gated by
+  branch shape in `.github/workflows/claude-code-review.yml`:
+  - `pr-to-milestone-review` (light, Sonnet) — any branch → `milestone/*`, and
+    any non-milestone branch → `main` (hotfix / ad-hoc PRs); skipped for
+    `[skip-review]` / `[WIP]` titles
+  - `milestone-review` (deep) — `milestone/*` → `main`, on open /
+    ready-for-review / `deep-review` label, non-draft only
+  - `workflow_dispatch` with `pr_number` re-runs the light review on demand
 - **Scope**: Enforces coding standards from `docs/development/CODING_STANDARDS.md`
 - **Key checks**:
   - **PHP 8+ Type Safety**: Complete type declarations, `declare(strict_types=1)`
@@ -420,6 +427,13 @@ After each deployment, verify:
 
 - [ ] Maps display correctly: world map on Statistics page, single-marker map on car Details pages (no API key required — uses self-hosted MapLibre GL JS + VersaTiles)
 - [ ] All redirected pages work and maintain proper permissions
+- [ ] **Purge Cloudflare cache for any static file the release moved, renamed, or
+      deleted** (CSS/JS/PDF/image paths). Static assets are served with
+      `cache-control: max-age=31536000`, so the edge keeps returning the old
+      200 for up to a year after the origin starts returning 301/404 — the
+      v2.29.6 deploy left `/docs/assets/document-content.css` cached this way.
+      Cloudflare dashboard → Caching → Purge by URL, one entry per old path.
+      Run `npm run test:e2e` afterwards; the redirect specs hit those URLs.
 - [ ] New pages have appropriate UserSpice permission levels
 - [ ] Contact forms send to correct email addresses
 - [ ] VERSION file exists on server (created by deployment hook)
