@@ -328,6 +328,14 @@ and your answers. I'll ask clarifying questions as I refine the approach."
    - **senior-test-engineer** (when code changes are made): Ask for a test strategy — which
      test types apply (unit, integration, browser, security, DB) and which existing tests
      need updating. Launch separate instances for PHPUnit vs Playwright if both are needed.
+     If the issue adds a new query, explicitly ask for a live-DB verification step (not
+     just a mocked-DB unit test) — mocked tests cannot catch a query that is fatally wrong
+     against the real schema/sql_mode. If the issue adds a public method accepting
+     structured input (array/DB row/JSON), explicitly ask for wrong-typed-value tests per
+     field, not just missing-key tests — PHPStan's static array-shape checking cannot catch
+     a shape violation in data assembled at runtime, and a present-but-wrong-typed value can
+     reach a strictly-typed helper as an uncaught TypeError instead of the method's own
+     documented exception.
 
    - **technical-documentation-writer** (only when changes affect public APIs, schema,
      classes, or user flows): Ask which docs need updating based on the change type.
