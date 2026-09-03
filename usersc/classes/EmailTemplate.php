@@ -14,6 +14,17 @@ namespace ElanRegistry;
  * $content = $template->createMessageBox('Title', $template->createDetailRow('Name', $value));
  * echo $template->render('Subject', 'Subtitle', $content);
  *
+ * Escaping contract (per method):
+ * - createDetailRow()     — escapes both $label and $value, always, regardless of $highlighted
+ * - createRawDetailRow()  — escapes $label only; $trustedHtml is caller-trusted and NOT escaped
+ * - createMessageContent()— escapes $text
+ * - createButton()        — escapes both $text and $url
+ * - createButtonRow()     — escapes 'label' and 'url' for every button entry
+ * - createMessageBox()    — escapes $title only; $content is raw HTML BY DESIGN and NOT escaped
+ *
+ * Callers passing user-supplied data into a non-escaping parameter ($content,
+ * $trustedHtml) are entirely responsible for escaping it first.
+ *
  * @author Elan Registry Team
  * @copyright 2025
  */
@@ -70,17 +81,57 @@ class EmailTemplate
     /**
      * Create a details row for displaying key-value information
      *
-     * @param string $label Field label
-     * @param string $value Field value
+     * Both $label and $value are HTML-escaped unconditionally — the
+     * $highlighted flag only changes cell styling, never escaping.
+     *
+     * @param string $label Field label (escaped)
+     * @param string $value Field value (escaped)
+     * @param bool $highlighted Apply an emphasis band (tinted background, left accent) to both cells
      * @return string HTML for detail row
      */
-    public function createDetailRow(string $label, string $value): string
+    public function createDetailRow(string $label, string $value, bool $highlighted = false): string
+    {
+        $safeLabel = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
+        $safeValue = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+        // Cell-level background rather than table-level: Outlook's Word rendering
+        // engine drops table-level background-color far more often than td-level.
+        $labelStyles = $highlighted
+            ? 'font-weight: bold; width: 120px; color: #469408; vertical-align: top; background-color: #FFF9E0; border-left: 4px solid #B8860B; padding: 8px 10px 8px 8px;'
+            : 'font-weight: bold; width: 120px; color: #469408; vertical-align: top; padding-right: 10px;';
+        $valueStyles = $highlighted
+            ? 'vertical-align: top; background-color: #FFF9E0; padding: 8px 10px 8px 0;'
+            : 'vertical-align: top;';
+
+        return "
+        <table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"margin-bottom: 10px;\">
+            <tr>
+                <td style=\"{$labelStyles}\">" . $safeLabel . ":</td>
+                <td style=\"{$valueStyles}\">" . $safeValue . "</td>
+            </tr>
+        </table>";
+    }
+
+    /**
+     * Create a details row whose value is pre-composed, trusted HTML.
+     *
+     * UNLIKE createDetailRow(), $trustedHtml is NOT escaped — it is emitted
+     * verbatim. The caller is entirely responsible for escaping any
+     * user-supplied data embedded in $trustedHtml before passing it here. Use
+     * this only for content you control (e.g. a composed <img> tag, an
+     * internal link) — never pass raw user input.
+     *
+     * @param string $label Field label (escaped)
+     * @param string $trustedHtml Pre-composed HTML, NOT escaped — caller-trusted
+     * @return string HTML for detail row
+     */
+    public function createRawDetailRow(string $label, string $trustedHtml): string
     {
         return "
         <table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"margin-bottom: 10px;\">
             <tr>
                 <td style=\"font-weight: bold; width: 120px; color: #469408; vertical-align: top; padding-right: 10px;\">" . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . ":</td>
-                <td style=\"vertical-align: top;\">" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>
+                <td style=\"vertical-align: top;\">" . $trustedHtml . "</td>
             </tr>
         </table>";
     }
@@ -122,6 +173,71 @@ class EmailTemplate
         <div class=\"text-center\" style=\"text-align: center;\">
             <a href=\"{$safeUrl}\" class=\"{$buttonClass}\" style=\"{$inlineStyles}\">{$safeText}</a>
         </div>";
+    }
+
+    /**
+     * Create a row of two or more side-by-side action buttons
+     *
+     * Table-based (rather than createButton()'s div wrapper) so email clients
+     * lay the buttons out side by side reliably. Collapses to stacked
+     * full-width buttons below the template's 600px responsive breakpoint.
+     *
+     * 'label' and 'url' are runtime-validated (not just type-hinted) because
+     * callers may build $buttons from conditional/looped logic where a key
+     * can legitimately be omitted at the array-shape level; a missing key
+     * throws rather than rendering a broken button.
+     *
+     * @param array<int, array{label?: string, url?: string, style?: string}> $buttons Button definitions; 'label' and 'url' required per entry, 'style' defaults to 'primary'
+     * @return string HTML for button row
+     * @throws \InvalidArgumentException When fewer than two buttons are supplied,
+     *                                    or any button entry is missing 'label' or 'url'
+     */
+    public function createButtonRow(array $buttons): string
+    {
+        if (count($buttons) < 2) {
+            throw new \InvalidArgumentException(
+                'createButtonRow() requires at least 2 buttons; use createButton() for a single button.'
+            );
+        }
+
+        $cells = [];
+        foreach ($buttons as $i => $button) {
+            if (!isset($button['label'], $button['url'])) {
+                throw new \InvalidArgumentException(
+                    "createButtonRow(): button at index {$i} must have both 'label' and 'url'."
+                );
+            }
+            $style        = $button['style'] ?? 'primary';
+            $inlineStyles = $this->getButtonInlineStyles($style);
+            // htmlspecialchars() also protects the class attribute below: $style is
+            // developer-supplied (never user input) but is interpolated unescaped
+            // into class="btn btn-{$style}" in createButton() itself, so escaping
+            // it here — even though this method doesn't reuse that exact line —
+            // keeps createButtonRow() from reproducing that same injection shape.
+            $buttonClass  = 'btn btn-' . htmlspecialchars($style, ENT_QUOTES, 'UTF-8');
+            $safeUrl      = htmlspecialchars($button['url'], ENT_QUOTES, 'UTF-8');
+            $safeLabel    = htmlspecialchars($button['label'], ENT_QUOTES, 'UTF-8');
+            $cells[] = "
+                    <td class=\"btn-row-cell\" style=\"padding: 5px 8px;\">
+                        <a href=\"{$safeUrl}\" class=\"{$buttonClass}\" style=\"{$inlineStyles}\">{$safeLabel}</a>
+                    </td>";
+        }
+        $cellsHtml = implode('', $cells);
+
+        return "
+        <style>
+            @media only screen and (max-width: 600px) {
+                .btn-row-cell {
+                    display: block;
+                    width: 100%;
+                    padding: 5px 0;
+                }
+            }
+        </style>
+        <table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin: 10px auto; text-align: center;\">
+            <tr>{$cellsHtml}
+            </tr>
+        </table>";
     }
 
     // ---------------------------------------------------------------
