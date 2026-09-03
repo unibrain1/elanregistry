@@ -223,7 +223,8 @@ test.describe('Internal Links Discovery and Testing (Logged In)', () => {
         if (href && href.startsWith('http')) {
           try {
             const url = new URL(href);
-            isInternalLink = url.hostname === 'elanregistry.org' || url.hostname === 'www.elanregistry.org';
+            const siteHost = new URL(page.url()).hostname;
+            isInternalLink = url.hostname === siteHost || url.hostname === `www.${siteHost}`;
           } catch (_e) {
             isInternalLink = false;
           }
@@ -286,7 +287,8 @@ test.describe('Internal Links Discovery and Testing (Logged In)', () => {
         if (href && href.startsWith('http')) {
           try {
             const url = new URL(href);
-            isInternalLink = url.hostname === 'elanregistry.org' || url.hostname === 'www.elanregistry.org';
+            const siteHost = new URL(page.url()).hostname;
+            isInternalLink = url.hostname === siteHost || url.hostname === `www.${siteHost}`;
           } catch (_e) {
             isInternalLink = false;
           }

@@ -283,7 +283,8 @@ test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {
         if (href && href.startsWith('http')) {
           try {
             const url = new URL(href);
-            isInternalLink = url.hostname === 'elanregistry.org' || url.hostname === 'www.elanregistry.org';
+            const siteHost = new URL(page.url()).hostname;
+            isInternalLink = url.hostname === siteHost || url.hostname === `www.${siteHost}`;
           } catch (_e) {
             isInternalLink = false;
           }
@@ -353,7 +354,8 @@ test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {
         if (href && href.startsWith('http')) {
           try {
             const url = new URL(href);
-            isInternalLink = url.hostname === 'elanregistry.org' || url.hostname === 'www.elanregistry.org';
+            const siteHost = new URL(page.url()).hostname;
+            isInternalLink = url.hostname === siteHost || url.hostname === `www.${siteHost}`;
           } catch (_e) {
             isInternalLink = false;
           }
@@ -471,8 +473,9 @@ test.describe('Internal Links Discovery and Testing (Not Logged In)', () => {
     for (const linkPath of downloadableLinks) {
       try {
         const context = page.context();
-        const baseURL = 'https://elanregistry.org';
-        const fullURL = linkPath.startsWith('http') ? linkPath : baseURL + linkPath;
+        // Resolve against the current page's origin, not a hardcoded prod
+        // host — otherwise test:e2e:test silently checks prod's files.
+        const fullURL = linkPath.startsWith('http') ? linkPath : new URL(linkPath, page.url()).toString();
 
         // Use API request context to check if file exists without downloading
         const response = await context.request.head(fullURL);
@@ -509,8 +512,6 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
       testInfo.skip();
     }
   });
-
-  const BASE = 'https://elanregistry.org';
 
   const redirects = [
     {
@@ -584,7 +585,7 @@ test.describe('Redirect verification — GSC 404 and soft 404 cleanup (#1369)', 
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       // Normalize absolute Location headers to path + query for comparison
@@ -602,8 +603,6 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
       testInfo.skip();
     }
   });
-
-  const BASE = 'https://elanregistry.org';
 
   // Normalizes absolute Location headers to path + query for comparison
   const toLocationPath = (location) =>
@@ -639,7 +638,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       const locationPath = toLocationPath(location);
@@ -649,7 +648,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
       // locked down to authenticated-only would silently send anonymous
       // visitors/crawlers into a login wall instead of the intended content,
       // and the assertions above alone wouldn't catch that regression.
-      const followed = await request.get(`${BASE}${to}`);
+      const followed = await request.get(to);
       expect(followed.status(), `Expected 200 for redirect target ${to}`).toBe(200);
     });
   });
@@ -659,7 +658,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
     // unanchored Redirect on /app/owner/reports/ would also prefix-match this
     // exact file path and mangle it into .../statistics.phpstatistics.php.
     // This guards that the anchored rule does NOT catch the file itself.
-    const response = await request.get(`${BASE}/app/owner/reports/statistics.php`, { maxRedirects: 0 });
+    const response = await request.get(`/app/owner/reports/statistics.php`, { maxRedirects: 0 });
     expect(response.status()).toBe(200);
   });
 
@@ -669,7 +668,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
     // /app/owner/reports/ (itself now a 403->redirect) before finally landing
     // on statistics.php. The specific-file rule must be matched first so this
     // resolves in exactly one hop.
-    const response = await request.get(`${BASE}/app/reports/statistics.php`, { maxRedirects: 0 });
+    const response = await request.get(`/app/reports/statistics.php`, { maxRedirects: 0 });
     expect(response.status()).toBe(301);
     const location = response.headers()['location'] ?? '';
     const locationPath = toLocationPath(location);
@@ -687,7 +686,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
     // "raw" — this couples the test to error/500.php's copy, which is an
     // accepted, maintainable trade-off since that text is stable, non-dynamic
     // page chrome, not user data.
-    const response = await request.get(`${BASE}/app/`, { maxRedirects: 0 });
+    const response = await request.get(`/app/`, { maxRedirects: 0 });
     expect(response.status()).toBe(403);
     const body = await response.text();
     expect(body).toContain('error-card');
@@ -702,7 +701,7 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
     // file. This test locks in that the old path still 301s (unchanged
     // legacy behavior) rather than asserting a direct 404, which would be
     // incorrect given the blanket rule is still in place.
-    const response = await request.get(`${BASE}/docs/assets/document-content.css`, { maxRedirects: 0 });
+    const response = await request.get(`/docs/assets/document-content.css`, { maxRedirects: 0 });
     expect(response.status()).toBe(301);
     const location = response.headers()['location'] ?? '';
     const locationPath = toLocationPath(location);
@@ -710,12 +709,12 @@ test.describe('Bare-directory 403s and docs/assets/ CSS relocation (#1539)', () 
 
     // Follow the redirect: nothing was ever copied to docs/reference/assets/,
     // so the chain terminates in a 404, not a working asset.
-    const followed = await request.get(`${BASE}${locationPath}`);
+    const followed = await request.get(locationPath);
     expect(followed.status()).toBe(404);
   });
 
   test('GET /app/assets/css/document-content.min.css (new path) resolves 200 with no redirect', async ({ request }) => {
-    const response = await request.get(`${BASE}/app/assets/css/document-content.min.css`, { maxRedirects: 0 });
+    const response = await request.get(`/app/assets/css/document-content.min.css`, { maxRedirects: 0 });
     expect(response.status()).toBe(200);
   });
 });
@@ -726,8 +725,6 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
       testInfo.skip();
     }
   });
-
-  const BASE = 'https://elanregistry.org';
 
   const redirects = [
     {
@@ -774,7 +771,7 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       // Normalize absolute Location headers to path + query for comparison
@@ -787,13 +784,13 @@ test.describe('GSC 404 cleanup redirects (#1409)', () => {
 
   test('renamed PDF asset (lowercase) returns 200', async ({ request }) => {
     const response = await request.get(
-      `${BASE}/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf`
+      `/docs/reference/assets/elan_s1_s2_coupe_masterpartslist.pdf`
     );
     expect(response.status()).toBe(200);
   });
 
   test('embed.php?doc=... regression: lands on a working pdf-viewer.php page, not "Invalid document path."', async ({ page }) => {
-    const response = await page.goto(`${BASE}/embed.php?doc=elan_s1_s2_coupe_masterpartslist.pdf`);
+    const response = await page.goto(`/embed.php?doc=elan_s1_s2_coupe_masterpartslist.pdf`);
 
     expect(response.status()).toBeLessThan(400);
     await page.waitForLoadState('domcontentloaded');
@@ -820,8 +817,6 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
       testInfo.skip();
     }
   });
-
-  const BASE = 'https://elanregistry.org';
 
   const redirects = [
     {
@@ -859,7 +854,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   redirects.forEach(({ from, to, label }) => {
     test(`301: ${label}`, async ({ request }) => {
-      const response = await request.get(`${BASE}${from}`, { maxRedirects: 0 });
+      const response = await request.get(from, { maxRedirects: 0 });
       expect(response.status(), `Expected 301 for ${from}`).toBe(301);
       const location = response.headers()['location'] ?? '';
       // Normalize absolute Location headers to path + query for comparison
@@ -871,7 +866,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
   });
 
   test('200: pdf-viewer.php valid subdir and existing document', async ({ page }) => {
-    const targetUrl = `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf`;
+    const targetUrl = `/docs/pdf-viewer.php?subdir=reference&doc=elan_s1_s2_coupe_masterpartslist.pdf`;
     const response = await page.goto(targetUrl, { waitUntil: 'networkidle' });
     expect(response?.status()).toBe(200);
 
@@ -879,7 +874,8 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
     // only runs when the direct subdir+doc path does not exist on disk — an
     // already-canonical request like this one must never be bounced through
     // the glob/301 path.
-    expect(page.url()).toBe(targetUrl);
+    const landed = new URL(page.url());
+    expect(landed.pathname + landed.search).toBe(targetUrl);
 
     // Also discriminate on the error text, not just the status: a real render
     // and any 200-status error branch would both pass a bare status check
@@ -892,7 +888,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   test('404: pdf-viewer.php directory traversal attempt in doc param (#1538)', async ({ page }) => {
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=${encodeURIComponent('../../../etc/passwd')}`,
+      `/docs/pdf-viewer.php?subdir=reference&doc=${encodeURIComponent('../../../etc/passwd')}`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(404);
@@ -900,7 +896,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   test('404: pdf-viewer.php invalid document extension (#1538)', async ({ page }) => {
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=readme.txt`,
+      `/docs/pdf-viewer.php?subdir=reference&doc=readme.txt`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(404);
@@ -908,7 +904,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   test('404: pdf-viewer.php genuinely invalid subdir value', async ({ page }) => {
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir=etc&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      `/docs/pdf-viewer.php?subdir=etc&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(404);
@@ -916,7 +912,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   test('404: pdf-viewer.php valid subdir but non-existent document', async ({ page }) => {
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=does-not-exist-12345.pdf`,
+      `/docs/pdf-viewer.php?subdir=reference&doc=does-not-exist-12345.pdf`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(404);
@@ -937,7 +933,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
     // 301'd by the existing .htaccess rule (#1369), which would mask this
     // regression by never reaching PHP with subdir omitted.
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?amp&doc=${encodeURIComponent('Lotus Elan Plus 2 serial numbers.pdf')}`,
+      `/docs/pdf-viewer.php?amp&doc=${encodeURIComponent('Lotus Elan Plus 2 serial numbers.pdf')}`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(404);
@@ -948,7 +944,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
     // throws an uncaught TypeError under declare(strict_types=1) — a fatal 500,
     // not a soft failure. An array-valued doc is now coerced to '' and falls
     // through to the unchanged "No document specified" branch.
-    const response = await page.goto(`${BASE}/docs/pdf-viewer.php?doc[]=x`, {
+    const response = await page.goto(`/docs/pdf-viewer.php?doc[]=x`, {
       waitUntil: 'networkidle',
     });
     expect(response?.status()).toBe(200);
@@ -961,7 +957,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
     // adds for subdir validation would throw a TypeError on an array value — a
     // real doc value is required to reach that branch at all.
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir[]=x&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
+      `/docs/pdf-viewer.php?subdir[]=x&doc=elan_s1_s2_coupe_masterpartslist.pdf`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(404);
@@ -969,7 +965,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   test('200: pdf-viewer.php representative document renders description prose and direct download link (#1538)', async ({ page }) => {
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir=reference&doc=${encodeURIComponent('All Elan and Elan Plus 2 Paint Codes.pdf')}`,
+      `/docs/pdf-viewer.php?subdir=reference&doc=${encodeURIComponent('All Elan and Elan Plus 2 Paint Codes.pdf')}`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(200);
@@ -985,7 +981,7 @@ test.describe('PDF viewer subdir normalization and 404 fixes (#1473)', () => {
 
   test('200: pdf-viewer.php stories document with no metadata entry still renders generic fallback and download link (#1538)', async ({ page }) => {
     const response = await page.goto(
-      `${BASE}/docs/pdf-viewer.php?subdir=stories&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
+      `/docs/pdf-viewer.php?subdir=stories&doc=${encodeURIComponent('Mag _issue_50_p12-15_Barry-Shapecraft.pdf')}`,
       { waitUntil: 'networkidle' }
     );
     expect(response?.status()).toBe(200);
@@ -1042,9 +1038,12 @@ test.describe('llms.txt AI crawler guidance (#1413)', () => {
     const contentType = response.headers()['content-type'] ?? '';
     expect(contentType.toLowerCase()).toContain('text/plain');
 
-    // Layer 3: Must be the real llms.txt content, not an error page
+    // Layer 3: Must be the real llms.txt content, not an error page. The
+    // deploy hook swaps in llms-test.txt on test.elanregistry.org (a
+    // Disallow-everything policy), so accept either policy section heading
+    // rather than the prod-only "## Allow".
     const body = await response.text();
-    expect(body).toContain('## Allow');
+    expect(body).toMatch(/^## (Allow|Disallow)$/m);
   });
 });
 
@@ -1055,16 +1054,29 @@ test.describe('SEO metadata: JSON-LD, noindex, apple-touch-icon (#1371)', () => 
     }
   });
 
-  test(`GET /app/owner/cars/details.php?car_id=${CAR_ID_STANDARD} renders a Schema.org Car JSON-LD block`, async ({ page }) => {
-    const response = await page.goto(`/app/owner/cars/details.php?car_id=${CAR_ID_STANDARD}`);
+  test('GET /app/owner/cars/details.php for the first listed car renders a Schema.org Car JSON-LD block', async ({ page }) => {
+    // Discover a real car ID from the list page rather than assuming a fixed
+    // one — CAR_ID_STANDARD (default 1) exists on prod but not on every test
+    // DB snapshot, where details.php 302s back to index.php and this test
+    // failed on the environment, not the feature. The list's Details links
+    // are rendered client-side by DataTables (car-list.js), so wait for the
+    // first one to appear instead of reading server HTML.
+    await page.goto('/app/owner/cars/index.php');
+    const firstDetailsLink = page.locator('a[href*="details.php?car_id="]').first();
+    await firstDetailsLink.waitFor();
+    const href = await firstDetailsLink.getAttribute('href');
+    const carId = new URL(href, page.url()).searchParams.get('car_id');
+    expect(carId, 'first Details link must carry a car_id').toMatch(/^\d+$/);
+
+    const response = await page.goto(`/app/owner/cars/details.php?car_id=${carId}`);
 
     // Layer 1: HTTP response must be successful
     expect(response.status()).toBeLessThan(400);
 
-    // Layer 2: Must not have been redirected to the login page — securePage()
-    // permits guest access to this specific car page (CAR_ID_STANDARD is the same ID
-    // the link-crawl test above keeps navigable for the same reason).
+    // Layer 2: Must not have been redirected away — securePage() permits
+    // guest access to car details, and a missing car 302s to index.php.
     expect(page.url()).not.toContain('login.php');
+    expect(page.url()).toContain(`car_id=${carId}`);
 
     // Layer 3: Body must contain a JSON-LD script block declaring the
     // Schema.org Car type. json_encode() (with JSON_UNESCAPED_SLASHES) emits

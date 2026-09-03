@@ -420,6 +420,13 @@ After each deployment, verify:
 
 - [ ] Maps display correctly: world map on Statistics page, single-marker map on car Details pages (no API key required — uses self-hosted MapLibre GL JS + VersaTiles)
 - [ ] All redirected pages work and maintain proper permissions
+- [ ] **Purge Cloudflare cache for any static file the release moved, renamed, or
+      deleted** (CSS/JS/PDF/image paths). Static assets are served with
+      `cache-control: max-age=31536000`, so the edge keeps returning the old
+      200 for up to a year after the origin starts returning 301/404 — the
+      v2.29.6 deploy left `/docs/assets/document-content.css` cached this way.
+      Cloudflare dashboard → Caching → Purge by URL, one entry per old path.
+      Run `npm run test:e2e` afterwards; the redirect specs hit those URLs.
 - [ ] New pages have appropriate UserSpice permission levels
 - [ ] Contact forms send to correct email addresses
 - [ ] VERSION file exists on server (created by deployment hook)
