@@ -240,6 +240,53 @@ final class CarTransferTest extends IntegrationTestCase
     }
 
     /**
+     * Test car transfer clears solddate on a previously-sold car, both on the
+     * cars row and on the app-written NEWOWNER cars_hist row.
+     */
+    #[Group('fast')]
+    public function testTransferClearsSoldDateOnPreviouslySoldCar(): void
+    {
+        $soldCarId = $this->createTestCar($this->testUserId, [
+            'chassis'  => 'TR' . uniqid(),
+            'solddate' => '2020-01-01',
+        ]);
+
+        $car = new Car($soldCarId);
+        $car->transfer($this->targetUserId, 'Test transfer sold car', 'NEWOWNER', $this->testUserId);
+
+        $carRow = $this->db->query(
+            "SELECT solddate FROM cars WHERE id = ?",
+            [$soldCarId]
+        )->first();
+        $this->assertNull($carRow->solddate);
+
+        $histQuery = $this->db->query(
+            "SELECT solddate FROM cars_hist WHERE car_id = ? AND operation = 'NEWOWNER'",
+            [$soldCarId]
+        );
+        $this->assertSame(1, $histQuery->count());
+        $this->assertNull($histQuery->first()->solddate);
+    }
+
+    /**
+     * Test car transfer leaves solddate NULL for a car that was never sold.
+     */
+    #[Group('fast')]
+    public function testTransferLeavesNeverSoldCarSoldDateNull(): void
+    {
+        $car = new Car($this->testCarId);
+        $carId = $car->data()->id;
+
+        $car->transfer($this->targetUserId, 'Test transfer never sold', 'NEWOWNER', $this->testUserId);
+
+        $carRow = $this->db->query(
+            "SELECT solddate FROM cars WHERE id = ?",
+            [$carId]
+        )->first();
+        $this->assertNull($carRow->solddate);
+    }
+
+    /**
      * Test transfer works with an explicit actingUserId even when global $user is unset.
      * Verifies that Car::transfer() does not fall back to currentUserId() internally.
      */

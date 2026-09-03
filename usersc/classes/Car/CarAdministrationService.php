@@ -56,6 +56,16 @@ class CarAdministrationService
     private const SYSTEM_ACCOUNT_EMAIL = 'noowner@invalid';
 
     /**
+     * The `noowner` system account's username, kept in sync with
+     * RegisterNoownerAccount::USERNAME and the lookup in
+     * usersc/scripts/after_user_deletion.php. Unlike SYSTEM_ACCOUNT_EMAIL this
+     * one does change behavior: transfer() keys the solddate decision on it, so
+     * if it drifts from the migration's value, `noowner` reassignments will
+     * start clearing solddate.
+     */
+    private const SYSTEM_ACCOUNT_USERNAME = 'noowner';
+
+    /**
      * Delete a car and all associated records
      *
      * @param object $carData Car data object
@@ -142,6 +152,13 @@ class CarAdministrationService
         // email; contact flows resolve the owner through `user_id`, not this column.
         $targetEmail = $this->contactableEmail($targetUser->email ?? '', $adminUserId, $carId);
 
+        // A sale does not survive a change of owner, so solddate is cleared on
+        // any transfer to a real owner regardless of $operationType. Reassignment
+        // to the system account (GDPR deletion, admin "no owner") is not a change
+        // of owner, so the sold state is kept (#1878).
+        $isSystemAccount = ($targetUser->username ?? '') === self::SYSTEM_ACCOUNT_USERNAME;
+        $soldDate = $isSystemAccount ? ($carData->solddate ?? null) : null;
+
         try {
             $repo->beginTransaction();
 
@@ -159,6 +176,10 @@ class CarAdministrationService
                 'lon'       => $targetUser->lon      ?? null,
                 'website'   => $targetUser->website  ?? '',
             ];
+            // Omitted (not null) for the system account so the stored value is untouched.
+            if (!$isSystemAccount) {
+                $ownerFields['solddate'] = $soldDate;
+            }
 
             // Validate owner fields before writing. $requireAll = false so only the
             // fields present in $ownerFields are checked (email format, website scheme,
@@ -192,7 +213,7 @@ class CarAdministrationService
                 'color'        => $carData->color ?? '',
                 'engine'       => $carData->engine ?? '',
                 'purchasedate' => $carData->purchasedate ?? null,
-                'solddate'     => $carData->solddate ?? null,
+                'solddate'     => $soldDate,
                 'image'        => $carData->image ?? '',
                 'user_id'      => $targetUser->id,
                 'email'        => $targetEmail,

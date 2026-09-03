@@ -88,11 +88,16 @@ final class CarAdministrationServiceTest extends TestCase
      *                            `noowner` system account, and the case where
      *                            CarValidator drops the keys entirely rather
      *                            than passing the blanks through.
+     * @param string $username Target owner's username. transfer() treats a
+     *                         target with username 'noowner' as the system
+     *                         account for `solddate` handling — see
+     *                         testTransferToSystemAccountPreservesSoldDate().
      */
     private function createOwnerDb(
         int $userId = 1,
         string $email = 'test@example.com',
-        bool $blankLocation = false
+        bool $blankLocation = false,
+        string $username = 'testuser'
     ): DatabaseInterface {
         $db = $this->createStub(DatabaseInterface::class);
         $db->method('query')->willReturnSelf();
@@ -100,6 +105,7 @@ final class CarAdministrationServiceTest extends TestCase
         $db->method('count')->willReturn(1);
         $db->method('first')->willReturn((object) [
             'id'        => $userId,
+            'username'  => $username,
             'email'     => $email,
             'fname'     => 'Test',
             'lname'     => 'User',
@@ -167,6 +173,91 @@ final class CarAdministrationServiceTest extends TestCase
         // assertion is needed on the return value itself — the mock's beginTransaction/
         // commit expectations above (verified in tearDown) are what this test proves.
         $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo, $this->createOwnerDb());
+    }
+
+    /**
+     * Issue #1878: transferring a car to a real owner must clear `solddate`
+     * on both the live `cars` row and the audit history row it writes —
+     * a car changing hands is no longer "sold" under its previous listing.
+     */
+    public function testTransferClearsSoldDateOnCarsAndHistoryRow(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999', 'solddate' => '2020-01-01'];
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+
+        $updateFields = null;
+        $historyFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            function (string $table, array $fields = [], bool $update = false) use (&$historyFields): bool {
+                $historyFields = $fields;
+                return true;
+            }
+        );
+        $repo = new CarRepository($db);
+
+        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo, $this->createOwnerDb());
+
+        $this->assertArrayHasKey('solddate', $updateFields, 'cars.solddate must be written on transfer, not omitted');
+        $this->assertNull($updateFields['solddate'], 'cars.solddate must be cleared on an ordinary transfer');
+        $this->assertArrayHasKey('solddate', $historyFields, 'history solddate must be written on transfer, not omitted');
+        $this->assertNull($historyFields['solddate'], 'history solddate must be cleared on an ordinary transfer');
+    }
+
+    /**
+     * Issue #1878: transferring to the `noowner` system account (used by GDPR
+     * account deletion) must NOT clear `solddate` — that reassignment doesn't
+     * represent a real sale event, so the car's existing solddate should
+     * pass through unchanged rather than being blanked on the live row.
+     */
+    public function testTransferToSystemAccountPreservesSoldDate(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999', 'solddate' => '2020-01-01'];
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+
+        $updateFields = null;
+        $historyFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            function (string $table, array $fields = [], bool $update = false) use (&$historyFields): bool {
+                $historyFields = $fields;
+                return true;
+            }
+        );
+        $repo = new CarRepository($db);
+
+        $this->service->transfer(
+            $carData,
+            1,
+            'Account deleted — reassigned to noowner',
+            'NEWOWNER',
+            1,
+            $repo,
+            $this->createOwnerDb(1, 'noowner@invalid', username: 'noowner')
+        );
+
+        $this->assertArrayNotHasKey(
+            'solddate',
+            $updateFields,
+            'cars.solddate must be left untouched when transferring to the noowner system account'
+        );
+        $this->assertSame(
+            '2020-01-01',
+            $historyFields['solddate'],
+            "history solddate must pass through the car's existing value for a system-account transfer"
+        );
     }
 
     /**

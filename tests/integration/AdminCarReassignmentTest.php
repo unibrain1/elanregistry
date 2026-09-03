@@ -89,4 +89,37 @@ final class AdminCarReassignmentTest extends IntegrationTestCase
         $this->assertFalse($found, 'User::find() must return false for a nonexistent username');
         $this->assertEmpty($missingUser->data(), 'User::data() must be empty/null after a failed find()');
     }
+
+    /**
+     * Reassigning a sold car to the seeded noowner account is not a change
+     * of owner (issue #1878) — CarAdministrationService::transfer() must
+     * leave solddate untouched when the target username is 'noowner',
+     * unlike a transfer to a real owner, which clears it.
+     */
+    public function testReassignToNoownerPreservesSoldDate(): void
+    {
+        $noOwnerRow = $this->db->query("SELECT id FROM users WHERE username = ?", ['noowner'])->first();
+        $this->assertNotEmpty($noOwnerRow, 'noowner system account missing — run composer migrate (RegisterNoownerAccount)');
+        $noOwnerId = (int) $noOwnerRow->id;
+
+        $ownerId = $this->createTestUser();
+        $carId = $this->createTestCar($ownerId, ['solddate' => '2020-01-01']);
+
+        $noOwnerUser = new User();
+        $found = $noOwnerUser->find('noowner');
+        $this->assertTrue($found, 'User::find(\'noowner\') must resolve the seeded account');
+
+        $noOwnerData = $noOwnerUser->data();
+        $this->assertNotEmpty($noOwnerData, 'User::data() must return the resolved noowner account');
+
+        $car = new Car($carId);
+        $car->transfer((int) $noOwnerData->id, 'Integration test: noowner reassignment preserves solddate', 'NEWOWNER', $ownerId);
+
+        $after = $this->db->query('SELECT solddate FROM cars WHERE id = ?', [$carId])->first();
+        $this->assertSame(
+            '2020-01-01',
+            $after->solddate,
+            'Reassigning to the seeded noowner account must not clear solddate — it is not a change of owner'
+        );
+    }
 }

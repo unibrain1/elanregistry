@@ -35,7 +35,7 @@ Surfaced) land.
 
 - **Fixed plaintext-vericode bug** ([#1879](https://github.com/elan-registry/registry/issues/1879)): Email-change and password-reset flows on the
   project settings page, and owner account creation, now hash the vericode before storing it, matching the verifier's expected format.
-- **Fixed transfer not clearing solddate** ([#1878](https://github.com/elan-registry/registry/issues/1878)): `CarAdministrationService::transfer()` now clears `solddate` on transfer, so transferred cars are no longer silently excluded from verification eligibility.
+- **Fixed transfer not clearing solddate** ([#1878](https://github.com/elan-registry/registry/issues/1878)): `CarAdministrationService::transfer()` now clears `solddate` on the `cars` row and on the transfer's `NEWOWNER` history row, so transferred cars are no longer silently excluded from verification eligibility. Reassignment to the `noowner` system account (GDPR deletion, admin "no owner") is not a change of owner and keeps `solddate` as-is.
 
 ## Issues Resolved
 
