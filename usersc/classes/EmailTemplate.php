@@ -181,7 +181,14 @@ class EmailTemplate
      *
      * Table-based (rather than createButton()'s div wrapper) so email clients
      * lay the buttons out side by side reliably. Collapses to stacked
-     * full-width buttons below the template's 600px responsive breakpoint.
+     * full-width buttons below the template's 600px responsive breakpoint —
+     * the .btn-row-cell rule lives in getBaseTemplate()'s head-level <style>
+     * block, not embedded in this method's own returned fragment, because
+     * some mail clients strip <style> tags found outside <head> regardless
+     * of @media support. This means the stacking behavior only applies when
+     * this method's output is composed into an email via render(); calling
+     * it standalone (e.g. for a preview or a test) will render the buttons
+     * without the responsive rule.
      *
      * 'label', 'url', and (when present) 'style' are runtime-validated — both
      * for presence and for type — because callers may build $buttons from
@@ -239,15 +246,6 @@ class EmailTemplate
         $cellsHtml = implode('', $cells);
 
         return "
-        <style>
-            @media only screen and (max-width: 600px) {
-                .btn-row-cell {
-                    display: block;
-                    width: 100%;
-                    padding: 5px 0;
-                }
-            }
-        </style>
         <table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin: 10px auto; text-align: center;\">
             <tr>{$cellsHtml}
             </tr>
@@ -493,6 +491,11 @@ class EmailTemplate
             .btn {
                 display: block;
                 margin: 10px 0;
+            }
+            .btn-row-cell {
+                display: block;
+                width: 100%;
+                padding: 5px 0;
             }
         }
     </style>

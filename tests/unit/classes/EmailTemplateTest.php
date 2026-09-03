@@ -467,15 +467,35 @@ final class EmailTemplateTest extends TestCase
         $this->assertStringContainsString('text-align: center', $html);
     }
 
-    public function testCreateButtonRowIncludesNarrowViewportStackingCss(): void
+    public function testCreateButtonRowCellsUseTheClassStyledByTheHeadLevelMediaRule(): void
     {
         $html = $this->template->createButtonRow([
             ['label' => 'One', 'url' => 'https://example.com/one'],
             ['label' => 'Two', 'url' => 'https://example.com/two'],
         ]);
 
+        // createButtonRow()'s own fragment intentionally does NOT embed an
+        // @media block — the .btn-row-cell stacking rule lives in
+        // getBaseTemplate()'s head-level <style> instead, since some mail
+        // clients strip <style> tags found outside <head>. This test asserts
+        // the fragment uses the class that rule targets; the rule's actual
+        // presence and effect is verified via render() below and by the
+        // Playwright spec in tests/playwright/local/.
+        $this->assertStringContainsString('btn-row-cell', $html);
+        $this->assertStringNotContainsString('@media', $html);
+    }
+
+    public function testRenderIncludesNarrowViewportStackingCssForButtonRow(): void
+    {
+        $buttonRow = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+        $html = $this->template->render('Subject', 'Subtitle', $buttonRow);
+
         $this->assertStringContainsString('@media', $html);
         $this->assertStringContainsString('max-width: 600px', $html);
+        $this->assertStringContainsString('.btn-row-cell', $html);
     }
 
     public function testCreateButtonRowThrowsWhenGivenEmptyArray(): void

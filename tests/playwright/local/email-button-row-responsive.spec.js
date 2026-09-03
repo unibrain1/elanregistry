@@ -8,13 +8,16 @@ const path = require('node:path');
  *
  * PHPUnit already asserts the returned HTML string contains an `@media` rule
  * (see tests/unit/ for EmailTemplate coverage) — that only proves the text is
- * present, not that it does anything. This test renders the exact HTML
- * createButtonRow() produces in a real Chromium layout engine and asserts on
- * actual bounding boxes: buttons must sit side-by-side at a desktop viewport
- * and stack vertically once the viewport crosses the `@media (max-width:
- * 600px)` breakpoint baked into the generated <style> block.
+ * present, not that it does anything. This test renders a full email via
+ * EmailTemplate::render() (not createButtonRow() alone — the .btn-row-cell
+ * responsive rule lives in the base template's head-level <style> block, not
+ * in createButtonRow()'s own returned fragment, since some mail clients strip
+ * <style> tags outside <head>) in a real Chromium layout engine and asserts
+ * on actual bounding boxes: buttons must sit side-by-side at a desktop
+ * viewport and stack vertically once the viewport crosses the
+ * `@media (max-width: 600px)` breakpoint.
  *
- * No live app/MAMP dependency: the HTML fragment is generated once via a
+ * No live app/MAMP dependency: the full HTML document is generated once via a
  * standalone PHP fixture script (fixtures/generate-button-row.php) and loaded
  * directly into an isolated page via page.setContent().
  *
@@ -37,7 +40,7 @@ test.beforeAll(() => {
 test.describe('EmailTemplate::createButtonRow() responsive stacking', () => {
   test('buttons sit side by side at desktop width', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.setContent(`<!DOCTYPE html><html><body>${buttonRowHtml}</body></html>`);
+    await page.setContent(buttonRowHtml);
 
     const links = page.locator('.btn-row-cell a');
     await expect(links).toHaveCount(2);
@@ -55,7 +58,7 @@ test.describe('EmailTemplate::createButtonRow() responsive stacking', () => {
 
   test('buttons stack vertically below the 600px breakpoint', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
-    await page.setContent(`<!DOCTYPE html><html><body>${buttonRowHtml}</body></html>`);
+    await page.setContent(buttonRowHtml);
 
     const links = page.locator('.btn-row-cell a');
     await expect(links).toHaveCount(2);
@@ -87,7 +90,7 @@ test.describe('EmailTemplate::createButtonRow() responsive stacking', () => {
 
   test('cells are full-width block elements below the breakpoint', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
-    await page.setContent(`<!DOCTYPE html><html><body>${buttonRowHtml}</body></html>`);
+    await page.setContent(buttonRowHtml);
 
     const cells = page.locator('td.btn-row-cell');
     await expect(cells).toHaveCount(2);
@@ -100,7 +103,7 @@ test.describe('EmailTemplate::createButtonRow() responsive stacking', () => {
 
   test('cells remain inline table cells above the breakpoint', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.setContent(`<!DOCTYPE html><html><body>${buttonRowHtml}</body></html>`);
+    await page.setContent(buttonRowHtml);
 
     const firstCell = page.locator('td.btn-row-cell').first();
     const display = await firstCell.evaluate((el) => getComputedStyle(el).display);
