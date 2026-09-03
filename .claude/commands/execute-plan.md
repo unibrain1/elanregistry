@@ -27,6 +27,15 @@ plan, or be run by a second agent/session picking up after an interruption —
 in every case it establishes ground truth from the files themselves, not from
 assumptions about what "should" have happened.
 
+**Find issues at the earliest, least expensive stage.** A bug found here —
+implementation time, one file open, full context loaded — costs one fix. The
+same bug found at `/review-pr` costs a fix plus a re-verify round-trip; found
+after merge it costs a follow-up issue. Step 6 below specifically calls out
+two risk classes (new SQL, structured-input validation) that reading code
+carefully does not reliably catch — only running the code does — so treat
+"looks correct on inspection" as provisional for those two classes, and
+execute before checking the item off.
+
 ## Arguments
 
 - `$ARGUMENTS` — (optional) an issue number or a path to a plan file. If
@@ -156,6 +165,38 @@ Test Plan / Documentation Plan sections):
 Run quality checks: relevant test suites, and note that pre-commit hooks will
 run PHPStan/phpcs on staged files at commit time regardless.
 
+**Execute, don't just read, for two specific risk classes.** Two real bugs
+reached `/review-pr` in past issues that a careful code-review pass missed
+entirely, because nothing actually *ran* the risky code path — the plan and
+the implementation both read as correct, and only execution surfaced the
+defect. Both are cheap to catch here instead of two workflow stages later:
+
+- **New or changed SQL**: if this plan added or modified a query, run it
+  against a real local database (even one with zero matching rows is enough
+  to prove the SQL itself is syntactically and semantically valid under the
+  project's actual `sql_mode`/column types) before marking the item done.
+  A query that "looks correct" on inspection can still be a guaranteed fatal
+  error against the real schema — e.g. comparing a `DATE` column to `''`
+  under `STRICT_TRANS_TABLES` throws, but no static read of the SQL reveals
+  that; only executing it does. Include the exact command/output as evidence
+  when checking off the item, not just "looks right."
+- **Any new public method that accepts structured input** (an array, a DB
+  row, JSON-decoded data) from a caller who might build that input
+  dynamically rather than as a literal: instruct the senior-test-engineer
+  to include, alongside the tests the plan's Test Plan already calls for,
+  at least one test per structured parameter that passes a **malformed or
+  wrong-typed** value (not just a missing key) and asserts the method's own
+  documented failure mode — its own `@throws` type — not merely "no crash."
+  PHPStan's array-shape checking only catches violations at call sites it
+  can see statically; it cannot catch a shape violation in data assembled at
+  runtime, which is exactly the gap a caller loop or DB row can fall into.
+  Concretely: a method typed to accept `array{label: string, url: string}`
+  needs a test passing `['label' => 123, 'url' => '...']`, not just a test
+  omitting `label` entirely — a present-but-wrong-typed value can reach a
+  strictly-typed private helper uncaught and throw a generic `\TypeError`
+  instead of the method's documented exception, and only a test that
+  supplies the wrong type (not just the absent key) will catch it.
+
 Mark the corresponding checklist items `[x]` as each completes.
 
 ### Step 6.5: PHPStan Baseline Hygiene
@@ -230,6 +271,15 @@ nothing to do here.
   adherence, test coverage, documentation completeness. Defaults to Opus;
   pass `model: "sonnet"` explicitly for Small/Medium-tier plans if a cheaper
   run is preferred.
+- **If any changed file added a new public method with structured-input
+  parameters (array/DB row/JSON) or new/modified SQL**, also launch
+  `silent-failure-hunter` on that file alongside the architect — cheap
+  relative to a later `/review-pr` round, and this is exactly the class of
+  issue architect review (design/security/coverage-focused) has missed here
+  before: a wrong-typed value reaching a strictly-typed private helper as an
+  uncaught `\TypeError` instead of the method's documented exception. Skip
+  this agent when neither condition applies — it is not a blanket addition
+  to every plan.
 
 Address any findings — loop back to Step 5 (software-developer agents) for
 fixes, then re-run the specific review that flagged the issue, not the whole
@@ -337,6 +387,7 @@ this command — that happens later, at merge time, not here.
 | Senior Test Engineer | `senior-test-engineer` | `sonnet` | Writing/running tests from the plan |
 | Technical Documentation Writer | `technical-documentation-writer` | `haiku` | Docs updates from the plan |
 | Security Reviewer | `security-reviewer` | (per agent default) | `/security-review` |
+| Silent Failure Hunter | `silent-failure-hunter` | (per agent default) | Step 7, only when a new structured-input method or new/modified SQL was added |
 
 ## Critical Rules
 
@@ -365,3 +416,8 @@ this command — that happens later, at merge time, not here.
 - **Use AskUserQuestion for every discrepancy, completeness gap, and
   hand-off choice** (Steps 3, 8, 10) — not free-form chat questions.
 - **Follow project conventions** from CLAUDE.md and CODING_STANDARDS.md.
+- **Execute risky code paths, don't just read them** — new/changed SQL against
+  a real local DB, and wrong-typed (not just missing) structured-input tests
+  for new public methods. Both classes have shipped real, review-missed bugs
+  from careful-looking code that only broke at execution time. Catch them in
+  Step 6, not two workflow stages later at `/review-pr`.
