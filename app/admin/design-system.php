@@ -528,7 +528,7 @@ function example(): string {
                     <div style="background:#fff3cd; border:1px solid #A52218; border-radius:4px; padding:12px; margin:12px 0; font-size:0.8rem;">
                         Warning box uses <code>#A52218</code> border.
                     </div>
-                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:12px 0;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 10px;">
                         <tr>
                             <td style="font-weight: bold; width: 120px; color: #469408; vertical-align: top; background-color: #FFF9E0; border-left: 4px solid #B8860B; padding: 8px 10px 8px 8px;">Engine Number:</td>
                             <td style="vertical-align: top; background-color: #FFF9E0; padding: 8px 10px 8px 0;">Not provided</td>
