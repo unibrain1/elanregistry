@@ -124,6 +124,7 @@ except those explicitly listed as project-owned:
 | `/users/` | Upstream framework | none — extend via `usersc/classes/` instead |
 | `usersc/templates/` | Upstream templates | `customizer/file_nav_custom.php` (project nav additions), `customizer/assets/child_themes/elanregistry*` (project child theme), `customizer.css` (project styles); `customizer/navigation.php` is tracked because UserSpice's template loader requires it — do not edit it, add nav content via `file_nav_custom.php` instead |
 | `usersc/plugins/` | Upstream plugins | `hooker/hooks/` (project hooks), `ai_prompts/custom_prompts/` (Claude AI context prompts) |
+| `usersc/user_settings.php` | Project-owned (customizes `users/user_settings.php`) | the entire file is project-owned — make changes here rather than in `users/user_settings.php` |
 
 - To add new behavior, extend via custom classes in `usersc/classes/` under the
   `ElanRegistry\` namespace instead of modifying `/users/`.

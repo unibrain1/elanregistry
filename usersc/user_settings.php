@@ -363,7 +363,7 @@ if (!empty($_POST)) {
                             if ($emailR->email_act == 1) {
                                 $vericode = randomstring(15);
                                 $vericode_expiry = date("Y-m-d H:i:s", strtotime("+$settings->join_vericode_expiry hours", strtotime(date("Y-m-d H:i:s"))));
-                                $db->update('users', $userId, ['email_new' => $email, 'vericode' => $vericode, 'vericode_expiry' => $vericode_expiry]);
+                                $db->update('users', $userId, ['email_new' => $email, 'vericode' => hashVericode($vericode), 'vericode_expiry' => $vericode_expiry]);
                                 //Send the email
                                 $options = [
                                     'fname' => $user->data()->fname,
@@ -429,7 +429,7 @@ if (!empty($_POST)) {
                     if (empty($errors) && Input::get('old') != Input::get('password')) {
                         //process
                         $new_password_hash = password_hash(Input::get('password'), PASSWORD_BCRYPT, ['cost' => 12]);
-                        $user->update(['password' => $new_password_hash, 'force_pr' => 0, 'vericode' => randomstring(15),], $user->data()->id);
+                        $user->update(['password' => $new_password_hash, 'force_pr' => 0, 'vericode' => hashVericode(randomstring(15)),], $user->data()->id);
                         $successes[] = 'Password updated.';
                         logger((int)$user->data()->id, LogCategories::LOG_CATEGORY_USER, 'Updated password.');
                         if ($settings->session_manager == 1) {
