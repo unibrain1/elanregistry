@@ -2,8 +2,9 @@
 
 Purpose: capture real Brevo webhook payloads on the test environment so the bounce-detection endpoint in
 [#1887](https://github.com/elan-registry/registry/issues/1887) can be designed against observed behaviour rather than documentation. See
-[#1871](https://github.com/elan-registry/registry/issues/1871). Everything here — this directory, the server-side copies, the Brevo webhook, and the
-fixture car — is temporary and is deleted in step 10. Re-run this runbook end to end to re-verify Brevo's behaviour later. The user executes every
+[#1871](https://github.com/elan-registry/registry/issues/1871). The server-side copies and the Brevo webhook are temporary and are deleted in
+step 10; the fixture account stays on the test DB. This directory stays in the repo as the re-verification tool until #1887 ships its own
+fixtures. Re-run this runbook end to end to re-verify Brevo's behaviour later. The user executes every
 live step by hand; nothing here is automated.
 
 ## Prerequisites

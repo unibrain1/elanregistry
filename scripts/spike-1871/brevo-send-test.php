@@ -10,8 +10,9 @@ namespace ElanRegistry\Spike1871;
  * Brevo transactional send / webhook inspection helper (spike #1871).
  *
  * Sends tagged test emails through Brevo so that delivery events fire at a
- * capture endpoint, and lists the account's transactional webhooks so the
- * real `batched` and `auth` settings can be observed.
+ * capture endpoint, lists the account's transactional webhooks so the real
+ * `batched` and `auth` settings can be observed, and lists the transactional
+ * suppression list (blocked contacts) with each entry's reason.
  *
  * Examples:
  *   php scripts/spike-1871/brevo-send-test.php --to=you@example.com
@@ -19,6 +20,7 @@ namespace ElanRegistry\Spike1871;
  *       --to='bounce+550+no+such+user+here@inbox.mailtrap.io' \
  *       --tag=verification-spike --tag=hard
  *   php scripts/spike-1871/brevo-send-test.php --list-webhooks
+ *   php scripts/spike-1871/brevo-send-test.php --list-blocked
  *   php scripts/spike-1871/brevo-send-test.php --env=/home/unibrain/test.elanregistry.org
  *
  * On MAMP, pass --host=127.0.0.1: PDO treats a DB_HOST of "localhost" as a
@@ -26,13 +28,15 @@ namespace ElanRegistry\Spike1871;
  * MAMP's instance on 8889 and fails with "Access denied".
  *
  * Requirements: PHP with ext-curl, and this file must stay two levels below a
- * directory containing both `vendor/autoload.php` (for Dotenv) and `.env`.
+ * directory containing `vendor/autoload.php` (for Dotenv); `.env` is read from
+ * that directory too unless --env points elsewhere.
  * It deliberately calls Brevo's REST API over curl rather than using the
  * Brevo SDK: that SDK and its Guzzle dependency live in
  * usersc/plugins/sendinblue/vendor/, which is gitignored and absent on CI, so
  * an SDK-based script could not pass static analysis there.
  *
- * Temporary — see README.md in this directory. Delete with the spike.
+ * Not production code. Retained with brevo-webhook-capture.php until #1887
+ * ships its own fixtures — see README.md in this directory.
  *
  * Security: the Brevo API key is read at runtime from the `plg_sendinblue`
  * table and is never printed, logged, or written to disk by this script. Only
@@ -113,8 +117,12 @@ function parseArgs(): array
         $tags = ['verification-spike'];
     }
 
-    $count = (int) optValue($opts, 'count', '1');
-    $count = max(1, min(MAX_COUNT, $count));
+    $countRaw = optValue($opts, 'count', '1');
+    $count = filter_var($countRaw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => MAX_COUNT]]);
+    if ($count === false) {
+        fwrite(STDERR, "--count must be an integer between 1 and " . MAX_COUNT . ", got '{$countRaw}'.\n");
+        exit(2);
+    }
 
     return [
         'envDir' => (string) optValue($opts, 'env', dirname(__DIR__, 2)),
@@ -156,8 +164,7 @@ function usage(): void
 /**
  * Load Brevo credentials from the plg_sendinblue table.
  *
- * @param string  $envDir Directory containing the .env file.
- * @param ?string $host   Overrides DB_HOST when set (see --host in the header).
+ * @param ?string $host Overrides DB_HOST when set (see --host in the header).
  *
  * @return array{key: string, from: string, from_name: string, reply: string}
  */
@@ -248,7 +255,12 @@ function brevoRequest(string $method, string $path, string $apiKey, ?array $json
     ];
 
     if ($json !== null) {
-        $options[CURLOPT_POSTFIELDS] = (string) json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $payload = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($payload === false) {
+            fwrite(STDERR, 'Request body is not JSON-encodable: ' . json_last_error_msg() . "\n");
+            exit(1);
+        }
+        $options[CURLOPT_POSTFIELDS] = $payload;
     }
 
     $handle = curl_init(BREVO_API_BASE . $path);
@@ -265,12 +277,25 @@ function brevoRequest(string $method, string $path, string $apiKey, ?array $json
         exit(1);
     }
 
-    // No curl_close(): it is a deprecated no-op since PHP 8.0; the handle is
-    // freed when it goes out of scope.
+    // No curl_close(): a no-op since PHP 8.0 (and deprecated from 8.5); the
+    // handle is freed when it goes out of scope.
     return [
         'status' => (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE),
         'body' => is_string($body) ? $body : '',
     ];
+}
+
+/**
+ * Abort with the response body when a Brevo call did not answer 2xx.
+ *
+ * @param array{status: int, body: string} $response
+ */
+function abortUnlessOk(array $response): void
+{
+    if ($response['status'] < 200 || $response['status'] >= 300) {
+        fwrite(STDERR, 'HTTP ' . $response['status'] . ': ' . $response['body'] . "\n");
+        exit(1);
+    }
 }
 
 /**
@@ -314,10 +339,7 @@ function sendTests(array $config, string $to, string $subject, array $tags, int 
             'headers' => ['X-Spike' => '1871'],
         ]);
 
-        if ($response['status'] < 200 || $response['status'] >= 300) {
-            fwrite(STDERR, 'HTTP ' . $response['status'] . ': ' . $response['body'] . "\n");
-            exit(1);
-        }
+        abortUnlessOk($response);
 
         $decoded = json_decode($response['body'], true);
         $messageId = is_array($decoded) && isset($decoded['messageId']) ? (string) $decoded['messageId'] : '';
@@ -346,15 +368,29 @@ function redactWebhook(array $webhook): array
         $webhook['auth']['token'] = substr($token, 0, 4) . '…redacted';
     }
 
+    if (isset($webhook['url'])) {
+        $webhook['url'] = redactUrlSecret((string) $webhook['url']);
+    }
+
     return $webhook;
+}
+
+/**
+ * Mask the ?k= capture secret in a webhook URL so it is not echoed to the terminal.
+ */
+function redactUrlSecret(string $url): string
+{
+    return (string) preg_replace_callback(
+        '/([?&]k=)([^&#]+)/',
+        static fn (array $m): string => $m[1] . substr($m[2], 0, 4) . '…(len=' . strlen($m[2]) . ')',
+        $url
+    );
 }
 
 /**
  * List the account's transactional webhooks.
  *
- * Reads `batched` and `auth` straight off the JSON response: those two fields
- * are the point of this spike, and the Brevo SDK's GetWebhook model exposes no
- * getters for either.
+ * `batched` and `auth` are the two fields this spike exists to observe.
  *
  * @param array{key: string, from: string, from_name: string, reply: string} $config
  */
@@ -369,15 +405,14 @@ function listWebhooks(array $config): void
         return;
     }
 
-    if ($response['status'] < 200 || $response['status'] >= 300) {
-        fwrite(STDERR, 'HTTP ' . $response['status'] . ': ' . $response['body'] . "\n");
-        exit(1);
-    }
+    abortUnlessOk($response);
 
     $decoded = json_decode($response['body'], true);
-    $webhooks = is_array($decoded) && isset($decoded['webhooks']) && is_array($decoded['webhooks'])
-        ? $decoded['webhooks']
-        : [];
+    if (!is_array($decoded) || !isset($decoded['webhooks']) || !is_array($decoded['webhooks'])) {
+        fwrite(STDERR, 'Unexpected response shape (no `webhooks` list): ' . $response['body'] . "\n");
+        exit(1);
+    }
+    $webhooks = $decoded['webhooks'];
 
     if ($webhooks === []) {
         fwrite(STDOUT, "no transactional webhooks\n");
@@ -402,7 +437,7 @@ function listWebhooks(array $config): void
         fwrite(STDOUT, sprintf(
             "id=%s url=%s batched=%s auth=%s events=%s\n",
             (string) ($webhook['id'] ?? ''),
-            (string) ($webhook['url'] ?? ''),
+            redactUrlSecret((string) ($webhook['url'] ?? '')),
             $batched,
             $auth,
             $events
@@ -427,17 +462,16 @@ function listBlocked(array $config): void
 {
     $response = brevoRequest('GET', '/smtp/blockedContacts?limit=50&sort=desc', $config['key']);
 
-    if ($response['status'] < 200 || $response['status'] >= 300) {
-        fwrite(STDERR, 'HTTP ' . $response['status'] . ': ' . $response['body'] . "\n");
-        exit(1);
-    }
+    abortUnlessOk($response);
 
     $decoded = json_decode($response['body'], true);
-    $contacts = is_array($decoded) && isset($decoded['contacts']) && is_array($decoded['contacts'])
-        ? $decoded['contacts']
-        : [];
+    if (!is_array($decoded) || !isset($decoded['contacts']) || !is_array($decoded['contacts'])) {
+        fwrite(STDERR, 'Unexpected response shape (no `contacts` list): ' . $response['body'] . "\n");
+        exit(1);
+    }
+    $contacts = $decoded['contacts'];
 
-    fwrite(STDOUT, 'count=' . (is_array($decoded) ? (string) ($decoded['count'] ?? count($contacts)) : '?') . "\n");
+    fwrite(STDOUT, 'count=' . (string) ($decoded['count'] ?? count($contacts)) . "\n");
 
     foreach ($contacts as $contact) {
         if (!is_array($contact)) {

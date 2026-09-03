@@ -117,8 +117,8 @@ Logs include timestamps, recipient addresses, and any API error messages returne
 ## Brevo Webhooks — Verified Behaviour (#1871)
 
 Observed live on 2026-09-03 against `test.elanregistry.org` (A2 Hosting, LiteSpeed,
-behind Cloudflare) with the throwaway tooling in `scripts/spike-1871/` (see its
-`README.md` to re-run). Every fact below comes from a captured request, not from
+behind Cloudflare) with the tooling in `scripts/spike-1871/` (see its `README.md` to
+re-run; kept until #1887 ships its own fixtures). Every fact below comes from a captured request, not from
 Brevo's documentation. The bounce-detection endpoint (#1887) must be designed
 against this section; where the docs disagree, this section wins until re-verified.
 
@@ -196,7 +196,9 @@ requests and the docs; treat them as unverified.
   Blocked contacts in the UI for releasing an address; neither was exercised in the spike.
 - **Spam:** Mailtrap cannot emulate complaints and iCloud/Gmail have no feedback loop.
   A free Outlook.com mailbox works: move the message to Inbox, then **Report → Junk**;
-  Brevo receives the JMRP report within seconds. Outlook.com also auto-junked the
+  Brevo receives the JMRP report within seconds — and immediately suppresses that mailbox
+  for all `registrar@` mail, so unblock it in Brevo (Blocked contacts) after the test or it
+  stops receiving anything. Outlook.com also auto-junked the
   first message from `registrar@elanregistry.org` on arrival — a sender-reputation
   signal separate from the webhook question.
 - **Opens:** Apple Mail on a Mac fetched the tracking pixel immediately on message

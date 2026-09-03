@@ -14,10 +14,12 @@ namespace ElanRegistry\Spike1871;
  * survives A2 Hosting's shared-hosting SAPI, and whether Brevo batches events
  * into a single JSON list.
  *
- * TEMPORARY. This file is deleted once the spike is closed; nothing here is
- * production code, and the deploy hook removes scripts/ on the servers, so it
- * only reaches a server via a manual scp. See scripts/spike-1871/README.md for
- * the runbook.
+ * Not production code. Retained in the repo as the re-verification tool for
+ * Brevo's webhook behaviour until the bounce-detection endpoint (#1887) ships
+ * its own fixtures, at which point scripts/spike-1871/ can be removed. The
+ * deploy hook removes scripts/ on the servers, so it only reaches a server via
+ * a manual scp and must be deleted there after each run. See
+ * scripts/spike-1871/README.md for the runbook.
  *
  * Security posture:
  * - Deliberately no UserSpice bootstrap, no session, no CSRF — Brevo cannot
@@ -26,13 +28,21 @@ namespace ElanRegistry\Spike1871;
  *   server access logs; it is single-purpose, rotated by regenerating it, and
  *   grants nothing beyond appending to the capture file.
  * - Refuses to run while CAPTURE_SECRET is still the placeholder.
- * - Authorization/token-shaped header values are redacted to a 4-character
- *   prefix plus length before being written.
+ * - Authorization/token-shaped header values, and rewrite-derived keys that
+ *   echo the ?k= secret, are redacted to a 4-character prefix plus length
+ *   before being written.
+ * - PHP warnings are never displayed (they would flush a 200 before the
+ *   intended status and leak the capture path); a failed or partial write, or
+ *   an unencodable record, answers 500 so the loss is visible.
  * - The capture file lives outside the web root so captured payloads (which
  *   contain recipient email addresses) are never served over HTTP.
  *
  * @author Elan Registry Development Team
  */
+
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+ob_start();
 
 // --- edit before scp -------------------------------------------------------
 // Replace with a random 32 hex characters (e.g. `openssl rand -hex 16`).
@@ -46,12 +56,14 @@ const CAPTURE_FILE = '/home/unibrain/spike-1871/capture.jsonl';
 /**
  * Send a response and stop.
  *
- * @param int $status HTTP status code
  * @param string|null $body JSON body, or null for an empty response
- * @return never
  */
 function respond(int $status, ?string $body): never
 {
+    if (headers_sent()) {
+        error_log('spike-1871 capture: headers already sent, cannot set status ' . $status);
+    }
+
     http_response_code($status);
 
     if ($body !== null) {
@@ -76,6 +88,7 @@ function respond(int $status, ?string $body): never
 function redact(string $key, string $value): string
 {
     $normalisedKey = str_replace('-', '_', strtoupper($key));
+    $redacted = substr($value, 0, 4) . '…(len=' . strlen($value) . ')';
 
     $sensitive = [
         'AUTHORIZATION',
@@ -83,10 +96,12 @@ function redact(string $key, string $value): string
         'SECRET',
         'API_KEY',
         'APIKEY',
-        'X_MAILIN',
         'PHP_AUTH_PW',
-        // Rewrite-derived keys (REDIRECT_QUERY_STRING, REDIRECT_URL, REQUEST_URI)
-        // can echo the ?k= capture secret back into the log.
+        // Only REDIRECT_* keys pass the collection filter below, but they echo the
+        // ?k= capture secret; substring matching catches REDIRECT_QUERY_STRING,
+        // REDIRECT_REQUEST_URI and REDIRECT_URL. X-Mailin-* is deliberately NOT
+        // listed: it is Brevo's custom-metadata header, and the value check below
+        // still redacts a token that happens to arrive under it.
         'QUERY_STRING',
         'REQUEST_URI',
         'REDIRECT_URL',
@@ -94,22 +109,21 @@ function redact(string $key, string $value): string
 
     foreach ($sensitive as $needle) {
         if (str_contains($normalisedKey, $needle)) {
-            return substr($value, 0, 4) . '…(len=' . strlen($value) . ')';
+            return $redacted;
         }
     }
 
     if (preg_match('/^(Bearer|Basic|Token)\s+/i', $value) === 1) {
-        return substr($value, 0, 4) . '…(len=' . strlen($value) . ')';
+        return $redacted;
     }
 
     return $value;
 }
 
-// Refuse to run unless CAPTURE_SECRET has been replaced with the 32 hex
-// characters the runbook specifies. This rejects the shipped placeholder
-// (it contains '-') and any other unedited value, so a forgotten placeholder
-// cannot be used. Shape-checked rather than compared to the placeholder
-// literal, which static analysis folds into an always-true comparison.
+// Refuse to run unless CAPTURE_SECRET is the 32 hex characters the runbook
+// specifies; the shipped placeholder contains '-' and fails. Shape-checked
+// rather than compared to the placeholder literal, which static analysis
+// folds into an always-true comparison.
 if (preg_match('/^[0-9a-f]{32}$/', CAPTURE_SECRET) !== 1) {
     respond(404, null);
 }
@@ -152,13 +166,14 @@ $rawBody = (string) file_get_contents('php://input');
 $decoded = json_decode($rawBody, true);
 $jsonValid = json_last_error() === JSON_ERROR_NONE;
 
-$bodyIsList = $jsonValid && is_array($decoded) && array_is_list($decoded);
+$isJsonArray = $jsonValid && is_array($decoded);
+$bodyIsList = $isJsonArray && array_is_list($decoded);
 
 $eventCount = 0;
 if ($bodyIsList) {
     /** @var array<int, mixed> $decoded */
     $eventCount = count($decoded);
-} elseif ($jsonValid && is_array($decoded) && isset($decoded['event'])) {
+} elseif ($isJsonArray && isset($decoded['event'])) {
     $eventCount = 1;
 }
 
@@ -175,10 +190,25 @@ $record = [
     'event_count' => $eventCount,
 ];
 
-$line = json_encode($record, JSON_UNESCAPED_SLASHES) . "\n";
+// Invalid UTF-8 anywhere in the request would otherwise make json_encode()
+// return false and silently drop the event; substitute and record the error.
+$encoded = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+if ($encoded === false) {
+    $record['raw_body'] = base64_encode($rawBody);
+    $record['json_encode_error'] = json_last_error_msg();
+    $encoded = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+}
+
+if ($encoded === false) {
+    error_log('spike-1871 capture: record not encodable: ' . json_last_error_msg());
+    respond(500, '{"ok":false}');
+}
+
+$line = $encoded . "\n";
 $written = file_put_contents(CAPTURE_FILE, $line, FILE_APPEND | LOCK_EX);
 
-if ($written === false) {
+if ($written !== strlen($line)) {
+    error_log('spike-1871 capture: write to ' . CAPTURE_FILE . ' failed or was partial');
     respond(500, '{"ok":false}');
 }
 
