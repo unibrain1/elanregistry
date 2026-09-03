@@ -203,6 +203,61 @@ After adding DNS records to your registrar:
 
 ## Developer Reference
 
+### EmailTemplate Class
+
+The `EmailTemplate` class provides a consistent, branded HTML email wrapper for all transactional emails.
+Use it to compose structured emails with detail rows, message blocks, action buttons, and responsive
+layouts that render correctly in all email clients. The class handles all HTML escaping internally
+according to per-method contracts documented below.
+
+**Location:** `usersc/classes/EmailTemplate.php`
+
+**Escaping Contract (per method):**
+
+| Method | Escapes | Notes |
+| --- | --- | --- |
+| `render()` | Footer text only | `$subject` and `$subtitle` are escaped in the template; `$content` is trusted HTML |
+| `createMessageBox()` | Title only | `$title` is escaped; `$content` is trusted HTML (pre-composed by caller) |
+| `createDetailRow()` | Both `$label` and `$value` | Always escapes both parameters; `$highlighted` flag affects styling only |
+| `createRawDetailRow()` | Label only | `$label` is escaped; `$trustedHtml` is NOT escaped (caller-trusted) |
+| `createMessageContent()` | Text | Escapes `$text`; intended for raw user-supplied text inside message boxes |
+| `createButton()` | Both `$text` and `$url` | Escapes both parameters before embedding in href and link text |
+| `createButtonRow()` | All button labels and URLs | Escapes `label` and `url` in each button entry |
+
+**Security:** Methods with "Raw" in the name (`createRawDetailRow()`) bypass escaping for their value
+parameter by design. Use these only for trusted content you control (composed HTML, internal links,
+image tags). Never pass raw user input into a `$trustedHtml` or `$content` parameter—the caller is
+entirely responsible for escaping user-supplied data before inclusion.
+
+**Example:** A composed transfer notification email.
+
+```php
+$et = new EmailTemplate();
+
+// Car details (safe, escaped via createDetailRow)
+$carInfo = $et->createDetailRow('Year', $car->year) .
+           $et->createDetailRow('Chassis', $car->chassis, true);  // highlighted
+
+// Transfer request comments (safe, escaped via createMessageContent)
+$comments = $et->createMessageContent($userInput->comments);
+
+// Action buttons side by side
+$actions = $et->createButtonRow([
+    ['label' => 'Approve Transfer', 'url' => $approveUrl, 'style' => 'success'],
+    ['label' => 'Deny Request', 'url' => $denyUrl, 'style' => 'danger'],
+]);
+
+// Composed HTML with message boxes
+$content = $et->createMessageBox('Car Information', $carInfo) .
+           $et->createMessageBox('Requester Comments', $comments) .
+           $et->createRawDetailRow('View Online', '<a href="' . htmlspecialchars($linkUrl) . '">View in Registry</a>') .
+           $actions;
+
+// Render complete email
+$html = $et->render('Transfer Request', 'New ownership request pending review', $content);
+email($adminEmail, 'New Transfer Request', $html);
+```
+
 ### sendinblue() Function
 
 The plugin provides the `sendinblue()` function, which is called by the overridden `email()` function.

@@ -509,6 +509,8 @@ function example(): string {
                     <tr><td><span class="er-token-swatch" style="border:1px solid #ccc; background:#333333;"></span> n/a</td><td><code>#333333</code></td><td>Body text</td></tr>
                     <tr><td><span class="er-token-swatch" style="border:1px solid #ccc; background:#f8f9fa;"></span> n/a</td><td><code>#f8f9fa</code></td><td>Footer background</td></tr>
                     <tr><td><span class="er-token-swatch" style="border:1px solid #ccc; background:#dee2e6;"></span> n/a</td><td><code>#dee2e6</code></td><td>Borders / dividers</td></tr>
+                    <tr><td><span class="er-token-swatch" style="background:#B8860B;"></span> <code>--er-warning</code></td><td><code>#B8860B</code></td><td>Highlighted detail row left border, attention accents</td></tr>
+                    <tr><td><span class="er-token-swatch" style="border:1px solid #ccc; background:#FFF9E0;"></span> n/a</td><td><code>#FFF9E0</code></td><td>Highlighted detail row background fill</td></tr>
                 </tbody>
             </table>
         </div>
@@ -526,6 +528,13 @@ function example(): string {
                     <div style="background:#fff3cd; border:1px solid #A52218; border-radius:4px; padding:12px; margin:12px 0; font-size:0.8rem;">
                         Warning box uses <code>#A52218</code> border.
                     </div>
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 10px;">
+                        <tr>
+                            <td style="font-weight: bold; width: 120px; color: #469408; vertical-align: top; background-color: #FFF9E0; border-left: 4px solid #B8860B; padding: 8px 10px 8px 8px;">Engine Number:</td>
+                            <td style="vertical-align: top; background-color: #FFF9E0; padding: 8px 10px 8px 0;">Not provided</td>
+                        </tr>
+                    </table>
+                    <p class="mb-0" style="font-size:0.75rem; color:#6C757D;">Highlighted detail row via <code>createDetailRow($label, $value, highlighted: true)</code> — flags a blank/missing field.</p>
                 </div>
                 <div class="card-footer" style="background:#f8f9fa; border-top:1px solid #dee2e6; color:#6C757D; text-align:center; font-family:Arial,sans-serif; font-size:0.8rem; padding:14px;">
                     The Lotus Elan Registry Team &mdash; <a href="https://elanregistry.org" style="color:#6C757D;">elanregistry.org</a>
