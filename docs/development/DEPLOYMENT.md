@@ -108,7 +108,14 @@ before merge, not by GitHub blocking the merge button itself (see issue #1437).
 #### 3. **Claude Code Review**
 
 - **What it does**: Automated code review against Elan Registry coding standards
-- **When it runs**: When PR contains PHP, JS, CSS files or documentation changes
+- **When it runs**: On every push to a PR (no path filter). Two modes, gated by
+  branch shape in `.github/workflows/claude-code-review.yml`:
+  - `pr-to-milestone-review` (light, Sonnet) — any branch → `milestone/*`, and
+    any non-milestone branch → `main` (hotfix / ad-hoc PRs); skipped for
+    `[skip-review]` / `[WIP]` titles
+  - `milestone-review` (deep) — `milestone/*` → `main`, on open /
+    ready-for-review / `deep-review` label, non-draft only
+  - `workflow_dispatch` with `pr_number` re-runs the light review on demand
 - **Scope**: Enforces coding standards from `docs/development/CODING_STANDARDS.md`
 - **Key checks**:
   - **PHP 8+ Type Safety**: Complete type declarations, `declare(strict_types=1)`

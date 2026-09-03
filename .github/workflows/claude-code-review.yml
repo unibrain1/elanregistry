@@ -3,9 +3,14 @@ name: Claude Code Review
 # Two automated review modes gated by PR base branch:
 #
 #   * -> milestone/*    : lightweight Sonnet backstop on every push. Focuses on
-#                         what static tools (PHPStan / CodeQL / Semgrep) can't
+#   * -> main (ad hoc)    what static tools (PHPStan / CodeQL / Semgrep) can't
 #                         see: silent failures, arch fit, test gaps, CLAUDE.md
 #                         violations. Assumes the author ran /review-pr locally.
+#                         The second shape is any non-milestone branch straight
+#                         to main — hotfixes, ad-hoc test/doc/CI fixes — which
+#                         previously matched neither job and shipped unreviewed
+#                         (PR #1915). Job name kept as pr-to-milestone-review:
+#                         commands and docs reference it.
 #
 #   milestone/* -> main : deep Fable review on PR open / ready_for_review /
 #                         deep-review label. Cross-issue integration, release-
@@ -81,7 +86,9 @@ on:
         type: number
 
 jobs:
-  # Lightweight review for PRs targeting milestone branches. Runs on every
+  # Lightweight review for PRs targeting milestone branches, and for
+  # non-milestone branches targeting main directly (hotfix / ad-hoc PRs —
+  # milestone/* -> main is the deep job below, not this one). Runs on every
   # push regardless of draft state (PRs are opened as draft by default —
   # see /commit-push-pr — and the author drives review/fix cycles via
   # /address-pr-comments before marking the PR ready), OR on demand via
@@ -90,7 +97,13 @@ jobs:
     if: |
       (
         github.event_name == 'pull_request' &&
-        startsWith(github.event.pull_request.base.ref, 'milestone/') &&
+        (
+          startsWith(github.event.pull_request.base.ref, 'milestone/') ||
+          (
+            github.event.pull_request.base.ref == 'main' &&
+            !startsWith(github.event.pull_request.head.ref, 'milestone/')
+          )
+        ) &&
         !contains(github.event.pull_request.title, '[skip-review]') &&
         !contains(github.event.pull_request.title, '[WIP]') &&
         github.event.action != 'labeled'
@@ -176,7 +189,10 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ steps.ctx.outputs.pr_number }}
 
-            You are reviewing an **issue-level PR** targeting a milestone branch.
+            You are reviewing either an **issue-level PR** targeting a milestone
+            branch, or an **ad-hoc / hotfix PR** from a non-milestone branch
+            straight to `main`. `baseRefName` from the command below tells you
+            which; apply the same bar to both.
 
             The PR title and branch names are deliberately NOT interpolated into
             this prompt: they are attacker-controlled on a fork PR, and text
