@@ -27,7 +27,7 @@ Surfaced) land.
 ### Improvements
 
 - **Verification system backend** ([#1155](https://github.com/elan-registry/registry/issues/1155)): Database migrations and `CarVerificationManager` extensions, including `owner_last_updated` tracking — the shared freshness primitive every later Car Verification milestone builds on.
-- **Brevo webhook behavior confirmed** ([#1871](https://github.com/elan-registry/registry/issues/1871)): Spike verifying Brevo's webhook design assumptions ahead of the bounce-detection work in v2.30.2.
+- **Brevo webhook behavior confirmed** ([#1871](https://github.com/elan-registry/registry/issues/1871)): Live spike against `test.elanregistry.org` settled the facts the bounce-detection endpoint (v2.30.2) depends on — events arrive one per POST (`batched: false`) with snake_case names, `tags` on every event, `reason` on bounces but not `spam`, Token auth as `Authorization: Bearer` reaching `$_SERVER['HTTP_AUTHORIZATION']` on A2 without `.htaccess` changes, and a suppressed address yields `blocked` on every send after its first `hard_bounce`. Documented in `docs/development/EMAIL_SYSTEM.md` § "Brevo Webhooks — Verified Behaviour"; reproducible tooling in `scripts/spike-1871/` (not deployed).
 - **Cron transport installed** ([#1872](https://github.com/elan-registry/registry/issues/1872)): UserSpice's cron transport installed and verified on test and prod, unblocking the scheduled send and reconciliation jobs later in the arc.
 - **EmailTemplate primitives added** ([#1874](https://github.com/elan-registry/registry/issues/1874)): Three missing primitives (highlighted row, button row, trusted-HTML row) added to the shared `EmailTemplate` class for later verification-email composition.
 
