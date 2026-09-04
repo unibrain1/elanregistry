@@ -4,7 +4,7 @@
 .vscode/
 .cursor/
 Elanegistry.sublime-project
-ElanRegistry.code-workspace
+Registry.code-workspace
 *.swp
 *~
 
@@ -227,3 +227,4 @@ scripts/check-plugin-updates/*.conf
 
 # Temporary local scratch copy of production userimages (exploration only)
 /prod_images/
+

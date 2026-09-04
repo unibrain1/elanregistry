@@ -281,7 +281,16 @@ function updateCar(array &$cardetails, array &$errors): void
     try {
         $car = new Car();
 
-        $car->update($cardetails);
+        // The owner_last_updated freshness clock drives verification-email
+        // eligibility, so it may only reset on a genuine owner self-edit.
+        // Admins and editors reach this same endpoint when editing someone
+        // else's car (see the hasPerm([2, 3]) branch in the updateCar auth
+        // guard above), and those edits must leave the clock untouched.
+        // user_id here is the car row's owner, loaded by buildCarDetails()
+        // from the database — not a client-supplied value.
+        $isOwnerInitiated = (int) ($cardetails['user_id'] ?? 0) === (int) $user->data()->id;
+
+        $car->update($cardetails, $isOwnerInitiated);
     } catch (CarValidationException $e) {
         logger($user->data()->id, LogCategories::LOG_CATEGORY_VALIDATION_ERROR, 'Car Update Validation Error: ' . $e->getMessage());
         $errors[] = $e->getUserMessage();

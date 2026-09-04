@@ -39,6 +39,9 @@ final class UserSettingsWiringTest extends TestCase
     /** Endpoint path, relative to the repository root. */
     private const USER_SETTINGS_ENDPOINT = 'usersc/user_settings.php';
 
+    /** Owner class path, relative to the repository root. */
+    private const OWNER_CLASS_PATH = 'usersc/classes/Owner.php';
+
     // =========================================================================
     // Helpers
     // =========================================================================
@@ -187,6 +190,65 @@ final class UserSettingsWiringTest extends TestCase
             $exitPos,
             $logPos,
             'The log call must occur before exit, so the failure is recorded before execution stops'
+        );
+    }
+
+    /**
+     * Regression guard for #1879: every project-owned vericode write must go
+     * through hashVericode() rather than storing a plaintext value that
+     * users/verify.php's hash-only comparison can never match.
+     *
+     * A round-trip integration test (tests/integration/UserSettingsVericodeTest.php)
+     * pins the hashVericode()/hash_equals() contract itself, but does not
+     * execute these source files, so it cannot fail if one of these lines is
+     * ever reverted back to plaintext. This source-inspection test is what
+     * actually goes red on a regression, following the same pattern as this
+     * file's other tests.
+     */
+    public function testAllProjectOwnedVericodeWritesAreHashed(): void
+    {
+        $userSettings = $this->readEndpointSource(self::USER_SETTINGS_ENDPOINT);
+
+        // Scope to each DB-write call individually ($db->update(...) /
+        // ->update(...)), not the whole file — the email-options array at
+        // line ~371 legitimately passes the raw plaintext $vericode so the
+        // recipient can use it, and must NOT be flagged as a violation.
+        // Checking each call's own body independently (rather than a single
+        // file-wide regex) is what makes this discriminate correctly: a
+        // regression in either call is caught on its own, not masked by the
+        // other call still being correct.
+        preg_match_all('/->update\(([^;]*)\);/s', $userSettings, $updateCalls);
+        $this->assertNotEmpty($updateCalls[1], 'Could not locate any ->update() DB write calls to inspect');
+        $vericodeUpdateCallsChecked = 0;
+        foreach ($updateCalls[1] as $updateCallBody) {
+            if (!str_contains($updateCallBody, 'vericode')) {
+                continue;
+            }
+            $vericodeUpdateCallsChecked++;
+            $this->assertMatchesRegularExpression(
+                '/[\'"]vericode[\'"]\s*=>\s*hashVericode\(/',
+                $updateCallBody,
+                self::USER_SETTINGS_ENDPOINT . ' must hash every vericode written via ->update() (#1879): ' . $updateCallBody
+            );
+        }
+        $this->assertSame(
+            2,
+            $vericodeUpdateCallsChecked,
+            'Expected exactly 2 ->update() calls touching vericode (email-change + password-reset); '
+            . 'a different count means this test is no longer checking what it claims to'
+        );
+
+        $ownerClass = $this->readEndpointSource(self::OWNER_CLASS_PATH);
+
+        $this->assertMatchesRegularExpression(
+            '/[\'"]vericode[\'"]\]\s*=\s*hashVericode\(/',
+            $ownerClass,
+            self::OWNER_CLASS_PATH . ' must hash the vericode it generates on owner creation (#1879)'
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/[\'"]vericode[\'"]\]\s*=\s*randomString\(\d+\)(?!\s*\))/i',
+            $ownerClass,
+            self::OWNER_CLASS_PATH . ' must not store a bare randomString() result unhashed (#1879)'
         );
     }
 }

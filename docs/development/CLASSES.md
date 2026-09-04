@@ -23,6 +23,7 @@ Use this table to choose the right class for your task:
 | Access owner profile and user data | Owner | User profile integration, custom user methods | `$owner = new Owner($uid)` |
 | Validate VIN/chassis format | ChassisValidator | Specialized validation for vehicle identifiers | `$validator->validate('26/0001')` |
 | Direct DB queries on cars/history/factory data | CarRepository | Testable data-access layer, used by Car and API endpoints | `(new CarRepository($db))->findByChassisKey($year, $type, $chassis)` |
+| Verification codes, verification timestamps, email-bounce tracking | CarVerificationManager | Business-logic layer over CarRepository; validates and throws rather than returning falsy on failure | `(new CarVerificationManager($repo))->generateVerificationCode()` |
 | Create database backups | BackupManager | Backup/restore operations, database dumping | `$backup = new BackupManager(...)` |
 | Decode car images | CarImageProcessor | Decodes the `cars.image` JSON array into usable entries | `$processor->decodeAndProcessImages($car->image, ...)` |
 | Remove one image from a car | Car / CarImageProcessor | CAS-guarded single-filename removal; throws on concurrent modification | `$car->removeImage($filename)` |
@@ -475,6 +476,16 @@ to provide a focused, testable data access layer wrapping the `cars`,
   user-deletion hook
 - `updateVerificationCode(int $carId, string $verificationCode): bool` - Update a car's verification code
 - `updateLastVerified(int $carId, string $dateTime): bool` - Update a car's last-verified timestamp
+- `updateVerificationSentAt(int $carId, string $dateTime): bool` - Update the timestamp at which a verification email was sent
+- `updateEmailBounced(int $carId, bool $bounced): bool` - Set or clear a car's email-bounced flag
+- `updateOwnerLastUpdated(int $carId, string $dateTime): bool` - Update the
+  timestamp of the owner's last self-initiated edit; standalone primitive not
+  currently called by `Car::update()` (which folds the same write into its
+  single `updateCar()` call to avoid a duplicate `cars_hist` audit row — see
+  `Car::update()`'s `$isOwnerInitiated` parameter)
+- `findVerificationEligible(int $limit, int $offset): array` - Paginated
+  query for cars eligible for a verification email: not sold, deliverable
+  email, never verified or stale, and a stale owner-driven update
 - `updateSoldDate(int $carId, string $soldDate): bool` - Update a car's sold date
 - `updateImage(int $carId, string $newJson, string $expectedJson): bool` - Compare-and-swap update of the image JSON column; returns `false` on concurrent modification
 - `findByChassisKey(string $year, string $type, string $chassis): ?object` -
@@ -510,6 +521,59 @@ to provide a focused, testable data access layer wrapping the `cars`,
 
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) - Exception patterns
 - [DATABASE.md](DATABASE.md) - `cars`, `cars_hist`, `elan_factory_info` schema
+
+---
+
+### CarVerificationManager
+
+**Location**: `/usersc/classes/Car/CarVerificationManager.php`
+
+**Namespace**: `ElanRegistry\Car`
+
+**Purpose**: Business-logic layer for the car-owner verification lifecycle
+(verification codes, verification timestamps, email-bounce tracking).
+Constructor-injected with a `CarRepository`; validates input, delegates
+persistence to the repository, and mutates the passed-in `$carData` object
+on success.
+
+**Key Features**:
+
+- CSPRNG-backed verification code generation (`bin2hex(random_bytes(16))`,
+  128 bits of entropy)
+- Shared `persist()`/`updateBounced()` private helpers deduplicate the
+  validate → repo call → log-on-failure → throw pattern across the six
+  public methods that write to the repository (`generateVerificationCode()`
+  is pure and makes no database call)
+- Every repository-writing method throws `CarDatabaseException` on failure (repository
+  returns `false`, or the repository call itself throws) rather than
+  returning a falsy value — callers do not need to check a return value for
+  failure
+
+**Methods**:
+
+- `setVerificationCode(object $carData, string $verificationCode): bool` - Persist a car's verification code (min. 8 characters)
+- `generateVerificationCode(): string` - Generate a new verification code; pure function, no repository call
+- `markVerified(object $carData): bool` - Record that a car has been verified (sets `last_verified` to now)
+- `setVerificationSentAt(object $carData, string $dateTime): bool` - Record when a verification email was sent
+- `setBounced(object $carData): bool` - Flag a car's owner email as bounced
+- `clearBounced(object $carData): bool` - Clear a car's bounced-email flag (admin reversal)
+- `markSold(object $carData, ?string $soldDate): bool` - Record a car as sold (`null` defaults to today)
+
+**Exceptions**:
+
+- `CarDatabaseException` - Repository call failed or threw
+- `CarValidationException` - Invalid input (e.g. a verification code under 8 characters, a malformed sold date)
+
+**Used By**:
+
+- Backend foundation for the car-owner verification system (issue #1155);
+  no production caller yet as of v2.30.0 — the email-sending consumer that
+  will call these methods lands in a later verification-system milestone
+
+**See Also**:
+
+- [ERROR_HANDLING.md](ERROR_HANDLING.md) - Exception patterns
+- [DATABASE.md](DATABASE.md) - `cars.vericode`, `cars.last_verified`, `cars.owner_last_updated`, `cars.vericode_sent_at`, `cars.email_bounced`, `cars.solddate`
 
 ---
 
@@ -721,53 +785,75 @@ $resize->saveImage($thumbnailPath);
 
 **Location**: `/usersc/classes/EmailTemplate.php`
 
-**Purpose**: Centralized email template system with branded HTML formatting.
+**Namespace**: `ElanRegistry`
+
+**Purpose**: Centralized branded HTML email template system. Instance-based
+(constructor loads `$baseUrl`/`$logoUrl` via `getBaseUrl()`); callers compose
+content with the `create*()` primitives below, then wrap it in `render()` for
+the full branded document.
 
 **Key Features**:
 
-- Consistent branded email design
-- Responsive HTML email layout
-- Header/footer management
-- Action button generation
-- Multi-section content support
-- Registry branding integration
+- Consistent branded header/footer, responsive layout (600px breakpoint)
+- Composable content primitives: message boxes, detail rows (plain,
+  highlighted, or trusted-HTML), free-text blocks, single or side-by-side
+  action buttons
+- Per-method escaping contract documented in the class's own docblock and in
+  [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md#emailtemplate-class) — some methods
+  (`createMessageBox()`'s `$content`, `createRawDetailRow()`'s `$trustedHtml`)
+  deliberately do NOT escape their input; see that contract before adding a
+  new caller
+
+**Methods**:
+
+- `render(string $subject, string $subtitle, string $content, array $options = []): string` -
+  Wrap composed `$content` in the full branded email document; escapes
+  `$subject`/`$subtitle`, `$content` is trusted HTML
+- `createMessageBox(string $title, string $content, string $style = 'default'): string` -
+  Titled, bordered content box (styles: `default`, `message`, `alert`,
+  `success`); escapes `$title` only, `$content` is raw HTML by design
+- `createDetailRow(string $label, string $value, bool $highlighted = false): string` -
+  Label/value row; escapes both always, regardless of `$highlighted`. When
+  `$highlighted` is true, renders with a `#FFF9E0` background and `#B8860B`
+  left border to flag a row needing attention
+- `createRawDetailRow(string $label, string $trustedHtml): string` -
+  Label/value row for embedding trusted HTML (an image, a link) as the
+  value; escapes `$label` only — `$trustedHtml` is caller-trusted and NOT
+  escaped
+- `createMessageContent(string $text, bool $italic = false): string` -
+  Free-text block with an accent border; escapes `$text`
+- `createButton(string $text, string $url, string $style = 'primary'): string` -
+  Single centered action button (styles: `primary`, `secondary`, `success`,
+  `danger`); escapes both `$text` and `$url`
+- `createButtonRow(array $buttons): string` - Two or more side-by-side action
+  buttons, collapsing to stacked on narrow viewports; each entry is
+  `['label' => string, 'url' => string, 'style' => string]` (`style`
+  optional, defaults to `primary`); escapes `label`/`url`/`style` per entry
+  and throws `\InvalidArgumentException` for fewer than two buttons or a
+  malformed entry
 
 **Common Usage**:
 
 ```php
-// Create email template
 $template = new EmailTemplate();
 
-// Build email with sections
-$html = $template->buildEmail(
-    'Transfer Request',
-    [
-        [
-            'title' => 'Transfer Details',
-            'content' => 'Car #26/0001 has been transferred...'
-        ],
-        [
-            'title' => 'Next Steps',
-            'content' => 'Please review and approve...'
-        ]
-    ],
-    [
-        'text' => 'View Transfer Request',
-        'url' => 'https://elanregistry.org/app/transfers/view.php?id=123'
-    ]
+$content = $template->createMessageBox(
+    'Transfer Details',
+    $template->createDetailRow('Car', 'Elan 26/0001')
+        . $template->createDetailRow('Engine Number', '', highlighted: true)
 );
+$content .= $template->createButtonRow([
+    ['label' => 'Approve', 'url' => $approveUrl, 'style' => 'success'],
+    ['label' => 'Decline', 'url' => $declineUrl, 'style' => 'danger'],
+]);
 
-// Send email
-// ... use with PHPMailer or other email system
+$html = $template->render('Transfer Request', 'Action needed', $content);
+// ... send $html via the project's email system, see EMAIL_SYSTEM.md
 ```
 
-**Email Structure**:
+**See Also**:
 
-- Branded header with logo
-- Multiple content sections with titles
-- Optional action button
-- Footer with registry information
-- Responsive design for mobile devices
+- [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md#emailtemplate-class) - Full per-method escaping contract and Brevo/sendinblue() sending pattern
 
 ### registrySendEmail()
 

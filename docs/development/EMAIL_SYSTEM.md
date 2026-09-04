@@ -114,6 +114,114 @@ In the registry admin panel:
 
 Logs include timestamps, recipient addresses, and any API error messages returned by Brevo.
 
+## Brevo Webhooks — Verified Behaviour (#1871)
+
+Observed live on 2026-09-03 against `test.elanregistry.org` (A2 Hosting, LiteSpeed,
+behind Cloudflare) with the tooling in `scripts/spike-1871/` (see its `README.md` to
+re-run; kept until #1887 ships its own fixtures). Every fact below comes from a captured request, not from
+Brevo's documentation. The bounce-detection endpoint (#1887) must be designed
+against this section; where the docs disagree, this section wins until re-verified.
+
+### Transport
+
+| Question | Observed |
+| --- | --- |
+| Auth header (UI "Token" / API `auth.type: "bearer"`) | `Authorization: Bearer <token>` |
+| `$_SERVER` key on A2/LiteSpeed via Cloudflare | `HTTP_AUTHORIZATION` — present with no `.htaccess` change; also visible in `getallheaders()` |
+| `Server::get('HTTP_AUTHORIZATION')` | Returns the value intact (verified via CLI 2026-09-03): `KEY_MAP` is a per-key sanitiser table with a plain-string fall-through, not an allowlist. No project-owned header reader is needed |
+| `batched` | `false` — one event per POST; body is always a JSON **object**, never a list |
+| `REMOTE_ADDR` | A Brevo egress IP, not a Cloudflare edge IP (the host evidently restores the client IP, mechanism not inspected), so `$remote_addr` is usable for allowlisting |
+| Brevo source IPs seen | `172.246.241.0`, `.64`, `.128`, `.192` — evenly spaced, so a larger block; allowlist Brevo's published ranges, not these four |
+| User-Agent (live) | `Brevo-webhook/2.0 (+https://developers.brevo.com/docs/how-to-use-webhooks)` |
+| Custom headers | `X-Mailin-*` arrive as `HTTP_X_MAILIN_*` (only if configured under "Add object") |
+| Latency | `request` + `delivered`/bounce within 2–4 s of the API send; `spam` ~10 s after the recipient reported junk |
+| Replay | None — events emitted while no webhook existed are lost |
+
+The webhook UI ("Plugins & Integrations → Webhooks → Outbound") has no header-name
+field and no batched toggle; its per-event **Send test request** goes through a
+different backend (`User-Agent: Brevo/1.0`, lowercase `bearer`, 2020-era sample
+payloads with `template_id`/`X-Mailin-custom`). Use it only to check reachability,
+never as a payload reference.
+
+### Payload
+
+Live `event` values are **snake_case** even though the subscription enum is camelCase
+(`hardBounce`, `softBounce`, `invalid`, `proxyOpen`, `request`, `click`, …).
+
+| Observed `event` | Trigger | `tags` | `reason` | Extra fields |
+| --- | --- | --- | --- | --- |
+| `request` | every accepted send ("Sent") | yes | `"sent"` | `mirror_link`, `sending_ip` |
+| `delivered` | Gmail, Outlook.com | yes | `"sent"` | `sending_ip`, `uuid` |
+| `hard_bounce` | Mailtrap `bounce+550+…` — real SMTP attempt | yes | `"550 no such user 1871b"` (remote SMTP text) | `sending_ip`, `uuid` |
+| `soft_bounce` | Mailtrap `bounce+451+…` — real SMTP attempt | yes | `"451 mailbox full"` | `sending_ip`, `uuid` |
+| `blocked` | second send to an address Brevo has already hard-bounced | yes | `"blocked : due to blacklist user"` | `uuid` (no `sending_ip`) |
+| `spam` | Outlook.com "Report → Junk" (Microsoft JMRP) | yes | **absent** | `uuid` |
+| `unique_opened` | recipient's client fetched the pixel | yes | absent | `user_agent`, `device_used`, `link`, `contact_id`; `sending_ip` holds the **opener's** IP |
+
+Fields on every live event: `id` (the webhook id, not a message id), `email`,
+`message-id` **including angle brackets** (`<2026…@smtp-relay.mailin.fr>` — exactly the
+`messageId` the send API returned), `event`, `date` (local time, no zone), `ts`,
+`ts_event`, `ts_epoch` (ms), `subject`, `sender_email`, `tags` (array) **and** `tag`
+(the same list JSON-encoded as a string). Match on `message-id` verbatim; filter on
+the `tags` array.
+
+Brevo's Transactional → Logs export labels the same events `Sent`, `Delivered`,
+`Hard bounce`, `Soft bounce`, `Blocked`, `Complaint` (= `spam`) and `First opening`
+(= `unique_opened`); the export confirmed every webhook event above one-for-one,
+including the first-send `Hard bounce` → second-send `Blocked` sequence.
+
+Not observed live: `invalid_email`, `deferred`, `error`, `unsubscribed`, `click`,
+`proxy_open`, `unique_proxy_open`, `opened`. Their names above come from the test
+requests and the docs; treat them as unverified.
+
+### Fixtures
+
+- **Hard bounce:** `bounce+550+<free text>@inbox.mailtrap.io` — `inbox.mailtrap.io`
+  publishes a public MX, so Brevo delivers and gets the emulated 550. The local part
+  must be lower-case; the text after the code is free and is echoed in `reason`.
+- **Soft bounce:** `bounce+451+mailbox+full@inbox.mailtrap.io`.
+- **Suppression:** after one hard bounce Brevo suppresses the address; later sends to
+  it emit `blocked` immediately, never a second `hard_bounce`. To observe
+  `hard_bounce` again, vary the local part (`…+1871b@…`, `…+1871c@…`).
+- **Suppression list is queryable and reversible:** `GET /v3/smtp/blockedContacts` lists
+  every suppressed address with `blockedAt` and a `reason.code` (`hardBounce`,
+  `contactFlaggedAsSpam`, `unsubscribedViaEmail`); `scripts/spike-1871/brevo-send-test.php
+  --list-blocked` prints it. On 2026-09-03 the account held 9 entries dating back to
+  2025-12 — historical bounce evidence that predates any webhook (see #1922). A spam
+  report suppresses the complainant's address the same way a hard bounce does, but scoped
+  to the sender identity (`From sender: registrar@elanregistry.org`), whereas a hard bounce
+  blocks for **all** senders. The same list is visible in the UI under Transactional →
+  Settings → Blocked contacts (exportable as CSV). Brevo
+  documents `DELETE /v3/smtp/blockedContacts/{email}` and Transactional → Settings →
+  Blocked contacts in the UI for releasing an address; neither was exercised in the spike.
+- **Spam:** Mailtrap cannot emulate complaints and iCloud/Gmail have no feedback loop.
+  A free Outlook.com mailbox works: move the message to Inbox, then **Report → Junk**;
+  Brevo receives the JMRP report within seconds — and immediately suppresses that mailbox
+  for all `registrar@` mail, so unblock it in Brevo (Blocked contacts) after the test or it
+  stops receiving anything. Outlook.com also auto-junked the
+  first message from `registrar@elanregistry.org` on arrival — a sender-reputation
+  signal separate from the webhook question.
+- **Opens:** Apple Mail on a Mac fetched the tracking pixel immediately on message
+  arrival, producing `unique_opened` with the reader's home IP in `sending_ip`. Opens
+  therefore measure client behaviour, not human attention; do not use them as a
+  liveness signal.
+- **Fixture account (test DB only, created 2026-09-03):** user id **93**, owner email
+  `bounce+550+no+such+user+here@inbox.mailtrap.io` (already suppressed by Brevo → every send
+  yields `blocked`), car id **15**, chassis `TEST-1871-BOUNCE`. Does not exist on prod.
+
+### Design deltas carried to #1887
+
+1. Event names: snake_case (`hard_bounce`, `soft_bounce`, `invalid_email`), not the
+   camelCase subscription names.
+2. Header: `Server::get('HTTP_AUTHORIZATION')` works as-is (string sanitisation only);
+   no `.htaccess` change and no project-owned reader required.
+3. Body: single object per request; `batched` is `false` and there is no UI to change it.
+4. `blocked` is the steady-state event for a suppressed address; treat it as a
+   confirmed bounce, not an error.
+5. `spam` carries no `reason`; `tags` is present on every event, so tag filtering is
+   safe for all of them.
+6. `message-id` arrives with angle brackets — store the send API's `messageId` verbatim.
+
 ## Updating the Plugin
 
 `scripts/check-plugin-updates/` runs weekly and opens a GitHub issue labeled
@@ -202,6 +310,61 @@ After adding DNS records to your registrar:
 4. Verify the record values match exactly what Brevo expects
 
 ## Developer Reference
+
+### EmailTemplate Class
+
+The `EmailTemplate` class provides a consistent, branded HTML email wrapper for all transactional emails.
+Use it to compose structured emails with detail rows, message blocks, action buttons, and responsive
+layouts that render correctly in all email clients. The class handles all HTML escaping internally
+according to per-method contracts documented below.
+
+**Location:** `usersc/classes/EmailTemplate.php`
+
+**Escaping Contract (per method):**
+
+| Method | Escapes | Notes |
+| --- | --- | --- |
+| `render()` | Footer text only | `$subject` and `$subtitle` are escaped in the template; `$content` is trusted HTML |
+| `createMessageBox()` | Title only | `$title` is escaped; `$content` is trusted HTML (pre-composed by caller) |
+| `createDetailRow()` | Both `$label` and `$value` | Always escapes both parameters; `$highlighted` flag affects styling only |
+| `createRawDetailRow()` | Label only | `$label` is escaped; `$trustedHtml` is NOT escaped (caller-trusted) |
+| `createMessageContent()` | Text | Escapes `$text`; intended for raw user-supplied text inside message boxes |
+| `createButton()` | Both `$text` and `$url` | Escapes both parameters before embedding in href and link text |
+| `createButtonRow()` | All button labels and URLs | Escapes `label` and `url` in each button entry |
+
+**Security:** Methods with "Raw" in the name (`createRawDetailRow()`) bypass escaping for their value
+parameter by design. Use these only for trusted content you control (composed HTML, internal links,
+image tags). Never pass raw user input into a `$trustedHtml` or `$content` parameter—the caller is
+entirely responsible for escaping user-supplied data before inclusion.
+
+**Example:** A composed transfer notification email.
+
+```php
+$et = new EmailTemplate();
+
+// Car details (safe, escaped via createDetailRow)
+$carInfo = $et->createDetailRow('Year', $car->year) .
+           $et->createDetailRow('Chassis', $car->chassis, true);  // highlighted
+
+// Transfer request comments (safe, escaped via createMessageContent)
+$comments = $et->createMessageContent($userInput->comments);
+
+// Action buttons side by side
+$actions = $et->createButtonRow([
+    ['label' => 'Approve Transfer', 'url' => $approveUrl, 'style' => 'success'],
+    ['label' => 'Deny Request', 'url' => $denyUrl, 'style' => 'danger'],
+]);
+
+// Composed HTML with message boxes
+$content = $et->createMessageBox('Car Information', $carInfo) .
+           $et->createMessageBox('Requester Comments', $comments) .
+           $et->createRawDetailRow('View Online', '<a href="' . htmlspecialchars($linkUrl) . '">View in Registry</a>') .
+           $actions;
+
+// Render complete email
+$html = $et->render('Transfer Request', 'New ownership request pending review', $content);
+email($adminEmail, 'New Transfer Request', $html);
+```
 
 ### sendinblue() Function
 

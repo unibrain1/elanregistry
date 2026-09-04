@@ -56,6 +56,16 @@ class CarAdministrationService
     private const SYSTEM_ACCOUNT_EMAIL = 'noowner@invalid';
 
     /**
+     * The `noowner` system account's username, kept in sync with
+     * RegisterNoownerAccount::USERNAME and the lookup in
+     * usersc/scripts/after_user_deletion.php. Unlike SYSTEM_ACCOUNT_EMAIL this
+     * one does change behavior: transfer() keys the solddate decision on it, so
+     * if it drifts from the migration's value, `noowner` reassignments will
+     * start clearing solddate.
+     */
+    private const SYSTEM_ACCOUNT_USERNAME = 'noowner';
+
+    /**
      * Delete a car and all associated records
      *
      * @param object $carData Car data object
@@ -115,6 +125,9 @@ class CarAdministrationService
      *         lookup below, before the transaction begins. Relies on callers'
      *         existing broad (`\Throwable`/`CarException`) catches; all three
      *         current production callers already satisfy this.
+     *
+     * Note: a transfer is not a re-attestation, so `owner_last_updated` is
+     * intentionally left untouched here.
      */
     public function transfer(
         object $carData,
@@ -142,6 +155,18 @@ class CarAdministrationService
         // email; contact flows resolve the owner through `user_id`, not this column.
         $targetEmail = $this->contactableEmail($targetUser->email ?? '', $adminUserId, $carId);
 
+        // A sale does not survive a change of owner, so solddate is cleared on
+        // any transfer to a real owner regardless of $operationType. Reassignment
+        // to the system account (GDPR deletion, admin "no owner") is not a change
+        // of owner, so the sold state is kept (#1878).
+        $isSystemAccount = ($targetUser->username ?? '') === self::SYSTEM_ACCOUNT_USERNAME;
+        $soldDate = $isSystemAccount ? ($carData->solddate ?? null) : null;
+
+        // email_bounced is a property of the previous owner's address, not the
+        // car — cleared on a real-owner transfer (see below) and preserved on a
+        // system-account reassignment, mirroring solddate's treatment.
+        $emailBounced = $isSystemAccount ? (int) ($carData->email_bounced ?? 0) : 0;
+
         try {
             $repo->beginTransaction();
 
@@ -159,6 +184,18 @@ class CarAdministrationService
                 'lon'       => $targetUser->lon      ?? null,
                 'website'   => $targetUser->website  ?? '',
             ];
+            // Ordinary transfer: clear it. For the system account the key is omitted
+            // entirely — DB::update() writes only the keys given, so the stored value
+            // is untouched; writing null here would erase it.
+            if (!$isSystemAccount) {
+                $ownerFields['solddate'] = null;
+
+                // email_bounced belonged to the previous owner's address, not the
+                // car — carrying it forward would permanently exclude the car from
+                // CarRepository::findVerificationEligible() once the address that
+                // caused the bounce is gone.
+                $ownerFields['email_bounced'] = $emailBounced;
+            }
 
             // Validate owner fields before writing. $requireAll = false so only the
             // fields present in $ownerFields are checked (email format, website scheme,
@@ -192,7 +229,8 @@ class CarAdministrationService
                 'color'        => $carData->color ?? '',
                 'engine'       => $carData->engine ?? '',
                 'purchasedate' => $carData->purchasedate ?? null,
-                'solddate'     => $carData->solddate ?? null,
+                'solddate'     => $soldDate,
+                'email_bounced' => $emailBounced,
                 'image'        => $carData->image ?? '',
                 'user_id'      => $targetUser->id,
                 'email'        => $targetEmail,

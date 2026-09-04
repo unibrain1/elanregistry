@@ -54,6 +54,7 @@ Discover all constants: `grep "const LOG_CATEGORY" usersc/classes/LogCategories.
 
 - `LOG_CATEGORY_EMAIL_SUCCESS` → `EmailSuccess` (Email sent)
 - `LOG_CATEGORY_EMAIL_ERROR` → `EmailError` (Send failed)
+- `LOG_CATEGORY_EMAIL_BOUNCED` → `EmailBounced` (Sent email reported as bounced)
 - `LOG_CATEGORY_EMAIL_SETTINGS` → `EmailSettings` (Configuration changed)
 - `LOG_CATEGORY_FEEDBACK_FORM` → `FeedbackForm` (Submission received)
 - `LOG_CATEGORY_SENDINBLUE` → `SendinblueDebug` (Third-party service)

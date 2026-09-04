@@ -240,6 +240,81 @@ final class CarTransferTest extends IntegrationTestCase
     }
 
     /**
+     * Issue #1878: car transfer clears solddate on a previously-sold car, both
+     * on the cars row and on the app-written NEWOWNER cars_hist row.
+     */
+    #[Group('fast')]
+    public function testTransferClearsSoldDateOnPreviouslySoldCar(): void
+    {
+        $soldCarId = $this->createTestCar($this->testUserId, [
+            'chassis'  => 'TR' . uniqid(),
+            'solddate' => '2020-01-01',
+        ]);
+
+        $car = new Car($soldCarId);
+        $car->transfer($this->targetUserId, 'Test transfer sold car', 'NEWOWNER', $this->testUserId);
+
+        $carRow = $this->db->query(
+            "SELECT solddate FROM cars WHERE id = ?",
+            [$soldCarId]
+        )->first();
+        $this->assertNull($carRow->solddate);
+
+        $histQuery = $this->db->query(
+            "SELECT solddate FROM cars_hist WHERE car_id = ? AND operation = 'NEWOWNER'",
+            [$soldCarId]
+        );
+        $this->assertSame(1, $histQuery->count());
+        $this->assertNull($histQuery->first()->solddate);
+    }
+
+    /**
+     * Issue #1878 guard: the clear path must write SQL NULL and nothing else.
+     * A never-sold car cannot distinguish "cleared" from "untouched", but it
+     * does catch a regression that writes a sentinel (e.g. '' — a hard error
+     * under STRICT_TRANS_TABLES on a DATE column — or '0000-00-00').
+     */
+    #[Group('fast')]
+    public function testTransferLeavesNeverSoldCarSoldDateNull(): void
+    {
+        $car = new Car($this->testCarId);
+        $carId = $car->data()->id;
+
+        $car->transfer($this->targetUserId, 'Test transfer never sold', 'NEWOWNER', $this->testUserId);
+
+        $carRow = $this->db->query(
+            "SELECT solddate FROM cars WHERE id = ?",
+            [$carId]
+        )->first();
+        $this->assertNull($carRow->solddate);
+    }
+
+    /**
+     * email_bounced is a property of the previous owner's address, not the car:
+     * carrying it forward would permanently exclude the car from
+     * CarRepository::findVerificationEligible() (`AND email_bounced = 0`) once
+     * the address that caused the bounce is gone. Transfer to a real owner must
+     * clear it on the live `cars` row.
+     */
+    #[Group('fast')]
+    public function testTransferClearsEmailBouncedOnPreviouslyBouncedCar(): void
+    {
+        $bouncedCarId = $this->createTestCar($this->testUserId, [
+            'chassis'       => 'TR' . uniqid(),
+            'email_bounced' => 1,
+        ]);
+
+        $car = new Car($bouncedCarId);
+        $car->transfer($this->targetUserId, 'Test transfer bounced car', 'NEWOWNER', $this->testUserId);
+
+        $carRow = $this->db->query(
+            "SELECT email_bounced FROM cars WHERE id = ?",
+            [$bouncedCarId]
+        )->first();
+        $this->assertSame(0, (int) $carRow->email_bounced);
+    }
+
+    /**
      * Test transfer works with an explicit actingUserId even when global $user is unset.
      * Verifies that Car::transfer() does not fall back to currentUserId() internally.
      */

@@ -290,6 +290,26 @@ composer migrate:status   # list pending and applied migrations
 automatically via the post-receive hook. The manual steps above serve as a fallback if the hook needs to
 be bootstrapped on a fresh server.
 
+**Trigger-rebuilding migrations:** A migration that drops and recreates triggers (as `20260902104755` —
+the first such migration executed live — does for the `cars` table) needs privileges beyond a normal
+schema change. Before pushing:
+
+- **Back up the affected tables through the host's phpMyAdmin** (Export → Custom → select the tables
+  the migration touches, e.g. `cars` and `cars_hist` → SQL, structure and data). This export — not
+  `composer migrate:rollback` — is the rollback path when a migration's `down()` drops columns and
+  would lose data written since deploy.
+
+Then confirm on the target database:
+
+- The deploy DB user has the `TRIGGER` privilege (`SHOW GRANTS FOR CURRENT_USER()`).
+- If `SHOW VARIABLES LIKE 'log_bin'` is `ON`, `log_bin_trust_function_creators` must also be `ON` (or the
+  user needs `SUPER`).
+
+After deploying, confirm `SHOW TRIGGERS LIKE 'cars'` returns 3 rows and
+`SELECT version FROM phinxlog WHERE version = 20260902104755` returns one row. (`composer migrate:status`
+is not available on the server after a successful deploy — the post-receive hook removes `composer.json`
+and `database/` per `.deployignore` once migrations have applied; the push output is the other record.)
+
 ### One-Time: Stamping the ElanRegistry Baseline Migration
 
 `database/migrations/20260709000000_add_elanregistry_baseline.php` reproduces the full
@@ -421,6 +441,86 @@ Run `./scripts/update-version.sh` to generate VERSION file locally after creatin
   permission entries in UserSpice's `pages` table
 - **Required whenever:** A new page, admin script, or route is added or renamed
 
+### Cron Transport (UserSpice Cron Manager)
+
+UserSpice's Cron Manager (Admin → Settings → Cron Manager) only maintains the
+job list in the `crons` table. Nothing runs until something requests
+`users/cron/cron.php`; that request is the *transport*, and it is provisioned
+per environment outside the codebase. Installed on test and prod on 2026-09-03
+(#1872) — neither host had a cron trigger before that date.
+
+> **Contract for cron job authors — read before writing a job.**
+>
+> - The transport fires **every 10 minutes** on dev, test, and prod
+>   (`*/10 * * * *`). Every *active* row in `crons` runs on every hit, in
+>   `sort` order — a job executes about 144 times a day whether or not it has
+>   work to do.
+> - A job must be **idempotent and gate its own cadence**: keep a "last ran"
+>   timestamp (in `settings` or the job's own table) or write a "due" query
+>   that returns nothing when there is nothing to do. Never assume daily,
+>   never assume hourly.
+> - `crons_logs` gets one row per job per hit regardless of whether the job did
+>   anything, so it cannot tell you how often real work happened. Log real work
+>   under the job's own `LogCategories` constant.
+> - The interval is a cPanel setting, not code, and can change. Treat 10 minutes
+>   as the *maximum latency* before a due job is picked up, not as a schedule a
+>   job may rely on. This section is the single place the number is recorded.
+> - Runtime budget: a job must finish comfortably inside the interval or it will
+>   overlap its own next run.
+
+**What `users/cron/cron.php` does on every hit** (upstream UserSpice, read-only):
+
+1. Logs `Cron request from <ip>.` under the `CronRequest` log category — before
+   any access check, so every hit is visible in Admin → Logs.
+2. Applies the `cron_ip` allowlist (table below). A denied request logs
+   `Cron request DENIED from <ip>.` and stops.
+3. Runs every active job and inserts one `crons_logs` row per job
+   (`user_id` is `1` for unauthenticated hits).
+
+**`cron_ip` semantics** (Admin → Settings → General). The IP is taken from
+`REMOTE_ADDR` only — `X-Forwarded-For` is ignored — so behind Cloudflare it is
+the real client address and cannot be spoofed with a header.
+
+| `cron_ip` value | Who may trigger `cron.php` |
+| --- | --- |
+| empty | anyone — never leave it like this |
+| `off` (UserSpice sentinel) | `127.0.0.1` only |
+| a literal IP | that IP and `127.0.0.1` |
+
+**Per-environment configuration:**
+
+| Environment | Trigger | Interval | `cron_ip` | Evidence |
+| --- | --- | --- | --- | --- |
+| dev (MAMP, macOS) | launchd job, see [ENVIRONMENT.md](ENVIRONMENT.md#development-setup) | 10 min | `::1` on this machine (`/etc/hosts` lists both loopbacks and curl prefers IPv6; only `127.0.0.1` is hard-coded, so use whichever address your `CronRequest` log shows) | `~/Library/Logs/ElanRegistry/local-cron.log`, Admin → Logs |
+| test.elanregistry.org | cPanel Cron Job, `curl` to the public URL | 10 min | the server's public outbound IP, as shown in the first `CronRequest` entry | Admin → Logs (`CronRequest`), Cron Manager job log |
+| elanregistry.org | cPanel Cron Job, `curl` to the public URL | 10 min | same policy, checked independently | same |
+
+The literal server IP is deliberately not published here. Because the cPanel
+`curl` targets the public hostname, the request leaves the box, passes through
+Cloudflare, and arrives with the server's public IP as `REMOTE_ADDR` — **not**
+`127.0.0.1`. `cron_ip=off` would therefore reject it; a literal IP is required.
+
+**Recommended crontab line** (one per host, cPanel → Cron Jobs):
+
+```text
+*/10 * * * * /usr/bin/curl -fsS -o /dev/null https://elanregistry.org/users/cron/cron.php
+```
+
+`-o /dev/null` discards the body so cPanel does not mail it every run; `-fsS`
+stays silent on success but still reports HTTP errors to cron mail. The lines
+installed on 2026-09-03 used `-s -k /dev/null` (no `-o`, unnecessary `-k`);
+correcting them is pending and does not affect whether jobs run.
+
+**Verifying the transport** (what #1872 checked; repeat after any hosting change):
+
+- [ ] A new `crons_logs` row appears for an active job without anyone touching
+      the URL (Cron Manager shows the last-run time per job).
+- [ ] A request from an unexpected IP (e.g. your home connection) produces a
+      `Cron request DENIED` entry in Admin → Logs — proves the allowlist is
+      enforced, not just configured.
+- [ ] The interval in cPanel still matches the contract above; if it changed,
+      update this section in the same change.
+
 ### Deployment Verification Checklist
 
 After each deployment, verify:
@@ -441,6 +541,8 @@ After each deployment, verify:
 - [ ] Test critical user workflows (car registration, editing, contact forms)
 - [ ] Database connectivity and functionality
 - [ ] Email delivery system functioning
+- [ ] Cron transport still firing: a `CronRequest` entry in Admin → Logs within the
+      last 10 minutes (see "Cron Transport" above)
 - [ ] Image upload and display working
 - [ ] Search and filtering functionality
 - [ ] Mobile responsiveness maintained

@@ -53,6 +53,75 @@ final class EmailTemplateTest extends TestCase
     }
 
     // ============================================================
+    // createDetailRow() — $highlighted FLAG
+    // ============================================================
+
+    public function testCreateDetailRowHighlightedTrueAppliesBackgroundAndBorder(): void
+    {
+        $html = $this->template->createDetailRow('Label', 'Value', true);
+
+        $this->assertStringContainsString('#FFF9E0', $html);
+        $this->assertStringContainsString('#B8860B', $html);
+    }
+
+    public function testCreateDetailRowHighlightedFalseOmitsHighlightStyling(): void
+    {
+        $htmlExplicitFalse = $this->template->createDetailRow('Label', 'Value', false);
+        $htmlOmitted = $this->template->createDetailRow('Label', 'Value');
+
+        $this->assertStringNotContainsString('#FFF9E0', $htmlExplicitFalse);
+        $this->assertStringNotContainsString('#B8860B', $htmlExplicitFalse);
+        $this->assertStringNotContainsString('#FFF9E0', $htmlOmitted);
+        $this->assertStringNotContainsString('#B8860B', $htmlOmitted);
+        $this->assertSame($htmlOmitted, $htmlExplicitFalse);
+    }
+
+    public function testCreateDetailRowHighlightedTrueStillEscapesValueXss(): void
+    {
+        $html = $this->template->createDetailRow('Label', '<script>alert(1)</script>', true);
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testCreateDetailRowHighlightedTrueStillEscapesLabelXss(): void
+    {
+        $html = $this->template->createDetailRow('<script>alert(1)</script>', 'Value', true);
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testCreateDetailRowHighlightedTrueEscapesQuotesInValue(): void
+    {
+        $html = $this->template->createDetailRow('Name', 'Test "value" with \'quotes\'', true);
+
+        $this->assertStringContainsString('&quot;', $html);
+    }
+
+    public function testCreateDetailRowHighlightedUsesTableLayout(): void
+    {
+        $html = $this->template->createDetailRow('Label', 'Value', true);
+
+        $this->assertStringContainsString('<table role="presentation"', $html);
+    }
+
+    public function testCreateDetailRowDefaultHighlightedIsFalseAndUnchanged(): void
+    {
+        $html = $this->template->createDetailRow('Owner Name', 'John Doe');
+
+        $expected = "
+        <table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"margin-bottom: 10px;\">
+            <tr>
+                <td style=\"font-weight: bold; width: 120px; color: #469408; vertical-align: top; padding-right: 10px;\">Owner Name:</td>
+                <td style=\"vertical-align: top;\">John Doe</td>
+            </tr>
+        </table>";
+
+        $this->assertSame($expected, $html);
+    }
+
+    // ============================================================
     // RENDER TESTS
     // ============================================================
 
@@ -232,6 +301,290 @@ final class EmailTemplateTest extends TestCase
         $html = $this->template->createButton('Delete', '/delete', 'danger');
 
         $this->assertStringContainsString('btn btn-danger', $html);
+    }
+
+    // ============================================================
+    // createButtonRow() TESTS
+    // ============================================================
+
+    public function testCreateButtonRowRendersTwoButtons(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => 'Approve', 'url' => 'https://example.com/approve'],
+            ['label' => 'Deny', 'url' => 'https://example.com/deny'],
+        ]);
+
+        $this->assertStringContainsString('Approve', $html);
+        $this->assertStringContainsString('href="https://example.com/approve"', $html);
+        $this->assertStringContainsString('Deny', $html);
+        $this->assertStringContainsString('href="https://example.com/deny"', $html);
+    }
+
+    public function testCreateButtonRowRendersThreeOrMoreButtons(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+            ['label' => 'Three', 'url' => 'https://example.com/three'],
+        ]);
+
+        $this->assertStringContainsString('One', $html);
+        $this->assertStringContainsString('href="https://example.com/one"', $html);
+        $this->assertStringContainsString('Two', $html);
+        $this->assertStringContainsString('href="https://example.com/two"', $html);
+        $this->assertStringContainsString('Three', $html);
+        $this->assertStringContainsString('href="https://example.com/three"', $html);
+    }
+
+    public function testCreateButtonRowAppliesDefaultPrimaryStyleWhenStyleOmitted(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+
+        $this->assertStringContainsString('btn btn-primary', $html);
+    }
+
+    public function testCreateButtonRowAppliesPerButtonStyle(): void
+    {
+        $styles = ['primary', 'secondary', 'success', 'danger'];
+        $buttons = [];
+        foreach ($styles as $style) {
+            $buttons[] = ['label' => ucfirst($style), 'url' => "https://example.com/{$style}", 'style' => $style];
+        }
+
+        $html = $this->template->createButtonRow($buttons);
+
+        foreach ($styles as $style) {
+            // The color for a given style must match createButton()'s own output
+            // for that style, rather than a redundantly hardcoded hex value.
+            $soloButtonHtml = $this->template->createButton('X', 'https://example.com', $style);
+            preg_match('/background-color:\s*(#[0-9A-Fa-f]{6})/', $soloButtonHtml, $matches);
+            $this->assertNotEmpty($matches, "Could not extract color from createButton() for style {$style}");
+            $expectedColor = $matches[1];
+
+            $this->assertStringContainsString("btn btn-{$style}", $html);
+            $this->assertStringContainsString("background-color: {$expectedColor}", $html);
+        }
+    }
+
+    public function testCreateButtonRowUnknownStyleFallsBackToPrimary(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one', 'style' => 'nonexistent'],
+            ['label' => 'Two', 'url' => 'https://example.com/two', 'style' => 'danger'],
+        ]);
+
+        $this->assertSame(
+            1,
+            substr_count($html, 'background-color: #00563F'),
+            'The unknown-style button must fall back to the primary color (#00563F), and only that button — '
+            . 'the second button uses danger (#dc3545), so a fallback failure could not hide behind it'
+        );
+    }
+
+    public function testCreateButtonRowEscapesHtmlInLabelAndUrl(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => '<script>alert(1)</script>', 'url' => 'https://example.com/"><script>alert(2)</script>'],
+            ['label' => 'Safe', 'url' => 'https://example.com/safe'],
+        ]);
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testCreateButtonRowEscapesStyleInClassAttribute(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one', 'style' => 'x" onload="evil'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+
+        $this->assertStringNotContainsString('onload="evil"', $html);
+        $this->assertStringNotContainsString('class="btn btn-x" onload="evil"', $html);
+    }
+
+    public function testCreateButtonRowThrowsWhenButtonMissingLabel(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
+    public function testCreateButtonRowThrowsWhenButtonMissingUrl(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['label' => 'One'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
+    public function testCreateButtonRowThrowsWhenLabelIsNotAString(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['label' => 123, 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
+    public function testCreateButtonRowThrowsWhenUrlIsNotAString(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 123],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
+    /**
+     * Guards against createButtonRow() letting a non-string 'style' reach
+     * getButtonInlineStyles()'s typed parameter as an uncaught \TypeError
+     * instead of the method's own documented \InvalidArgumentException.
+     */
+    public function testCreateButtonRowThrowsWhenStyleIsNotAString(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one', 'style' => 5],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+    }
+
+    public function testCreateButtonRowIsCenteredTableBasedBlock(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+
+        $this->assertStringContainsString('<table', $html);
+        $this->assertStringContainsString('text-align: center', $html);
+    }
+
+    public function testCreateButtonRowCellsUseTheClassStyledByTheHeadLevelMediaRule(): void
+    {
+        $html = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+
+        // createButtonRow()'s own fragment intentionally does NOT embed an
+        // @media block — the .btn-row-cell stacking rule lives in
+        // getBaseTemplate()'s head-level <style> instead, since some mail
+        // clients strip <style> tags found outside <head>. This test asserts
+        // the fragment uses the class that rule targets; the rule's actual
+        // presence and effect is verified via render() below and by the
+        // Playwright spec in tests/playwright/local/.
+        $this->assertStringContainsString('btn-row-cell', $html);
+        $this->assertStringNotContainsString('@media', $html);
+    }
+
+    public function testRenderIncludesNarrowViewportStackingCssForButtonRow(): void
+    {
+        $buttonRow = $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+        $html = $this->template->render('Subject', 'Subtitle', $buttonRow);
+
+        $this->assertStringContainsString('@media', $html);
+        $this->assertStringContainsString('max-width: 600px', $html);
+        $this->assertStringContainsString('.btn-row-cell', $html);
+    }
+
+    public function testCreateButtonRowThrowsWhenGivenEmptyArray(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'createButtonRow() requires at least 2 buttons; use createButton() for a single button.'
+        );
+
+        $this->template->createButtonRow([]);
+    }
+
+    public function testCreateButtonRowThrowsWhenGivenExactlyOneButton(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'createButtonRow() requires at least 2 buttons; use createButton() for a single button.'
+        );
+
+        $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+        ]);
+    }
+
+    public function testCreateButtonRowDoesNotAlterCreateButtonOutput(): void
+    {
+        $before = $this->template->createButton('Click Me', 'https://example.com');
+
+        $this->template->createButtonRow([
+            ['label' => 'One', 'url' => 'https://example.com/one'],
+            ['label' => 'Two', 'url' => 'https://example.com/two'],
+        ]);
+
+        $after = $this->template->createButton('Click Me', 'https://example.com');
+
+        $this->assertSame($before, $after);
+    }
+
+    // ============================================================
+    // createRawDetailRow() TESTS
+    // ============================================================
+
+    public function testCreateRawDetailRowEscapesLabel(): void
+    {
+        $html = $this->template->createRawDetailRow('<script>alert(1)</script>', '<strong>Value</strong>');
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testCreateRawDetailRowDoesNotEscapeTrustedHtml(): void
+    {
+        $html = $this->template->createRawDetailRow('Label', '<strong>Bold</strong>');
+
+        $this->assertStringContainsString('<strong>Bold</strong>', $html);
+    }
+
+    public function testCreateRawDetailRowRendersScriptTagVerbatimWhenPassedAsTrustedHtml(): void
+    {
+        // INTENTIONAL, by contract: createRawDetailRow() treats $trustedHtml as
+        // pre-composed, caller-trusted HTML and does NOT escape it (see the
+        // escaping contract in the EmailTemplate class docblock). This is the
+        // inverse of every other XSS test in this suite — it is not a missed
+        // escaping bug. Callers are responsible for escaping any user-supplied
+        // data before it reaches this method.
+        $html = $this->template->createRawDetailRow('Label', '<script>alert(1)</script>');
+
+        $this->assertStringContainsString('<script>alert(1)</script>', $html);
+    }
+
+    public function testCreateRawDetailRowUsesTableLayout(): void
+    {
+        $html = $this->template->createRawDetailRow('Label', '<strong>Value</strong>');
+
+        $this->assertStringContainsString('<table', $html);
+        $this->assertStringContainsString('<td', $html);
+    }
+
+    public function testCreateRawDetailRowPreservesLabelWhenNoSpecialChars(): void
+    {
+        $html = $this->template->createRawDetailRow('Owner Name', '<strong>John Doe</strong>');
+
+        $this->assertStringContainsString('Owner Name:', $html);
+        $this->assertStringContainsString('<strong>John Doe</strong>', $html);
     }
 
     // ============================================================

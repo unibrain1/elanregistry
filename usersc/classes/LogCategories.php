@@ -135,6 +135,12 @@ class LogCategories
     public const LOG_CATEGORY_EMAIL_ERROR = 'EmailError';
 
     /**
+     * Email bounce events
+     * Used when a sent email is reported as bounced
+     */
+    public const LOG_CATEGORY_EMAIL_BOUNCED = 'EmailBounced';
+
+    /**
      * Email settings modifications
      * Used when email configuration is changed
      */
