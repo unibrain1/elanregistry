@@ -320,11 +320,14 @@ and architecture agents.
 
 ### Planning Work
 
-- Working documents (sprint plans, triage reports, FRDs) live **outside this
-  repo**, in a separate private directory — never in `plans/` here, which is no
-  longer gitignored. Check `.claude.local.md` for the local path (copy it from
-  `.claude.local.md.example` if it doesn't exist yet). Delete a plan once its
-  decisions are applied to GitHub milestones/issues
+- Working documents (sprint plans, triage reports, FRDs, per-issue plan
+  files) live in `docs/plans/`, which is **gitignored** — this repo is public
+  and these are private scratch. Nothing under `docs/plans/` is ever
+  committed; deleting a plan is a plain `rm`, not a `git rm`. Sprint plans go
+  in `docs/plans/sprints/<version>.md`; large multi-file plans (an FRD plus
+  mockups and images) get their own subdirectory. Delete a plan once its
+  decisions are applied to GitHub milestones/issues — the issues, code, and
+  committed docs are then the source of truth
 - For milestone planning, use the `senior-product-manager`, `senior-architect`,
   and `security-reviewer` agents in parallel for comprehensive analysis
 
