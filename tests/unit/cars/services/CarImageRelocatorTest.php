@@ -515,4 +515,84 @@ final class CarImageRelocatorTest extends TestCase
         $this->assertDirectoryExists($this->tempRoot . '/5', 'the directory must never be deleted when source === target');
         $this->assertFileExists($this->tempRoot . '/5/img_x.jpg', 'the file must survive a self-merge untouched');
     }
+
+    /**
+     * Regression: an unreadable source directory must abort the merge, not
+     * quietly move the base file and abandon every variant.
+     *
+     * A directory at mode 0300 is writable and executable but not readable, so
+     * rename() of a known filename still succeeds while the variants cannot be
+     * enumerated. This was previously detected by testing glob() for a `false`
+     * return, which glob() never produces for an unreadable directory (it
+     * returns `[]`, indistinguishable from a genuine no-match) — so the guard
+     * was unreachable and the variants were silently left behind on a car row
+     * that the merge then deleted.
+     */
+    public function testUnreadableSourceDirectoryAbortsInsteadOfAbandoningVariants(): void
+    {
+        if (function_exists('posix_getuid') && posix_getuid() === 0) {
+            $this->markTestSkipped('Running as root bypasses filesystem permission bits.');
+        }
+
+        $this->writeFile($this->tempRoot . '/5/img_x.jpg', 'base');
+        $this->writeFile($this->tempRoot . '/5/img_x-resized-100.jpg', 'variant');
+
+        // Writable and executable, but not readable: rename() works, glob() cannot see.
+        chmod($this->tempRoot . '/5', 0300);
+
+        try {
+            $threw = false;
+            try {
+                $this->relocator()->relocate(5, 6, ['img_x.jpg']);
+            } catch (ImageProcessingException) {
+                $threw = true;
+            }
+
+            $this->assertTrue(
+                $threw,
+                'relocate() must throw when the source directory cannot be listed, '
+                . 'rather than reporting success while abandoning the variants'
+            );
+        } finally {
+            if (is_dir($this->tempRoot . '/5')) {
+                chmod($this->tempRoot . '/5', 0700);
+            }
+        }
+    }
+
+    /**
+     * Regression: restore() must not claim a full recovery when an unreadable
+     * target directory hides variants it therefore could not move back.
+     *
+     * restore()'s contract is that an empty return proves the filesystem was
+     * put back — CarAdministrationService::merge() logs a stranded-files
+     * warning only when the return is non-empty, so a false empty means the
+     * operator is never told.
+     */
+    public function testRestoreReportsUnrestoredWhenTargetDirectoryCannotBeListed(): void
+    {
+        if (function_exists('posix_getuid') && posix_getuid() === 0) {
+            $this->markTestSkipped('Running as root bypasses filesystem permission bits.');
+        }
+
+        $this->writeFile($this->tempRoot . '/6/img_x.jpg', 'base');
+        $this->writeFile($this->tempRoot . '/6/img_x-resized-100.jpg', 'variant');
+        mkdir($this->tempRoot . '/5', 0700, true);
+
+        chmod($this->tempRoot . '/6', 0300);
+
+        try {
+            $unrestored = $this->relocator()->restore(5, 6, ['img_x.jpg' => 'img_x.jpg']);
+
+            $this->assertNotSame(
+                [],
+                $unrestored,
+                'restore() must report the entry when it cannot enumerate the variants it left behind'
+            );
+        } finally {
+            if (is_dir($this->tempRoot . '/6')) {
+                chmod($this->tempRoot . '/6', 0700);
+            }
+        }
+    }
 }

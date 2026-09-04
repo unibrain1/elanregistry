@@ -742,7 +742,7 @@ final class CarAdministrationServiceTest extends TestCase
      * dropped entirely, which is exactly the weakness that let the underlying
      * bug (merge never moved userimages/ files) go untested for as long as it
      * did. updateImage() issues a raw `UPDATE cars SET image = ? WHERE id = ?
-     * AND image = ?` through query(), so the CAS write is observed by
+     * AND image <=> ?` through query(), so the CAS write is observed by
      * recording every query() call and asserting one matches that shape.
      */
     public function testMergeSucceeds(): void
@@ -899,7 +899,7 @@ final class CarAdministrationServiceTest extends TestCase
     }
 
     /**
-     * A `false` return from updateImage() means the CAS `WHERE image = ?`
+     * A `false` return from updateImage() means the CAS `WHERE image <=> ?`
      * guard matched no row — another writer changed the target's image
      * column between the lock and the write. merge() must treat this as a
      * failure (throwing CarDatabaseException) and must run the relocator's

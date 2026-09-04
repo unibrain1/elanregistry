@@ -305,8 +305,10 @@ class CarAdministrationService
      * @throws CarValidationException If merging car with itself
      * @throws CarDatabaseException If a database operation fails, including a
      *         lost CAS race on the target's `image` column
-     * @throws ImageProcessingException If the image files cannot be relocated
-     * @throws CarMergeException If merge operation fails
+     * @throws CarMergeException If merge operation fails, including a failure to
+     *         relocate the image files — the relocator's own
+     *         ImageProcessingException does not extend CarException, so it is
+     *         wrapped rather than propagated to callers
      */
     public function merge(
         object $targetCarData,
@@ -402,18 +404,20 @@ class CarAdministrationService
             $liveTargetImageJson = $lockedTargetCar->image ?? null;
             if ($mergedImageJson !== (string) $liveTargetImageJson) {
                 // updateImage() returns false rather than throwing when its
-                // `WHERE image = ?` guard matches no row, meaning another writer
-                // changed the column between the lock and here. Ignoring that
-                // would silently drop the relocated images from cars.image while
-                // leaving the files moved.
+                // null-safe `WHERE image <=> ?` guard matches no row, meaning
+                // another writer changed the column between the lock and here.
+                // Ignoring that would silently drop the relocated images from
+                // cars.image while leaving the files moved.
                 //
-                // A NULL column cannot be matched by `image = ''` — SQL equality
-                // against NULL is never true — and cars.image is nullable with no
-                // default, so a target car that never had an image holds NULL.
+                // The write is skipped entirely when the value is unchanged
+                // because MySQL reports rows *changed*, not rows *matched*
+                // (PDO::MYSQL_ATTR_FOUND_ROWS is unset), so an identical write
+                // returns 0 and would be misread as a lost CAS race.
+                //
                 // The row is already held by findByIdForUpdate() for the whole
                 // transaction, so that lock, not this string comparison, is what
                 // actually excludes a concurrent writer; the CAS is defence in
-                // depth and is skipped where it cannot express the current value.
+                // depth.
                 if (!$repo->updateImage($newCarId, $mergedImageJson, $liveTargetImageJson)) {
                     logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_MERGE, 'Image update rejected by CAS guard for car ID: ' . $newCarId);
                     throw new CarDatabaseException('Car merge failed - the target car was modified by another operation.');
@@ -469,6 +473,12 @@ class CarAdministrationService
             return true;
 
         } catch (\Throwable $e) {
+            // Declared before the branch: the $committed path deliberately does
+            // not compensate, and the post-rollback checks below still read
+            // both of these.
+            $unrestored = [];
+            $commitFailureWarning = null;
+
             if ($committed) {
                 // The commit itself threw. rollback() below is a no-op (the
                 // repository already cleared transactionOwner), and the
@@ -477,36 +487,48 @@ class CarAdministrationService
                 // a car the database says no longer exists — the compensation
                 // would create the corruption it exists to prevent. Leave the
                 // files where they are and make sure a human hears about it.
-                $this->logFileWarning(
-                    $adminUserId,
+                // The log itself is deferred until after rollback() for the
+                // same durability reason as the unrestored-files warning below:
+                // if the commit threw before the server actually committed, the
+                // transaction is still open and a log written here would be
+                // rolled back with it.
+                $commitFailureWarning =
                     'Car merge commit failed after relocating image files from car ' . $oldCarId
                     . ' to car ' . $newCarId . '. Files were deliberately NOT restored because the'
                     . ' database state is indeterminate; manual verification of both the cars rows'
                     . ' and the image directories is required. Relocated old => new names: '
-                    . json_encode($renameMap)
-                );
+                    . json_encode($renameMap);
             } else {
                 // Compensate before rollback so the filesystem and the database
                 // are both restored to their pre-merge state. restore() never
                 // throws, so it cannot mask $e; an empty map is a no-op.
                 $unrestored = $this->relocator->restore($oldCarId, $newCarId, $renameMap);
-
-                if ($unrestored !== []) {
-                    // The transaction rolls back cleanly but these files are
-                    // stranded in the surviving car's directory, so "rolled
-                    // back" is untrue of the filesystem. Only a log makes that
-                    // discoverable.
-                    $this->logFileWarning(
-                        $adminUserId,
-                        'Car merge rollback could not restore ' . count($unrestored)
-                        . ' image file(s) from car ' . $newCarId . ' back to car ' . $oldCarId
-                        . '. Manual repair is required; the files remain in the target car'
-                        . ' directory. Unrestored old => new names: ' . json_encode($unrestored)
-                    );
-                }
             }
 
             $repo->rollback();
+
+            if ($commitFailureWarning !== null) {
+                $this->logFileWarning($adminUserId, $commitFailureWarning);
+            }
+
+            if ($unrestored !== []) {
+                // The transaction rolls back cleanly but these files are
+                // stranded in the surviving car's directory, so "rolled back"
+                // is untrue of the filesystem. Only a log makes that
+                // discoverable — and it must be written AFTER rollback():
+                // logger() INSERTs into `logs` on this same connection, and
+                // `logs` is InnoDB, so a warning written while the transaction
+                // is still open is erased by the rollback that follows it
+                // (verified against the project database: 1 row inside the
+                // transaction, 0 after ROLLBACK).
+                $this->logFileWarning(
+                    $adminUserId,
+                    'Car merge rollback could not restore ' . count($unrestored)
+                    . ' image file(s) from car ' . $newCarId . ' back to car ' . $oldCarId
+                    . '. Manual repair is required; the files remain in the target car'
+                    . ' directory. Unrestored old => new names: ' . json_encode($unrestored)
+                );
+            }
             if ($e instanceof CarException) {
                 throw $e;
             }
@@ -519,13 +541,27 @@ class CarAdministrationService
      * Record a filesystem inconsistency that needs a human, from inside an
      * error path that is already handling another failure.
      *
-     * Both call sites run in merge()'s catch block, where the pending exception
-     * is the thing the caller actually needs to see. logger() writes to the
-     * database, so it can itself throw — a dead connection is a plausible
+     * Callers must invoke this only from an error path where an exception is
+     * already pending — that pending exception is the thing the caller actually
+     * needs to see, and this method is written to protect it. logger() writes to
+     * the database, so it can itself throw — a dead connection is a plausible
      * reason for the merge to have failed in the first place. Letting that
      * throw would replace the original exception with a logging error and lose
      * the real diagnosis, so it is caught and discarded here: a lost log line
      * is a strictly smaller loss than a masked exception.
+     *
+     * Callers must also invoke this only once the surrounding transaction is
+     * closed. logger() INSERTs into the InnoDB `logs` table on the same
+     * connection, so a warning written inside a transaction that then rolls
+     * back is erased along with it.
+     *
+     * The message additionally goes to error_log() because a database log is
+     * the wrong last line of defence for a message about database/filesystem
+     * divergence: logger() delegates to DB::insert(), which returns false on
+     * failure rather than throwing, so the catch below cannot see a quiet
+     * failed insert. These call sites are the only record that image files are
+     * misplaced, so they are written somewhere that does not depend on the
+     * database being healthy.
      *
      * @param int    $adminUserId Admin performing the merge.
      * @param string $message     Full description, including both car IDs and
@@ -534,6 +570,8 @@ class CarAdministrationService
      */
     private function logFileWarning(int $adminUserId, string $message): void
     {
+        error_log('ElanRegistry car merge image warning: ' . $message);
+
         try {
             logger($adminUserId, LogCategories::LOG_CATEGORY_FILE_ERROR, $message);
         } catch (\Throwable) {

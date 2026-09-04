@@ -546,11 +546,15 @@ flexibility against temp directories.
 - No-op on missing source directory (returns empty map)
 - Self-compensating: a mid-flight failure moves everything back before re-throwing
 - Preserves consistent base-filename mapping across all variants of a file
-- Never overwrites an existing target file — collisions rename, variant
-  collisions abort
+- Never overwrites an existing target file — on the forward path, base-filename
+  collisions rename and variant collisions abort; on the compensation path,
+  `restore()` reports the file as unrestored instead of aborting
 
 **Methods**:
 
+- `__construct(string $imageBaseDirectory)` — Absolute path to the `userimages/`
+  root. Must be absolute: `ELAN_IMAGE_DIR` is the *relative* string
+  `'userimages/'`, and passing it bare would silently defeat every path guard.
 - `relocate(int $sourceCarId, int $targetCarId, array $sourceBaseFilenames): array`
   — Move all files from source to target directory, renaming on collision.
   Returns an old→new base-filename map for the caller to build the target's
@@ -560,11 +564,14 @@ flexibility against temp directories.
   directory does not exist. On failure it restores everything it had already
   moved before re-throwing, so the caller's own `restore()` is then a no-op.
 - `restore(int $sourceCarId, int $targetCarId, array $renameMap): array`
-  — Compensating inverse; moves relocated files back under their original names
-  and recreates the source directory. Takes `relocate()`'s return value
-  verbatim. Never throws (it runs on an error path where throwing would mask
-  the original exception); returns the entries it could **not** move back, so
-  the caller can log an incomplete rollback. Empty array means full recovery.
+  — Compensating inverse; moves relocated files back under their original names,
+  recreating the source directory if it is gone. Takes `relocate()`'s return
+  value verbatim. Never throws (it runs on an error path where throwing would
+  mask the original exception); returns the entries it could **not** move back,
+  so the caller can log an incomplete rollback. Empty array means full recovery.
+  If the source directory cannot be recreated, the target directory is missing,
+  or either path fails the traversal guard, no files are moved at all and the
+  entire map is returned as unrestored.
 
 **Common Usage**:
 

@@ -252,22 +252,24 @@ class CarImageRelocator
         $unrestored = [];
 
         foreach ($renameMap as $originalBaseFilename => $relocatedBaseFilename) {
-            // Only the base file decides success. Variants are optional by
-            // definition (see the class docblock), so a variant left behind is
-            // not reported as an unrestored entry.
-            if (!$this->tryMoveFile(
+            // A base file left behind and a variant left behind are both
+            // failures of the same promise: an empty return means the
+            // filesystem was put back. Report either as an unrestored entry.
+            $baseMoved = $this->tryMoveFile(
                 $targetDirectory . DIRECTORY_SEPARATOR . $relocatedBaseFilename,
                 $sourceDirectory . DIRECTORY_SEPARATOR . $originalBaseFilename
-            )) {
-                $unrestored[$originalBaseFilename] = $relocatedBaseFilename;
-            }
+            );
 
-            $this->restoreVariants(
+            $variantsMoved = $this->restoreVariants(
                 $targetDirectory,
                 $sourceDirectory,
                 $relocatedBaseFilename,
                 $originalBaseFilename
             );
+
+            if (!$baseMoved || !$variantsMoved) {
+                $unrestored[$originalBaseFilename] = $relocatedBaseFilename;
+            }
         }
 
         return $unrestored;
@@ -443,19 +445,32 @@ class CarImageRelocator
      * Inverse of moveVariants(), used on the compensation path where a missing
      * file is skipped rather than treated as an error.
      *
+     * Reports whether every variant made it back, because restore()'s contract
+     * is that an empty return proves the filesystem was put back. An unreadable
+     * target directory yields no variants to enumerate, and silently treating
+     * that as "nothing to do" would let restore() claim a full recovery while
+     * leaving variants stranded in the surviving car's directory.
+     *
      * @param string $targetDirectory Absolute path to the directory holding the relocated files.
      * @param string $sourceDirectory Absolute path to the directory being restored.
      * @param string $relocatedBaseFilename Base filename as relocated.
      * @param string $originalBaseFilename  Base filename to restore to.
-     * @return void
+     * @return bool True when every variant of this base was moved back.
      */
     private function restoreVariants(
         string $targetDirectory,
         string $sourceDirectory,
         string $relocatedBaseFilename,
         string $originalBaseFilename
-    ): void {
+    ): bool {
+        // An unreadable directory cannot be enumerated, so variants that exist
+        // are invisible here rather than absent — never report success for it.
+        if (!is_readable($targetDirectory)) {
+            return false;
+        }
+
         $originalStem = pathinfo($originalBaseFilename, PATHINFO_FILENAME);
+        $allMoved = true;
 
         foreach ($this->findVariants($targetDirectory, $relocatedBaseFilename, false) as $variantFilename) {
             $suffix = $this->variantSuffix($relocatedBaseFilename, $variantFilename);
@@ -464,26 +479,36 @@ class CarImageRelocator
                 continue;
             }
 
-            $this->tryMoveFile(
+            if (!$this->tryMoveFile(
                 $targetDirectory . DIRECTORY_SEPARATOR . $variantFilename,
                 $sourceDirectory . DIRECTORY_SEPARATOR . $originalStem . $suffix
-            );
+            )) {
+                $allMoved = false;
+            }
         }
+
+        return $allMoved;
     }
 
     /**
      * List the resized-variant filenames of one base file in a directory.
      *
-     * glob() returns `false` on error and `[]` on no-match, and the two mean
-     * opposite things here: `[]` is the common, harmless case of a base file
-     * with no variants, while `false` means the directory could not be listed
-     * and the set of variants is unknown. Collapsing them would let the forward
-     * path move base files — rename() needs write permission on the parent, not
-     * read permission on the directory — while silently abandoning every
-     * variant and reporting success. Hence $strict: the forward path treats an
-     * unreadable directory as fatal so the merge compensates and rolls back;
-     * the compensation path, which must not throw, degrades to moving what it
-     * can.
+     * An unlistable directory and a base file with no variants must not be
+     * confused: the latter is the common, harmless case, while the former means
+     * the set of variants is unknown. Collapsing them would let the forward path
+     * move base files — rename() needs write permission on the parent, not read
+     * permission on the directory — while silently abandoning every variant and
+     * reporting success. Hence $strict: the forward path treats an unreadable
+     * directory as fatal so the merge compensates and rolls back; the
+     * compensation path, which must not throw, degrades to moving what it can.
+     *
+     * Readability is asserted with is_readable() rather than inferred from
+     * glob()'s return. glob() does NOT report an unreadable directory: verified
+     * on PHP 8.5/Darwin, a directory at mode 0300 (writable and executable but
+     * not readable) yields `[]`, not `false`, even with GLOB_ERR — identical to
+     * a genuine no-match. Reading the failure off glob() therefore made the
+     * $strict branch unreachable and produced exactly the silent variant
+     * abandonment described above.
      *
      * @param string $directory    Absolute path to search.
      * @param string $baseFilename Base filename whose variants are wanted.
@@ -495,6 +520,16 @@ class CarImageRelocator
      */
     private function findVariants(string $directory, string $baseFilename, bool $strict = true): array
     {
+        if (!is_readable($directory)) {
+            if ($strict) {
+                throw new ImageProcessingException(
+                    'Failed to list resized image variants while relocating car images.'
+                );
+            }
+
+            return [];
+        }
+
         $stem = pathinfo($baseFilename, PATHINFO_FILENAME);
         $extension = pathinfo($baseFilename, PATHINFO_EXTENSION);
 
@@ -570,7 +605,10 @@ class CarImageRelocator
             );
         }
 
-        if (!rename($from, $to)) {
+        // Warning suppressed: the false return is checked and rethrown as a
+        // typed exception, so PHP's own warning adds nothing but noise to the
+        // test output. Matches tryMoveFile()/ensureDirectory() below.
+        if (!@rename($from, $to)) {
             throw new ImageProcessingException('Failed to relocate a car image file.');
         }
     }

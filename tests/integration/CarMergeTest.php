@@ -102,17 +102,15 @@ final class CarMergeTest extends IntegrationTestCase
      * Establish a non-NULL `cars.image` baseline for a freshly created test
      * car, via a direct (non-CAS) UPDATE.
      *
-     * createTestCar() never sets `image`, so the column starts out NULL —
-     * and CarRepository::updateImage()'s `WHERE image = ?` CAS guard can
-     * never match a NULL column in MySQL (`image = ''` is never true against
-     * NULL), only `IS NULL`. CarImageLifecycleTest sidesteps this by passing
-     * `['image' => '']` to createTestCar() at INSERT time; that isn't an
-     * option here because both merge participants are created once, up
-     * front, in setUp() for every test in this class — including the ones
-     * with no image fixtures at all. A plain UPDATE (not the CAS-guarded
-     * updateImage()) is used here for exactly that reason: it establishes
-     * the '' baseline the first real updateImage() CAS call in each test
-     * below then correctly matches.
+     * createTestCar() never sets `image`, so the column starts out NULL.
+     * updateImage()'s CAS guard uses the null-safe `image <=> ?`, so a NULL
+     * column IS matchable — this baseline is not required for correctness the
+     * way it would be under a plain `image = ?`. It is kept because these
+     * tests assert against a known, uniform starting value: both merge
+     * participants are created once, up front, in setUp() for every test in
+     * this class, including the ones with no image fixtures at all. A plain
+     * UPDATE (not the CAS-guarded updateImage()) establishes that '' baseline
+     * without depending on the code under test.
      */
     private function seedEmptyImageBaseline(int $carId): void
     {
@@ -787,6 +785,135 @@ final class CarMergeTest extends IntegrationTestCase
 
         // The source's files must still be in place — restore() moved them back.
         $this->assertUploadedFilesExist($sourceDir, $filename);
+    }
+
+    /**
+     * The compensating restore(), verified at the integration layer with files
+     * that actually moved first.
+     *
+     * testMergeRollsBackWhenImageMoveFails() locks the target directory before
+     * anything moves, so relocate() fails on the FIRST file and there is
+     * nothing to compensate — its final file assertion passes because the file
+     * never left, not because restore() worked. Mutation testing confirmed the
+     * gap: replacing restore() with an unconditional `return []` left every
+     * integration test green.
+     *
+     * Here two base files are relocated and the SECOND one's destination is
+     * pre-occupied, so the move fails only after the first file (and its
+     * variants) have already been moved into the target directory. Passing
+     * therefore requires restore() to actually move them back.
+     */
+    #[Group('fast')]
+    public function testMergeRestoresAlreadyMovedFilesWhenALaterMoveFails(): void
+    {
+        $sourceDir = $this->imageDirFor($this->testMergeCarId);
+        $targetDir = $this->imageDirFor($this->testCarId);
+        mkdir($sourceDir, 0700, true);
+        mkdir($targetDir, 0700, true);
+
+        $firstFilename = $this->uploadOneTestImage($sourceDir);
+        $secondFilename = $this->uploadOneTestImage($sourceDir);
+        $this->assertNotSame($firstFilename, $secondFilename);
+
+        // Occupy one of the SECOND file's variant destinations. moveFile()
+        // refuses to overwrite an existing file, so the move of the second
+        // base fails after the first base has already been relocated.
+        $blockedVariant = $this->variantPaths($targetDir, $secondFilename)[0] ?? null;
+        $this->assertIsString($blockedVariant, 'fixture must produce at least one resized variant');
+        file_put_contents($blockedVariant, 'pre-existing orphan variant');
+
+        $this->seedEmptyImageBaseline($this->testCarId);
+        $this->seedEmptyImageBaseline($this->testMergeCarId);
+
+        $repo = new CarRepository($this->db);
+        $processor = new CarImageProcessor($repo);
+        $sourceJson = $processor->encodeImages([$firstFilename, $secondFilename]);
+        $this->assertTrue($repo->updateImage($this->testMergeCarId, $sourceJson, ''));
+
+        $targetCarData = $repo->findById($this->testCarId);
+        $this->assertIsObject($targetCarData);
+
+        $threw = false;
+        try {
+            $this->administrationServiceWithTempRelocator()->merge(
+                $targetCarData,
+                $this->testMergeCarId,
+                'Partial move compensation test',
+                $this->testUserId,
+                $repo
+            );
+        } catch (\Throwable) {
+            $threw = true;
+        }
+        $this->assertTrue($threw, 'merge() must throw when a later image move fails');
+
+        // The DB rolled back.
+        $sourceRow = $this->db->query('SELECT id FROM cars WHERE id = ?', [$this->testMergeCarId]);
+        $this->assertSame(1, $sourceRow->count(), 'source car row must survive a rolled-back merge');
+
+        // The load-bearing assertion: the FIRST file had already been moved
+        // into the target directory, so it is back only if restore() ran.
+        $this->assertUploadedFilesExist($sourceDir, $firstFilename);
+        $this->assertFileDoesNotExist(
+            $targetDir . '/' . $firstFilename,
+            'the already-relocated file must not be left behind in the target directory'
+        );
+    }
+
+    /**
+     * A target car whose `image` column is genuinely NULL must merge, exercising
+     * the null-safe `image <=> ?` CAS against a real NULL rather than the ''
+     * baseline every other test in this class seeds.
+     *
+     * createTestCar() leaves `image` NULL, so this test deliberately skips
+     * seedEmptyImageBaseline() for the target. Under the previous `image = ?`
+     * predicate the CAS could never match, and no test passed NULL as the
+     * expected value.
+     */
+    #[Group('fast')]
+    public function testMergeSucceedsWhenTargetImageColumnIsNull(): void
+    {
+        $sourceDir = $this->imageDirFor($this->testMergeCarId);
+        mkdir($sourceDir, 0700, true);
+        $filename = $this->uploadOneTestImage($sourceDir);
+
+        // Only the SOURCE gets a baseline; the target keeps its NULL image.
+        $this->seedEmptyImageBaseline($this->testMergeCarId);
+
+        $repo = new CarRepository($this->db);
+        $processor = new CarImageProcessor($repo);
+        $this->assertTrue(
+            $repo->updateImage($this->testMergeCarId, $processor->encodeImages([$filename]), '')
+        );
+
+        $targetBefore = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        $this->assertNull(
+            $targetBefore->first()->image,
+            'this test is only meaningful while the target image column is NULL'
+        );
+
+        $targetCarData = $repo->findById($this->testCarId);
+        $this->assertIsObject($targetCarData);
+
+        // merge() is typed `: true`, so its return value asserts nothing — the
+        // source row's disappearance is what proves the merge committed.
+        $this->administrationServiceWithTempRelocator()->merge(
+            $targetCarData,
+            $this->testMergeCarId,
+            'NULL image column CAS test',
+            $this->testUserId,
+            $repo
+        );
+
+        $sourceRow = $this->db->query('SELECT id FROM cars WHERE id = ?', [$this->testMergeCarId]);
+        $this->assertSame(0, $sourceRow->count(), 'the source car row must be gone after a committed merge');
+
+        $targetAfter = $this->db->query('SELECT image FROM cars WHERE id = ?', [$this->testCarId]);
+        $this->assertSame(
+            [$filename],
+            json_decode((string) $targetAfter->first()->image, true),
+            'the source filename must be written onto a target whose image column started NULL'
+        );
     }
 
     /**
