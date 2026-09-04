@@ -211,10 +211,9 @@ final class BackupRestorabilityTest extends IntegrationTestCase
      * has to fail rather than skip.
      *
      * Uses TESTING_ROOT (the project root, defined by bootstrap-integration.php) rather
-     * than $abs_us_root/$us_url_root — those globals are only set by users/init.php,
-     * which this bootstrap's partial initialization failure (see the config.php require
-     * above) leaves unset in this environment. TESTING_ROOT resolves to the same
-     * directory in this single-docroot dev/test setup.
+     * than $abs_us_root/$us_url_root, which are bootstrap-scope globals not visible
+     * here. TESTING_ROOT resolves to the same directory in this single-docroot
+     * dev/test setup.
      *
      * @return void
      */

@@ -16,8 +16,16 @@
   line, `config.php` never loads and every `Car` instantiation fails with the
   undefined-constant error — unless an earlier test file happened to load
   `config.php` itself (order dependency).
-- Not reproducible on this machine today: `init.php` currently completes, so
-  `--filter CarTransferTest` passes standalone (13 tests). The failure mode is
+- Confirmed live on this machine during implementation: every integration run
+  prints `NOTE: UserSpice initialization error: Call to a member function
+  query() on null`, so `init.php` does fail before `loader.php` and the
+  fallback fires for real. (An earlier probe suggested otherwise; that was
+  wrong.) `--filter CarTransferTest` passed standalone only because another
+  test file's guard had already defined the constant. Root cause of the
+  init.php failure: `users/helpers/us_helpers.php`'s `ipCheckBan()` reads
+  `global $db`, but PHPUnit includes the bootstrap from a function scope, so
+  init.php's `$db` is a local there and `ipCheckBan()` throws on null. The
+  failure mode is
   documented as real in `tests/integration/BackupRestorabilityTest.php:10-13`
   ("member function query on null" during early framework startup), and three
   tests already carry per-file workarounds:
