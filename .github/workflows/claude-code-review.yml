@@ -22,6 +22,12 @@ name: Claude Code Review
 #
 # Drafts and [skip-review] / [WIP] titles are skipped in both modes.
 #
+# Dependabot PRs are skipped: claude-code-action rejects bot actors unless
+# listed in allowed_bots, and dependabot-triggered runs only receive
+# Dependabot secrets (CLAUDE_CODE_OAUTH_TOKEN is empty there), so the job
+# failed on every dependabot PR (#1937, #1938). A version bump has nothing
+# this review looks for; PHPStan / PHPUnit / CodeQL are the gate for those.
+#
 # Untrusted input (#1688):
 #   PR titles and branch names are attacker-controlled on a fork PR and must
 #   never be interpolated into a `run:` block, into $GITHUB_OUTPUT with a bare
@@ -110,7 +116,8 @@ jobs:
         ) &&
         !contains(github.event.pull_request.title, '[skip-review]') &&
         !contains(github.event.pull_request.title, '[WIP]') &&
-        github.event.action != 'labeled'
+        github.event.action != 'labeled' &&
+        github.actor != 'dependabot[bot]'
       ) ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
