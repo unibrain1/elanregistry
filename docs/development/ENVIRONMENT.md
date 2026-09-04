@@ -211,6 +211,34 @@ internally, setting the `X-Forwarded-Proto: https` header so `$is_https` is
    # Edit with your own local paths
    ```
 
+6. **Local Cron Trigger (optional)**:
+
+   UserSpice's Cron Manager does nothing until something requests
+   `users/cron/cron.php` on a schedule. On macOS the development machine uses a
+   user launchd agent rather than `crontab`:
+
+   - Label `org.elanregistry.local-cron`, plist in `~/Library/LaunchAgents/`
+     (machine-local, not committed)
+   - `StartInterval` 600 — every 10 minutes, matching test and prod
+   - Runs `curl -s -o /dev/null -w '%{http_code}'` against
+     `http://localhost:9999/ElanRegistry/Registry/users/cron/cron.php` and
+     appends `<timestamp> status=<code>` to
+     `~/Library/Logs/ElanRegistry/local-cron.log`
+
+   ```bash
+   launchctl load ~/Library/LaunchAgents/org.elanregistry.local-cron.plist
+   tail -3 ~/Library/Logs/ElanRegistry/local-cron.log   # expect status=200 lines
+   ```
+
+   Set `cron_ip` in Admin → Settings → General to the address the first
+   `CronRequest` entry in Admin → Logs shows. On a standard macOS `/etc/hosts`
+   curl reaches `localhost` over IPv6, so this is `::1`; `cron.php` only
+   hard-codes `127.0.0.1` as the always-allowed address, so `::1` must be set
+   explicitly. If your log shows `127.0.0.1`, leave `cron_ip` at `off`.
+   Interval semantics, the allowlist table, and the contract every cron job
+   must honour are in
+   [DEPLOYMENT.md — Cron Transport](DEPLOYMENT.md#cron-transport-userspice-cron-manager).
+
 ### Test Database Isolation
 
 Integration tests are **destructive** — they insert, update, delete, and merge real database

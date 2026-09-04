@@ -78,6 +78,10 @@ See [LOG_CATEGORIES.md](LOG_CATEGORIES.md)
 Never use `$_SERVER` directly — use validated globals instead.
 See [CLAUDE.md](../../CLAUDE.md) for the full list and [PAGE_LOADING_FLOW.md](PAGE_LOADING_FLOW.md) for details.
 
+**Writing a Cron Job:**
+The transport hits `users/cron/cron.php` every 10 minutes and runs every active job on every hit — jobs must be idempotent and gate their own cadence
+See [DEPLOYMENT.md — Cron Transport](DEPLOYMENT.md#cron-transport-userspice-cron-manager)
+
 **New PHP Directories:**
 Add path to `$path` array in `/z_us_root.php`, register pages in UserSpice admin
 See [GitHub Wiki: UserSpice Integration Guide](https://github.com/elan-registry/registry/wiki/Customization-and-Integration-Patterns)
