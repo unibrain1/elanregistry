@@ -45,17 +45,6 @@ final class CarVerificationColumnsHistTest extends IntegrationTestCase
 
         $this->testUserId = $this->createTestUser();
         $this->loginAsTestUser($this->testUserId);
-
-        // Car::delete() reads ELAN_IMAGE_DIR (usersc/classes/Car/Car.php),
-        // which tests/bootstrap-integration.php does not define — unlike
-        // tests/bootstrap-unit.php, which defines it identically to
-        // usersc/includes/config.php. Guard-define it here so the DELETE
-        // test can exercise the real Car::delete() path; this is a
-        // pre-existing integration-bootstrap gap (also hit by
-        // CarDeletionTest.php), not something introduced by this test.
-        if (!defined('ELAN_IMAGE_DIR')) {
-            define('ELAN_IMAGE_DIR', 'userimages/');
-        }
     }
 
     /**
