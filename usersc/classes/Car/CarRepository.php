@@ -285,16 +285,29 @@ class CarRepository
      * Returns true when exactly 1 row was updated, false when 0 rows matched
      * (indicating a concurrent modification — the caller may retry or raise a conflict error).
      *
-     * @param int    $carId        Car ID
-     * @param string $newJson      New JSON-encoded image list
-     * @param string $expectedJson The image value that must currently be stored (CAS guard)
+     * Callers must not issue a no-op write: MySQL reports rows *changed*, not
+     * rows *matched* (PDO::MYSQL_ATTR_FOUND_ROWS is unset), so writing a value
+     * identical to the stored one returns false despite matching the row.
+     * Compare before calling and skip the write when nothing changes.
+     *
+     * @param int         $carId        Car ID
+     * @param string      $newJson      New JSON-encoded image list
+     * @param string|null $expectedJson The image value that must currently be
+     *                                  stored (CAS guard); null matches a NULL
+     *                                  column, which is the state of a car that
+     *                                  has never had an image
      * @return bool True if the row was updated, false on concurrent modification
      * @throws CarDatabaseException If the query itself fails
      */
-    public function updateImage(int $carId, string $newJson, string $expectedJson): bool
+    public function updateImage(int $carId, string $newJson, ?string $expectedJson): bool
     {
+        // `<=>` is MySQL's null-safe equality. Plain `=` is never true against a
+        // NULL column, and cars.image is nullable with no default, so a car that
+        // has never had an image cannot be matched by `image = ''` — the CAS
+        // would reject every such update. `<=>` matches NULL to NULL and behaves
+        // identically to `=` for non-NULL values.
         $this->db->query(
-            'UPDATE cars SET image = ? WHERE id = ? AND image = ?',
+            'UPDATE cars SET image = ? WHERE id = ? AND image <=> ?',
             [$newJson, $carId, $expectedJson]
         );
         if ($this->db->error()) {

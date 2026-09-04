@@ -86,8 +86,11 @@ all other Cloudflare features work normally.
   (e.g. `["abc123.jpg"]`). Files live at `userimages/{carid}/{filename}` with
   resized variants as `{basename}-resized-{size}.{ext}` (sizes: 100, 300, 768,
   1024, 2048). New uploads land in `userimages/temp/` and move to
-  `userimages/{carid}/` on success.
-  Use `CarImageProcessor` to decode; `CarRepository::updateImage()` to write.
+  `userimages/{carid}/` on success. On car merge, the `CarImageRelocator` moves
+  all files (base + variants) from source to target car's directory, renaming on
+  collision, and appends the source's filenames to the target's `cars.image`.
+  Use `CarImageProcessor` to decode; `CarRepository::updateImage()` to write;
+  `CarImageRelocator` for merge-time file relocation.
 - **New PHP Directories**: Only add a directory to the `$path` array in
   `/z_us_root.php` when it contains files that call `securePage()`. Pure API
   endpoints, action handlers, and partials that do not call `securePage()` are

@@ -12,6 +12,7 @@ use ElanRegistry\Exceptions\CarException;
 use ElanRegistry\Exceptions\CarMergeException;
 use ElanRegistry\Exceptions\CarNotFoundException;
 use ElanRegistry\Exceptions\CarValidationException;
+use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Exceptions\OwnerDatabaseException;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
@@ -64,6 +65,33 @@ class CarAdministrationService
      * start clearing solddate.
      */
     private const SYSTEM_ACCOUNT_USERNAME = 'noowner';
+
+    /**
+     * Moves image files between per-car directories during merge(). Injectable
+     * so tests can point it at a temp directory: the relocator performs real
+     * filesystem moves, which is the whole point of the class and cannot be
+     * mocked away meaningfully.
+     */
+    private CarImageRelocator $relocator;
+
+    /**
+     * @param CarImageRelocator|null $relocator Relocator to use for merge()'s
+     *        image moves. Defaults to one rooted at the application's real
+     *        `userimages/` directory, so existing call sites need no argument.
+     *        The base path is resolved here rather than inside CarImageRelocator
+     *        to keep that class free of framework globals (see #1943).
+     */
+    public function __construct(?CarImageRelocator $relocator = null)
+    {
+        if ($relocator === null) {
+            global $abs_us_root, $us_url_root;
+            $relocator = new CarImageRelocator(
+                ($abs_us_root ?? '') . ($us_url_root ?? '') . ELAN_IMAGE_DIR
+            );
+        }
+
+        $this->relocator = $relocator;
+    }
 
     /**
      * Delete a car and all associated records
@@ -273,9 +301,11 @@ class CarAdministrationService
      * @param int $adminUserId ID of the admin performing the merge
      * @param CarRepository $repo Repository for database operations
      * @return true Always returns true; throws on any failure.
-     * @throws CarNotFoundException If source car doesn't exist
+     * @throws CarNotFoundException If source or target car doesn't exist
      * @throws CarValidationException If merging car with itself
-     * @throws CarDatabaseException If database operation fails
+     * @throws CarDatabaseException If a database operation fails, including a
+     *         lost CAS race on the target's `image` column
+     * @throws ImageProcessingException If the image files cannot be relocated
      * @throws CarMergeException If merge operation fails
      */
     public function merge(
@@ -293,13 +323,47 @@ class CarAdministrationService
         $newCarId = (int) $targetCarData->id;
         $newChassis = $targetCarData->chassis ?? 'Unknown';
 
+        // Declared before the try so the catch block always has a map to
+        // compensate with, whether or not relocate() was reached. It stays empty
+        // when relocate() itself throws, and that is correct rather than a gap:
+        // relocate() restores its own partial work before re-throwing, so there
+        // is nothing left here to undo.
+        $renameMap = [];
+
+        // CarRepository::commit() clears its transactionOwner flag *before*
+        // calling the driver's commit(), so a throw from the driver leaves the
+        // catch block's rollback() a no-op — and the server-side commit may
+        // well have landed anyway. Compensating in that state would move every
+        // file back to the deleted source car's directory while the database
+        // shows the merge as done, which is worse than the failure itself. This
+        // flag lets the catch block tell the two cases apart.
+        $committed = false;
+
         try {
             $repo->beginTransaction();
 
-            $oldCarData = $repo->findByIdForUpdate($oldCarId);
+            // Both rows are locked, in ascending ID order: two concurrent merges
+            // touching the same pair therefore queue behind each other instead of
+            // deadlocking. The target is locked as well as the source because its
+            // live `image` value is the CAS baseline for updateImage() below —
+            // $targetCarData was read before the transaction opened and may
+            // already be stale.
+            if ($oldCarId < $newCarId) {
+                $oldCarData = $repo->findByIdForUpdate($oldCarId);
+                $lockedTargetCar = $repo->findByIdForUpdate($newCarId);
+            } else {
+                $lockedTargetCar = $repo->findByIdForUpdate($newCarId);
+                $oldCarData = $repo->findByIdForUpdate($oldCarId);
+            }
+
             if (!$oldCarData) {
                 logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_MERGE, 'Source car not found - cannot merge car ID: ' . $oldCarId);
                 throw new CarNotFoundException('The source car for merging could not be found.');
+            }
+
+            if (!$lockedTargetCar) {
+                logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_MERGE, 'Target car not found - cannot merge into car ID: ' . $newCarId);
+                throw new CarNotFoundException('The target car for merging could not be found.');
             }
 
             $oldChassis = $oldCarData->chassis ?? 'Unknown';
@@ -312,6 +376,48 @@ class CarAdministrationService
             if (!$repo->deleteCar($oldCarId)) {
                 logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_MERGE, 'Database update failed: query returned false');
                 throw new CarDatabaseException('Database update failed - check system logs for details.');
+            }
+
+            // The filesystem cannot join the transaction, so the moves happen
+            // here and restore() in the catch block is the compensating action.
+            $renameMap = $this->relocator->relocate(
+                $oldCarId,
+                $newCarId,
+                $this->storedImageFilenames($oldCarData->image ?? null)
+            );
+
+            // Target's own images keep their positions and the source's are
+            // appended, so the surviving car's primary (first) image — the one
+            // rendered as its card thumbnail — is unchanged by the merge.
+            $mergedImageJson = (new CarImageProcessor($repo))->encodeImages(array_merge(
+                $this->storedImageFilenames($lockedTargetCar->image ?? null),
+                array_values($renameMap)
+            ));
+
+            // Only write when the column actually changes. An identical value
+            // makes the UPDATE a no-op, and MySQL reports rows *changed* rather
+            // than rows *matched* (PDO::MYSQL_ATTR_FOUND_ROWS is not set), so
+            // updateImage() would report a CAS conflict for a write that was
+            // never needed — e.g. merging a source car that has no images.
+            $liveTargetImageJson = $lockedTargetCar->image ?? null;
+            if ($mergedImageJson !== (string) $liveTargetImageJson) {
+                // updateImage() returns false rather than throwing when its
+                // `WHERE image = ?` guard matches no row, meaning another writer
+                // changed the column between the lock and here. Ignoring that
+                // would silently drop the relocated images from cars.image while
+                // leaving the files moved.
+                //
+                // A NULL column cannot be matched by `image = ''` — SQL equality
+                // against NULL is never true — and cars.image is nullable with no
+                // default, so a target car that never had an image holds NULL.
+                // The row is already held by findByIdForUpdate() for the whole
+                // transaction, so that lock, not this string comparison, is what
+                // actually excludes a concurrent writer; the CAS is defence in
+                // depth and is skipped where it cannot express the current value.
+                if (!$repo->updateImage($newCarId, $mergedImageJson, $liveTargetImageJson)) {
+                    logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_MERGE, 'Image update rejected by CAS guard for car ID: ' . $newCarId);
+                    throw new CarDatabaseException('Car merge failed - the target car was modified by another operation.');
+                }
             }
 
             $historyFields = [
@@ -330,7 +436,11 @@ class CarAdministrationService
                 'engine'       => $targetCarData->engine ?? '',
                 'purchasedate' => $targetCarData->purchasedate ?? null,
                 'solddate'     => $targetCarData->solddate ?? null,
-                'image'        => $targetCarData->image ?? ''
+                // The POST-merge value, not $targetCarData->image: merge now
+                // rewrites this column, so recording the pre-transaction read
+                // would leave the audit trail misstating what the surviving car
+                // held immediately after the operation.
+                'image'        => $mergedImageJson
             ];
 
             if (!$repo->insertHistory($historyFields)) {
@@ -339,9 +449,63 @@ class CarAdministrationService
             }
 
             $repo->commit();
+            $committed = true;
+
+            // A collision rename gives a file a new name that appears nowhere
+            // else: cars.image records only the new name, and the old name
+            // survives only here. Without this line there is no way to tie a
+            // file in the target directory back to the source car it came from,
+            // which is exactly what a later investigation needs.
+            if ($renameMap !== []) {
+                logger(
+                    $adminUserId,
+                    LogCategories::LOG_CATEGORY_CAR_MERGE,
+                    'Relocated ' . count($renameMap) . ' image file(s) from car ' . $oldCarId
+                    . ' to car ' . $newCarId . '; old => new names: '
+                    . json_encode($renameMap)
+                );
+            }
+
             return true;
 
         } catch (\Throwable $e) {
+            if ($committed) {
+                // The commit itself threw. rollback() below is a no-op (the
+                // repository already cleared transactionOwner), and the
+                // server-side commit may have succeeded, so the database state
+                // is indeterminate. Restoring here could move the files back to
+                // a car the database says no longer exists — the compensation
+                // would create the corruption it exists to prevent. Leave the
+                // files where they are and make sure a human hears about it.
+                $this->logFileWarning(
+                    $adminUserId,
+                    'Car merge commit failed after relocating image files from car ' . $oldCarId
+                    . ' to car ' . $newCarId . '. Files were deliberately NOT restored because the'
+                    . ' database state is indeterminate; manual verification of both the cars rows'
+                    . ' and the image directories is required. Relocated old => new names: '
+                    . json_encode($renameMap)
+                );
+            } else {
+                // Compensate before rollback so the filesystem and the database
+                // are both restored to their pre-merge state. restore() never
+                // throws, so it cannot mask $e; an empty map is a no-op.
+                $unrestored = $this->relocator->restore($oldCarId, $newCarId, $renameMap);
+
+                if ($unrestored !== []) {
+                    // The transaction rolls back cleanly but these files are
+                    // stranded in the surviving car's directory, so "rolled
+                    // back" is untrue of the filesystem. Only a log makes that
+                    // discoverable.
+                    $this->logFileWarning(
+                        $adminUserId,
+                        'Car merge rollback could not restore ' . count($unrestored)
+                        . ' image file(s) from car ' . $newCarId . ' back to car ' . $oldCarId
+                        . '. Manual repair is required; the files remain in the target car'
+                        . ' directory. Unrestored old => new names: ' . json_encode($unrestored)
+                    );
+                }
+            }
+
             $repo->rollback();
             if ($e instanceof CarException) {
                 throw $e;
@@ -349,6 +513,65 @@ class CarAdministrationService
             logger($adminUserId, LogCategories::LOG_CATEGORY_CAR_MERGE, 'Car merge failed: ' . $e->getMessage());
             throw new CarMergeException('Operation failed - check system logs for technical details.');
         }
+    }
+
+    /**
+     * Record a filesystem inconsistency that needs a human, from inside an
+     * error path that is already handling another failure.
+     *
+     * Both call sites run in merge()'s catch block, where the pending exception
+     * is the thing the caller actually needs to see. logger() writes to the
+     * database, so it can itself throw — a dead connection is a plausible
+     * reason for the merge to have failed in the first place. Letting that
+     * throw would replace the original exception with a logging error and lose
+     * the real diagnosis, so it is caught and discarded here: a lost log line
+     * is a strictly smaller loss than a masked exception.
+     *
+     * @param int    $adminUserId Admin performing the merge.
+     * @param string $message     Full description, including both car IDs and
+     *                            the relevant rename map as JSON.
+     * @return void
+     */
+    private function logFileWarning(int $adminUserId, string $message): void
+    {
+        try {
+            logger($adminUserId, LogCategories::LOG_CATEGORY_FILE_ERROR, $message);
+        } catch (\Throwable) {
+            // Deliberately swallowed — see the docblock above.
+        }
+    }
+
+    /**
+     * Read the base filenames stored in a car's `image` column.
+     *
+     * The column normally holds a JSON array of bare filenames, but rows
+     * predating that format store a comma-separated list — the same fallback
+     * CarImageProcessor::decodeAndProcessImages() applies. Values are returned
+     * verbatim; CarImageRelocator validates each one with isSafeFilename()
+     * before touching the filesystem.
+     *
+     * @param string|null $imageData Raw `cars.image` value.
+     * @return list<string> Stored filenames in their stored order, possibly empty.
+     */
+    private function storedImageFilenames(?string $imageData): array
+    {
+        if ($imageData === null || $imageData === '') {
+            return [];
+        }
+
+        $decoded = json_decode($imageData, true);
+        if (!is_array($decoded)) {
+            $decoded = explode(',', $imageData);
+        }
+
+        $filenames = [];
+        foreach ($decoded as $filename) {
+            if (is_string($filename) && $filename !== '') {
+                $filenames[] = $filename;
+            }
+        }
+
+        return $filenames;
     }
 
     /**

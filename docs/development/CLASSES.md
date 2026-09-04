@@ -524,6 +524,96 @@ to provide a focused, testable data access layer wrapping the `cars`,
 
 ---
 
+### CarImageRelocator
+
+**Location**: `/usersc/classes/Car/CarImageRelocator.php`
+
+**Namespace**: `ElanRegistry\Car`
+
+**Purpose**: Filesystem operations for car image relocation during merge. Moves
+all files (base filenames + resized variants) from a source car's image
+directory to a target car's directory, handling collisions by renaming via
+`CarImageProcessor::generateSecureFilename()`, and removes the emptied source
+directory. Compensating inverse operation rolls back moves on merge failure.
+Takes the image base directory as a constructor argument for unit-test
+flexibility against temp directories.
+
+**Key Features**:
+
+- Move all image files (base + `-resized-{size}` variants) with collision renaming
+- Path traversal guard via `UploadPathGuard::isWithinTarget()`
+- Filename validation via `CarImageProcessor::isSafeFilename()`
+- No-op on missing source directory (returns empty map)
+- Self-compensating: a mid-flight failure moves everything back before re-throwing
+- Preserves consistent base-filename mapping across all variants of a file
+- Never overwrites an existing target file — collisions rename, variant
+  collisions abort
+
+**Methods**:
+
+- `relocate(int $sourceCarId, int $targetCarId, array $sourceBaseFilenames): array`
+  — Move all files from source to target directory, renaming on collision.
+  Returns an old→new base-filename map for the caller to build the target's
+  updated `cars.image` JSON; only base files that actually moved appear in it,
+  so a filename listed in `cars.image` with no file on disk is omitted rather
+  than carried onto the surviving car. No-op (returns empty map) if the source
+  directory does not exist. On failure it restores everything it had already
+  moved before re-throwing, so the caller's own `restore()` is then a no-op.
+- `restore(int $sourceCarId, int $targetCarId, array $renameMap): array`
+  — Compensating inverse; moves relocated files back under their original names
+  and recreates the source directory. Takes `relocate()`'s return value
+  verbatim. Never throws (it runs on an error path where throwing would mask
+  the original exception); returns the entries it could **not** move back, so
+  the caller can log an incomplete rollback. Empty array means full recovery.
+
+**Common Usage**:
+
+```php
+use ElanRegistry\Car\CarImageRelocator;
+
+// Absolute path to the userimages/ root, not the bare constant
+$relocator = new CarImageRelocator($abs_us_root . $us_url_root . ELAN_IMAGE_DIR);
+
+$renameMap = [];
+try {
+    // ... DB work inside the open transaction ...
+
+    $renameMap = $relocator->relocate($sourceId, $targetId, $sourceFilenames);
+
+    // Target's existing entries first, then the source's post-rename names,
+    // so the surviving car's primary (first) image is unchanged
+    $targetNewImage = array_merge($targetExistingFilenames, array_values($renameMap));
+
+    // ... write cars.image, insert audit row, commit ...
+} catch (\Throwable $e) {
+    // Compensate before rolling back. A non-empty return means the filesystem
+    // could not be fully restored — log it, the operator must repair by hand.
+    $unrestored = $relocator->restore($sourceId, $targetId, $renameMap);
+    throw $e;
+}
+```
+
+Initialize `$renameMap` **before** the `try` so the catch always has a value.
+Do not compensate after a failed `commit()` — the DB state is then
+indeterminate, and moving files back can corrupt a merge that actually
+committed.
+
+**Exceptions**:
+
+- `ImageProcessingException` - Path traversal guard rejection or filesystem operation failure
+
+**Used By**:
+
+- `CarAdministrationService::merge()` — Moves images inside the merge transaction
+
+**See Also**:
+
+- [ERROR_HANDLING.md](ERROR_HANDLING.md) - Exception patterns
+- `CarImageProcessor` - Filename validation and secure generation
+- [DATABASE.md](DATABASE.md) - `cars.image` JSON column
+
+---
+
 ### CarVerificationManager
 
 **Location**: `/usersc/classes/Car/CarVerificationManager.php`
