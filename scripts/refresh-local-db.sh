@@ -280,8 +280,13 @@ import sys, re
 dump_file = sys.argv[1]
 wanted    = set(sys.argv[2:])
 
-SEPARATOR = re.compile(r'^-- -{50,}')
-TABLE_RE  = re.compile(
+# Section boundaries are the per-table header comments themselves, NOT the
+# `-- ------` separator lines. A whole-schema dump emits a separator before
+# every table, but a dump of explicitly named tables (what --fetch produces)
+# emits only one, in the file header -- keying on separators there collapses
+# every table into a single section and silently drops all but the last.
+SECTION_RE = re.compile(r'^-- Table structure for table `([^`]+)`')
+TABLE_RE   = re.compile(
     r'-- (?:Table structure|Dumping data|Triggers) for table `([^`]+)`'
 )
 
@@ -380,23 +385,25 @@ sys.stdout.write(
     "SET unique_checks = 0;\n\n"
 )
 
-buf        = []
-cur_table  = None
-past_first = False
+buf       = []
+cur_table = None
 
 with open(dump_file, encoding="utf-8", errors="replace") as f:
     for line in f:
-        if SEPARATOR.match(line):
+        m = SECTION_RE.match(line)
+        if m:
+            # A new table's section starts here: flush the previous one.
             flush(buf, cur_table)
             buf       = [line]
-            cur_table = None
-            past_first = True
+            cur_table = m.group(1) if m.group(1) in wanted else None
         else:
             buf.append(line)
-            if cur_table is None and past_first:
-                m = TABLE_RE.search(line)
-                if m and m.group(1) in wanted:
-                    cur_table = m.group(1)
+            # Data/trigger headers can follow without a structure header
+            # (e.g. --no-create-info dumps), so still match those.
+            if cur_table is None:
+                m2 = TABLE_RE.search(line)
+                if m2 and m2.group(1) in wanted:
+                    cur_table = m2.group(1)
 
 flush(buf, cur_table)  # last section
 
