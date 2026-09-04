@@ -29,3 +29,13 @@ Working documents (sprint plans, triage reports, FRDs) live outside the repo at:
 
 Large plans (multi-file: an FRD plus mockups, exported PDFs, images) get their
 own subdirectory. Smaller single-file plans live directly under this directory.
+
+## Deployment hosts
+
+Used by `/release-milestone` to render `docs/development/RELEASE_INSTRUCTIONS_TEMPLATE.md`.
+Keep these here, not in committed docs — the ssh alias is local config and the
+docroots identify the hosting account.
+
+- ssh host alias: `<ssh-host>`            (an entry in ~/.ssh/config that reaches the hosting account)
+- test docroot:   `<test-docroot>`        (e.g. ~/test.example.org)
+- prod docroot:   `<prod-docroot>`        (e.g. ~/example.org)

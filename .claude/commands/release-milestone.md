@@ -112,6 +112,14 @@ path, still gets caught rather than silently assumed clean.
     steps** to remind the user about
   - Check for any database migrations, configuration changes, or manual steps
 - Parse these for the summary in step 5
+- Also collect the inputs the deploy sheet (Step 15) needs, from the diff
+  `git diff --name-only <last-tag>...milestone/<version>`:
+  new files under `database/migrations/` (and whether any contains
+  `CREATE TRIGGER`), `scripts/server-hooks/post-receive` changed, new files
+  calling `securePage(`, new files under `app/admin/scripts/fix/` or
+  `maintenance/`, `.env.example` changed. Read `.claude.local.md` § "Deployment
+  hosts" for the ssh alias and docroots; if the section is missing, stop and
+  ask the user to add it (copy the block from `.claude.local.md.example`).
 
 ### Step 5: Show summary and ask for confirmation
 
@@ -276,50 +284,40 @@ gh api repos/elan-registry/registry/milestones/<milestone_number> \
 Find the milestone number from the PR's milestone field or by listing
 milestones.
 
-### Step 15: Output summary
+### Step 15: Output summary and the deploy sheet
+
+First the release facts:
 
 ```text
-═══════════════════════════════════════════════════════
-Release v<version> Created Successfully!
-═══════════════════════════════════════════════════════
-
-Release:
+Release v<version> created
 - GitHub Release (draft): <URL>
-- Tag: v<version>
-- Milestone: Closed
-
-Next Steps — Deploy:
-
-  1. Deploy to TEST server (recommended first):
-     git push test v<version>
-     git push test main
-
-  2. Validate on test server
-
-  3. Deploy to PRODUCTION when ready:
-     git push prod v<version>
-     git push prod main
-     gh release edit v<version> --draft=false --repo elan-registry/registry
-
-Links:
-- GitHub Release (draft): <release URL>
+- Tag: v<version> → <merge-commit>
+- Milestone: closed
 ```
 
-**If post-deployment steps exist** (from step 4), list them prominently:
+Then render `docs/development/RELEASE_INSTRUCTIONS_TEMPLATE.md` for this
+release and print the rendered block in full — this is the document the user
+deploys from. Follow the template's "Rendering rules" exactly:
 
-```text
-Post-deployment steps (from release notes):
-  1. <step from release notes>
-  2. <step from release notes>
-```
+- Fill `<version>`, `<repo-path>`, and the host placeholders from
+  `.claude.local.md` § "Deployment hosts".
+- Include each `<!-- IF -->` block only when its condition holds (inputs
+  gathered in Step 4); drop the markers. Fill `<migration-version>`,
+  `<tables>`, script names, and the per-release lines from the release notes'
+  Required Actions.
+- Keep the step numbering continuous after dropping unused blocks.
+- The sheet deploys the tag (`'<version>^{commit}:main'`), never the current
+  `main`. If `main` has moved past the tag, note it above step 1 as
+  information only — the commands do not change.
 
-Remind: "See DEPLOYMENT.md for the full deployment verification checklist."
+**Do not commit or save the rendered sheet anywhere in the repo** — it names
+the ssh alias and docroots. Print it to the terminal only.
 
 ### Step 16: Publish the release at prod deploy time (manual, later)
 
 The release stays a **draft** (not publicly visible) until the prod push
 happens. When the user actually runs `git push prod v<version>` /
-`git push prod main`, that's the trigger to publish it:
+`git push prod 'v<version>^{commit}:main'`, that's the trigger to publish it:
 
 ```bash
 gh release edit v<version> --draft=false --repo elan-registry/registry
