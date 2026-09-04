@@ -67,6 +67,16 @@ Ask the PM agent to produce:
    issue (acceptance criteria + technical notes) before creating it, so by
    the time it's created it has graduated past the unscoped `bug:` stage.
 2. A draft description with:
+   - **Signal**: who noticed this, and how. One of `signal:owner` (a named
+     owner asked — email, contact form, club conversation),
+     `signal:analytics` (behaviour in logs or usage data — failed searches,
+     error rates, abandoned flows), `signal:operator` (your own friction
+     running the site), `signal:defect` (broken against its own stated
+     behaviour), `signal:forced` (security advisory, dependency EOL,
+     platform change), or `signal:discovered` (found while working another
+     issue). Include the requester's **verbatim words** where they exist — a
+     paraphrase always reads more urgent six weeks later than the original
+     did.
    - **Problem statement**: What's wrong or what's needed
    - **Proposed solution**: High-level approach
    - **Acceptance criteria**: Specific, testable conditions for "done"
@@ -87,6 +97,21 @@ time** using the following approach:
 
 **Do NOT batch questions.** Ask them individually and let each answer inform
 the next question.
+
+**The signal question comes first.** If Step 3 could not identify a signal,
+the opening interview question is always:
+
+> "Who noticed this, and what did they say?"
+
+"Nobody — I thought of it" is a perfectly valid answer and gets
+`signal:operator`. It does not block the issue: capture stays free, and the
+filter is milestone planning. What it does is record that the idea has no
+external evidence behind it, which is exactly what planning needs in order to
+weigh it against issues that do.
+
+**Never infer `signal:owner` or `signal:analytics`.** Those two are only ever
+applied when there is a real message or a real measurement to point at.
+Guessing them poisons the one signal the planning gate depends on.
 
 Continue until scope is fully clarified.
 
@@ -161,6 +186,10 @@ Use a HEREDOC for the body to preserve formatting:
 
 ```bash
 gh issue create --title "Issue title" --body "$(cat <<'EOF'
+## Signal
+
+Who noticed this and how. Verbatim quote if there is one.
+
 ## Problem
 
 Description of the problem or need.
@@ -213,6 +242,11 @@ Would you like to:
 - **All acceptance criteria must be testable** — vague criteria get refined
 - **Flag expert concerns** — don't silently drop architect/test/docs concerns
 - **User has final say** — present recommendations but let the user decide
+- **Every issue records a signal** — the `signal:*` label and the Signal
+  section are required; an issue with no recorded signal cannot be weighed at
+  planning, only re-derived from its title weeks later
+- **Never infer `signal:owner` / `signal:analytics`** — apply them only with a
+  real message or a real measurement to point at
 - **Include complexity estimate** — architect should always estimate S/M/L/XL
 - **Use project labels** — check existing labels before suggesting new ones
 - **Title uses a scoped preamble, never bare `bug:`** — `fix:`/`feat:`/`test:`/

@@ -53,13 +53,35 @@ body:
       description: Add screenshots or additional details if helpful
 
   - type: dropdown
-    id: priority
+    id: signal
     attributes:
-      label: Priority
+      label: Signal
+      description: |
+        Where did this come from? See docs/development/ISSUE_WORKFLOW.md.
+        Only pick "Owner" or "Analytics" if you have a real message or
+        measurement to point at — never infer them.
       options:
-        - Low - Minor issue
-        - Medium - Affects functionality but has workarounds
-        - High - Significantly impacts functionality
-        - Critical - Prevents core functionality
+        - "Owner — a named owner asked, by email, contact form, or club conversation"
+        - "Analytics — logs or usage data show a gap"
+        - "Operator — your own friction as admin/editor/owner of the site"
+        - "Defect — broken against its own stated behaviour"
+        - "Forced — security advisory, dependency EOL, platform change"
+        - "Discovered — found while working another issue"
+        - "None — nobody asked, I noticed it myself"
     validations:
       required: true
+
+  - type: input
+    id: beneficiary
+    attributes:
+      label: Beneficiary
+      description: One sentence — who is worse off today because this bug exists?
+      placeholder: "Owners with no photos on their car cannot..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: verbatim-quote
+    attributes:
+      label: Verbatim Quote (if there is one)
+      description: Paste the reporter's actual words, if this came from someone else. Leave blank otherwise.

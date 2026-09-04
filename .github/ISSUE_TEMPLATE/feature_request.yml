@@ -49,16 +49,38 @@ body:
       required: true
 
   - type: dropdown
-    id: priority
+    id: signal
     attributes:
-      label: Priority
+      label: Signal
+      description: |
+        Where did this come from? See docs/development/ISSUE_WORKFLOW.md.
+        Only pick "Owner" or "Analytics" if you have a real message or
+        measurement to point at — never infer them.
       options:
-        - Low - Nice to have
-        - Medium - Would improve experience
-        - High - Important for functionality
-        - Critical - Essential for core operations
+        - "Owner — a named owner asked, by email, contact form, or club conversation"
+        - "Analytics — logs or usage data show a gap"
+        - "Operator — your own friction as admin/editor/owner of the site"
+        - "Defect — broken against its own stated behaviour"
+        - "Forced — security advisory, dependency EOL, platform change"
+        - "Discovered — found while working another issue"
+        - "None — nobody asked, I thought of it"
     validations:
       required: true
+
+  - type: input
+    id: beneficiary
+    attributes:
+      label: Beneficiary
+      description: One sentence — who is better off, specifically, if this ships?
+      placeholder: "Owners with more than one car can update their address once instead of per car..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: verbatim-quote
+    attributes:
+      label: Verbatim Quote (if there is one)
+      description: Paste the requester's actual words, if there is a signal:owner request behind this. Leave blank otherwise.
 
   - type: textarea
     id: additional-context
