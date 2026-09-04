@@ -899,6 +899,68 @@ final class CarAdministrationServiceTest extends TestCase
     }
 
     /**
+     * A throw from inside commit() must NOT compensate.
+     *
+     * CarRepository::commit() clears transactionOwner before delegating to the
+     * driver, so a driver-level throw leaves rollback() a no-op over a
+     * transaction the server may already have committed durably. Moving the
+     * files back in that state would restore them to a source car the database
+     * says is deleted — worse than the original failure.
+     *
+     * Regression test: the $committed flag was originally assigned on the line
+     * AFTER $repo->commit(), so a throw from inside the call skipped it and
+     * left the flag false — sending merge() down the compensating branch in
+     * exactly the scenario the flag exists to exclude. No test covered a
+     * throwing commit(), which is why it survived.
+     */
+    public function testMergeDoesNotRestoreFilesWhenCommitItselfThrows(): void
+    {
+        $targetCarData = (object) ['id' => 1, 'chassis' => 'TARGET01'];
+        $sourceData = (object) ['id' => 999, 'chassis' => 'SOURCE01', 'image' => '["src_a.jpg"]'];
+        $lockedTargetData = (object) ['id' => 1, 'chassis' => 'TARGET01', 'image' => '["tgt_existing.jpg"]'];
+
+        $inTransaction = false;
+        $db = $this->createMock(DatabaseInterface::class);
+        $db->method('inTransaction')->willReturnCallback(function () use (&$inTransaction): bool {
+            return $inTransaction;
+        });
+        $db->expects($this->once())->method('beginTransaction')
+            ->willReturnCallback(function () use (&$inTransaction): bool {
+                $inTransaction = true;
+                return true;
+            });
+        // The driver throws from inside commit() — a dropped connection mid-commit.
+        $db->expects($this->once())->method('commit')
+            ->willThrowException(new \PDOException('server has gone away during commit'));
+        $db->method('query')->willReturn($db);
+        $db->method('error')->willReturn(false);
+        $db->method('count')->willReturn(1);
+        $db->method('first')->willReturnCallback(function () use ($sourceData, $lockedTargetData) {
+            static $call = 0;
+            $call++;
+            return $call === 1 ? $lockedTargetData : $sourceData;
+        });
+        $db->method('insert')->willReturn(true);
+
+        $relocator = $this->createMock(CarImageRelocator::class);
+        $relocator->method('relocate')->willReturn(['src_a.jpg' => 'src_a.jpg']);
+        // The assertion that matters: compensation must never run here.
+        $relocator->expects($this->never())->method('restore');
+
+        $repo = new CarRepository($db);
+        $service = new CarAdministrationService($relocator);
+
+        $threw = false;
+        try {
+            $service->merge($targetCarData, 999, 'Test merge', 1, $repo);
+        } catch (\Throwable) {
+            $threw = true;
+        }
+
+        $this->assertTrue($threw, 'merge() must surface the commit failure');
+    }
+
+    /**
      * A `false` return from updateImage() means the CAS `WHERE image <=> ?`
      * guard matched no row — another writer changed the target's image
      * column between the lock and the write. merge() must treat this as a

@@ -452,8 +452,16 @@ class CarAdministrationService
                 throw new CarDatabaseException('Operation failed - could not create audit trail entry.');
             }
 
-            $repo->commit();
+            // Set BEFORE the call, not after: the ambiguous window is the
+            // commit itself. CarRepository::commit() clears transactionOwner
+            // before delegating to the driver, so a throw from inside it leaves
+            // rollback() a no-op over a transaction the server may already have
+            // committed durably. Setting this afterwards would leave it false in
+            // exactly that case, sending the catch block down the compensating
+            // branch — moving every file back to a source car the database says
+            // is deleted, which is the corruption this flag exists to prevent.
             $committed = true;
+            $repo->commit();
 
             // A collision rename gives a file a new name that appears nowhere
             // else: cars.image records only the new name, and the old name
