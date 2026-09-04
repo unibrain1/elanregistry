@@ -125,10 +125,18 @@ gh issue create \
 
 > "Created issue #NNN with the `triage` label for later review."
 
-### Step 5: Resume
+### Step 5: Resume — or hand off, for the hotfix track
 
-State what action was taken in one sentence, then immediately return to the
-current task. Do not interrupt the flow further.
+For Fix in current PR and Defer: state what action was taken in one sentence,
+then immediately return to the current task. Do not interrupt the flow further.
+
+For the **Hotfix track**, do not resume. This is the one finding that
+interrupts a milestone (see `docs/development/ISSUE_WORKFLOW.md`, "Interrupts
+and the hotfix track"): report the new issue number, tell the user the current
+task is paused, and stop so they can commit or stash the in-progress work and
+start the hotfix from `main` (`/start-issue NNN` on a branch off `main`,
+shipped as a patch release). The milestone work resumes after the hotfix is
+released.
 
 ## Quick reference
 

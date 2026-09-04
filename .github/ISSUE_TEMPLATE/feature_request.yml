@@ -72,7 +72,7 @@ body:
     attributes:
       label: Beneficiary
       description: One sentence — who is better off, specifically, if this ships?
-      placeholder: "Owners with no photos on their car cannot..."
+      placeholder: "Owners with more than one car can update their address once instead of per car..."
     validations:
       required: true
 

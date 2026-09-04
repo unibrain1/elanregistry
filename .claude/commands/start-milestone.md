@@ -145,9 +145,18 @@ Ask the user:
 > "State this milestone's theme in one sentence — who it's for, and what they
 > can do afterwards that they can't do now. I'll test every issue against it."
 
-Record the answer. It becomes the yardstick for Step 4.5, the milestone
-description in Step 7, and the release criterion: **the milestone ships when
-the theme sentence is true, not when the issue list is empty.**
+Record the answer. It becomes the yardstick for Step 4.5 and the release
+criterion: **the milestone ships when the theme sentence is true, not when
+the issue list is empty.**
+
+Then make it the milestone description on GitHub, unless `/plan-milestone`
+already did (the description from Step 1 is already the theme sentence — if
+it is a category name, an issue list, or empty, replace it):
+
+```bash
+gh api repos/elan-registry/registry/milestones/<NUMBER> -X PATCH \
+  -f description="<theme sentence>"
+```
 
 ### Step 4.5: Issue quality review
 
@@ -221,12 +230,13 @@ and by the time an issue is sitting in a milestone the commitment has been
 made.
 
 **Cap the result.** A sealed milestone holds **3–6 theme issues, plus at most
-one housekeeping issue** — `signal:forced` work (security advisory, dependency
-EOL, platform change) that fits no theme but has to happen. If more than six
-survive, ask which are the first six; the remainder return to the backlog. Two
-kinds of work bypass the theme test entirely: `signal:forced`, and anything a
-standing gate depends on (a broken CI gate makes every other check
-decorative).
+one housekeeping issue, plus every open `gate-critical` issue**. The
+housekeeping issue is `signal:forced` work (security advisory, dependency EOL,
+platform change) that fits no theme but has to happen. `gate-critical` issues
+are uncapped and do not consume the housekeeping slot — a broken CI gate makes
+every other check decorative, so its repairs never wait. Both kinds bypass the
+theme test entirely. If more than six theme issues survive, ask which are the
+first six; the remainder return to the backlog.
 
 **Deferring** — the normal outcome for off-theme work — clears the milestone
 and leaves the issue open:

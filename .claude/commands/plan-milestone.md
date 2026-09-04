@@ -111,9 +111,13 @@ Produce two lists:
 |---|-------|--------------------------------------------------|
 ```
 
-Two kinds of work skip this gate entirely: `signal:forced` and anything
-labelled `gate-critical` — check for these separately and always include
-them (at most one `signal:forced`/housekeeping issue per milestone):
+Two kinds of work skip this gate entirely — check for both separately:
+
+- **`signal:forced`** — at most one per milestone (the housekeeping slot in
+  Step 4). If more than one is open, the user picks which ships now.
+- **`gate-critical`** — always include every open one. These sit outside the
+  Step 4 cap and do not consume the housekeeping slot: a gate you cannot
+  trust makes every other rule decorative, so its repairs never wait.
 
 ```bash
 gh issue list --label "signal:forced" --state open --json number,title
@@ -122,8 +126,9 @@ gh issue list --label "gate-critical" --state open --json number,title
 
 ## Step 4: Seal the milestone
 
-Cap: **3–6 theme issues, plus at most one housekeeping issue.** If more than
-six candidates survived Step 3, ask the user which six take priority — the
+Cap: **3–6 theme issues, plus at most one housekeeping issue, plus every
+open `gate-critical` issue** (uncapped — see Step 3). If more than six theme
+candidates survived Step 3, ask the user which six take priority — the
 remainder stay in the backlog, not force-added.
 
 For each selected issue:

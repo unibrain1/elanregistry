@@ -268,6 +268,7 @@ and known false positive patterns.
 Most work follows a structured milestone lifecycle with these commands:
 
 ```text
+/plan-milestone v2.17.0      — Signal review, theme sentence, gate — seal the issue list before branching
 /start-milestone v2.17.0     — Create milestone branch, prompt fix-script cleanup, draft release notes
   /start-issue 423            — Branch, research, plan-mode interview, write approved plan file
   /execute-plan                — Implement the approved plan, test, security/architect review
@@ -334,6 +335,7 @@ and architecture agents.
 /address-pr-comments — Triage CI/reviewer comments, fix blocking items
 /security-review     — OWASP security audit of recent changes
 /found               — Capture a pre-existing issue found mid-task; classify and file or fix
+/sprint-status       — Render the current milestone's derived state: theme, issue status, blocked items
 /architecture-update — Full wiki architecture documentation refresh
 /revise-claude-md    — Update CLAUDE.md with session learnings
 /clean_gone          — Delete local branches removed from remote

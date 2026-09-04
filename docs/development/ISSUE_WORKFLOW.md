@@ -189,6 +189,8 @@ A milestone contains:
 - **3–6 theme issues** — everything that serves the theme sentence.
 - **At most 1 housekeeping issue** — `signal:forced` work (security,
   dependency, migration) that never fits any theme but has to happen.
+- **Every open `gate-critical` issue** — uncapped and not counted against
+  the housekeeping slot (see "Gate-critical issues bypass the theme test").
 - **Nothing else.** No free slots, no "while we're in there."
 
 Then write the theme sentence into the milestone description — not a list of
