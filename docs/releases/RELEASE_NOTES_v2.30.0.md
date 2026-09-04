@@ -1,6 +1,6 @@
 # Elan Registry v2.30.0 Release Notes
 
-**Release Date:** September 2, 2026
+**Release Date:** September 3, 2026
 **Type:** Minor Release - Car Verification System Foundation
 
 ## Required Actions After Deployment
