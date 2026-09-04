@@ -10,17 +10,21 @@
    by `scripts/server-hooks/post-receive` on `git push test|prod main` — it is
    the first live trigger rebuild run through Phinx on the hosting account, so
    confirm these before pushing:
-   - **Pre-push:** take the `cars`/`cars_hist` backup described in
-     [DEPLOYMENT.md](../development/DEPLOYMENT.md#database-migrations) — this
-     backup, not `composer migrate:rollback`, is the real rollback path,
-     because the migration's `down()` drops the new columns.
+   - **Pre-push:** back up `cars` and `cars_hist` through the host's
+     phpMyAdmin (Export → Custom → those two tables → SQL, structure and data;
+     see [DEPLOYMENT.md](../development/DEPLOYMENT.md#database-migrations)
+     § "Trigger-rebuilding migrations") — this backup, not
+     `composer migrate:rollback`, is the real rollback path, because the
+     migration's `down()` drops the new columns.
    - **Pre-push, on the target database:** confirm the deploy DB user has the
      `TRIGGER` privilege (`SHOW GRANTS FOR CURRENT_USER()`); if
      `SHOW VARIABLES LIKE 'log_bin'` is `ON`, `log_bin_trust_function_creators`
      must also be `ON` (or the user needs `SUPER`).
    - **Deploy `test` first**, then `prod`.
-   - **Post-deploy:** `composer migrate:status` shows `20260902104755` applied,
-     and `SHOW TRIGGERS LIKE 'cars'` returns 3 rows. If the migration aborts,
+   - **Post-deploy:** `SELECT version FROM phinxlog WHERE version = 20260902104755`
+     returns one row (the push output also shows the migration applying;
+     `composer migrate:status` is not available on the server after deploy
+     cleanup), and `SHOW TRIGGERS LIKE 'cars'` returns 3 rows. If the migration aborts,
      fix the privileges above and re-run `composer migrate` — every step is
      idempotent, and the migration now fails loudly if a trigger is missing.
 2. Cron transport (#1872) is already installed on test and prod as of

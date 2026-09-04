@@ -292,13 +292,23 @@ be bootstrapped on a fresh server.
 
 **Trigger-rebuilding migrations:** A migration that drops and recreates triggers (as `20260902104755` —
 the first such migration executed live — does for the `cars` table) needs privileges beyond a normal
-schema change. Before pushing, confirm on the target database:
+schema change. Before pushing:
+
+- **Back up the affected tables through the host's phpMyAdmin** (Export → Custom → select the tables
+  the migration touches, e.g. `cars` and `cars_hist` → SQL, structure and data). This export — not
+  `composer migrate:rollback` — is the rollback path when a migration's `down()` drops columns and
+  would lose data written since deploy.
+
+Then confirm on the target database:
 
 - The deploy DB user has the `TRIGGER` privilege (`SHOW GRANTS FOR CURRENT_USER()`).
 - If `SHOW VARIABLES LIKE 'log_bin'` is `ON`, `log_bin_trust_function_creators` must also be `ON` (or the
   user needs `SUPER`).
 
-After deploying, confirm `SHOW TRIGGERS LIKE 'cars'` returns 3 rows.
+After deploying, confirm `SHOW TRIGGERS LIKE 'cars'` returns 3 rows and
+`SELECT version FROM phinxlog WHERE version = 20260902104755` returns one row. (`composer migrate:status`
+is not available on the server after a successful deploy — the post-receive hook removes `composer.json`
+and `database/` per `.deployignore` once migrations have applied; the push output is the other record.)
 
 ### One-Time: Stamping the ElanRegistry Baseline Migration
 

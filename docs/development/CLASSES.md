@@ -541,9 +541,10 @@ on success.
 - CSPRNG-backed verification code generation (`bin2hex(random_bytes(16))`,
   128 bits of entropy)
 - Shared `persist()`/`updateBounced()` private helpers deduplicate the
-  validate → repo call → log-on-failure → throw pattern across all seven
-  public methods
-- Every public method throws `CarDatabaseException` on failure (repository
+  validate → repo call → log-on-failure → throw pattern across the six
+  public methods that write to the repository (`generateVerificationCode()`
+  is pure and makes no database call)
+- Every repository-writing method throws `CarDatabaseException` on failure (repository
   returns `false`, or the repository call itself throws) rather than
   returning a falsy value — callers do not need to check a return value for
   failure
