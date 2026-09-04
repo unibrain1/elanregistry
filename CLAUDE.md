@@ -354,7 +354,9 @@ at `docs/development/RELEASE_NOTES_TEMPLATE.md`.
 ## Quick Deployment Reference
 
 See [DEPLOYMENT.md](docs/development/DEPLOYMENT.md) for complete procedures. **Critical:**
-`git push prod main` pushes to the **live site** — never confuse `prod` with `origin`.
+deploying is `git push prod vX.Y.Z` then `git push prod 'vX.Y.Z^{commit}:main'` — this hits
+the **live site**. Never confuse `prod` with `origin`, and never push bare `main` to a deploy
+remote (it may carry commits merged after the tag).
 
 ## GitHub Repository
 
