@@ -152,6 +152,25 @@ if (!empty(trim($output))) {
 
 restore_error_handler();
 
+// If users/init.php threw before reaching usersc/includes/loader.php, the
+// application constants (ELAN_IMAGE_DIR, BACKUP_*, ...) that Car and
+// BackupManager read are still undefined. Load the real config.php rather than
+// mirroring its values (as tests/bootstrap-unit.php must, having no framework),
+// so there is nothing to drift. Guarded because a successful init.php already
+// loaded it and define() cannot run twice.
+// ELAN_IMAGE_DIR is defined after config.php's only non-trivial step (the
+// ASSET_VERSION resolve), so its presence means the whole file ran.
+if (!defined('ELAN_IMAGE_DIR')) {
+    fwrite(STDERR, "NOTE: users/init.php did not reach usersc/includes/loader.php; loading config.php directly\n");
+    // init.php sets these before it can fail; default them anyway so
+    // config.php's ASSET_VERSION path build resolves to the real VERSION file
+    // (the removed per-test guards defaulted both to '' and silently yielded
+    // ASSET_VERSION 'dev') and cannot emit undefined-variable warnings.
+    $abs_us_root ??= $projectRoot;
+    $us_url_root ??= '/';
+    require_once $projectRoot . '/usersc/includes/config.php';
+}
+
 // Ensure $user global is properly initialized for getSettings() calls
 // If users/init.php didn't fully initialize $user, create a minimal User object
 //

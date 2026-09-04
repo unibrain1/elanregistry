@@ -7,25 +7,6 @@ require_once __DIR__ . '/IntegrationTestCase.php';
 use ElanRegistry\Admin\BackupManager;
 use PHPUnit\Framework\Attributes\Group;
 
-// tests/bootstrap-integration.php's require of users/init.php fails partway through
-// (a pre-existing "member function query on null" error during early framework
-// startup, before $db is ready) and never reaches usersc/includes/config.php, or the
-// $abs_us_root/$us_url_root globals it optionally reads for ASSET_VERSION, as a
-// result — no other integration test needed the BACKUP_* constants until now, so the
-// gap was never surfaced. Default those two globals to empty strings first so
-// config.php's unrelated ASSET_VERSION computation doesn't emit undefined-variable
-// warnings; this test only needs the BACKUP_* constants.
-if (!defined('BACKUP_BASE_DIR')) {
-    // `global` (not $GLOBALS[...]) because PHPUnit's file loader requires this file
-    // from inside a function scope — a plain $GLOBALS[...] write doesn't become the
-    // bare $abs_us_root/$us_url_root variable that config.php's own require (which
-    // inherits that same scope) reads.
-    global $abs_us_root, $us_url_root;
-    $abs_us_root ??= '';
-    $us_url_root ??= '';
-    require_once dirname(__DIR__, 2) . '/usersc/includes/config.php';
-}
-
 /**
  * Integration tests proving a BackupManager dump is well-formed, executable SQL
  * that round-trips real data byte-for-byte through addslashes() escaping.
