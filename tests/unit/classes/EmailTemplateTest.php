@@ -373,10 +373,15 @@ final class EmailTemplateTest extends TestCase
     {
         $html = $this->template->createButtonRow([
             ['label' => 'One', 'url' => 'https://example.com/one', 'style' => 'nonexistent'],
-            ['label' => 'Two', 'url' => 'https://example.com/two'],
+            ['label' => 'Two', 'url' => 'https://example.com/two', 'style' => 'danger'],
         ]);
 
-        $this->assertStringContainsString('background-color: #00563F', $html);
+        $this->assertSame(
+            1,
+            substr_count($html, 'background-color: #00563F'),
+            'The unknown-style button must fall back to the primary color (#00563F), and only that button — '
+            . 'the second button uses danger (#dc3545), so a fallback failure could not hide behind it'
+        );
     }
 
     public function testCreateButtonRowEscapesHtmlInLabelAndUrl(): void

@@ -13,7 +13,7 @@ live step by hand; nothing here is automated.
 - SSH access to the test server via the host alias `a2hosting`.
 - A known-good inbox you control (for the `delivered` fixture).
 - A throwaway Outlook.com mailbox (Microsoft JMRP is the feedback loop Brevo consumes; see step 8).
-- A working `.env` in the deployed test web root `/home/unibrain/test.elanregistry.org` — the send script reads the Brevo API key from the
+- A working `.env` in the deployed test web root `/home/<cpanel-account>/test.elanregistry.org` — the send script reads the Brevo API key from the
   `plg_sendinblue` DB table at runtime and never prints it.
 
 ## Scripts
@@ -41,8 +41,9 @@ app sends mail from it) or add the developer IP under Brevo → Security → Aut
 ## Step 1 — Prepare and deploy the capture endpoint
 
 Generate the secret and edit the two constants at the top of `brevo-webhook-capture.php` **before** copying it: replace `CAPTURE_SECRET`'s
-placeholder `CHANGE-ME-32-HEX` and confirm `CAPTURE_FILE` is `/home/unibrain/spike-1871/capture.jsonl` — an absolute path
-outside the web root. The secret **must be exactly 32 lowercase hex characters** (what `openssl rand -hex 16` produces): the
+placeholder `CHANGE-ME-32-HEX`, and replace `CAPTURE_FILE`'s `<cpanel-account>` placeholder with the real cPanel account name so the path
+resolves to an absolute path (e.g. `/home/<cpanel-account>/spike-1871/capture.jsonl`) outside the web root. The secret **must be exactly 32
+lowercase hex characters** (what `openssl rand -hex 16` produces): the
 script 404s on every request unless `CAPTURE_SECRET` matches `^[0-9a-f]{32}$`, so the unchanged placeholder, an uppercase
 paste, or a truncated value all fail closed.
 
@@ -95,7 +96,7 @@ auth is undocumented — capturing it is a primary goal of this spike.
 ```bash
 ssh a2hosting
 cd ~/test.elanregistry.org/scripts/spike-1871
-php brevo-send-test.php --env=/home/unibrain/test.elanregistry.org --list-webhooks
+php brevo-send-test.php --env=/home/<cpanel-account>/test.elanregistry.org --list-webhooks
 ```
 
 Record `batched` and the auth type for the new webhook in the second findings table, and note any mismatch with what the UI showed in step 2.
@@ -103,7 +104,7 @@ Record `batched` and the auth type for the new webhook in the second findings ta
 ## Step 4 — Dry run A: known-good address (`delivered`)
 
 ```bash
-php brevo-send-test.php --env=/home/unibrain/test.elanregistry.org --to=<known-good-address> --subject='1871 A delivered'
+php brevo-send-test.php --env=/home/<cpanel-account>/test.elanregistry.org --to=<known-good-address> --subject='1871 A delivered'
 ```
 
 Note the `messageId`. Expect a `delivered` webhook. Do **not** open this mail in any client — step 9 depends on that.
@@ -115,7 +116,7 @@ The Mailtrap bounce emulator is the primary bounce fixture for this spike. `inbo
 must be lower-case.
 
 ```bash
-php brevo-send-test.php --env=/home/unibrain/test.elanregistry.org \
+php brevo-send-test.php --env=/home/<cpanel-account>/test.elanregistry.org \
   --to='bounce+550+no+such+user+here@inbox.mailtrap.io' --subject='1871 B hard'
 ```
 
@@ -126,7 +127,7 @@ Brevo → Transactional → Logs for how Brevo itself classified the message alo
 ## Step 6 — Dry run C: soft bounce (Mailtrap 451)
 
 ```bash
-php brevo-send-test.php --env=/home/unibrain/test.elanregistry.org \
+php brevo-send-test.php --env=/home/<cpanel-account>/test.elanregistry.org \
   --to='bounce+451+mailbox+full@inbox.mailtrap.io' --subject='1871 C soft'
 ```
 
@@ -142,7 +143,7 @@ tables and in Brevo Logs. No fallback fixture has been built for this spike; wha
 Mailtrap cannot emulate complaints, and neither iCloud nor Gmail exposes a feedback loop Brevo consumes. Use the throwaway Outlook.com mailbox.
 
 ```bash
-php brevo-send-test.php --env=/home/unibrain/test.elanregistry.org --to=<throwaway>@outlook.com --subject='1871 D spam'
+php brevo-send-test.php --env=/home/<cpanel-account>/test.elanregistry.org --to=<throwaway>@outlook.com --subject='1871 D spam'
 ```
 
 Mark the message as Junk in the Outlook web UI, then wait up to 48 hours for a `spam` webhook. While waiting, check Brevo → Senders, Domains &

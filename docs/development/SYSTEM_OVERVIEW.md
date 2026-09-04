@@ -312,8 +312,9 @@ reader assuming an absent feature was an oversight and "restoring" it.
   recipient's session, and sat behind an admin-only auth gate on what was
   meant to be an owner-facing page. No navigation linked to it. The
   underlying service layer (`CarVerificationManager`, `Car`/`CarRepository`
-  verification methods) is retained; a rebuild with a proper per-car,
-  per-send token is planned (#1155/#1156).
+  verification methods) is retained; #1155 shipped the data-model foundation
+  in v2.30.0, and the rebuild continues as #1156's follow-on issues — the
+  send pipeline in v2.30.3 and owner/admin self-service in v2.30.5.
 
 ## 7. What is built but broken or incomplete
 

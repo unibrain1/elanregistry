@@ -50,7 +50,8 @@ ob_start();
 const CAPTURE_SECRET = 'CHANGE-ME-32-HEX';
 
 // Absolute path to the capture file. MUST be outside the web root.
-const CAPTURE_FILE = '/home/unibrain/spike-1871/capture.jsonl';
+// Replace <cpanel-account> with the real cPanel account name before use.
+const CAPTURE_FILE = '/home/<cpanel-account>/spike-1871/capture.jsonl';
 // --- end edit --------------------------------------------------------------
 
 /**

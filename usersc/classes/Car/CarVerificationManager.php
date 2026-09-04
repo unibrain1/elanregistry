@@ -31,20 +31,25 @@ class CarVerificationManager
      * @param string $logCategory LogCategories constant to log failures under
      * @param string $failureMessage User-facing message thrown if the update call itself throws
      * @param string $context Log message prefix used when the update call throws
+     * @param int $carId Car id being updated, included in the logged message for traceability
      * @return bool True on success
      * @throws CarDatabaseException If the update call throws or the repository reports failure
      */
-    private function persist(callable $update, string $logCategory, string $failureMessage, string $context): bool
+    private function persist(callable $update, string $logCategory, string $failureMessage, string $context, int $carId): bool
     {
         try {
             $updateSuccess = $update();
         } catch (\Throwable $e) {
-            logger(0, $logCategory, $context . ': ' . $e->getMessage());
+            logger(0, $logCategory, sprintf('%s for car %d (%s): %s', $context, $carId, get_class($e), $e->getMessage()));
             throw new CarDatabaseException($failureMessage);
         }
 
         if (!$updateSuccess) {
-            logger(0, $logCategory, 'Database update failed: Repository returned false: ' . ($this->repo->errorString() ?: 'unknown'));
+            logger(0, $logCategory, sprintf(
+                'Database update failed for car %d: Repository returned false: %s',
+                $carId,
+                $this->repo->errorString() ?: 'unknown'
+            ));
             throw new CarDatabaseException('Unable to save changes. Please try again.');
         }
 
@@ -68,6 +73,7 @@ class CarVerificationManager
                 ? 'Bounce status could not be updated. Please try again or contact support.'
                 : 'Bounce status could not be cleared. Please try again or contact support.',
             $bounced ? 'Failed to flag email as bounced' : 'Failed to clear bounced email flag',
+            (int) $carData->id,
         );
 
         $carData->email_bounced = $bounced ? 1 : 0;
@@ -94,6 +100,7 @@ class CarVerificationManager
             LogCategories::LOG_CATEGORY_CAR_VERIFICATION,
             'Verification code could not be updated. Please try again or contact support.',
             'Failed to set verification code',
+            (int) $carData->id,
         );
 
         $carData->vericode = $verificationCode;
@@ -116,6 +123,7 @@ class CarVerificationManager
             LogCategories::LOG_CATEGORY_CAR_VERIFICATION,
             'Unable to mark car as verified. Please try again or contact support.',
             'Failed to mark car as verified',
+            (int) $carData->id,
         );
 
         $carData->last_verified = $currentDateTime;
@@ -145,6 +153,7 @@ class CarVerificationManager
             LogCategories::LOG_CATEGORY_CAR_SOLD,
             'Unable to mark car as sold. Please try again or contact support.',
             'Failed to mark car as sold',
+            (int) $carData->id,
         );
 
         $carData->solddate = $soldDate;
@@ -178,6 +187,7 @@ class CarVerificationManager
             LogCategories::LOG_CATEGORY_CAR_VERIFICATION,
             'Verification timestamp could not be updated. Please try again or contact support.',
             'Failed to set verification sent timestamp',
+            (int) $carData->id,
         );
 
         $carData->vericode_sent_at = $dateTime;

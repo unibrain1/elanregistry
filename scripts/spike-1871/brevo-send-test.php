@@ -21,7 +21,7 @@ namespace ElanRegistry\Spike1871;
  *       --tag=verification-spike --tag=hard
  *   php scripts/spike-1871/brevo-send-test.php --list-webhooks
  *   php scripts/spike-1871/brevo-send-test.php --list-blocked
- *   php scripts/spike-1871/brevo-send-test.php --env=/home/unibrain/test.elanregistry.org
+ *   php scripts/spike-1871/brevo-send-test.php --env=/home/<cpanel-account>/test.elanregistry.org
  *
  * On MAMP, pass --host=127.0.0.1: PDO treats a DB_HOST of "localhost" as a
  * Unix socket and ignores DB_PORT, so it reaches the system MySQL rather than

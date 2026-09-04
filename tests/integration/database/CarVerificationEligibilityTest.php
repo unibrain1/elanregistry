@@ -255,4 +255,52 @@ final class CarVerificationEligibilityTest extends IntegrationTestCase
             'A car with last_verified IS NULL but a recent owner_last_updated must be excluded'
         );
     }
+
+    /**
+     * COALESCE(owner_last_updated, mtime) fallback: when owner_last_updated
+     * has never been set, eligibility must fall back to mtime — a car whose
+     * row was last touched more than 2 years ago must be eligible.
+     */
+    #[Group('fast')]
+    public function testNullOwnerLastUpdatedFallsBackToStaleMtimeAndIsEligible(): void
+    {
+        $carId = $this->createTestCar($this->testUserId, [
+            'email'              => 'null-owner-updated-stale-mtime@example.com',
+            'email_bounced'      => 0,
+            'last_verified'      => null,
+            'owner_last_updated' => null,
+            'mtime'              => $this->staleDate(),
+            'solddate'           => null,
+        ]);
+
+        $this->assertContains(
+            $carId,
+            $this->eligibleIds(),
+            'A car with NULL owner_last_updated must fall back to a stale mtime and be eligible'
+        );
+    }
+
+    /**
+     * COALESCE(owner_last_updated, mtime) fallback, excluded case: when
+     * owner_last_updated has never been set and mtime is recent, the car must
+     * NOT be eligible.
+     */
+    #[Group('fast')]
+    public function testNullOwnerLastUpdatedFallsBackToRecentMtimeAndIsExcluded(): void
+    {
+        $carId = $this->createTestCar($this->testUserId, [
+            'email'              => 'null-owner-updated-recent-mtime@example.com',
+            'email_bounced'      => 0,
+            'last_verified'      => null,
+            'owner_last_updated' => null,
+            'mtime'              => $this->recentDate(),
+            'solddate'           => null,
+        ]);
+
+        $this->assertNotContains(
+            $carId,
+            $this->eligibleIds(),
+            'A car with NULL owner_last_updated and a recent mtime must be excluded'
+        );
+    }
 }

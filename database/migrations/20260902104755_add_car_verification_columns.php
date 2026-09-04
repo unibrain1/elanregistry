@@ -101,18 +101,20 @@ final class AddCarVerificationColumns extends AbstractMigration
             "NEW.owner_last_updated, NEW.vericode_sent_at, NEW.email_bounced",
             "OLD.owner_last_updated, OLD.vericode_sent_at, OLD.email_bounced"
         );
+        $this->assertCarsTriggersPresent();
     }
 
     public function down(): void
     {
-        // --- 1. Drop the cars_hist columns --------------------------------
-        // Briefly leaves the *new* (post-migration) trigger bodies referencing
-        // columns that no longer exist, between this step and step 2 restoring
-        // the pre-migration bodies. Harmless for a normal, non-concurrent
-        // `migrate:rollback` — no INSERT/UPDATE/DELETE on `cars` runs between
-        // the two DDL statements in that path — but worth knowing if this
-        // migration is ever adapted to run against a live, concurrently-written
-        // table.
+        // --- 1. Restore the pre-migration trigger bodies ------------------
+        // Must happen before the `cars_hist`/`cars` columns are dropped: MySQL
+        // refuses to DROP a column that a trigger body still references, and
+        // restoring first means there is never a window where the installed
+        // trigger bodies reference already-dropped columns.
+        $this->createTriggers('', '', '');
+        $this->assertCarsTriggersPresent();
+
+        // --- 2. Drop the cars_hist columns --------------------------------
         $hist = $this->table('cars_hist');
         foreach (['owner_last_updated', 'vericode_sent_at', 'email_bounced'] as $column) {
             if ($hist->hasColumn($column)) {
@@ -120,17 +122,48 @@ final class AddCarVerificationColumns extends AbstractMigration
             }
         }
 
-        // --- 2. Restore the pre-migration trigger bodies ------------------
-        // Must happen before the `cars` columns are dropped: MySQL refuses to
-        // DROP a column that a trigger body still references.
-        $this->createTriggers('', '', '');
-
         // --- 3. Drop the cars columns -------------------------------------
         $cars = $this->table('cars');
         foreach (['owner_last_updated', 'vericode_sent_at', 'email_bounced'] as $column) {
             if ($cars->hasColumn($column)) {
                 $cars->removeColumn($column)->update();
             }
+        }
+    }
+
+    /**
+     * Verifies all three `cars` audit triggers exist after (re)creation.
+     *
+     * A CREATE TRIGGER can silently fail to leave a trigger installed if the
+     * migration user's privileges are borderline (e.g. TRIGGER grant present
+     * but log_bin_trust_function_creators still off and SUPER absent on some
+     * managed hosts) — {@see enableTrustFunctionCreators()} deliberately
+     * continues rather than aborting in that case. This check turns a
+     * silently-missing trigger into a loud migration failure instead of an
+     * unaudited `cars` table discovered later.
+     *
+     * @throws \RuntimeException If any of cars_insert, cars_update, cars_delete
+     *                           is missing after (re)creation.
+     */
+    private function assertCarsTriggersPresent(): void
+    {
+        $expected = ['cars_insert', 'cars_update', 'cars_delete'];
+
+        $rows = $this->fetchAll(
+            "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS "
+            . "WHERE TRIGGER_SCHEMA = DATABASE() AND EVENT_OBJECT_TABLE = 'cars'"
+        );
+        $present = array_column($rows, 'TRIGGER_NAME');
+        $missing = array_diff($expected, $present);
+
+        if ($missing !== []) {
+            throw new \RuntimeException(
+                'Trigger(s) not present after (re)creation on `cars`: ' . implode(', ', $missing) . '. '
+                . 'These triggers were dropped and not recreated — writes to `cars` are currently '
+                . 'UNAUDITED (no cars_hist rows will be written). Fix the migration user\'s privileges '
+                . '(grant TRIGGER; if binary logging is on, also set log_bin_trust_function_creators=1 '
+                . 'or grant SUPER/SYSTEM_VARIABLES_ADMIN) and re-run `composer migrate`.'
+            );
         }
     }
 
@@ -253,6 +286,10 @@ final class AddCarVerificationColumns extends AbstractMigration
     /**
      * Resets log_bin_trust_function_creators if this migration run set it — limits the
      * window of elevated trust to only the trigger creation steps.
+     *
+     * @throws \RuntimeException If the reset fails after we had relaxed the flag — this
+     *                           leaves it relaxed server-wide, which must fail the deploy
+     *                           visibly rather than warn and continue.
      */
     private function resetTrustFunctionCreators(bool $wasSet): void
     {
@@ -261,14 +298,16 @@ final class AddCarVerificationColumns extends AbstractMigration
         }
         try {
             $this->execute('SET GLOBAL log_bin_trust_function_creators = 0');
-        } catch (\Exception $e) {
+        } catch (\RuntimeException $e) {
             if (isset($this->output)) {
                 $this->output->writeln(
-                    '<comment>Warning: Could not reset log_bin_trust_function_creators=0: '
+                    '<error>Could not reset log_bin_trust_function_creators=0: '
                     . $e->getMessage()
-                    . ' — set it manually in MySQL or my.cnf.</comment>'
+                    . ' — log_bin_trust_function_creators is left relaxed (=1) server-wide. '
+                    . 'Reset it manually in MySQL or my.cnf.</error>'
                 );
             }
+            throw $e;
         }
     }
 }

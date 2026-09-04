@@ -290,6 +290,16 @@ composer migrate:status   # list pending and applied migrations
 automatically via the post-receive hook. The manual steps above serve as a fallback if the hook needs to
 be bootstrapped on a fresh server.
 
+**Trigger-rebuilding migrations:** A migration that drops and recreates triggers (as `20260902104755` —
+the first such migration executed live — does for the `cars` table) needs privileges beyond a normal
+schema change. Before pushing, confirm on the target database:
+
+- The deploy DB user has the `TRIGGER` privilege (`SHOW GRANTS FOR CURRENT_USER()`).
+- If `SHOW VARIABLES LIKE 'log_bin'` is `ON`, `log_bin_trust_function_creators` must also be `ON` (or the
+  user needs `SUPER`).
+
+After deploying, confirm `SHOW TRIGGERS LIKE 'cars'` returns 3 rows.
+
 ### One-Time: Stamping the ElanRegistry Baseline Migration
 
 `database/migrations/20260709000000_add_elanregistry_baseline.php` reproduces the full

@@ -323,6 +323,94 @@ final class CarAdministrationServiceTest extends TestCase
     }
 
     /**
+     * email_bounced is a property of the previous owner's address, not the car:
+     * carrying it forward would permanently exclude the car from
+     * CarRepository::findVerificationEligible() (`AND email_bounced = 0`) once
+     * the address that caused the bounce is gone. A transfer to a real owner
+     * must clear it on both the live `cars` row and the audit history row.
+     */
+    public function testTransferClearsEmailBouncedOnCarsAndHistoryRow(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999', 'email_bounced' => 1];
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+
+        $updateFields = null;
+        $historyFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            function (string $table, array $fields = [], bool $update = false) use (&$historyFields): bool {
+                $historyFields = $fields;
+                return true;
+            }
+        );
+        $repo = new CarRepository($db);
+
+        $this->service->transfer($carData, 1, 'Test transfer reason', 'NEWOWNER', 1, $repo, $this->createOwnerDb());
+
+        $this->assertArrayHasKey('email_bounced', $updateFields, 'cars.email_bounced must be written on transfer, not omitted');
+        $this->assertSame(0, $updateFields['email_bounced'], 'cars.email_bounced must be cleared on an ordinary transfer');
+        $this->assertArrayHasKey('email_bounced', $historyFields, 'history email_bounced must be written on transfer, not omitted');
+        $this->assertSame(0, $historyFields['email_bounced'], 'history email_bounced must be cleared on an ordinary transfer');
+    }
+
+    /**
+     * Reassignment to the `noowner` system account is not a change of owner
+     * (#1878), so email_bounced — like solddate — must be preserved rather than
+     * cleared: it still describes the previous (real) owner's address, and the
+     * car remains excluded from verification eligibility until a real owner
+     * with a working address is assigned again.
+     */
+    public function testTransferToSystemAccountPreservesEmailBounced(): void
+    {
+        $carData = (object) ['id' => 999, 'chassis' => 'TEST99999', 'email_bounced' => 1];
+        $db = $this->createMock(DatabaseInterface::class);
+        $this->configureTransaction($db, expectCommit: true);
+
+        $updateFields = null;
+        $historyFields = null;
+        $db->method('update')->willReturnCallback(
+            function (string $table, array|int $id, array $fields) use (&$updateFields): bool {
+                $updateFields = $fields;
+                return true;
+            }
+        );
+        $db->method('insert')->willReturnCallback(
+            function (string $table, array $fields = [], bool $update = false) use (&$historyFields): bool {
+                $historyFields = $fields;
+                return true;
+            }
+        );
+        $repo = new CarRepository($db);
+
+        $this->service->transfer(
+            $carData,
+            1,
+            'Account deleted — reassigned to noowner',
+            'NEWOWNER',
+            1,
+            $repo,
+            $this->createOwnerDb(1, 'noowner@invalid', username: 'noowner')
+        );
+
+        $this->assertArrayNotHasKey(
+            'email_bounced',
+            $updateFields,
+            'cars.email_bounced must be left untouched when transferring to the noowner system account'
+        );
+        $this->assertSame(
+            1,
+            $historyFields['email_bounced'],
+            "history email_bounced must pass through the car's existing value for a system-account transfer"
+        );
+    }
+
+    /**
      * Regression (#1679): transferring to a system account whose email is
      * deliberately unroutable must succeed, storing an empty owner email rather
      * than aborting or denormalizing the sentinel address.

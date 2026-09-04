@@ -125,6 +125,9 @@ class CarAdministrationService
      *         lookup below, before the transaction begins. Relies on callers'
      *         existing broad (`\Throwable`/`CarException`) catches; all three
      *         current production callers already satisfy this.
+     *
+     * Note: a transfer is not a re-attestation, so `owner_last_updated` is
+     * intentionally left untouched here.
      */
     public function transfer(
         object $carData,
@@ -159,6 +162,11 @@ class CarAdministrationService
         $isSystemAccount = ($targetUser->username ?? '') === self::SYSTEM_ACCOUNT_USERNAME;
         $soldDate = $isSystemAccount ? ($carData->solddate ?? null) : null;
 
+        // email_bounced is a property of the previous owner's address, not the
+        // car — cleared on a real-owner transfer (see below) and preserved on a
+        // system-account reassignment, mirroring solddate's treatment.
+        $emailBounced = $isSystemAccount ? (int) ($carData->email_bounced ?? 0) : 0;
+
         try {
             $repo->beginTransaction();
 
@@ -181,6 +189,12 @@ class CarAdministrationService
             // is untouched; writing null here would erase it.
             if (!$isSystemAccount) {
                 $ownerFields['solddate'] = null;
+
+                // email_bounced belonged to the previous owner's address, not the
+                // car — carrying it forward would permanently exclude the car from
+                // CarRepository::findVerificationEligible() once the address that
+                // caused the bounce is gone.
+                $ownerFields['email_bounced'] = $emailBounced;
             }
 
             // Validate owner fields before writing. $requireAll = false so only the
@@ -216,6 +230,7 @@ class CarAdministrationService
                 'engine'       => $carData->engine ?? '',
                 'purchasedate' => $carData->purchasedate ?? null,
                 'solddate'     => $soldDate,
+                'email_bounced' => $emailBounced,
                 'image'        => $carData->image ?? '',
                 'user_id'      => $targetUser->id,
                 'email'        => $targetEmail,

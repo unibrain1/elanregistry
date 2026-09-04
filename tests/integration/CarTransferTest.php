@@ -290,6 +290,31 @@ final class CarTransferTest extends IntegrationTestCase
     }
 
     /**
+     * email_bounced is a property of the previous owner's address, not the car:
+     * carrying it forward would permanently exclude the car from
+     * CarRepository::findVerificationEligible() (`AND email_bounced = 0`) once
+     * the address that caused the bounce is gone. Transfer to a real owner must
+     * clear it on the live `cars` row.
+     */
+    #[Group('fast')]
+    public function testTransferClearsEmailBouncedOnPreviouslyBouncedCar(): void
+    {
+        $bouncedCarId = $this->createTestCar($this->testUserId, [
+            'chassis'       => 'TR' . uniqid(),
+            'email_bounced' => 1,
+        ]);
+
+        $car = new Car($bouncedCarId);
+        $car->transfer($this->targetUserId, 'Test transfer bounced car', 'NEWOWNER', $this->testUserId);
+
+        $carRow = $this->db->query(
+            "SELECT email_bounced FROM cars WHERE id = ?",
+            [$bouncedCarId]
+        )->first();
+        $this->assertSame(0, (int) $carRow->email_bounced);
+    }
+
+    /**
      * Test transfer works with an explicit actingUserId even when global $user is unset.
      * Verifies that Car::transfer() does not fall back to currentUserId() internally.
      */

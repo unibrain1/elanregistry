@@ -109,4 +109,45 @@ final class CarActionsSaveWiringTest extends TestCase
             'The unroutable-action response must actually be emitted via ->send()'
         );
     }
+
+    // =========================================================================
+    // save.php — updateCar() ownership-derived update flag (source inspection)
+    // =========================================================================
+
+    /**
+     * updateCar() must call Car::update() with an owner-initiated flag derived
+     * by comparing the car row's owner (loaded server-side by
+     * buildCarDetails(), not client-supplied) against the authenticated user —
+     * never a client-controlled value, and never omitted, since that flag
+     * gates whether the owner_last_updated freshness clock resets (see the
+     * comment above the assignment in save.php).
+     *
+     * Source inspection: updateCar() cannot be invoked directly from PHPUnit
+     * (see class docblock — every response path ends in exit via
+     * ApiResponse::send()), so this pins the exact call and the exact
+     * derivation expression against a regression rather than exercising the
+     * function.
+     */
+    public function testUpdateCarDerivesOwnerInitiatedFlagFromCarOwnerComparison(): void
+    {
+        $content = $this->readEndpointSource(self::SAVE_ENDPOINT);
+
+        $functionStart = strpos($content, 'function updateCar(');
+        $this->assertIsInt($functionStart, 'Could not locate the updateCar() function');
+
+        $nextFunctionStart = strpos($content, "\nfunction ", $functionStart + 1);
+        $this->assertIsInt($nextFunctionStart, 'Could not locate the end of the updateCar() function body');
+        $functionBody = substr($content, $functionStart, $nextFunctionStart - $functionStart);
+
+        $this->assertStringContainsString(
+            "\$isOwnerInitiated = (int) (\$cardetails['user_id'] ?? 0) === (int) \$user->data()->id;",
+            $functionBody,
+            'updateCar() must derive $isOwnerInitiated by comparing the car row\'s user_id to the authenticated user id'
+        );
+        $this->assertStringContainsString(
+            '$car->update($cardetails, $isOwnerInitiated);',
+            $functionBody,
+            'updateCar() must pass the derived $isOwnerInitiated flag to Car::update()'
+        );
+    }
 }
