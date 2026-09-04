@@ -226,6 +226,10 @@ intended cycle is: periodically email an owner, they confirm / mark sold /
 update, and the record's freshness clock resets. In practice the cycle has been
 broken for years (see §6), which means every other feature reads from records
 that nothing re-checks.
+Since v2.30.0 (#1872) the scheduled-job transport — UserSpice's `cron.php`,
+triggered every 10 minutes on every environment — does exist; what is missing
+is the jobs, not the scheduler (see
+[DEPLOYMENT.md — Cron Transport](DEPLOYMENT.md#cron-transport-userspice-cron-manager)).
 
 **Deletion preserves the car, not the person.** Because the registry's value is
 continuity of the car record, GDPR erasure reassigns cars to `noowner` rather

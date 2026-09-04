@@ -8,9 +8,13 @@
 1. Run pending database migrations (`composer migrate`) — adds the
    `owner_last_updated` tracking column and related verification schema
    from #1155.
-2. Install and verify UserSpice's cron transport on test and prod per #1872's
-   acceptance criteria before any later Car Verification milestone depends on
-   scheduled jobs running.
+2. Cron transport (#1872) is already installed on test and prod as of
+   2026-09-03: a cPanel cron requests `users/cron/cron.php` every 10 minutes
+   on each host and `cron_ip` is pinned per environment. After deploying,
+   confirm a `CronRequest` entry in Admin → Logs within the last 10 minutes.
+   Optional tidy-up: change the installed crontab lines from `-s -k /dev/null`
+   to `-fsS -o /dev/null` so cPanel stops mailing the response body every run
+   (see `docs/development/DEPLOYMENT.md` § "Cron Transport").
 
 ## User-Facing Changes
 
@@ -28,7 +32,7 @@ Surfaced) land.
 
 - **Verification system backend** ([#1155](https://github.com/elan-registry/registry/issues/1155)): Database migrations and `CarVerificationManager` extensions, including `owner_last_updated` tracking — the shared freshness primitive every later Car Verification milestone builds on.
 - **Brevo webhook behavior confirmed** ([#1871](https://github.com/elan-registry/registry/issues/1871)): Live spike against `test.elanregistry.org` settled the facts the bounce-detection endpoint (v2.30.2) depends on — events arrive one per POST (`batched: false`) with snake_case names, `tags` on every event, `reason` on bounces but not `spam`, Token auth as `Authorization: Bearer` reaching `$_SERVER['HTTP_AUTHORIZATION']` on A2 without `.htaccess` changes, and a suppressed address yields `blocked` on every send after its first `hard_bounce`. Documented in `docs/development/EMAIL_SYSTEM.md` § "Brevo Webhooks — Verified Behaviour"; reproducible tooling in `scripts/spike-1871/` (not deployed).
-- **Cron transport installed** ([#1872](https://github.com/elan-registry/registry/issues/1872)): UserSpice's cron transport installed and verified on test and prod, unblocking the scheduled send and reconciliation jobs later in the arc.
+- **Cron transport installed** ([#1872](https://github.com/elan-registry/registry/issues/1872)): UserSpice's `cron.php` is now triggered every 10 minutes on test and prod (cPanel `curl`), with `cron_ip` pinned per environment and rejected requests visible in Admin → Logs. Neither host had a cron trigger before. The interval, allowlist semantics, per-environment table, and the contract cron jobs must honour (every active job runs on every hit, so jobs gate their own cadence) are documented in `docs/development/DEPLOYMENT.md` § "Cron Transport", with the dev launchd trigger in `ENVIRONMENT.md`. Unblocks the scheduled send and reconciliation jobs in v2.30.3.
 - **EmailTemplate primitives added** ([#1874](https://github.com/elan-registry/registry/issues/1874)): Three missing primitives (highlighted row, button row, trusted-HTML row) added to the shared `EmailTemplate` class for later verification-email composition.
 
 ### Bug Fixes
