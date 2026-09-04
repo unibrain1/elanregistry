@@ -15,6 +15,7 @@ Placeholders, filled from `.claude.local.md` § "Deployment hosts" and the relea
 | `<ssh-host>` | `.claude.local.md` — ssh host alias |
 | `<test-docroot>` / `<prod-docroot>` | `.claude.local.md` — docroots |
 | `<repo-path>` | Absolute path of the local checkout |
+| `<plans-dir>` | `.claude.local.md` — Plans directory (only when writing the sheet to a file) |
 
 Conditional blocks are marked `<!-- IF: condition -->` … `<!-- END IF -->`.
 Include a block only when its condition holds for **this** release, and drop

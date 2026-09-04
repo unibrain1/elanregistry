@@ -20,13 +20,15 @@ remote, NOT `origin`!
 **Live Production Server:**
 
 ```bash
-# Push version tags FIRST — the post-receive hook writes VERSION with
-# `git describe HEAD` during the branch push, so the tag must already
-# be on the server or the footer shows the previous version
-git push prod --tags
+# 1. Push the release tag FIRST — the post-receive hook writes VERSION with
+#    `git describe HEAD` during the second push, so the tag must already be
+#    on the server or the footer shows the previous version
+git push prod vX.Y.Z
 
-# Then push code to PRODUCTION SERVER (live site)
-git push prod main
+# 2. Deploy exactly the tagged commit. Never push `main` itself: it may
+#    already hold commits merged after the tag, and they must not ride along.
+#    The quoted refspec sets the server's main ref to the tagged commit.
+git push prod 'vX.Y.Z^{commit}:main'
 ```
 
 **GitHub Repository (backup/development):**
@@ -257,11 +259,13 @@ git push --no-verify             # Bypass pre-push, including the integration ga
 1. **Create git tag**: `git tag vX.Y.Z`
 2. **Commit changes** (if any) before creating tag
 3. **Push to remotes** - deployment hooks automatically update VERSION file.
-   On deployment remotes, push tags **before** the branch — the hook writes
-   VERSION during the branch push and needs the tag already present:
-   - GitHub: `git push origin main && git push origin --tags`
-   - Test: `git push test --tags && git push test main` (hook updates VERSION)
-   - Production: `git push prod --tags && git push prod main` (hook updates VERSION)
+   On deployment remotes, push the tag **before** the deploy push (the hook
+   writes VERSION during the second push and needs the tag present), and
+   deploy the **tagged commit**, never the current `main` — `main` may hold
+   commits merged after the tag that are not part of the release:
+   - GitHub: `git push origin main && git push origin vX.Y.Z`
+   - Test: `git push test vX.Y.Z && git push test 'vX.Y.Z^{commit}:main'`
+   - Production: `git push prod vX.Y.Z && git push prod 'vX.Y.Z^{commit}:main'`
 4. **Run database migrations** (see below)
 5. **Verify deployment** by checking version display matches git tag on
    production site
@@ -291,7 +295,7 @@ and redeploy — Phinx retries only the failed migration (already-applied ones a
 composer migrate:status   # list pending and applied migrations
 ```
 
-**Automated deployment:** `git push prod main` runs `composer install` and `composer migrate`
+**Automated deployment:** any push to the `prod` remote's `main` ref (normally `git push prod 'vX.Y.Z^{commit}:main'`) runs `composer install` and `composer migrate`
 automatically via the post-receive hook. The manual steps above serve as a fallback if the hook needs to
 be bootstrapped on a fresh server.
 
@@ -414,10 +418,12 @@ server's hook at all, so simply repeating the same push does nothing. Force
 an empty commit instead:
 
 ```bash
-git push test main                                    # 1st push: old hook runs, self-updates the file
+git push test 'vX.Y.Z^{commit}:main'                  # 1st push: old hook runs, self-updates the file
+git checkout -q -b tmp/hook-rerun vX.Y.Z              # throwaway commit on a temp branch, never merged
 git commit --allow-empty -m "chore: trigger post-receive hook rerun"
-git push origin main                                  # keep origin in sync
-git push test main                                     # 2nd push: new hook logic runs for the first time
+git push test tmp/hook-rerun:main                     # 2nd push: new hook logic runs for the first time
+git push --force test 'vX.Y.Z^{commit}:main'          # put the server's main back on the tagged commit
+git checkout -q main && git branch -D tmp/hook-rerun
 ```
 
 Repeat independently for `prod` when you deploy there — each environment's
