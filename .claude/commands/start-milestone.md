@@ -39,10 +39,10 @@ Record the full milestone title and milestone number for later steps.
 
 ### Step 1.5: Check for a proposed sprint plan
 
-Look for a sprint plan matching this milestone in the `Plans/` project:
+Look for a sprint plan matching this milestone under `docs/plans/sprints/`:
 
 ```bash
-ls ../Plans/sprints/$ARGUMENTS.md
+ls docs/plans/sprints/$ARGUMENTS.md
 ```
 
 - **If found**: read it. This becomes the starting point for the issue order
@@ -312,12 +312,11 @@ Ask the user to approve the order:
 > "Approve this issue order? Reply yes to continue, or list changes."
 
 If a sprint plan file exists (Step 1.5), once the user approves the final
-order, update `Plans/sprints/$ARGUMENTS.md` in place so its sequence line
+order, update `docs/plans/sprints/$ARGUMENTS.md` in place so its sequence line
 matches the approved order (same format the file already uses, e.g.
-`**#NNN → #NNN → ...**`). Commit is not required — this is a working
-document in a separate repo; leave the change unstaged for the user to review
-and commit themselves per that repo's own workflow. Do not touch
-`Plans/sprints/README.md` — it is only removed/updated when the milestone is
+`**#NNN → #NNN → ...**`). There is nothing to commit — `docs/plans/` is
+gitignored local scratch space. Do not touch
+`docs/plans/sprints/README.md` — it is only removed/updated when the milestone is
 released, not here.
 
 ### Step 6: Create draft release notes
@@ -350,12 +349,12 @@ issues or complex scope.
 Display:
 
 - The milestone branch name (`milestone/$ARGUMENTS`)
-- Whether a sprint plan was found at `Plans/sprints/$ARGUMENTS.md` and used to
+- Whether a sprint plan was found at `docs/plans/sprints/$ARGUMENTS.md` and used to
   seed the order
 - How many issues were closed in the quality review (if any)
 - Any consolidation opportunities flagged (if not already addressed by the user)
 - The approved issue order (from step 5)
-- Whether `Plans/sprints/$ARGUMENTS.md` was updated to match (if applicable)
+- Whether `docs/plans/sprints/$ARGUMENTS.md` was updated to match (if applicable)
 - Which issues are expected to require wiki/architecture updates
 - Note that draft release notes were created at
   `docs/releases/RELEASE_NOTES_$ARGUMENTS.md`
@@ -373,6 +372,6 @@ Display:
 - Release notes are cumulative — each `/execute-plan` run adds to them as
   work progresses (`/start-issue` only plans; it doesn't touch release
   notes).
-- `Plans/` is a separate private repo, sibling to this one (see
-  `Web/ElanRegistry/CLAUDE.md`). Sprint plan files are deleted once a
+- `docs/plans/` is gitignored local scratch space, never committed (see
+  `CLAUDE.md`, Planning Work). Sprint plan files are deleted once a
   milestone is released — do not treat a missing file as an error.
