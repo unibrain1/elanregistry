@@ -347,6 +347,65 @@ failure after a successful write is logged, not propagated.
 uncaught by design — a DB failure should surface as a real exception, not
 collapse into a result that silently reports nothing as updated or failed.
 
+`ownerContactFields()` is the single definition of the nine denormalized
+owner-contact columns (`fname`, `lname`, `email` from `users`; `city`,
+`state`, `country`, `lat`, `lon`, `website` from `profiles`). It never
+returns `mtime` or `owner_last_updated` — the latter drives verification-
+email eligibility and must not be reset by a mechanical refresh. When the
+owner failed to load, every value is `null`, so callers must check before
+persisting. Consumed by `syncOwnerFieldsToCars()` (which adds its own
+`mtime`) and by `OwnerContactRefresher`.
+
+### OwnerContactRefresher
+
+**Location**: `/usersc/classes/OwnerContactRefresher.php`
+
+**Namespace**: `ElanRegistry`
+
+**Purpose**: Refreshes a car's denormalized owner-contact columns from the
+owner's current profile when the car is edited, so a stale car row stops
+perpetuating outdated contact data (#1962). Exists as a class rather than
+inline in `app/api/cars/save.php` because that file cannot be loaded by a
+test — every path ends in `exit` via `ApiResponse::send()`, so logic living
+there can only be hand-copied into tests, and a hand-copied test passes
+even when the production code is deleted.
+
+**Key Features**:
+
+- Pure: returns a new array rather than mutating its argument
+- No globals, no exit paths, no logging — callable from a unit test with no
+  database
+- Excludes `website` (still a per-car form field; #1963 makes it
+  owner-level and removes the carve-out)
+- Never writes `mtime` or `owner_last_updated`
+- Returns the car details untouched when the owner failed to load, so a car
+  with a dangling or null `user_id` keeps its existing contact data rather
+  than being blanked with nulls
+
+**Methods**:
+
+- `refresh(array $cardetails, Owner $carOwner): array` — Merge the owner's
+  current contact values over the car's details and return the result. The
+  caller must pass the Owner built from the **car row's** `user_id`, never
+  the logged-in session user: an admin or editor may be editing another
+  member's car, and using the session user would write staff's contact
+  details onto that member's record. This method cannot enforce that — by
+  the time it is called both arguments are already chosen, and `Owner`
+  carries no notion of who is logged in. Internally guarded, so calling it
+  for an unloadable owner is safe.
+- `hasLoadableOwner(Owner $carOwner): bool` — Whether the owner loaded.
+  Split out so the endpoint can log the skip (it has the car ID and session
+  user; this class has neither) without duplicating the null test. Calling
+  `refresh()` without checking this first is safe, not a bug — the only
+  consequence is that the skip goes unlogged.
+
+**Persistence asymmetry** (easy to trip over): `syncOwnerFieldsToCars()`
+writes its bundle through `CarRepository::updateCarForOwner()`, which
+persists blanks — clearing your city there clears it on your cars. The edit
+path routes through `Car::update()`, whose `array_filter` drops `''`/`null`
+for any field not in `Car::CLEARABLE_FIELDS`, so blank owner values are
+silently no-ops here.
+
 ### CarValidator
 
 **Location**: `/usersc/classes/Car/CarValidator.php`

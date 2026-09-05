@@ -10,25 +10,39 @@ what the code actually does rather than what existing docs claim.
 
 Keep output brief — terse status lines, no preamble, no restating of steps.
 
+**Documentation split — the repo is authoritative.** Anything a code change
+can falsify (schemas, column names, class names, method signatures, file
+paths, page/route inventories, config keys) belongs in `docs/development/*.md`
+in the Registry repo, not the wiki. The wiki holds only what a reader wants
+before they have the repo open: onboarding narrative, domain concepts,
+"why this design" context, and pointers to the repo docs that own the
+falsifiable detail. This is the wiki's own policy
+(`<wiki repo path>/CLAUDE.md`) — this command follows it, it does not
+override it. When the codebase audit turns up a gap in falsifiable detail,
+the fix is a repo doc change (flag it, or make it if in scope), never a new
+wiki section that duplicates it.
+
 ## Step 0: Initialize TaskList
 
 Before any other action, create one tracking task per major step below using
 TaskCreate (pull wiki repo, codebase audit, doc split decision, parallel agent
-launches, synthesis, diagram embedding, markdownlint, commit, summary).
+launches, synthesis, diagram embedding, markdownlint, commit, publish).
 
 Update the ElanRegistry architecture documentation in the local wiki repo.
 Reads the current wiki pages from disk, audits them against the codebase,
-updates all content, evaluates whether to split into multiple documents,
-adds Mermaid diagrams throughout, ensures all files pass lint, and commits +
-pushes to the wiki remote. All file reads and writes target the wiki repo
-path directly.
+updates onboarding/conceptual content and cross-references (not falsifiable
+reference detail — see above), evaluates whether to split into multiple
+documents, adds Mermaid diagrams throughout, ensures all files pass lint, and
+commits + publishes via the wiki's two-branch workflow. All file reads and
+writes target the wiki repo path directly.
 
 **Wiki repo path:** developer-specific, not committed here — read it from
 `.claude.local.md` (gitignored; see `CLAUDE.md`'s GitHub Wiki section). If
 that file doesn't exist or doesn't list a wiki clone path, stop and ask the
 user for the local path to the wiki repo before proceeding. Every
 `<wiki repo path>` placeholder below refers to this resolved path.
-**Main repo path:** the current repository checkout (read-only for codebase audit)
+**Main repo path:** the current repository checkout (read-only for codebase
+audit, except where Step 3 identifies an in-scope `docs/development/*.md` fix).
 
 ## Available Agents
 
@@ -50,9 +64,19 @@ Read `.claude.local.md` in the main repo root for the wiki clone path. If it
 doesn't exist or doesn't list one, stop and ask the user. Substitute the
 resolved path for every `<wiki repo path>` placeholder in the steps below.
 
-### Step 0.5: Pull the wiki repo to ensure it is up to date
+Read `<wiki repo path>/CLAUDE.md` before anything else — it is the
+authoritative statement of what belongs on the wiki, the two-branch publish
+workflow, and page conventions (metadata footer, `Content-Review-Status`).
+This command must not contradict it; if anything below appears to, that page
+wins.
+
+### Step 0.5: Pull the wiki repo and check out the working branch
+
+Work happens on `master-upload`, never directly on `master` (published,
+read by github.com) or `main` (dead).
 
 ```bash
+git -C <wiki repo path> checkout master-upload
 git -C <wiki repo path> pull
 ```
 
@@ -67,87 +91,95 @@ All file reads and writes in subsequent steps use absolute paths under
 
 ### Step 1: Read the current wiki documents
 
-- Read the relevant wiki pages from the local wiki repo using the Read tool.
-  Key pages to read (read all that exist):
-  - `Elan-Registry-Architecture-and-Database-Design.md`
-  - `Car-Transfer-System.md`
-  - `Development-Patterns.md`
-  - `Database-Schema-and-Data-Model.md`
-  - Any other pages listed by the `ls` in Step 0.
-- These are the authoritative baselines — do not rewrite what is already accurate.
+- Read every existing `<Topic>.md` page in the wiki repo using the Read tool
+  (the `ls` from Step 0.5 gives the full list — this typically includes the
+  architecture overview, transfer/user-flow pages, UserSpice integration
+  pages, and any others present).
+- These are the authoritative baselines for wiki content — do not rewrite
+  what is already accurate. Note which pages already carry falsifiable detail
+  that has since moved to the repo (schema tables, class inventories, code
+  samples) — these are drift to fix in Step 3, not a pattern to extend.
 
-### Step 2: Audit the codebase against the existing docs
+### Step 2: Audit the codebase and repo docs against the existing wiki pages
 
-- Walk the main repo codebase and compare what you find against what is documented.
-- For each section determine if it is: accurate, outdated, incomplete, or
-  missing entirely.
+- Walk the main repo codebase and `docs/development/*.md` and compare what you
+  find against what the wiki claims.
+- For each wiki section determine if it is: accurate, outdated, incomplete,
+  drifted-into-repo-territory (contains falsifiable detail that duplicates or
+  contradicts a repo doc), or missing entirely.
 - Use Explore agents in parallel to cover different areas of the codebase
   (e.g., database schema, PHP classes, page inventory, file storage, external
-  integrations).
+  integrations) and to confirm which `docs/development/*.md` file currently
+  owns each falsifiable topic.
 
 ### Step 3: Update the document content
 
-Ensure the documentation contains **all** of the following sections across the
-wiki pages (add to the most appropriate existing page, or create a new page if
-warranted). For each:
+For the wiki, ensure the following are true. For each:
 
 - If a section already exists and is accurate, preserve it as-is.
-- If a section exists but is outdated or incomplete, update it.
-- If a section is missing entirely, add it.
+- If a section exists but is outdated or incomplete **as onboarding/concept
+  content**, update it.
+- If a section contains falsifiable reference detail (schema, class/method
+  detail, page inventory, config keys, code samples meant to be copied),
+  **do not expand it.** Trim it to a short pointer and link to the owning
+  `docs/development/*.md` file (or wiki architecture-overview page, if that's
+  where the pointer already lives). If no repo doc currently owns that detail
+  and it's genuinely missing, flag it in the final report as a repo-doc gap
+  rather than writing it into the wiki.
+- If a genuinely onboarding/conceptual section is missing entirely, add it.
 
-**Required sections:**
+**Wiki-appropriate topics** (update/add as onboarding-narrative and
+cross-references, not reference tables):
 
-1. **Application Overview** — Purpose, scope, frameworks/libraries (UserSpice,
-   composer dependencies), directory structure.
+1. **Application Overview** — what the registry is, why UserSpice, the
+   `/users/` vs `/usersc/` split as a concept, top-level directory purpose
+   (link to repo docs for the authoritative directory listing).
+2. **UserSpice Integration — concepts** — what `securePage()`/`hasPerm()`
+   mean conceptually and why the permission model is non-hierarchical; link
+   to the repo for the current permission-level table and code patterns.
+3. **PHP Architecture — concepts** — the entity-vs-repository convention,
+   namespace philosophy; link to `CLASSES.md` for the actual class list.
+4. **File Storage — concepts** — the upload → validate → store → serve shape
+   at a narrative level; link to repo docs for constants, class names, and
+   `.htaccess` specifics.
+5. **External Integrations — concepts** — which services exist and why
+   (Cloudflare, A2 Hosting, Brevo, maps/location), left at the "what and why"
+   level; link to repo docs for API details, CSP allowlist entries, and
+   config keys.
+6. **Key User Flows** — narrative walkthroughs (registering a vehicle,
+   requesting a transfer, contacting an owner, searching); these are
+   legitimately wiki content since they describe user-facing behavior, not
+   an implementation contract — but sequence diagrams should name pages and
+   services at a conceptual level, not embed method signatures that will
+   drift.
 
-2. **Page & Route Inventory** — Every public-facing and admin page. For each:
-   purpose, data displayed, access level (public / authenticated / admin). URL
-   routing patterns and `.htaccess` rewrite rules.
-
-3. **Database Schema** — Every table: purpose, columns, data types, indexes.
-   Foreign key relationships (even if not enforced at DB level).
-
-4. **UserSpice Integration** — Authentication and access control. Which
-   pages/functions are gated and by what permission level. Customizations to
-   core UserSpice behavior.
-
-5. **PHP Architecture & Data Flow** — Key PHP files: entry points, includes,
-   helpers, config. Class structure and notable functions. Data flow from MySQL
-   query to PHP processing to HTML output. API endpoints and AJAX calls.
-
-6. **PDF & File Storage** — How PDFs and files are stored (database metadata +
-   filesystem path). Upload handling logic and file validation. How files are
-   served to authenticated vs public users.
-
-7. **External Integrations** — External services (Cloudflare, A2 Hosting,
-   email, etc.). Caching behavior and interaction with dynamic content.
-
-8. **Key User Flows** — Registering a vehicle, uploading a document, searching
-   the registry. Admin-only workflows (approvals, moderation, data management).
+**Explicitly not wiki content** (verify these are absent or already reduced
+to pointers; do not add them): a full page/route inventory with routing
+rules, a full database schema with column types/indexes, per-class method
+signatures, `.htaccess` rewrite rule listings, PHP code samples presented as
+patterns to copy. These belong in `docs/development/DATABASE.md`,
+`CLASSES.md`, `SYSTEM_OVERVIEW.md`, `CODING_STANDARDS.md`, etc. If auditing
+finds one of these repo docs is itself stale relative to the code, note it in
+the final report — fixing it is a separate, repo-side change and outside this
+command's write scope unless the user asks for it.
 
 ### Step 4: Evaluate whether to split the document
 
 Use the following criteria:
 
-- If any single topic section is large enough to stand alone as a reference
-  document, split it out.
+- If any single onboarding/concept topic is large enough to stand alone,
+  split it out.
 - Each resulting document should be cohesive and self-contained.
-- Add cross-references between documents where a reader would naturally navigate.
+- Add cross-references between wiki documents, and to the owning repo doc,
+  where a reader would naturally navigate.
 - Target: no single document exceeding 4-6 printed pages.
-
-Recommended split candidates (split only if content warrants it):
-
-- Overview & Application Architecture
-- Database Schema & Data Model
-- UserSpice Integration & Access Control
-- PHP Architecture & Data Flow
-- PDF & File Storage
-- Key User Flows
-- External Integrations & Infrastructure
+- The wiki is typically already split along these lines (check `ls` output
+  from Step 0.5 before assuming a new page is needed) — prefer updating an
+  existing page over creating a new one.
 
 Produce a split plan showing: filenames, titles, and which sections go into
-each document. **Pause and ask for confirmation before executing any split that
-creates or renames more than one document.**
+each document. **Pause and ask for confirmation before executing any split
+that creates or renames more than one document.**
 
 ### Step 5: Assign documents to parallel task groups
 
@@ -163,53 +195,32 @@ Launch assigned task groups concurrently. Each subagent should:
 - Receive its assigned document(s) and diagram opportunities.
 - Read the assigned document(s) and relevant source files for each section.
 - Produce all diagrams as fenced mermaid code blocks (` ```mermaid `).
-- For each diagram return: target filename, exact section heading, and diagram
-  content.
+- Keep diagrams conceptual — component/flow/sequence shape is fine even
+  though it names real files and classes, but do not encode column lists or
+  method signatures that duplicate repo-owned reference tables (an ER diagram
+  of all tables/columns belongs in `DATABASE.md`, not the wiki).
+- For each diagram return: target filename, exact section heading, and
+  diagram content.
 - **Not write anything to disk** — return results only.
 
-Ensure the following diagrams are produced and placed in the most relevant
-document:
+Good candidates, scoped to what a reader needs before opening the repo:
 
-**Database Schema:**
+- **Application Architecture** — high-level component diagram of major PHP
+  modules and how they relate; directory-purpose diagram (conceptual, not a
+  full tree).
+- **UserSpice & Access Control** — flowchart of authentication flow from
+  login through permission gate to page access; a role-vs-capability diagram
+  at the concept level (not a full page-by-page matrix — that's the repo's).
+- **Key User Flows** — sequence diagrams for: registering a vehicle,
+  requesting a transfer, contacting an owner, searching the registry; a
+  flowchart for the admin approval/moderation workflow.
+- **External Integrations** — Cloudflare caching flow, A2 Hosting request
+  topology, UserSpice customization points.
 
-- Full ER diagram of all tables, columns, and relationships.
-- Separate ER diagram for any major subsystem if the schema warrants it.
-
-**Application Architecture:**
-
-- High-level component diagram showing major PHP modules and how they relate.
-- Directory structure diagram showing key folders and their purpose.
-
-**UserSpice & Access Control:**
-
-- Flowchart showing authentication flow from login through permission gate to
-  page access.
-- Permission matrix diagram showing roles vs page/feature access levels.
-
-**PHP & Data Flow:**
-
-- Sequence diagram for a primary read path: user request -> PHP -> MySQL ->
-  HTML response.
-- Sequence diagram for a primary write path: form submit -> validation -> DB
-  write -> response.
-
-**PDF & File Storage:**
-
-- Flowchart showing file upload: validation -> storage -> metadata write.
-- Flowchart showing file retrieval: auth check -> metadata lookup -> file serve.
-
-**Key User Flows:**
-
-- Sequence diagram for: registering a vehicle.
-- Sequence diagram for: uploading a document.
-- Sequence diagram for: searching the registry.
-- Flowchart for admin approval or moderation workflow.
-
-**Additional diagrams:**
-
-- Any diagrams that would meaningfully clarify undocumented complexity.
-- Good candidates: Cloudflare caching flow, A2 Hosting deployment topology,
-  UserSpice customization points.
+Do not produce, as wiki diagrams: a full database ER diagram with every
+column, a full page/route inventory diagram, or a sequence diagram whose
+labels are exact method signatures likely to drift — those belong with the
+repo docs that own that detail.
 
 ### Step 7: Collect and validate all subagent results
 
@@ -225,17 +236,22 @@ document:
 - Write files to their absolute paths under
   `<wiki repo path>/`.
 - Place each diagram directly below the section heading it relates to.
-- Do not modify any existing prose — only insert diagram blocks.
+- Do not modify any existing prose — only insert diagram blocks, and the
+  trims/pointer-links called for in Step 3.
 - If a section already has a diagram, add new ones alongside rather than
   replacing.
 - Make a single clean write of each file.
 
-### Step 9: Add an update summary to each document
+### Step 9: Update each document's metadata footer
 
-- Below each document's title, add or update a "Last Updated" block with
-  today's date.
-- Note: "Added Mermaid diagrams throughout."
-- List the diagrams added and which sections they appear in.
+Per the wiki's page conventions (`<wiki repo path>/CLAUDE.md`), each page ends
+with a metadata footer. For every page touched:
+
+- Update **Last Updated** to today's date.
+- Set **Content-Review-Status: Reviewed** only for pages actually checked
+  against the code this run — leave `Needs Review` on anything not verified.
+- In the body (not the footer), note what changed: diagrams added and where,
+  and any falsifiable content trimmed with a pointer to its new repo-doc home.
 
 ### Step 10: Lint all files
 
@@ -251,36 +267,45 @@ document:
 - If a lint error cannot be auto-resolved, report it and pause for guidance
   before continuing to the commit step.
 
-### Step 11: Commit and push to the wiki repo
+### Step 11: Commit and publish via the two-branch workflow
 
 - Confirm all modified files pass lint before staging.
-- Stage all modified and newly created `.md` files:
+- Stage content files explicitly — do not `git add -A`:
 
   ```bash
-  git -C <wiki repo path> add *.md
+  git -C <wiki repo path> add <file1>.md <file2>.md ...
   ```
 
 - Write a commit message in the format:
   `docs: update architecture documents with diagrams [YYYY-MM-DD]`
-- Commit:
+- Commit on `master-upload`:
 
   ```bash
   git -C <wiki repo path> commit -m "docs: update architecture documents with diagrams $(date +%Y-%m-%d)"
   ```
 
-- Push to the wiki remote:
-
-  ```bash
-  git -C <wiki repo path> push
-  ```
+- Publish using the `/publish-wiki` command
+  (`<wiki repo path>/.claude/commands/publish-wiki.md`) rather than driving
+  git by hand — it pushes `master-upload`, fast-forwards `master`, pushes
+  that, and verifies. If `/publish-wiki` is unavailable, follow its steps
+  manually: never edit `master` directly, the merge must be
+  `git merge master-upload --ff-only` (stop and ask the user if that fails —
+  a non-fast-forward means `master` diverged), and verify afterward with
+  `git log origin/master -1`.
 
 ### Step 12: Report what was done
 
-- List every document created or modified (full path in the wiki repo).
-- For each document: list every diagram added and which section it was placed in.
+- List every wiki document created or modified (full path in the wiki repo).
+- For each document: list every diagram added and which section it was
+  placed in, and note any falsifiable content trimmed with the repo doc it
+  now points to.
+- List any repo-doc staleness found during the audit that this command did
+  not fix (out of scope — wiki-repo-only), so the user can decide whether to
+  address it separately.
 - Note which task groups completed and if any required a re-run.
 - Note any lint errors that were found and how they were resolved.
-- Note the commit hash from the wiki repo push.
+- Note the commit hash on `master-upload` and confirm `master` fast-forwarded
+  to it.
 - Confirm the changes are live at `https://github.com/elan-registry/registry/wiki`.
 - If the document was split, provide the exact wiki page titles created so
   they are consistent with the filenames used.

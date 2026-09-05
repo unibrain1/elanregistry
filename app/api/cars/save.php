@@ -14,6 +14,7 @@ use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Input;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
+use ElanRegistry\OwnerContactRefresher;
 use ElanRegistry\Resize;
 use ElanRegistry\UploadPathGuard;
 
@@ -350,6 +351,41 @@ function buildCarDetails(array &$cardetails, array &$errors, ?int $carId = null)
         if ($carData !== null) {
             foreach ($carData as $key => $value) {
                 $cardetails[$key] = $value;
+            }
+
+            // Refresh the car's owner-contact columns from the owner's current
+            // profile so edits to a stale car row don't perpetuate outdated
+            // contact data. Must be constructed from the CAR's owner
+            // (user_id, just loaded above from the DB row), never the
+            // logged-in $user — an admin or editor may be editing someone
+            // else's car, and using the session user would overwrite the
+            // member's contact details with staff's own.
+            //
+            // Security invariant: no client input may reach $cardetails['user_id']
+            // at any point before this line. That holds today because $cardetails
+            // is initialized empty above (see the top of this function), the
+            // caller never pre-populates it, and all Input::raw() consumers
+            // (updateYear/updateModel/updateChassis/updateColor/updateEngine/
+            // updatePurchasedate/updateSolddate/updateWebsite/updateComments) run
+            // AFTER this refresh, at the end of buildCarDetails(). Moving this
+            // Owner construction below those input-processing calls, or having
+            // the caller pre-populate $cardetails before calling buildCarDetails(),
+            // would let a client-supplied user_id substitute another owner's
+            // contact details onto this car — do not reorder.
+            //
+            // The merge itself lives in OwnerContactRefresher so it is reachable
+            // from a test; this file cannot be require()'d (every path exits).
+            $carOwner = new Owner((int) $cardetails['user_id']);
+            $refresher = new OwnerContactRefresher();
+            if ($refresher->hasLoadableOwner($carOwner)) {
+                $cardetails = $refresher->refresh($cardetails, $carOwner);
+            } else {
+                $ownerId = $cardetails['user_id'] !== null ? (int) $cardetails['user_id'] : null;
+                $ownerDescription = $ownerId === null
+                    ? 'has no owner (user_id is null)'
+                    : 'owner ' . $ownerId . ' could not be loaded';
+                logger($user->data()->id, LogCategories::LOG_CATEGORY_OWNER_ERRORS,
+                    'buildCarDetails: Car ID ' . $carId . ' ' . $ownerDescription . '; skipping owner-contact refresh');
             }
         } else {
             logger($user->data()->id, LogCategories::LOG_CATEGORY_CAR_ACTIONS,
