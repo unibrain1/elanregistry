@@ -166,3 +166,36 @@ $rateLimits['location_search']['ip_window'] = 60;
 $rateLimits['location_search']['total_max'] = 10;
 $rateLimits['location_search']['total_window'] = 60;
 
+// Public read-only DataTables endpoints (ADR-019): one AJAX draw fires per
+// search keystroke and per sort/page click, so these are sized well above the
+// interactive-browsing ceiling to avoid 429s during normal use.
+//
+// total_max is the operative limit for the three keys defined below.
+// RateLimit::check() counts ip_max / user_max against FAILED attempts only,
+// and these three endpoints record every admitted draw as a success while
+// recording nothing on rejection — so those two counters never see a nonzero
+// count. total_max counts all attempts and is scoped per identifier (per IP
+// for anonymous callers), not site-wide.
+$rateLimits['cars_list']['ip_max'] = 1000;
+$rateLimits['cars_list']['ip_window'] = 300;
+$rateLimits['cars_list']['user_max'] = 1000;
+$rateLimits['cars_list']['user_window'] = 300;
+$rateLimits['cars_list']['total_max'] = 10000;
+$rateLimits['cars_list']['total_window'] = 300;
+
+$rateLimits['factory_list']['ip_max'] = 1000;
+$rateLimits['factory_list']['ip_window'] = 300;
+$rateLimits['factory_list']['user_max'] = 1000;
+$rateLimits['factory_list']['user_window'] = 300;
+$rateLimits['factory_list']['total_max'] = 10000;
+$rateLimits['factory_list']['total_window'] = 300;
+
+// Fires once per car-details view rather than per keystroke, so it needs
+// less headroom than the list endpoints above.
+$rateLimits['car_history']['ip_max'] = 600;
+$rateLimits['car_history']['ip_window'] = 300;
+$rateLimits['car_history']['user_max'] = 600;
+$rateLimits['car_history']['user_window'] = 300;
+$rateLimits['car_history']['total_max'] = 5000;
+$rateLimits['car_history']['total_window'] = 300;
+
