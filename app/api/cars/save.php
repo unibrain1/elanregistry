@@ -14,6 +14,7 @@ use ElanRegistry\Exceptions\ImageProcessingException;
 use ElanRegistry\Input;
 use ElanRegistry\LogCategories;
 use ElanRegistry\Owner;
+use ElanRegistry\OwnerContactRefresher;
 use ElanRegistry\Resize;
 use ElanRegistry\UploadPathGuard;
 
@@ -371,26 +372,13 @@ function buildCarDetails(array &$cardetails, array &$errors, ?int $carId = null)
             // the caller pre-populate $cardetails before calling buildCarDetails(),
             // would let a client-supplied user_id substitute another owner's
             // contact details onto this car — do not reorder.
+            //
+            // The merge itself lives in OwnerContactRefresher so it is reachable
+            // from a test; this file cannot be require()'d (every path exits).
             $carOwner = new Owner((int) $cardetails['user_id']);
-            if ($carOwner->data() !== null) {
-                $ownerFields = $carOwner->ownerContactFields();
-                // website is excluded: it is still a genuine per-car field
-                // with its own form input (app/owner/cars/edit.php:370-374),
-                // not yet owner-level. #1963 will make it owner-level and
-                // remove that input, at which point this exclusion is deleted.
-                //
-                // ownerContactFields() must never include owner_last_updated
-                // (would reset the verification freshness clock — see #1873/
-                // #1953 — Car::update() has its own, separate handling of it
-                // for genuine owner self-edits) or join_date (creation-time
-                // only). This is enforced by
-                // OwnerContactFieldsTest::testOwnerContactFields_NeverIncludesMtimeOrOwnerLastUpdated,
-                // not by a runtime check here.
-                unset($ownerFields['website']);
-
-                foreach ($ownerFields as $key => $value) {
-                    $cardetails[$key] = $value;
-                }
+            $refresher = new OwnerContactRefresher();
+            if ($refresher->hasLoadableOwner($carOwner)) {
+                $cardetails = $refresher->refresh($cardetails, $carOwner);
             } else {
                 $ownerId = $cardetails['user_id'] !== null ? (int) $cardetails['user_id'] : null;
                 $ownerDescription = $ownerId === null

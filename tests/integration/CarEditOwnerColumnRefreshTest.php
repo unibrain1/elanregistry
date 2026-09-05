@@ -6,6 +6,7 @@ require_once __DIR__ . '/IntegrationTestCase.php';
 
 use ElanRegistry\Car\Car;
 use ElanRegistry\Owner;
+use ElanRegistry\OwnerContactRefresher;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -15,17 +16,18 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * `buildCarDetails()` (app/api/cars/save.php) cannot be require()'d under
  * PHPUnit — every branch ends in ApiResponse::send() -> exit (see
- * tests/unit/cars/CarActionsSaveWiringTest.php). These tests instead
- * reproduce the exact sequence the `if ($carId)` edit branch now runs:
+ * tests/unit/cars/CarActionsSaveWiringTest.php). The merge it performs was
+ * therefore extracted into {@see \ElanRegistry\OwnerContactRefresher}, which
+ * these tests call directly. That matters: an earlier revision of this file
+ * hand-copied the merge into a private helper, and every test here passed with
+ * the production block deleted outright, and passed again with the Owner
+ * constructed from the session user instead of the car's owner — the exact PII
+ * leak the endpoint's comments warn about. Tests that re-implement the code
+ * under test cannot fail when it breaks. Call the real thing.
  *
- *   1. Load the car row (foreach copy onto $cardetails — modeled here by
- *      reading the car's own user_id, never the logged-in session user).
- *   2. new Owner((int) $cardetails['user_id'])
- *   3. $ownerFields = $carOwner->ownerContactFields(); unset($ownerFields['website']);
- *   4. Merge $ownerFields onto $cardetails, alongside an unrelated edited field.
- *   5. Car::update($cardetails)
- *
- * and then assert against the database afterward.
+ * The helpers below still stage what the endpoint stages around that call
+ * (load the car row, merge an unrelated edited field, persist via
+ * Car::update()), then assert against the database afterward.
  *
  * @see app/api/cars/save.php buildCarDetails()
  * @see usersc/classes/Owner.php Owner::ownerContactFields()
@@ -122,17 +124,19 @@ final class CarEditOwnerColumnRefreshTest extends IntegrationTestCase
             $cardetails[$key] = $value;
         }
 
-        // Step 2-3: load the CAR's owner (never a session/admin user) and
-        // pull the refreshable contact fields.
+        // Load the CAR's owner (never a session/admin user), then run the
+        // production merge itself — the same object app/api/cars/save.php
+        // calls. Do not inline this merge here: a hand-copy passes even when
+        // the endpoint's call is deleted.
         $carOwner = new Owner((int) $cardetails['user_id']);
         $this->assertNotNull($carOwner->data(), 'Precondition: car owner must load');
 
-        $ownerFields = $carOwner->ownerContactFields();
-        unset($ownerFields['website']);
-
-        foreach ($ownerFields as $key => $value) {
-            $cardetails[$key] = $value;
-        }
+        $refresher = new OwnerContactRefresher();
+        $this->assertTrue(
+            $refresher->hasLoadableOwner($carOwner),
+            'Precondition: the refresher must agree the owner loaded'
+        );
+        $cardetails = $refresher->refresh($cardetails, $carOwner);
 
         $car = new Car($carId);
         $result = $car->update($cardetails, $isOwnerInitiated);
@@ -166,10 +170,21 @@ final class CarEditOwnerColumnRefreshTest extends IntegrationTestCase
             'Precondition: this test exercises the orphan-owner branch — the owner must fail to load'
         );
 
-        // buildCarDetails()'s `else` branch (owner data() === null): logs and
-        // does NOT touch $cardetails at all — no ownerFields merge happens.
-        // So $cardetails already holds exactly the stale car-row snapshot
-        // (plus $extraFields) at this point, matching production exactly.
+        // The endpoint's `else` branch (owner data() === null) logs and skips
+        // the merge. Run the real refresher anyway and assert it returns
+        // $cardetails untouched — that no-op IS the contract under test, and
+        // asserting it here means a refresher that started blanking columns on
+        // an unloadable owner would fail this test rather than slip through.
+        $refresher = new OwnerContactRefresher();
+        $this->assertFalse(
+            $refresher->hasLoadableOwner($carOwner),
+            'Precondition: the refresher must agree the owner did not load'
+        );
+        $this->assertSame(
+            $cardetails,
+            $refresher->refresh($cardetails, $carOwner),
+            'An unloadable owner must leave every car-detail value untouched'
+        );
 
         $car = new Car($carId);
         $result = $car->update($cardetails);

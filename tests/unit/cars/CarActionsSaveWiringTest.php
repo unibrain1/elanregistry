@@ -292,4 +292,70 @@ final class CarActionsSaveWiringTest extends TestCase
             "even though the Owner(...) call itself still reads \$cardetails['user_id']."
         );
     }
+
+    /**
+     * The endpoint must actually CALL the refresher, and assign its result.
+     *
+     * The merge logic itself lives in {@see \ElanRegistry\OwnerContactRefresher}
+     * and is properly unit- and integration-tested there. But no test that
+     * exercises the refresher can tell whether `save.php` still invokes it —
+     * deleting the call here leaves every one of those tests green, because they
+     * construct the refresher themselves. This source-level assertion is the
+     * only thing standing between "#1962 is fixed" and "#1962's code exists in
+     * the repo but never runs".
+     *
+     * Asserting on source text is a poor substitute for executing the code, and
+     * it is used here only because `save.php` cannot be require()'d — every
+     * branch ends in ApiResponse::send() -> exit. Keep the scope of these
+     * source assertions minimal: pin that the call happens and that its result
+     * is assigned back, and leave what the call DOES to the refresher's own
+     * tests, which are behavioral.
+     */
+    public function testBuildCarDetailsActuallyInvokesTheOwnerContactRefresher(): void
+    {
+        $content = $this->readEndpointSource(self::SAVE_ENDPOINT);
+
+        $functionStart = strpos($content, 'function buildCarDetails(');
+        $this->assertIsInt($functionStart, 'Could not locate the buildCarDetails() function');
+
+        $nextFunctionStart = strpos($content, "\nfunction ", $functionStart + 1);
+        $this->assertIsInt($nextFunctionStart, 'Could not locate the end of the buildCarDetails() function body');
+        $functionBody = substr($content, $functionStart, $nextFunctionStart - $functionStart);
+
+        $this->assertStringContainsString(
+            'new OwnerContactRefresher()',
+            $functionBody,
+            '#1962: buildCarDetails() must construct an OwnerContactRefresher — without it ' .
+            'the owner-contact columns are never refreshed and the bug is unfixed, however ' .
+            'thoroughly the refresher class itself is tested.'
+        );
+
+        // The result must be assigned back. `refresh()` is pure — it returns a
+        // new array rather than mutating by reference — so a bare call
+        // statement would type-check, pass PHPStan, and silently do nothing.
+        $this->assertMatchesRegularExpression(
+            '/\$cardetails\s*=\s*\$\w+->refresh\(\s*\$cardetails\s*,/',
+            $functionBody,
+            '#1962: the refresher\'s return value must be assigned back to $cardetails. ' .
+            'OwnerContactRefresher::refresh() does not mutate its argument, so calling it ' .
+            'without assigning the result discards the refreshed values entirely.'
+        );
+
+        // The refresh must still happen before any client input is processed —
+        // the same ordering invariant the security test above pins for the
+        // Owner construction, re-checked for the call that consumes it.
+        $refreshCallPos = strpos($functionBody, '->refresh($cardetails');
+        $this->assertIsInt($refreshCallPos, 'Could not locate the refresh() call');
+
+        foreach (['updateYear', 'updateComments'] as $consumer) {
+            $callPos = strpos($functionBody, $consumer . '($cardetails');
+            $this->assertIsInt($callPos, "Could not locate the {$consumer}() call");
+            $this->assertGreaterThan(
+                $refreshCallPos,
+                $callPos,
+                "SECURITY (#1962): {$consumer}() processes client input and must run AFTER " .
+                'the owner-contact refresh, for the same reason the Owner construction must.'
+            );
+        }
+    }
 }
