@@ -17,18 +17,19 @@
 #   --env-file P    Read the TARGET database credentials from P instead of
 #                   .env. Use --env-file .env.test.local to rehearse a refresh
 #                   against the scratch test schema before touching your
-#                   working dev database. Connection details (host, port,
-#                   socket) come from this file too: if DB_HOST is host:port
-#                   or DB_PORT is set, the client connects over TCP; otherwise
-#                   it falls back to the MAMP socket.
+#                   working dev database. Connection details come from that
+#                   file too: the client connects over TCP when DB_PORT is set
+#                   or DB_HOST carries a `host:port` value, and otherwise
+#                   falls back to the MAMP socket.
 #   --skip-images   Skip image rsync (DB refresh only)
 #   --images-only   Skip DB refresh, only rsync images
 #   -h, --help      Show this help and exit
 #
 # Arguments:
-#   DUMP_FILE       Path to an existing mysqldump SQL file. Ignored with
-#                   --fetch, which writes its own dump to
-#                   ~/Downloads/unibrain_registry.sql.
+#   DUMP_FILE       Path to an existing mysqldump SQL file to import. Cannot
+#                   be combined with --fetch, which writes its own dump to
+#                   ~/Downloads/unibrain_registry.sql and would otherwise
+#                   overwrite the file named here.
 #                   (default: ~/Downloads/unibrain_registry.sql)
 #
 # Tables upserted (new rows added, existing rows updated by primary key):
@@ -100,6 +101,7 @@ FETCH_DUMP=false
 DB_NAME_OVERRIDE=""
 ENV_FILE_OVERRIDE=""
 DUMP_FILE="$HOME/Downloads/unibrain_registry.sql"
+DUMP_FILE_ARG=""
 
 usage() {
     grep '^#' "$0" | grep -v '^#!/' | sed 's/^# \{0,1\}//'
@@ -115,7 +117,7 @@ while [[ $# -gt 0 ]]; do
         --images-only) IMAGES_ONLY=true; shift ;;
         -h|--help)     usage ;;
         -*)            echo "Error: unknown option: $1" >&2; exit 1 ;;
-        *)             DUMP_FILE="$1"; shift ;;
+        *)             DUMP_FILE_ARG="$1"; shift ;;
     esac
 done
 
@@ -128,6 +130,20 @@ fi
 if [[ "$IMAGES_ONLY" == true ]] && [[ "$FETCH_DUMP" == true ]]; then
     echo "Error: --images-only and --fetch are mutually exclusive" >&2
     exit 1
+fi
+
+# --fetch writes the production dump to DUMP_FILE. Accepting a positional path
+# alongside it would silently overwrite that file rather than "ignore" it, so
+# refuse the combination instead of destroying whatever was there.
+if [[ "$FETCH_DUMP" == true ]] && [[ -n "$DUMP_FILE_ARG" ]]; then
+    echo "Error: --fetch dumps production to $DUMP_FILE; it cannot also take" >&2
+    echo "       a DUMP_FILE argument. Drop --fetch to import $DUMP_FILE_ARG," >&2
+    echo "       or drop the argument to fetch a fresh dump." >&2
+    exit 1
+fi
+
+if [[ -n "$DUMP_FILE_ARG" ]]; then
+    DUMP_FILE="$DUMP_FILE_ARG"
 fi
 
 if [[ "$IMAGES_ONLY" == false ]]; then
@@ -159,8 +175,10 @@ load_env() {
     DB_HOST=$(grep -E '^DB_HOST=' "$env_file" | cut -d= -f2-)
     DB_PORT=$(grep -E '^DB_PORT=' "$env_file" | cut -d= -f2-)
 
-    # DB_HOST may carry the port as "host:port" (see .env.test.local) because
-    # upstream UserSpice builds its DSN from that single value.
+    # DB_HOST may carry the port as "host:port" rather than using DB_PORT.
+    # Either shape works: a combined value is split here, and a separate
+    # DB_PORT is read directly. Both end up selecting the TCP branch in
+    # setup_mysql_cnf.
     if [[ "$DB_HOST" == *:* ]]; then
         DB_PORT="${DB_PORT:-${DB_HOST##*:}}"
         DB_HOST="${DB_HOST%%:*}"
@@ -277,12 +295,17 @@ REMOTE
 # Single-pass Python extractor: reads the mysqldump and emits only the sections
 # for the requested tables (structure + data + triggers), wrapped with the
 # charset/mode preamble and epilogue needed for a clean import.
+
 # Columns that exist in production but not in the local schema. Production
 # carries legacy `users` columns (`company`, `last_confirm`) that no migration
 # creates, so a provisioned schema legitimately has fewer columns. Rather than
 # fail the import, the extractor drops those columns from each INSERT.
 target_columns_csv() {
+    # group_concat_max_len defaults to 1024 bytes; a wide table would silently
+    # truncate its column list here and cause real columns to be dropped from
+    # the import.
     "$MYSQL_BIN" --defaults-file="$MYSQL_CNF" -N -B "$DB_NAME" -e "
+        SET SESSION group_concat_max_len = 1000000;
         SELECT CONCAT(TABLE_NAME, ':', GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION))
           FROM information_schema.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE()
@@ -573,13 +596,18 @@ with open(dump_file, encoding="utf-8", errors="replace") as f:
             buf       = [line]
             cur_table = m.group(1) if m.group(1) in wanted else None
         else:
+            # A --no-create-info dump has no `-- Table structure` headers, so
+            # the only section boundary is a data/trigger header. Treat one for
+            # a *different* table as a boundary too, otherwise every later
+            # table is appended to the first one's buffer and silently dropped.
+            m2 = TABLE_RE.search(line)
+            if m2 and m2.group(1) != cur_table:
+                name = m2.group(1)
+                if cur_table is not None:
+                    flush(buf, cur_table)
+                    buf = []
+                cur_table = name if name in wanted else None
             buf.append(line)
-            # Data/trigger headers can follow without a structure header
-            # (e.g. --no-create-info dumps), so still match those.
-            if cur_table is None:
-                m2 = TABLE_RE.search(line)
-                if m2 and m2.group(1) in wanted:
-                    cur_table = m2.group(1)
 
 flush(buf, cur_table)  # last section
 
