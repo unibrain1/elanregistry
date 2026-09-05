@@ -384,13 +384,23 @@ yet).
 **CRITICAL:** ALWAYS use that one permanent clone. NEVER clone to `/tmp/`, a
 worktree, or any other temporary location.
 
-To update the live wiki after editing files in `wiki/` on a branch (substitute
-your own clone path for `<wiki-clone>`):
+The wiki clone uses a two-branch workflow: edit on `master-upload`, then
+fast-forward that into `master` (what readers see on github.com) — never
+edit or push `master` directly. Publish with the wiki repo's own
+`/publish-wiki` command rather than driving git by hand; substitute your own
+clone path for `<wiki-clone>`:
 
 ```bash
-cp wiki/<file>.md <wiki-clone>/
 cd <wiki-clone>
+git checkout master-upload
+git pull
+# edit pages directly in this clone
 git add <file>.md
 git commit -m "docs: <description>"
-git push
 ```
+
+Then run `/publish-wiki` (from within the wiki clone) to push
+`master-upload`, fast-forward `master`, push that, and verify. If driving it
+manually, the publish step is `git merge master-upload --ff-only` — if that
+fails, stop; a non-fast-forward means `master` has diverged and needs
+manual review, not a forced merge.
