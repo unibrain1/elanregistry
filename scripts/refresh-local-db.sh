@@ -242,9 +242,15 @@ trap 'rm -f "$cnf"' EXIT
 # --single-transaction: consistent read that keeps the live site unblocked.
 # --routines is deliberately omitted -- it is schema-wide (not per-table) and
 #   we only ever import data rows plus each table's own triggers.
+# --complete-insert names every column in each INSERT instead of relying on
+# positional values. Production still carries legacy `users` columns
+# (`company`, `last_confirm`) that no migration creates, so a freshly
+# provisioned local schema has fewer columns than production and a positional
+# insert fails with "Column count doesn't match value count" (MySQL 1136).
+# Naming the columns makes the import tolerate that drift in either direction.
 mysqldump --defaults-file="$cnf" \
     --single-transaction --quick --triggers --no-tablespaces \
-    --default-character-set=utf8mb4 \
+    --complete-insert --default-character-set=utf8mb4 \
     "$db_name" $DUMP_TABLES | gzip -c
 REMOTE
 
@@ -271,14 +277,134 @@ REMOTE
 # Single-pass Python extractor: reads the mysqldump and emits only the sections
 # for the requested tables (structure + data + triggers), wrapped with the
 # charset/mode preamble and epilogue needed for a clean import.
+# Columns that exist in production but not in the local schema. Production
+# carries legacy `users` columns (`company`, `last_confirm`) that no migration
+# creates, so a provisioned schema legitimately has fewer columns. Rather than
+# fail the import, the extractor drops those columns from each INSERT.
+target_columns_csv() {
+    "$MYSQL_BIN" --defaults-file="$MYSQL_CNF" -N -B "$DB_NAME" -e "
+        SELECT CONCAT(TABLE_NAME, ':', GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION))
+          FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+         GROUP BY TABLE_NAME"
+}
+
 extract_tables() {
     local dump_file="$1"
     shift
-    python3 - "$dump_file" "$@" <<'PYEOF'
+    local schema_map
+    schema_map=$(target_columns_csv)
+    TARGET_SCHEMA="$schema_map" python3 - "$dump_file" "$@" <<'PYEOF'
 import sys, re
+
+import os
 
 dump_file = sys.argv[1]
 wanted    = set(sys.argv[2:])
+
+# table -> ordered list of columns that actually exist in the target schema.
+TARGET = {}
+for entry in os.environ.get('TARGET_SCHEMA', '').splitlines():
+    if ':' in entry:
+        t, cols = entry.split(':', 1)
+        TARGET[t] = cols.split(',')
+
+COMPLETE_INSERT_RE = re.compile(
+    r'^(REPLACE INTO `([^`]+)` )\(([^)]*)\) VALUES (.*)$', re.S
+)
+
+
+def split_tuples(values_sql):
+    """Split a VALUES payload into its top-level (...) tuples.
+
+    Cannot be done with a regex: values contain quoted strings that may hold
+    parentheses, commas, and escaped quotes.
+    """
+    tuples, depth, buf = [], 0, []
+    in_str = False
+    esc = False
+    for ch in values_sql:
+        if in_str:
+            buf.append(ch)
+            if esc:
+                esc = False
+            elif ch == '\\':
+                esc = True
+            elif ch == "'":
+                in_str = False
+            continue
+        if ch == "'":
+            in_str = True
+            buf.append(ch)
+        elif ch == '(':
+            depth += 1
+            if depth == 1:
+                buf = []
+            else:
+                buf.append(ch)
+        elif ch == ')':
+            depth -= 1
+            if depth == 0:
+                tuples.append(''.join(buf))
+            else:
+                buf.append(ch)
+        elif depth:
+            buf.append(ch)
+    return tuples
+
+
+def split_values(tup):
+    """Split one tuple's comma-separated values, respecting quoted strings."""
+    out, buf, in_str, esc = [], [], False, False
+    for ch in tup:
+        if in_str:
+            buf.append(ch)
+            if esc:
+                esc = False
+            elif ch == '\\':
+                esc = True
+            elif ch == "'":
+                in_str = False
+            continue
+        if ch == "'":
+            in_str = True
+            buf.append(ch)
+        elif ch == ',':
+            out.append(''.join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    out.append(''.join(buf))
+    return out
+
+
+def drop_missing_columns(line):
+    """Rewrite a --complete-insert REPLACE, removing columns the target lacks."""
+    m = COMPLETE_INSERT_RE.match(line)
+    if not m:
+        return line
+    head, table, collist, values_sql = m.groups()
+    target_cols = TARGET.get(table)
+    if not target_cols:
+        return line
+
+    cols = [c.strip().strip('`') for c in collist.split(',')]
+    keep = [i for i, c in enumerate(cols) if c in target_cols]
+    if len(keep) == len(cols):
+        return line  # nothing to drop
+
+    trailing = ';\n' if values_sql.rstrip().endswith(';') else '\n'
+    payload = values_sql.rstrip().rstrip(';')
+
+    new_tuples = []
+    for tup in split_tuples(payload):
+        vals = split_values(tup)
+        if len(vals) != len(cols):
+            return line  # shape not as expected; leave it alone
+        new_tuples.append('(' + ','.join(vals[i] for i in keep) + ')')
+
+    new_cols = '(' + ','.join('`' + cols[i] + '`' for i in keep) + ')'
+    return head + new_cols + ' VALUES ' + ','.join(new_tuples) + trailing
 
 # Section boundaries are the per-table header comments themselves, NOT the
 # `-- ------` separator lines. A whole-schema dump emits a separator before
@@ -353,6 +479,7 @@ def transform_buf(buf):
             continue
         if line.startswith('INSERT INTO '):
             line = 'REPLACE INTO ' + line[len('INSERT INTO '):]
+            line = drop_missing_columns(line)
         elif CREATE_TRIGGER_RE.match(line):
             m = CREATE_TRIGGER_RE.match(line)
             drop = f'DROP TRIGGER IF EXISTS `{m.group(1)}`;\n'
