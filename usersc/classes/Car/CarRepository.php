@@ -389,6 +389,9 @@ class CarRepository
      * deferred so the rule has exactly one definition per language: a caller
      * that reimplements "fresh" inline is how the #1953 defect returns.
      *
+     * Delete this paragraph in the same PR that adds the first caller — see
+     * issue #1970. A stale "not yet called" note misleads worse than none.
+     *
      * Throws on a malformed or empty date string for either parameter rather than
      * returning a boolean. `owner_last_updated` is NOT NULL by schema and
      * `last_verified` is either NULL or a valid datetime, so a malformed value is

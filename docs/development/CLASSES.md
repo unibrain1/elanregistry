@@ -495,7 +495,7 @@ to provide a focused, testable data access layer wrapping the `cars`,
 - `isFresh(?string $lastVerified, string $ownerLastUpdated): bool` - **Not yet
   called from production code** (only the SQL form is wired in, via
   `findVerificationEligible()`); the send pipeline in v2.30.3 is the intended
-  first caller. PHP
+  first caller, at which point this note is removed (issue #1970). PHP
   equivalent of `freshnessSql()` for in-code freshness checks, using PHP's clock
   where the SQL form uses MySQL's `NOW()`. Both clocks must resolve to the same
   timezone or the two forms can disagree at the one-year boundary from skew alone.
