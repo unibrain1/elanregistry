@@ -419,11 +419,19 @@ TABLE_RE   = re.compile(
 # For each email-sensitive table: the masking UPDATE runs inside the same
 # transaction as the INSERTs so real addresses are never the committed state.
 EMAIL_MASKS = {
+    # `noowner` is the GDPR reassignment target. Its address is deliberately
+    # unroutable: `.invalid` (RFC 2606) cannot resolve, which is the only thing
+    # closing the passwordless-login recovery path for that account. Masking it
+    # to an @elanregistry.local address would re-open that gate, so preserve it.
+    # Matched by username, never by id — the migration that creates the account
+    # deliberately lets its id fall out of the insert rather than hardcoding it.
     'users': (
         "UPDATE `users` "
         "SET `email` = CONCAT('dev.owner.', `id`, '@elanregistry.local'), "
         "`email_new` = NULL "
-        "WHERE `id` != 1;\n"
+        "WHERE `id` != 1 "
+        "AND `username` <> 'noowner' "
+        "AND `email` NOT LIKE '%@invalid';\n"
     ),
     'cars': (
         "UPDATE `cars` "
@@ -606,7 +614,10 @@ verify_masking() {
 
     local sql="
 SELECT 'users.email', COUNT(*) FROM \`users\`
-    WHERE \`id\` != 1 AND \`email\` NOT LIKE '%@elanregistry.local'
+    WHERE \`id\` != 1
+      AND \`username\` <> 'noowner'
+      AND \`email\` NOT LIKE '%@invalid'
+      AND \`email\` NOT LIKE '%@elanregistry.local'
 UNION ALL
 SELECT 'users.email_new', COUNT(*) FROM \`users\`
     WHERE \`email_new\` IS NOT NULL AND \`email_new\` != ''
