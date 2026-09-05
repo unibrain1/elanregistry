@@ -232,9 +232,17 @@ class CarRepository
         );
 
         if ($this->db->error()) {
-            $msg = "CarRepository::updateCarForOwner failed (carId={$carId} userId={$userId}): " . $this->db->errorString();
-            logger(0, LogCategories::LOG_CATEGORY_DATABASE_ERROR, $msg);
-            throw new CarDatabaseException($msg);
+            // Deliberately no logger() here. This method is designed to be called
+            // inside a per-car transaction (see Owner::syncOwnerFieldsToCars()), and
+            // `logs` is InnoDB on the same connection — a row written here is
+            // destroyed by the caller's rollback, erasing the diagnostic exactly
+            // when it is needed. The exception message carries the full error string
+            // and is the durable record; callers MUST log it after their transaction
+            // has closed. Matches Owner::carBelongsToOwner(), which does the same.
+            throw new CarDatabaseException(
+                "CarRepository::updateCarForOwner failed (carId={$carId} userId={$userId}): "
+                . $this->db->errorString()
+            );
         }
 
         return $this->db->count();

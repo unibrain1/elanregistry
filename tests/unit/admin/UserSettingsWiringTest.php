@@ -256,4 +256,103 @@ final class UserSettingsWiringTest extends TestCase
             self::OWNER_CLASS_PATH . ' must not store a bare randomString() result unhashed (#1879)'
         );
     }
+
+    // =========================================================================
+    // user_settings.php — $profileFieldsChanged sync gating (source inspection)
+    // =========================================================================
+
+    /**
+     * The unconfirmed-email guard (#1873).
+     *
+     * `cars.email` is the address verification batches send to. When
+     * `email_act == 1`, user_settings.php writes only `email_new` — `users.email`
+     * is unchanged until the owner confirms via users/verify.php. Setting
+     * $profileFieldsChanged in that branch would push an UNCONFIRMED address onto
+     * every car the owner has.
+     *
+     * Only a comment enforces this today, and a mutation adding the flag to that
+     * branch survives the whole suite. This pins it by source inspection: the
+     * page cannot be included in a unit test (it executes on load and depends on
+     * UserSpice globals), which is why this file already inspects source text
+     * elsewhere.
+     */
+    public function testUnconfirmedEmailBranchDoesNotTriggerCarSync(): void
+    {
+        $content = $this->readEndpointSource('usersc/user_settings.php');
+
+        // Anchor on the `if` statement itself, not a bare 'email_act == 1'
+        // substring — the comment above the email_act == 0 branch mentions
+        // 'email_act == 1' by name, and matching that would extract the wrong
+        // branch entirely (and pass for the wrong reason).
+        $marker = 'if ($emailR->email_act == 1) {';
+        $branchStart = strpos($content, $marker);
+        $this->assertNotFalse($branchStart, 'user_settings.php must still branch on email_act == 1');
+
+        // Bound the window at the branch's own closing brace rather than a fixed
+        // character count: a fixed window either truncates the branch (making the
+        // assertion vacuous) or overruns into later code (producing a false hit).
+        // The email_act == 1 block is the last `if` inside the confirmed-email
+        // block, so its body ends at the next line that dedents to its own brace.
+        $branchEnd = strpos($content, "\n                            }", $branchStart);
+        $this->assertNotFalse($branchEnd, 'Could not locate the end of the email_act == 1 branch');
+        $branchBody = substr($content, $branchStart, $branchEnd - $branchStart);
+        $this->assertGreaterThan(
+            200,
+            strlen($branchBody),
+            'The extracted email_act == 1 branch body is implausibly short — the '
+            . 'delimiter above probably no longer matches, which would make the '
+            . 'assertions below vacuous'
+        );
+
+        $this->assertStringContainsString(
+            'email_new',
+            $branchBody,
+            'The email_act == 1 branch must still be the one that stages email_new'
+        );
+        $this->assertStringNotContainsString(
+            '$profileFieldsChanged = true;',
+            $branchBody,
+            'The email_act == 1 branch stages email_new only — users.email is unchanged '
+            . 'until the owner confirms, so it must NOT set $profileFieldsChanged or an '
+            . 'unconfirmed address would be synced onto every car (#1873)'
+        );
+    }
+
+    /**
+     * The sync must remain gated on $profileFieldsChanged, and the flag must be
+     * set by each branch that actually persists a synced owner-contact field.
+     *
+     * Mutations that drop a `$profileFieldsChanged = true;` (e.g. from the
+     * location block) silently stop syncing that field class — the exact defect
+     * #1873 was filed to fix — and no behavioral test catches it.
+     */
+    public function testSyncIsGatedOnProfileFieldsChangedFlag(): void
+    {
+        $content = $this->readEndpointSource('usersc/user_settings.php');
+
+        $this->assertMatchesRegularExpression(
+            '/if\s*\(\s*\$profileFieldsChanged\s*\)/',
+            $content,
+            'The car sync must stay gated on $profileFieldsChanged so a save that '
+            . 'persisted nothing does not push stale values onto the cars'
+        );
+
+        $this->assertStringContainsString(
+            'syncOwnerFieldsToCars()',
+            $content,
+            'user_settings.php must call syncOwnerFieldsToCars() (#1873)'
+        );
+
+        // fname, lname, location, website, and the confirmed-email branch each
+        // persist a synced column, so each must set the flag. The unconfirmed
+        // email branch must not — asserted separately above.
+        $this->assertSame(
+            5,
+            substr_count($content, '$profileFieldsChanged = true;'),
+            'Exactly five branches persist a synced owner-contact field (fname, lname, '
+            . 'location, website, confirmed email) and each must set $profileFieldsChanged. '
+            . 'A change here means either a sync trigger was dropped or the unconfirmed-email '
+            . 'branch gained one (#1873)'
+        );
+    }
 }

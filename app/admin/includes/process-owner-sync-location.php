@@ -114,12 +114,17 @@ try {
             "Owner-field sync DB failure for owner ID {$ownerId}: " . $e->getMessage()
         )
         ->send();
-} catch (Exception $e) {
-    ApiResponse::serverError('Location synchronization failed. Please try again.')
+} catch (\Throwable $e) {
+    // \Throwable, not Exception: PHP's Error hierarchy (TypeError et al.) does not
+    // extend Exception, and syncOwnerFieldsToCars() builds its field bundle from
+    // untyped $_data properties. An escaping Error would end this AJAX request as an
+    // uncaught fatal, sending the client an HTML error page instead of JSON and
+    // leaving no row in `logs` at all.
+    ApiResponse::serverError('Owner field synchronization failed. Please try again.')
         ->withLogging(
             $user->data()->id,
             LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
-            "Location sync unexpected error for owner ID {$ownerId}: " . $e->getMessage()
+            'Owner-field sync unexpected ' . get_class($e) . " for owner ID {$ownerId}: " . $e->getMessage()
         )
         ->send();
 }

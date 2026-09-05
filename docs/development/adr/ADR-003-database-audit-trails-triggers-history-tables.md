@@ -161,12 +161,19 @@ operation-value enumeration:
 
 Two further points, verified empirically during #1873:
 
-- A changed car now accumulates **two** `cars_hist` rows per sync call: the
-  `cars_update` trigger's own `'UPDATE'` row (fired because the `UPDATE`
-  changed a row) and the application's `'OWNER_SYNC'` row. This is expected,
-  not a double-write bug in the sense described elsewhere in this ADR --
-  the two rows capture different things (trigger: raw column change;
-  application: business-context confirmation that an owner sync ran) and
+- A changed car accumulates **two** `cars_hist` rows per sync call: the
+  `cars_update` trigger's own `'UPDATE'` row and the application's
+  `'OWNER_SYNC'` row. This is expected, not a double-write bug in the sense
+  described elsewhere in this ADR -- the two rows capture different things
+  (trigger: raw column snapshot; application: business-context confirmation
+  that an owner sync ran).
+- The trigger fires on every row **matched**, not every row changed.
+  `cars_update` is `AFTER UPDATE ... FOR EACH ROW` gated only by
+  `@disable_triggers`, and it compares no `OLD`/`NEW` values. So a car whose
+  values already match still receives one trigger `'UPDATE'` row even though
+  `ROW_COUNT()` is 0 and the application correctly skips its own insert. An
+  unchanged car therefore gains one `cars_hist` row per sync, not zero.
+- Consequently `cars_hist` is not a record of value changes alone, and
   callers that count sync operations must filter to
   `operation = 'OWNER_SYNC'` rather than counting all new rows for the car.
 - The application-level history insert had a latent defect fixed in #1873:

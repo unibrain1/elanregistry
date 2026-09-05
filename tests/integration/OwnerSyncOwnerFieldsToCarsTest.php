@@ -94,6 +94,19 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
     }
 
     /**
+     * Count cars_hist rows written by the `cars_update` trigger (operation='UPDATE'),
+     * as opposed to the application's own OWNER_SYNC rows. The trigger fires per row
+     * MATCHED, so any UPDATE touching the car — including a no-op — adds one.
+     */
+    private function countTriggerUpdateHistoryRows(int $carId): int
+    {
+        return (int) $this->db->query(
+            "SELECT COUNT(*) AS cnt FROM cars_hist WHERE car_id = ? AND operation = 'UPDATE'",
+            [$carId]
+        )->first()->cnt;
+    }
+
+    /**
      * All nine owner-contact fields land on every car for a multi-car owner.
      */
     public function testAllNineFieldsLandOnEveryCarForMultiCarOwner(): void
@@ -364,9 +377,14 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
 
     /**
      * True no-op case: a car whose nine synced fields AND mtime already match
-     * what the sync would write reports success and writes NO OWNER_SYNC row —
-     * a no-op UPDATE (zero columns actually changed) fires no AFTER UPDATE
-     * trigger either, so cars_hist stays a record of actual changes only.
+     * what the sync would write reports success and writes NO OWNER_SYNC row,
+     * because a sync that changed nothing is not a business event.
+     *
+     * The `cars_update` trigger still writes its own `operation='UPDATE'` row:
+     * it is AFTER UPDATE ... FOR EACH ROW and MySQL fires it per row MATCHED,
+     * not per row changed. This test pins both halves — zero OWNER_SYNC rows
+     * from the application, and exactly one trigger row — so that a future
+     * change to either side is caught.
      *
      * syncOwnerFieldsToCars() computes its own $syncTime = date(...) internally
      * and there is no seam to inject a fixed clock, so this test sets the car's
@@ -416,6 +434,10 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
         $mtimeBeforeSync = date('Y-m-d H:i:s');
         $this->db->query("UPDATE cars SET mtime = ? WHERE id = ?", [$mtimeBeforeSync, $carId]);
 
+        // Measured as a delta across the sync call: the stamping UPDATE above
+        // fires the trigger itself, so the absolute count is not 1.
+        $triggerRowsBefore = $this->countTriggerUpdateHistoryRows($carId);
+
         $result = $owner->syncOwnerFieldsToCars();
 
         $this->assertSame([$carId], $result->updated, 'A no-op sync must still report the car as updated (success)');
@@ -429,6 +451,16 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
             $this->markTestSkipped('mtime crossed a second boundary between stamping and sync; the UPDATE was not a true no-op this run.');
         }
         $this->assertSame(0, $this->countOwnerSyncHistoryRows($carId), 'A true no-op sync (all ten written columns unchanged) must write no OWNER_SYNC history row');
+
+        // The trigger fires on a matched row regardless of whether values
+        // changed, so exactly one operation='UPDATE' row is the correct
+        // outcome here — not zero. Asserting it keeps the OWNER_SYNC-scoped
+        // assertion above from being read as "a no-op writes no history".
+        $this->assertSame(
+            1,
+            $this->countTriggerUpdateHistoryRows($carId) - $triggerRowsBefore,
+            'The cars_update trigger fires on a matched row even when no value changed, so a no-op sync still adds exactly one operation=UPDATE row'
+        );
     }
 
     /**

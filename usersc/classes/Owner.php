@@ -692,9 +692,18 @@ class Owner
                         continue;
                     }
 
-                    // The row matched and already held these values. Success — and no
-                    // history row: a no-op UPDATE fires no AFTER UPDATE trigger either,
-                    // so cars_hist stays a record of actual changes.
+                    // The row matched and already held these values. Success, and no
+                    // application history row: a sync that changed nothing is not a
+                    // business event worth recording as OWNER_SYNC.
+                    //
+                    // This does NOT mean cars_hist gains nothing. The cars_update
+                    // trigger is AFTER UPDATE ... FOR EACH ROW, gated only by
+                    // @disable_triggers, and MySQL fires it for every row MATCHED —
+                    // not every row changed. A no-op UPDATE therefore still writes one
+                    // trigger row with operation='UPDATE' (verified against the live
+                    // trigger during #1873). Anything counting sync activity must
+                    // filter on operation='OWNER_SYNC' rather than counting all new
+                    // rows for the car.
                     $repo->commit();
                     $updated[] = $carId;
                     continue;
