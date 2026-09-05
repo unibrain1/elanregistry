@@ -162,6 +162,23 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
         . ' SET owner_last_updated = DATE_SUB(NOW(), INTERVAL 366 DAY), mtime = mtime'
         . ' WHERE solddate IS NULL';
 
+    /**
+     * The pre-ALTER NULL repair, exposed for the same reason as BACKFILL_SQL:
+     * the integration test executes this exact statement rather than a copy
+     * that could drift from it.
+     *
+     * Runs before the `NOT NULL` ALTER because MySQL does not coerce an
+     * existing NULL to the new DEFAULT — it aborts the statement with
+     * ERROR 1138 (Invalid use of NULL value). {@see BACKFILL_SQL} cannot cover
+     * this: it is scoped `WHERE solddate IS NULL`, so a *sold* car holding a
+     * NULL is repaired by no other step.
+     *
+     * `mtime = mtime` suppresses the ON UPDATE bump, exactly as in BACKFILL_SQL.
+     */
+    public const NULL_REPAIR_SQL = 'UPDATE cars'
+        . ' SET owner_last_updated = COALESCE(owner_last_updated, mtime), mtime = mtime'
+        . ' WHERE owner_last_updated IS NULL';
+
     public function up(): void
     {
         // --- 1. Refuse to convert under a mismatched clock -----------------
@@ -181,10 +198,40 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
         //
         // `mtime = mtime` for the same reason as BACKFILL_SQL: suppress the
         // ON UPDATE CURRENT_TIMESTAMP bump.
-        $this->execute(
-            'UPDATE cars SET owner_last_updated = COALESCE(owner_last_updated, mtime),'
-            . ' mtime = mtime WHERE owner_last_updated IS NULL'
-        );
+        //
+        // @disable_triggers is required here, not optional: this runs while the
+        // pre-migration cars_update trigger is still installed, so without it
+        // every repaired row writes a spurious 'UPDATE' cars_hist entry for
+        // what is pure internal bookkeeping, not an owner edit. Same guard and
+        // same reason as 20260902104755's equivalent backfill, whose behaviour
+        // is pinned by CarVerificationColumnsHistTest::
+        // testMigrationBackfillGuardSuppressesUpdateHistory().
+        $adapter = $this->getAdapter();
+        $adapter->beginTransaction();
+        $this->execute('SET @disable_triggers = 1');
+
+        try {
+            $this->execute(self::NULL_REPAIR_SQL);
+            // Commit inside the try: the next statement is a DDL which
+            // implicit-commits, so an open transaction left by a throw here
+            // would be silently committed by that ALTER rather than rolled back.
+            $adapter->commitTransaction();
+        } catch (\Throwable $e) {
+            try {
+                $adapter->rollbackTransaction();
+            } catch (\Throwable $rollbackFailure) {
+                throw new \RuntimeException(
+                    'Rollback failed while handling: ' . $e->getMessage()
+                    . ' (rollback error: ' . $rollbackFailure->getMessage() . ')',
+                    0,
+                    $e
+                );
+            }
+
+            throw $e;
+        } finally {
+            $this->execute('SET @disable_triggers = NULL');
+        }
 
         // --- 2. Convert the `cars` columns --------------------------------
         // owner_last_updated: NOT NULL with a CURRENT_TIMESTAMP default and
@@ -239,7 +286,23 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
             $this->execute(self::BACKFILL_SQL);
             $adapter->commitTransaction();
         } catch (\Throwable $e) {
-            $adapter->rollbackTransaction();
+            // Preserve the original failure if the rollback itself throws. On a
+            // dropped connection the ROLLBACK fails too, and an unguarded
+            // rollback would replace "the backfill failed because X" with
+            // "MySQL server has gone away" — PHP does not chain an exception
+            // thrown from inside a catch, so the real cause would be lost
+            // outright at exactly the moment an operator needs it.
+            try {
+                $adapter->rollbackTransaction();
+            } catch (\Throwable $rollbackFailure) {
+                throw new \RuntimeException(
+                    'Rollback failed while handling: ' . $e->getMessage()
+                    . ' (rollback error: ' . $rollbackFailure->getMessage() . ')',
+                    0,
+                    $e
+                );
+            }
+
             throw $e;
         } finally {
             // @disable_triggers is a SESSION variable: it survives both the
@@ -459,7 +522,23 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
             // that ALTER rather than rolled back.
             $adapter->commitTransaction();
         } catch (\Throwable $e) {
-            $adapter->rollbackTransaction();
+            // Preserve the original failure if the rollback itself throws. On a
+            // dropped connection the ROLLBACK fails too, and an unguarded
+            // rollback would replace "the backfill failed because X" with
+            // "MySQL server has gone away" — PHP does not chain an exception
+            // thrown from inside a catch, so the real cause would be lost
+            // outright at exactly the moment an operator needs it.
+            try {
+                $adapter->rollbackTransaction();
+            } catch (\Throwable $rollbackFailure) {
+                throw new \RuntimeException(
+                    'Rollback failed while handling: ' . $e->getMessage()
+                    . ' (rollback error: ' . $rollbackFailure->getMessage() . ')',
+                    0,
+                    $e
+                );
+            }
+
             throw $e;
         } finally {
             $this->execute('SET @disable_triggers = NULL');
