@@ -220,6 +220,18 @@ final class CarActionsSaveWiringTest extends TestCase
         $functionBody = substr($content, $functionStart, $nextFunctionStart - $functionStart);
 
         // --- (a) Owner must be constructed from the car row's user_id ---
+        //
+        // This pins an exact source string, so a semantically identical
+        // refactor — e.g. hoisting the cast into
+        // `$carOwnerId = (int) $cardetails['user_id'];` and passing that —
+        // fails here even though it is correct. That false positive is
+        // deliberate. Accepting an extracted local would require this test to
+        // track what that local holds, which a source-text grep cannot do; the
+        // check would then pass for a local assigned from the session user,
+        // which is precisely the leak it exists to stop. A red build on a
+        // cosmetic refactor is the cheaper mistake. If you hit this, either
+        // keep the inline form or update this assertion deliberately, having
+        // re-verified by mutation that the leak is still caught.
         $this->assertStringContainsString(
             "new Owner((int) \$cardetails['user_id']);",
             $functionBody,
@@ -233,6 +245,27 @@ final class CarActionsSaveWiringTest extends TestCase
 
         $ownerConstructionPos = strpos($functionBody, "new Owner((int) \$cardetails['user_id']);");
         $this->assertIsInt($ownerConstructionPos, 'Could not locate the owner-refresh Owner construction');
+
+        // Asserting the correct construction is PRESENT is not enough: adding a
+        // second assignment after it silently wins, and every behavioral test
+        // stays green because they construct their own Owner. Verified by
+        // mutation — appending
+        //
+        //     $carOwner = new Owner((int) $user->data()->id);
+        //
+        // reintroduces the full PII leak with the unit and integration suites
+        // both passing. Require exactly one assignment to $carOwner so the
+        // pinned construction is not just present but EFFECTIVE.
+        $carOwnerAssignments = preg_match_all('/\$carOwner\s*=(?!=)/', $functionBody);
+        $this->assertSame(
+            1,
+            $carOwnerAssignments,
+            "SECURITY (#1962): \$carOwner must be assigned exactly once in buildCarDetails(), " .
+            "found {$carOwnerAssignments}. A second assignment overwrites the car-row owner " .
+            "that the assertion above pins, reintroducing the admin-overwrites-member PII leak " .
+            "while leaving the pinned string in place. If you are legitimately restructuring " .
+            "this code, keep it to a single assignment rather than relaxing this check."
+        );
 
         // The add-car (`else`) branch legitimately constructs
         // `new Owner($ownerId)` from the session user further down in this

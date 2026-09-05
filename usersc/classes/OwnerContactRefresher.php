@@ -99,6 +99,14 @@ class OwnerContactRefresher
      * Split out so the endpoint can log the skip (it has the car ID and the
      * session user for the log line; this class has neither) without
      * duplicating the null test.
+     *
+     * Calling `refresh()` without checking this first is **safe, not a bug**:
+     * `refresh()` performs the same test internally and returns the details
+     * untouched. The only consequence of skipping this call is that the skip
+     * goes unlogged — an orphaned or null `user_id` is a data-integrity
+     * problem worth a log line, so the endpoint checks. Read the pair as
+     * "ask if you want to say something about it", never as "guard required
+     * or the merge will blank the car's columns".
      */
     public function hasLoadableOwner(Owner $carOwner): bool
     {
