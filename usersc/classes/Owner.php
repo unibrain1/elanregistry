@@ -630,20 +630,17 @@ class Owner
             );
         }
 
-        // `cars.mtime` is `timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
+        // `cars.mtime` is `datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
         // CURRENT_TIMESTAMP`, so MySQL bumps it on any UPDATE that changes a value —
         // dropping `mtime` from the bundle below would NOT stop that. What this method
         // must never write is `owner_last_updated`: a profile sync is not the owner
         // confirming their car's data, and that omission is the entire mechanism
         // keeping a synced car eligible for verification. The verification design
-        // therefore excludes `mtime` from the freshness test and relies on
-        // `owner_last_updated` alone. If you are reading this because you noticed
+        // therefore excludes `mtime` from the freshness test, which reads
+        // `last_verified` and `owner_last_updated` only. If you are reading this
+        // because you noticed
         // `mtime` moving on every sync: that is expected — do NOT "fix" it by adding
-        // `mtime` back into a staleness calculation. Note that
-        // CarRepository::findVerificationEligible() still carries a
-        // COALESCE(owner_last_updated, mtime) fallback today (tracked in #1953), so
-        // the guarantee currently holds only for rows whose `owner_last_updated`
-        // is non-NULL.
+        // `mtime` back into a staleness calculation.
         $syncTime = date(AppConstants::DATETIME_FORMAT);
         $ownerFields = [
             'fname'   => $this->_data->fname,

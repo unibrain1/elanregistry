@@ -13,9 +13,108 @@ the car-list CSRF stale-token failure and the admin merge action leaving
 `userimages/` files behind. The integration-test gate is decoupled from
 UserSpice so CI can run it.
 
+## Required Actions BEFORE Deployment
+
+> **Stop.** This release cannot be safely deployed without completing step 1
+> first. The migration it ships is not reversible in effect — see below.
+
+### 1. Take a full database backup — mandatory, before anything else
+
+This release ships a schema migration that rewrites six columns on `cars` and
+`cars_hist` (the two largest tables) from `TIMESTAMP` to `DATETIME`, rebuilds the
+three `cars` audit triggers, normalizes 15 legacy partial dates in `cars_hist`, and
+backfills `owner_last_updated` on every active car. **Do not push this release
+without a verified full backup in hand.** The documented remedy if timestamps come
+back shifted is to restore from backup — there is no forward fix.
+
+```bash
+mysqldump -u <user> -p --single-transaction --routines --triggers \
+  <database> > elanregistry-pre-v2.30.1-$(date +%Y%m%d-%H%M%S).sql
+```
+
+Confirm the dump is non-empty and contains the `cars` and `cars_hist` CREATE TABLE
+statements before proceeding.
+
+### 2. Record a timestamp baseline for the post-deploy check
+
+The conversion is value-preserving only if it runs under matching clocks, and a
+shifted-but-well-formed timestamp passes every automated check in this release. The
+only way to catch one is to compare against values recorded beforehand:
+
+```sql
+SELECT id, ctime, mtime FROM cars ORDER BY id LIMIT 3;
+```
+
+Keep that output. Step 4 compares against it.
+
+## Required Actions During Deployment
+
+### 3. Run the migration
+
+```bash
+composer migrate
+```
+
+The migration **aborts by design** if MySQL's `NOW()` differs by more than 120
+seconds from PHP evaluated in `America/Los_Angeles` — the zone `users/init.php`
+pins on every web request, and therefore the zone every stored value was written
+in. Converting `TIMESTAMP` to `DATETIME` freezes each value as a wall-clock string
+in the session's timezone, so a mismatched clock would shift every timestamp in
+both tables permanently and silently (the shifted values are still well-formed).
+A failed guard is not recorded in `phinxlog`, so the migration is safely
+re-runnable once the environment is corrected.
+
+The guard deliberately does **not** compare against ambient CLI PHP. Measured on
+production 2026-09-05, three clocks disagree:
+
+| Clock | Zone | Role |
+| --- | --- | --- |
+| MySQL | `SYSTEM` → MST (−7) | stores the values |
+| Web PHP | `America/Los_Angeles` → PDT (−7) | **wrote** the values |
+| CLI PHP | `America/New_York` (−4) | irrelevant to the data |
+
+MySQL and web PHP agree, so the September conversion is value-preserving. Comparing
+CLI PHP instead would abort the deploy on a 3-hour skew that cannot affect the data.
+
+**Seasonal caveat:** MST does not observe DST but `America/Los_Angeles` does. From
+early November to mid-March the two diverge by one hour and the guard will correctly
+abort. If this migration must be re-run in that window — including during a
+partial-failure recovery — align the MySQL session zone with the application zone
+first; do not widen the tolerance.
+
+Note for developers: this migration **cannot be run from a local MAMP machine** as
+currently configured — MAMP's PHP resolves to UTC while MySQL follows the host
+(US/Pacific). Run it on test/prod, or align the two zones locally first.
+
 ## Required Actions After Deployment
 
-[To be filled in as issues complete]
+### 4. Verify timestamps against the baseline
+
+Using the values recorded in step 2, confirm each car renders identically now on the
+admin car list (the only surface printing a time of day, so a sub-day shift is
+visible there and nowhere else), the car details page, and the sitemap's `<lastmod>`.
+
+A discrepancy means the conversion ran under a mismatched clock: **stop and restore
+from the step 1 backup** rather than adjusting the display layer.
+
+### Pre-deployment rehearsal (already performed)
+
+This migration was rehearsed against a snapshot of production data (1,593 cars /
+8,278 `cars_hist` rows) under production's actual `sql_mode`
+(`NO_ENGINE_SUBSTITUTION`), with the session zone held constant:
+
+| Check | Result |
+| --- | --- |
+| `ctime` / `mtime` / `last_verified` / `cars_hist.*` value drift | **0 rows changed** of 9,871 |
+| Partial dates repaired | 13 `purchasedate` + 2 `solddate` |
+| Rows backfilled | 1,505 active (0 sold touched) |
+| New `cars_hist` rows from the backfill | 0 (`@disable_triggers` held) |
+| `idx_cars_hist_timestamp` | intact |
+| `owner_last_updated` NULLs remaining | 0 |
+
+Note that production runs `NO_ENGINE_SUBSTITUTION`, not a strict `sql_mode`. The
+partial-date repair is therefore a safeguard for strict-mode environments rather
+than something production requires — it was verified to run correctly under both.
 
 ## User-Facing Changes
 

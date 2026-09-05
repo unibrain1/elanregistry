@@ -855,12 +855,21 @@ final class CarRepositoryTest extends TestCase
         $this->assertStringContainsString('email_bounced = 0', $capturedSql);
         $this->assertStringContainsString("email IS NOT NULL AND email != ''", $capturedSql);
         $this->assertStringContainsString(
-            '(last_verified IS NULL OR last_verified < NOW() - INTERVAL 2 YEAR)',
-            $capturedSql
+            'NOT ((cars.last_verified IS NOT NULL AND cars.last_verified >= NOW() - INTERVAL 1 YEAR)'
+                . ' OR cars.owner_last_updated >= NOW() - INTERVAL 1 YEAR)',
+            $capturedSql,
+            'findVerificationEligible() must filter on stalenessSql(), the exact negation of freshnessSql()'
         );
-        $this->assertStringContainsString(
-            'COALESCE(owner_last_updated, mtime) < NOW() - INTERVAL 2 YEAR',
-            $capturedSql
+        $this->assertStringNotContainsString(
+            'COALESCE',
+            $capturedSql,
+            'The COALESCE(owner_last_updated, mtime) fallback was removed by #1953 — owner_last_updated '
+                . 'is NOT NULL by schema, so no fallback to mtime is needed or wanted'
+        );
+        $this->assertStringNotContainsString(
+            'INTERVAL 2 YEAR',
+            $capturedSql,
+            'Freshness moved from a 2-year to a 1-year window'
         );
         $this->assertStringContainsString('ORDER BY last_verified ASC', $capturedSql);
     }

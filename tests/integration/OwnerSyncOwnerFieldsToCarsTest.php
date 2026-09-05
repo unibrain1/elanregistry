@@ -218,19 +218,13 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
      * owner_last_updated stays byte-identical after a sync, and the car is
      * still returned by findVerificationEligible() — using a car that starts
      * stale on BOTH owner_last_updated AND mtime, so the eligibility result
-     * genuinely depends on COALESCE(owner_last_updated, mtime) picking the
-     * (unchanged) owner_last_updated rather than the (bumped) mtime. Without
-     * a stale starting mtime, the row would already be fresh on every column
-     * at creation, and the eligibility assertion below would pass regardless
-     * of which column COALESCE actually picked — this test also asserts the
-     * mtime bump happened, to prove the criterion is being exercised at all.
-     *
-     * The NULL owner_last_updated case is OUT OF SCOPE for this issue: when
-     * owner_last_updated IS NULL, COALESCE falls through to mtime, and this
-     * sync unavoidably bumps mtime — which would make a NULL-owner_last_updated
-     * car drop out of the eligible set. That gap is filed as #1953 (the
-     * owner_last_updated NOT NULL migration + freshnessSql() work) and cannot
-     * be fixed from within this issue without a schema migration.
+     * genuinely depends on freshnessSql() reading the (unchanged)
+     * owner_last_updated rather than the (bumped) mtime, which #1953 removed
+     * from the freshness expression entirely. Without a stale starting mtime,
+     * the row would already be fresh on every column at creation, and the
+     * eligibility assertion below would pass regardless of whether mtime still
+     * influenced eligibility — this test also asserts the mtime bump happened,
+     * to prove the criterion is being exercised at all.
      */
     public function testOwnerLastUpdatedUnchangedAndCarStaysVerificationEligible(): void
     {
@@ -264,6 +258,67 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
         $eligible = $repo->findVerificationEligible(1000, 0);
         $eligibleIds = array_map(static fn ($c) => (int) $c->id, $eligible);
         $this->assertContains($carId, $eligibleIds, 'A car with a non-NULL, stale owner_last_updated must remain verification-eligible after a sync, despite the sync bumping mtime from stale to fresh');
+    }
+
+    /**
+     * #1953: cars.owner_last_updated is NOT NULL by schema, so the NULL
+     * owner_last_updated case this class's docblock used to carve out as
+     * "out of scope for this issue" is no longer a state the database can
+     * hold at all. createTestCar() (IntegrationTestCase) inserts via
+     * DB::insert() without naming owner_last_updated when the caller omits
+     * it, so an omitted value now falls through to the column's own
+     * CURRENT_TIMESTAMP default rather than landing NULL — asserting that
+     * confirms the column-level fix, independent of any application code
+     * path, closes the gap this class previously documented as unreachable
+     * from here.
+     *
+     * Skipped, not failed, when the #1953 migration hasn't run locally —
+     * mirrors CarVerificationTimestampMigrationTest's skip-guard pattern.
+     */
+    public function testNullOwnerLastUpdatedNoLongerReachableAfterSchemaChange(): void
+    {
+        $row = $this->db->query(
+            "SELECT IS_NULLABLE
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME   = 'cars'
+               AND COLUMN_NAME  = 'owner_last_updated'
+             LIMIT 1"
+        )->first();
+
+        if (!$row || $row->IS_NULLABLE !== 'NO') {
+            $this->markTestSkipped(
+                'Migration 20260905172137 has not been applied — cars.owner_last_updated is ' .
+                'still nullable. Run: composer migrate'
+            );
+        }
+
+        $userId = $this->createTestUser();
+        $this->createTestProfile($userId, ['lat' => 45.5231, 'lon' => -122.6765]);
+
+        // Deliberately omits owner_last_updated so the column default applies,
+        // rather than passing null (which would now fail the INSERT outright
+        // and prove nothing about syncOwnerFieldsToCars() itself).
+        $carId = $this->createTestCar($userId, [
+            'email'         => 'no-null-owner-updated@example.com',
+            'email_bounced' => 0,
+            'solddate'      => null,
+            'last_verified' => null,
+        ]);
+
+        $before = $this->db->query("SELECT owner_last_updated FROM cars WHERE id = ?", [$carId])->first();
+        $this->assertNotNull($before->owner_last_updated, 'owner_last_updated must never be NULL post-#1953');
+
+        $owner = new Owner($userId);
+        $owner->syncOwnerFieldsToCars();
+
+        $after = $this->db->query("SELECT owner_last_updated FROM cars WHERE id = ?", [$carId])->first();
+        $this->assertNotNull($after->owner_last_updated, 'owner_last_updated must remain non-NULL after a sync');
+        $this->assertSame(
+            (string) $before->owner_last_updated,
+            (string) $after->owner_last_updated,
+            'syncOwnerFieldsToCars() must never write owner_last_updated'
+        );
     }
 
     /**
