@@ -150,4 +150,146 @@ final class CarActionsSaveWiringTest extends TestCase
             'updateCar() must pass the derived $isOwnerInitiated flag to Car::update()'
         );
     }
+
+    // =========================================================================
+    // save.php — buildCarDetails() owner-refresh security ordering (source inspection)
+    // =========================================================================
+
+    /**
+     * Pins the #1962 security invariant: on the edit branch, the owner used
+     * to refresh a car's contact columns must be derived from the CAR's own
+     * `user_id` (just loaded from the database row a few lines above), never
+     * from the logged-in session user, and never from any value a client
+     * could have influenced.
+     *
+     * Why this matters: an admin or editor can open ANY member's car for
+     * editing. If `new Owner(...)` here were ever constructed from
+     * `$user->data()->id` (the person performing the edit) instead of
+     * `$cardetails['user_id']` (the car's actual owner, loaded server-side),
+     * every admin edit would silently overwrite that member's public contact
+     * details — name, email, city, state, country, lat/lon — with the
+     * admin's own. That is a PII-leak regression, not a style nit: it would
+     * ship quietly (the save still "succeeds"), be visible only by noticing
+     * a car's owner information card showing the wrong person, and would
+     * affect every car an admin ever touches until caught.
+     *
+     * The security reviewer of #1962 flagged that no test pinned this
+     * invariant and that the plan's own evidence for it was circular
+     * (asserting the test helper's behavior rather than save.php's actual
+     * source). This test reads save.php's real source text instead.
+     *
+     * buildCarDetails() cannot be invoked directly under PHPUnit (see class
+     * docblock: every response path in this endpoint file ends in exit via
+     * ApiResponse::send(), and buildCarDetails() itself is reached only from
+     * inside that request-scoped flow) — hence source inspection, matching
+     * this class's established pattern.
+     *
+     * Three source-level facts are asserted together because the invariant
+     * depends on all three holding simultaneously — breaking any one of them
+     * reopens the leak even if the others still look correct:
+     *
+     *   (a) `new Owner(` is constructed from `$cardetails['user_id']`
+     *       (the car row's owner), not from `$user->data()->id` (the
+     *       session/admin performing the edit).
+     *   (b) That construction happens BEFORE the first Input::raw() consumer
+     *       call in the function — the invariant is ordering-dependent: it
+     *       only holds because updateYear/updateModel/updateChassis/
+     *       updateColor/updateEngine/updatePurchasedate/updateSolddate/
+     *       updateWebsite/updateComments (all of which read client input)
+     *       run AFTER the owner refresh, at the very end of the function.
+     *       If the refresh were moved after those calls — or a future
+     *       change let one of them write into `$cardetails['user_id']`
+     *       before the refresh — client input could reach the Owner
+     *       construction.
+     *   (c) No assignment to `$cardetails['user_id']` occurs between the
+     *       `foreach` that copies the loaded car row onto $cardetails and
+     *       the `new Owner(` line — i.e. nothing quietly substitutes a
+     *       different user_id into the gap before the refresh reads it.
+     *
+     * @see https://github.com/elan-registry/registry/issues/1962
+     */
+    public function testBuildCarDetailsConstructsOwnerFromCarRowNotSessionUserBeforeAnyInputIsProcessed(): void
+    {
+        $content = $this->readEndpointSource(self::SAVE_ENDPOINT);
+
+        $functionStart = strpos($content, 'function buildCarDetails(');
+        $this->assertIsInt($functionStart, 'Could not locate the buildCarDetails() function');
+
+        $nextFunctionStart = strpos($content, "\nfunction ", $functionStart + 1);
+        $this->assertIsInt($nextFunctionStart, 'Could not locate the end of the buildCarDetails() function body');
+        $functionBody = substr($content, $functionStart, $nextFunctionStart - $functionStart);
+
+        // --- (a) Owner must be constructed from the car row's user_id ---
+        $this->assertStringContainsString(
+            "new Owner((int) \$cardetails['user_id']);",
+            $functionBody,
+            "SECURITY (#1962): the owner-contact refresh must construct Owner from " .
+            "\$cardetails['user_id'] (the CAR's owner, loaded from the database row), " .
+            "never from the logged-in \$user. Constructing it from the session user " .
+            "would cause an admin editing a member's car to overwrite that member's " .
+            "public contact details (name, email, location) with the admin's own — " .
+            "a PII-leak regression, not a style violation."
+        );
+
+        $ownerConstructionPos = strpos($functionBody, "new Owner((int) \$cardetails['user_id']);");
+        $this->assertIsInt($ownerConstructionPos, 'Could not locate the owner-refresh Owner construction');
+
+        // The add-car (`else`) branch legitimately constructs
+        // `new Owner($ownerId)` from the session user further down in this
+        // same function body — that is a different, non-security-sensitive
+        // code path (there is no "car row" yet to be confused with). Confirm
+        // we located the EDIT-branch construction specifically, by requiring
+        // it to appear strictly before that other construction.
+        $sessionOwnerConstructionPos = strpos($functionBody, 'new Owner($ownerId);');
+        if ($sessionOwnerConstructionPos !== false) {
+            $this->assertLessThan(
+                $sessionOwnerConstructionPos,
+                $ownerConstructionPos,
+                "The car-row owner construction (new Owner((int) \$cardetails['user_id'])) " .
+                "must appear before the unrelated add-car-branch session-owner construction " .
+                "(new Owner(\$ownerId)) — if this ordering ever inverts, re-verify by function " .
+                "name/branch rather than assuming position alone still disambiguates them."
+            );
+        }
+
+        // --- (b) Must run before any Input::raw() consumer call ---
+        $inputConsumers = [
+            'updateYear', 'updateModel', 'updateChassis', 'updateColor', 'updateEngine',
+            'updatePurchasedate', 'updateSolddate', 'updateWebsite', 'updateComments',
+        ];
+        foreach ($inputConsumers as $consumer) {
+            $callPos = strpos($functionBody, $consumer . '($cardetails');
+            $this->assertIsInt($callPos, "Could not locate the {$consumer}() call in buildCarDetails()");
+            $this->assertGreaterThan(
+                $ownerConstructionPos,
+                $callPos,
+                "SECURITY (#1962): {$consumer}() processes client input (Input::raw()) and must " .
+                "run AFTER the owner-contact refresh's Owner construction, not before. The " .
+                "no-client-input-reaches-user_id invariant is ordering-dependent: if any of these " .
+                "input-processing calls moved ahead of the refresh, a client-supplied value could " .
+                "reach \$cardetails['user_id'] before it is read into new Owner(...), letting a " .
+                "malicious request substitute another owner's contact details onto this car."
+            );
+        }
+
+        // --- (c) No user_id assignment between the car-row foreach and the Owner construction ---
+        $foreachPos = strpos($functionBody, 'foreach ($carData as $key => $value)');
+        $this->assertIsInt($foreachPos, 'Could not locate the car-row copy foreach in buildCarDetails()');
+        $this->assertLessThan(
+            $ownerConstructionPos,
+            $foreachPos,
+            'The car-row copy foreach must precede the owner-refresh Owner construction'
+        );
+
+        $gap = substr($functionBody, $foreachPos, $ownerConstructionPos - $foreachPos);
+        $this->assertDoesNotMatchRegularExpression(
+            '/\$cardetails\[\'user_id\'\]\s*=/',
+            $gap,
+            "SECURITY (#1962): nothing may assign to \$cardetails['user_id'] between the point " .
+            "the car row is copied onto \$cardetails and the owner-refresh Owner construction. " .
+            "Such an assignment would let a client- or session-derived value silently replace " .
+            "the car's real owner before the refresh reads it, defeating invariant (a) above " .
+            "even though the Owner(...) call itself still reads \$cardetails['user_id']."
+        );
+    }
 }

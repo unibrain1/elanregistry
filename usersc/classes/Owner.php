@@ -586,6 +586,43 @@ class Owner
     }
 
     /**
+     * The single definition of the nine denormalized owner-contact columns.
+     *
+     * fname, lname, email come from `users`; city, state, country, lat, lon,
+     * website come from `profiles` (both loaded via {@see Owner::find()}'s
+     * users+profiles LEFT JOIN). This is the canonical column list for any
+     * caller that copies the owner's contact data onto a car — currently
+     * {@see Owner::syncOwnerFieldsToCars()}, which adds its own `mtime` on
+     * top. Never returns `mtime` or `owner_last_updated`: neither is an
+     * owner-contact value, and `owner_last_updated` in particular must never
+     * be written by a mechanical refresh (see the comment in
+     * `syncOwnerFieldsToCars()` for why).
+     *
+     * If `$this->_data` is null (the owner failed to load, e.g. a
+     * freshly-constructed `Owner` for a deleted or invalid user ID), every
+     * value in the returned array is null — callers that write these values
+     * to a car must check for that themselves before treating the result as
+     * ready to persist.
+     *
+     * @return array<string, mixed> The nine owner-contact fields, keyed by
+     *         column name.
+     */
+    public function ownerContactFields(): array
+    {
+        return [
+            'fname'   => $this->_data->fname ?? null,
+            'lname'   => $this->_data->lname ?? null,
+            'email'   => $this->_data->email ?? null,
+            'city'    => $this->_data->city ?? null,
+            'state'   => $this->_data->state ?? null,
+            'country' => $this->_data->country ?? null,
+            'lat'     => $this->_data->lat ?? null,
+            'lon'     => $this->_data->lon ?? null,
+            'website' => $this->_data->website ?? null,
+        ];
+    }
+
+    /**
      * Sync the owner's contact fields to every car they own.
      *
      * Copies the nine denormalized owner-contact columns — fname, lname, email
@@ -642,18 +679,8 @@ class Owner
         // `mtime` moving on every sync: that is expected — do NOT "fix" it by adding
         // `mtime` back into a staleness calculation.
         $syncTime = date(AppConstants::DATETIME_FORMAT);
-        $ownerFields = [
-            'fname'   => $this->_data->fname,
-            'lname'   => $this->_data->lname,
-            'email'   => $this->_data->email,
-            'city'    => $this->_data->city,
-            'state'   => $this->_data->state,
-            'country' => $this->_data->country,
-            'lat'     => $this->_data->lat,
-            'lon'     => $this->_data->lon,
-            'website' => $this->_data->website,
-            'mtime'   => $syncTime,
-        ];
+        $ownerFields = $this->ownerContactFields();
+        $ownerFields['mtime'] = $syncTime;
 
         $ownerId = (int) $this->_data->id;
         $repo = new CarRepository($this->_db);

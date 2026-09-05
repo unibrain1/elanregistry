@@ -124,6 +124,8 @@ than something production requires — it was verified to run correctly under bo
 
 ### Improvements
 
+- **Saving a car now refreshes its owner details from your profile** ([#1962](https://github.com/elan-registry/registry/issues/1962)): Editing a car previously re-saved whatever owner name, email, and location were already stored on that record, so a car could keep contact details you had corrected long ago — and saving the car again would not fix it. Opening a car and saving it now brings those eight fields up to date from your profile. This complements #1873, which propagates changes when you edit your profile; together they close the two paths by which a car's owner details could drift out of date. Your car's website is unchanged, as it remains a per-car field for now. Where an administrator or editor saves a car on someone else's behalf, the car keeps that member's details — never the staff member's.
+
 - **Car list and registry searches no longer fail after a session expires** ([#1913](https://github.com/elan-registry/registry/issues/1913)): The car list, factory records list, car history, and statistics panels previously returned a "Could not load" error after a session timed out or the browser was restarted, because the CSRF token embedded in the page became stale. Public read-only endpoints now use rate limiting instead of token checks, eliminating the stale-token failure path entirely.
 
 ## Admin-Facing Changes
@@ -140,7 +142,7 @@ than something production requires — it was verified to run correctly under bo
 - WIP: [#1954](https://github.com/elan-registry/registry/issues/1954) — tech-debt: OwnerSyncResult conflates 'car no longer owned' with 'sync failed'
 - WIP: [#1958](https://github.com/elan-registry/registry/issues/1958) — bug: confirmed email change via users/verify.php never syncs to cars.email
 - WIP: [#1961](https://github.com/elan-registry/registry/issues/1961) — feat: reconciliation job to sync current owner information to the cars they own
-- WIP: [#1962](https://github.com/elan-registry/registry/issues/1962) — bug: editing a car does not refresh the owner-contact columns from the profile
+- [#1962](https://github.com/elan-registry/registry/issues/1962) — bug: editing a car does not refresh the owner-contact columns from the profile
 - WIP: [#1963](https://github.com/elan-registry/registry/issues/1963) — feat: make website owner-level only — remove the per-car website field
 - [#1913](https://github.com/elan-registry/registry/issues/1913) — fix: cars-list DataTable never recovers from a stale/lost CSRF token
 - [#1931](https://github.com/elan-registry/registry/issues/1931) — test: integration bootstrap does not define ELAN_IMAGE_DIR — CarTransferTest fails standalone
