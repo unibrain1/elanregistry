@@ -7,6 +7,7 @@ namespace ElanRegistry\Car;
 use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Exceptions\CarDatabaseException;
 use ElanRegistry\Exceptions\CarNotFoundException;
+use ElanRegistry\Exceptions\CarValidationException;
 use ElanRegistry\LogCategories;
 
 /**
@@ -312,17 +313,178 @@ class CarRepository
     }
 
     /**
+     * SQL fragment that is true for a car whose registry data counts as fresh.
+     *
+     * A car is fresh when it was verified within the last year, or when its owner
+     * updated it within the last year. Freshness is the primary definition;
+     * staleness is its exact negation (see stalenessSql()).
+     *
+     * Deliberately excludes `cars.mtime`. That column is
+     * `ON UPDATE CURRENT_TIMESTAMP`, so MySQL bumps it on any UPDATE that changes
+     * a value — including an owner-profile sync that has nothing to do with the
+     * car's data being confirmed. See Owner::syncOwnerFieldsToCars().
+     *
+     * Two forms that must NOT be used here, both of which reintroduce the
+     * never-fires failure this expression exists to fix:
+     *   - COALESCE(last_verified, owner_last_updated) returns the first non-NULL,
+     *     not the greatest — a car verified three years ago but edited yesterday
+     *     would read stale.
+     *   - GREATEST(...) returns NULL when any argument is NULL — i.e. every
+     *     never-verified car, which is the majority of the registry.
+     *
+     * CLOCK CONSISTENCY: this fragment compares against MySQL's NOW(), while the
+     * PHP-side equivalent isFresh() uses PHP's clock. Both must resolve to the
+     * same timezone, or the two forms can disagree at the one-year boundary from
+     * clock skew alone. The application sets no timezone in either PHP or MySQL,
+     * so both inherit the host default and agree only while they share a host.
+     *
+     * @param string $alias Table alias to qualify the columns with. Developer-supplied,
+     *                      never request-derived; validated as a SQL identifier before
+     *                      interpolation so this helper cannot become an injection vector.
+     * @return string Parenthesised boolean SQL expression
+     * @throws CarValidationException If $alias is not a valid SQL identifier
+     */
+    public static function freshnessSql(string $alias = 'cars'): string
+    {
+        self::assertValidAlias($alias);
+
+        return "(({$alias}.last_verified IS NOT NULL"
+             . " AND {$alias}.last_verified >= NOW() - INTERVAL 1 YEAR)"
+             . " OR {$alias}.owner_last_updated >= NOW() - INTERVAL 1 YEAR)";
+    }
+
+    /**
+     * SQL fragment that is true for a car whose registry data counts as stale.
+     *
+     * This is the exact boolean negation of freshnessSql(), never an
+     * approximation: neither operand of that expression can evaluate to NULL —
+     * `last_verified` is guarded by an explicit IS NOT NULL, and
+     * `owner_last_updated` is NOT NULL by schema — so SQL's three-valued logic
+     * cannot produce an UNKNOWN that both forms would exclude.
+     *
+     * @param string $alias Table alias to qualify the columns with. Developer-supplied,
+     *                      never request-derived; validated as a SQL identifier before
+     *                      interpolation.
+     * @return string Boolean SQL expression
+     * @throws CarValidationException If $alias is not a valid SQL identifier
+     */
+    public static function stalenessSql(string $alias = 'cars'): string
+    {
+        return 'NOT ' . self::freshnessSql($alias);
+    }
+
+    /**
+     * PHP-side equivalent of freshnessSql() for a single car's timestamps.
+     *
+     * Throws on a malformed or empty date string for either parameter rather than
+     * returning a boolean. `owner_last_updated` is NOT NULL by schema and
+     * `last_verified` is either NULL or a valid datetime, so a malformed value is
+     * a programming error, not a data state: returning false would let corruption
+     * silently trigger verification email, and returning true would silently
+     * suppress it — the exact never-fires failure mode this rule exists to avoid.
+     *
+     * CLOCK CONSISTENCY: this method uses PHP's clock, while freshnessSql()
+     * compares against MySQL's NOW(). Both must resolve to the same timezone, or
+     * the two forms can disagree at the one-year boundary from clock skew alone.
+     * The application sets no timezone in either PHP or MySQL, so both inherit the
+     * host default and agree only while they share a host.
+     *
+     * @param string|null $lastVerified      Datetime string, or null if never verified
+     * @param string      $ownerLastUpdated  Datetime string (NOT NULL by schema)
+     * @return bool True when the car counts as fresh
+     * @throws CarValidationException If either argument is an empty or unparseable date string
+     */
+    public static function isFresh(?string $lastVerified, string $ownerLastUpdated): bool
+    {
+        $cutoff = strtotime('-1 year');
+
+        // Both operands are validated BEFORE either comparison, deliberately not
+        // short-circuiting on a fresh owner_last_updated. A malformed value is a
+        // programming error or data corruption, and it must surface whichever
+        // operand carries it — a caller whose last_verified is garbage would
+        // otherwise get a silent `true` for as long as the owner timestamp happened
+        // to be recent, and the defect would only appear a year later. This is the
+        // one place the PHP form intentionally diverges from the SQL form's OR
+        // short-circuit: SQL cannot raise on a malformed DATETIME because the
+        // column type makes one unrepresentable.
+        $ownerTs      = self::parseTimestamp($ownerLastUpdated, 'owner_last_updated');
+        $verifiedTs   = $lastVerified === null
+            ? null
+            : self::parseTimestamp($lastVerified, 'last_verified');
+
+        return $ownerTs >= $cutoff || ($verifiedTs !== null && $verifiedTs >= $cutoff);
+    }
+
+    /**
+     * Validate a table alias before interpolating it into SQL.
+     *
+     * Same identifier pattern applied to column names in updateCarForOwner().
+     *
+     * @param string $alias Candidate SQL identifier
+     * @return void
+     * @throws CarValidationException If $alias is not a valid SQL identifier
+     */
+    private static function assertValidAlias(string $alias): void
+    {
+        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,63}$/', $alias)) {
+            throw new CarValidationException("Invalid table alias: '{$alias}'");
+        }
+    }
+
+    /**
+     * Parse a datetime string to a Unix timestamp, rejecting empty or malformed input.
+     *
+     * @param string $value  Datetime string to parse
+     * @param string $column Column name, for the exception message
+     * @return int Unix timestamp
+     * @throws CarValidationException If $value is empty or unparseable
+     */
+    private static function parseTimestamp(string $value, string $column): int
+    {
+        if ($value === '') {
+            throw new CarValidationException(
+                "CarRepository::isFresh received an empty {$column} value; "
+                . 'the column is NOT NULL by schema, so this indicates corrupt data or a caller bug.'
+            );
+        }
+
+        // strtotime() alone is far too permissive to enforce this contract: it
+        // happily accepts 'now', 'tomorrow', '+1 day', ' ' and a bare '2026',
+        // returning a plausible timestamp for each. Any of those reaching here
+        // means corrupt data or a caller bug, but strtotime() would silently
+        // turn them into a confident true/false — the exact silent-wrong-answer
+        // this method throws to avoid. Both parameters come from a DATETIME
+        // column, so require that shape explicitly before parsing.
+        if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $value) !== 1) {
+            throw new CarValidationException(
+                "CarRepository::isFresh received a malformed {$column} value: '{$value}'. "
+                . 'Expected a Y-m-d H:i:s datetime string as stored by the column.'
+            );
+        }
+
+        $timestamp = strtotime($value);
+        if ($timestamp === false) {
+            throw new CarValidationException(
+                "CarRepository::isFresh received an unparseable {$column} value: '{$value}'."
+            );
+        }
+
+        return $timestamp;
+    }
+
+    /**
      * Find cars eligible for a verification email, ordered oldest-verified first.
      *
      * A car is eligible when it is not marked sold, has a non-null, non-empty
-     * (deliverable) email address, its last owner-driven update is more than two
-     * years old, and it has either never been verified (last_verified IS NULL) or
-     * was last verified more than two years ago.
+     * (deliverable) email address that has not bounced, and is stale — that is,
+     * it was neither verified nor updated by its owner within the last year (see
+     * stalenessSql()).
      *
      * @param int $limit Maximum rows to return (values below 1 return no rows)
      * @param int $offset Rows to skip (negative values are treated as 0)
      * @return array<object> Eligible car rows (empty if none)
      * @throws CarDatabaseException If the query fails
+     * @throws CarValidationException If the freshness alias is rejected (unreachable — literal)
      */
     public function findVerificationEligible(int $limit, int $offset): array
     {
@@ -341,13 +503,14 @@ class CarRepository
         // explicit NULL check: `!= ''` alone is silently false (not true) for a
         // NULL email under SQL's three-valued logic, which happens to be the
         // desired exclusion but was previously undocumented as such.
+        $stale = self::stalenessSql('cars');
+
         $result = $this->db->query(
             "SELECT * FROM cars
               WHERE solddate IS NULL
                 AND email_bounced = 0
                 AND email IS NOT NULL AND email != ''
-                AND (last_verified IS NULL OR last_verified < NOW() - INTERVAL 2 YEAR)
-                AND COALESCE(owner_last_updated, mtime) < NOW() - INTERVAL 2 YEAR
+                AND {$stale}
               ORDER BY last_verified ASC
               LIMIT {$limit} OFFSET {$offset}"
         );

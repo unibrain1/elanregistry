@@ -13,9 +13,70 @@ the car-list CSRF stale-token failure and the admin merge action leaving
 `userimages/` files behind. The integration-test gate is decoupled from
 UserSpice so CI can run it.
 
+## Required Actions BEFORE Deployment
+
+> **Stop.** This release cannot be safely deployed without completing step 1
+> first. The migration it ships is not reversible in effect — see below.
+
+### 1. Take a full database backup — mandatory, before anything else
+
+This release ships a schema migration that rewrites six columns on `cars` and
+`cars_hist` (the two largest tables) from `TIMESTAMP` to `DATETIME`, rebuilds the
+three `cars` audit triggers, normalizes 15 legacy partial dates in `cars_hist`, and
+backfills `owner_last_updated` on every active car. **Do not push this release
+without a verified full backup in hand.** The documented remedy if timestamps come
+back shifted is to restore from backup — there is no forward fix.
+
+```bash
+mysqldump -u <user> -p --single-transaction --routines --triggers \
+  <database> > elanregistry-pre-v2.30.1-$(date +%Y%m%d-%H%M%S).sql
+```
+
+Confirm the dump is non-empty and contains the `cars` and `cars_hist` CREATE TABLE
+statements before proceeding.
+
+### 2. Record a timestamp baseline for the post-deploy check
+
+The conversion is value-preserving only if it runs under matching clocks, and a
+shifted-but-well-formed timestamp passes every automated check in this release. The
+only way to catch one is to compare against values recorded beforehand:
+
+```sql
+SELECT id, ctime, mtime FROM cars ORDER BY id LIMIT 3;
+```
+
+Keep that output. Step 4 compares against it.
+
+## Required Actions During Deployment
+
+### 3. Run the migration
+
+```bash
+composer migrate
+```
+
+The migration **aborts by design** if MySQL's `NOW()` and PHP's clock differ by
+more than 120 seconds. Converting `TIMESTAMP` to `DATETIME` freezes each value as a
+wall-clock string in the session's timezone, so a mismatched clock would shift every
+timestamp in both tables permanently. A failed guard is not recorded in `phinxlog`,
+so the migration is safely re-runnable once the environment is corrected.
+
+Note for developers: this migration **cannot be run from a local MAMP machine** as
+currently configured — MAMP's PHP has no `date.timezone` set and falls back to UTC
+while MySQL follows the host (US/Pacific), a 7-hour skew. Either set `date.timezone`
+in MAMP's `php.ini` to match the MySQL server zone, or run the migration only on
+test/prod, where the clocks already agree.
+
 ## Required Actions After Deployment
 
-[To be filled in as issues complete]
+### 4. Verify timestamps against the baseline
+
+Using the values recorded in step 2, confirm each car renders identically now on the
+admin car list (the only surface printing a time of day, so a sub-day shift is
+visible there and nowhere else), the car details page, and the sitemap's `<lastmod>`.
+
+A discrepancy means the conversion ran under a mismatched clock: **stop and restore
+from the step 1 backup** rather than adjusting the display layer.
 
 ## User-Facing Changes
 

@@ -639,11 +639,7 @@ class Owner
         // therefore excludes `mtime` from the freshness test and relies on
         // `owner_last_updated` alone. If you are reading this because you noticed
         // `mtime` moving on every sync: that is expected — do NOT "fix" it by adding
-        // `mtime` back into a staleness calculation. Note that
-        // CarRepository::findVerificationEligible() still carries a
-        // COALESCE(owner_last_updated, mtime) fallback today (tracked in #1953), so
-        // the guarantee currently holds only for rows whose `owner_last_updated`
-        // is non-NULL.
+        // `mtime` back into a staleness calculation.
         $syncTime = date(AppConstants::DATETIME_FORMAT);
         $ownerFields = [
             'fname'   => $this->_data->fname,
