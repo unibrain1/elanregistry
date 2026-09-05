@@ -288,20 +288,39 @@ final class UserSettingsWiringTest extends TestCase
         $branchStart = strpos($content, $marker);
         $this->assertNotFalse($branchStart, 'user_settings.php must still branch on email_act == 1');
 
-        // Bound the window at the branch's own closing brace rather than a fixed
-        // character count: a fixed window either truncates the branch (making the
-        // assertion vacuous) or overruns into later code (producing a false hit).
-        // The email_act == 1 block is the last `if` inside the confirmed-email
-        // block, so its body ends at the next line that dedents to its own brace.
-        $branchEnd = strpos($content, "\n                            }", $branchStart);
-        $this->assertNotFalse($branchEnd, 'Could not locate the end of the email_act == 1 branch');
-        $branchBody = substr($content, $branchStart, $branchEnd - $branchStart);
-        $this->assertGreaterThan(
-            200,
-            strlen($branchBody),
-            'The extracted email_act == 1 branch body is implausibly short — the '
-            . 'delimiter above probably no longer matches, which would make the '
-            . 'assertions below vacuous'
+        // Bound the window by BRACE BALANCING, not by matching an indented closing
+        // brace. An indentation-anchored delimiter encodes a nesting depth rather
+        // than a structural relationship: dedent this region by one level (a
+        // plausible refactor — the block sits four `if`s deep) and the delimiter
+        // matches an inner brace instead, silently truncating the body to roughly
+        // half. The assertions below would then still pass, against half a branch,
+        // and would keep passing even if the truncated-away half gained the flag.
+        // Brace balancing cannot truncate regardless of indentation.
+        $depth = 0;
+        $branchEnd = null;
+        for ($i = $branchStart, $len = strlen($content); $i < $len; $i++) {
+            if ($content[$i] === '{') {
+                $depth++;
+            } elseif ($content[$i] === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    $branchEnd = $i;
+                    break;
+                }
+            }
+        }
+        $this->assertNotNull($branchEnd, 'Could not brace-balance the end of the email_act == 1 branch');
+        $branchBody = substr($content, $branchStart, $branchEnd - $branchStart + 1);
+
+        // Anchor on content, not just length: this string is the last distinctive
+        // marker inside the branch, so its presence proves the body reaches the
+        // real closing brace rather than merely being long enough to look complete.
+        $this->assertStringContainsString(
+            'Verify Your Email',
+            $branchBody,
+            'The extracted email_act == 1 branch body does not reach the end of the '
+            . 'branch — the extraction is truncating, which would make the assertions '
+            . 'below vacuous'
         );
 
         $this->assertStringContainsString(
@@ -353,6 +372,41 @@ final class UserSettingsWiringTest extends TestCase
             . 'location, website, confirmed email) and each must set $profileFieldsChanged. '
             . 'A change here means either a sync trigger was dropped or the unconfirmed-email '
             . 'branch gained one (#1873)'
+        );
+    }
+
+    /**
+     * The admin sync endpoint's catch ladder must stay ordered specific-to-general,
+     * ending in \Throwable (#1873).
+     *
+     * Three silent regressions this pins, none of which PHP reports as an error:
+     *  - narrowing the final catch back to \Exception would let a TypeError from
+     *    syncOwnerFieldsToCars()'s untyped $_data bundle escape, ending an AJAX
+     *    request as an uncaught fatal — HTML to the client instead of JSON, and no
+     *    row in `logs` at all
+     *  - moving \Throwable above the sibling OwnerDatabaseException|CarDatabaseException
+     *    clause would make that handler dead code, silently dropping its tailored
+     *    "some cars may already have been updated; retrying is safe" message
+     *  - dropping either sibling from the combined clause: they are siblings under
+     *    ElanRegistryException, not parent and child, so both must be named
+     */
+    public function testAdminSyncEndpointCatchLadderOrdering(): void
+    {
+        $content = $this->readEndpointSource('app/admin/includes/process-owner-sync-location.php');
+
+        preg_match_all('/catch\s*\(([^)]+?)\s*\$e\s*\)/', $content, $matches);
+        $caught = array_map('trim', $matches[1]);
+
+        $this->assertSame(
+            [
+                'LocationServiceException',
+                'AdminOperationException',
+                'OwnerDatabaseException | CarDatabaseException',
+                '\\Throwable',
+            ],
+            $caught,
+            'The catch ladder must run specific-to-general and end in \\Throwable. '
+            . 'PHP does not flag an unreachable catch, so a reordering here fails silently.'
         );
     }
 }

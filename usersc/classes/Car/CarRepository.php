@@ -166,8 +166,9 @@ class CarRepository
      * the method: it prevents writing one owner's details onto a car that was
      * transferred to somebody else after the caller took its list of car IDs.
      *
-     * On database error, logs via LOG_CATEGORY_DATABASE_ERROR and throws so that
-     * any enclosing transaction can roll back rather than commit over a partial state.
+     * On database error, throws so that any enclosing transaction can roll back
+     * rather than commit over a partial state. It deliberately does NOT log —
+     * see the note below on why the exception is the durable record.
      *
      * IMPORTANT — the return is rows **changed**, not rows **matched**. PDO is not
      * configured with MYSQL_ATTR_FOUND_ROWS, so MySQL reports only rows whose values
@@ -182,10 +183,12 @@ class CarRepository
      * success with nothing to write, no row means the car left this owner. Do not
      * treat 0 as failure on its own.
      *
-     * When this method is called inside a transaction, note that the log row it
-     * writes on failure is rolled back with everything else — logger() shares the
-     * same connection. The exception message carries the same error string and is
-     * the durable record in that case.
+     * This method writes no log row of its own. It is designed to be called inside
+     * a per-car transaction, and `logs` is InnoDB on the same connection, so any
+     * row logged here would be destroyed by the caller's rollback — erasing the
+     * diagnostic exactly when something has gone wrong. The exception message
+     * carries the full error string and is the durable record; callers MUST log
+     * it after their transaction has closed.
      *
      * @param int                  $carId  Car to update
      * @param int                  $userId Owner the car must currently belong to

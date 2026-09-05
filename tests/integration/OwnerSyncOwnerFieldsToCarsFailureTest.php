@@ -397,12 +397,12 @@ final class OwnerSyncOwnerFieldsToCarsFailureTest extends IntegrationTestCase
 
     /**
      * Gap B (#1873 round-two review): the one branch where diagnosability was
-     * genuinely fragile. CarRepository::updateCarForOwner() logs and throws
-     * CarDatabaseException on a genuine UPDATE failure, but that log row is
-     * written INSIDE the per-car transaction and is destroyed by the rollback
-     * before the exception escapes (InnoDB `logs` table; a row inserted in a
-     * transaction does not survive ROLLBACK). Production code was changed to
-     * compensate: the propagating catch in syncOwnerFieldsToCars() now logs
+     * genuinely fragile. CarRepository::updateCarForOwner() throws
+     * CarDatabaseException on a genuine UPDATE failure from inside the per-car
+     * transaction. It deliberately writes no log row of its own — one written
+     * there would be destroyed by the rollback before the exception escapes
+     * (InnoDB `logs` table; a row inserted in a transaction does not survive
+     * ROLLBACK). The propagating catch in syncOwnerFieldsToCars() therefore logs
      * AFTER the rollback, recording the partial state (which cars already
      * committed, and where the abort happened).
      *

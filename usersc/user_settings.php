@@ -497,6 +497,19 @@ if (!empty($_POST)) {
                 logger((int)$user->data()->id, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
                     "user_settings.php: car owner-field sync failed for user {$userId}: " . $e->getMessage());
                 $errors[] = 'Owner details saved, but car synchronization encountered an error. Please contact support if this persists.';
+            } catch (\Throwable $e) {
+                // \Throwable, not Exception: PHP's Error hierarchy (TypeError et al.)
+                // does not extend Exception, and syncOwnerFieldsToCars() builds its
+                // field bundle from untyped $_data properties. The consequence here is
+                // worse than at the admin endpoint: an escaping Error would discard
+                // every queued usError()/usSuccess() message below and skip the PRG
+                // redirect, blanking the page AFTER the profile writes above already
+                // committed — so the owner sees a crash, retries, finds their new
+                // values displayed, and concludes it worked while the cars stay stale.
+                logger((int)$user->data()->id, LogCategories::LOG_CATEGORY_SYSTEM_ERROR,
+                    'user_settings.php: unexpected ' . get_class($e)
+                    . " during owner-field sync for user {$userId}: " . $e->getMessage());
+                $errors[] = 'Owner details saved, but car synchronization encountered an error. Please contact support if this persists.';
             }
         }
     }
