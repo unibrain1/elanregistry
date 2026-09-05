@@ -246,6 +246,17 @@ final class CarRepositoryFreshnessTest extends TestCase
             'year only'                 => ['2026'],
             'whitespace only'           => [' '],
             'date without time'         => ['2026-09-05'],
+            // Shape-valid but calendar-invalid. A regex-only guard passes all
+            // three and strtotime() then rolls them over into a plausible
+            // timestamp, so isFresh() would report corrupt data as FRESH and
+            // suppress the owner's verification email for a year — #1953's own
+            // defect on the PHP side. Reachable because users/classes/DB.php
+            // sets `sql_mode = ''` on every application connection, so MySQL
+            // stores and returns a zero-date in a DATETIME column.
+            'impossible day'            => ['2026-02-30 12:00:00'],
+            'zero datetime full length' => ['0000-00-00 00:00:00'],
+            'zero month and day'        => ['2026-00-00 00:00:00'],
+            'month out of range'        => ['2026-13-01 00:00:00'],
         ];
     }
 

@@ -495,12 +495,15 @@ to provide a focused, testable data access layer wrapping the `cars`,
 - `isFresh(?string $lastVerified, string $ownerLastUpdated): bool` - PHP
   equivalent of `freshnessSql()` for in-code freshness checks, using PHP's clock
   where the SQL form uses MySQL's `NOW()`. Both clocks must resolve to the same
-  timezone or the two forms can disagree at the one-year boundary from skew alone;
-  the application sets no timezone in either PHP or MySQL, so they agree only while
-  they share a host. Validates **both** operands before comparing — deliberately
-  not short-circuiting on a fresh `$ownerLastUpdated` — and throws
-  `CarValidationException` if either is empty or unparseable, because a malformed
-  value there is a programming error, not a data state.
+  timezone or the two forms can disagree at the one-year boundary from skew alone.
+  Sharing a host does **not** guarantee this: `users/init.php` pins PHP to
+  `America/Los_Angeles` on every web request, while MySQL follows its own
+  `time_zone`, so agreement must be verified per environment. Validates **both**
+  operands before comparing — deliberately not short-circuiting on a fresh
+  `$ownerLastUpdated` — and throws `CarValidationException` if either is empty,
+  malformed, or not a real calendar date (`2026-02-30` is rejected rather than
+  rolled over to March 2), because a malformed value there is a programming
+  error, not a data state.
 - `findVerificationEligible(int $limit, int $offset): array` - Paginated
   query for cars eligible for a verification email: not sold, deliverable
   email, and stale — neither verified nor updated by its owner within the last

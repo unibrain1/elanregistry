@@ -48,13 +48,27 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
         parent::setUp();
         $this->requireDatabase();
 
-        // Verify the migration has been applied by checking that
-        // cars.owner_last_updated is NOT NULL. If it is still nullable the
-        // migration has not run — skip the suite rather than failing with
-        // misleading assertion errors (mirrors CarsYearSmallintMigrationTest's
-        // pattern). Locally this is EXPECTED to skip: local PHP resolves to UTC
-        // while local MySQL resolves to US/Pacific, a 7-hour skew that trips
-        // the migration's own clock-alignment guard and correctly aborts it.
+        // No migration gate here — see requireMigrationApplied(), which the
+        // individual type/nullability tests call for themselves. Everything
+        // else in this class runs against the pre-migration schema too.
+        $this->testUserId = $this->createTestUser();
+        $this->loginAsTestUser($this->testUserId);
+    }
+
+    /**
+     * Skip unless migration 20260905172137 has actually been applied.
+     *
+     * Called per-test rather than from setUp(). Only the assertions that read a
+     * post-migration column *type* or nullability genuinely depend on it; the
+     * trigger, index and backfill tests all pass against the pre-migration
+     * schema and must keep running everywhere. Gating the whole class hid seven
+     * working tests on every unmigrated environment — including the trigger-body
+     * test, which covers what this migration's own docblock calls its single
+     * biggest hazard, and which is therefore exactly the test least affordable
+     * to silence.
+     */
+    private function requireMigrationApplied(): void
+    {
         $row = $this->db->query(
             "SELECT IS_NULLABLE
              FROM information_schema.COLUMNS
@@ -70,9 +84,6 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
                 'still nullable. Run: composer migrate'
             );
         }
-
-        $this->testUserId = $this->createTestUser();
-        $this->loginAsTestUser($this->testUserId);
     }
 
     protected function tearDown(): void
@@ -96,6 +107,8 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
     #[Group('migration')]
     public function testSchema_ownerLastUpdated_isNotNullWithCurrentTimestampDefault(): void
     {
+        $this->requireMigrationApplied();
+
         $row = $this->columnInfo('cars', 'owner_last_updated');
 
         $this->assertNotNull($row, 'Column cars.owner_last_updated must exist');
@@ -144,6 +157,8 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
     #[Group('migration')]
     public function testSchema_carsMtime_isDatetimeWithOnUpdatePreserved(): void
     {
+        $this->requireMigrationApplied();
+
         $row = $this->columnInfo('cars', 'mtime');
 
         $this->assertNotNull($row, 'Column cars.mtime must exist');
@@ -170,6 +185,8 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
     #[Group('migration')]
     public function testSchema_carsCtime_isDatetimeNullable(): void
     {
+        $this->requireMigrationApplied();
+
         $row = $this->columnInfo('cars', 'ctime');
 
         $this->assertNotNull($row, 'Column cars.ctime must exist');
@@ -185,6 +202,8 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
     #[Group('migration')]
     public function testSchema_carsLastVerified_isDatetimeNullable(): void
     {
+        $this->requireMigrationApplied();
+
         $row = $this->columnInfo('cars', 'last_verified');
 
         $this->assertNotNull($row, 'Column cars.last_verified must exist');
@@ -204,6 +223,8 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
     #[Group('migration')]
     public function testSchema_carsHistCtime_isDatetime(): void
     {
+        $this->requireMigrationApplied();
+
         $row = $this->columnInfo('cars_hist', 'ctime');
 
         $this->assertNotNull($row, 'Column cars_hist.ctime must exist');
@@ -223,6 +244,8 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
     #[Group('migration')]
     public function testSchema_carsHistMtime_isDatetimeNullable(): void
     {
+        $this->requireMigrationApplied();
+
         $row = $this->columnInfo('cars_hist', 'mtime');
 
         $this->assertNotNull($row, 'Column cars_hist.mtime must exist');
@@ -242,6 +265,8 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
     #[Group('migration')]
     public function testSchema_carsHistTimestamp_isDatetimeNotNull(): void
     {
+        $this->requireMigrationApplied();
+
         $row = $this->columnInfo('cars_hist', 'timestamp');
 
         $this->assertNotNull($row, 'Column cars_hist.timestamp must exist');

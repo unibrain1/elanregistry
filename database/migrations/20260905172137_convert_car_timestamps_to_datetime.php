@@ -20,8 +20,9 @@ use Phinx\Migration\AbstractMigration;
  * owner activity only, never incidental row writes).
  *
  * `cars_hist.timestamp` is deliberately included even though nothing in the
- * freshness expression reads it. ADR-003 makes `cars_hist` a type-for-type
- * mirror of `cars`, and every trigger fire writes `NEW.ctime`/`NEW.mtime`
+ * freshness expression reads it. ADR-003 has `cars_hist` mirror the structure
+ * of `cars` (not type-for-type — the `mtime` nullability asymmetry below is a
+ * deliberate exception), and every trigger fire writes `NEW.ctime`/`NEW.mtime`
  * (now DATETIME) into `cars_hist`. Leaving any `cars_hist` timestamp column as
  * TIMESTAMP would reintroduce a silent DATETIME->TIMESTAMP conversion on every
  * audit row — precisely what this migration removes — and would fail outright
@@ -36,12 +37,21 @@ use Phinx\Migration\AbstractMigration;
  * (held internally as UTC), renders it as a wall-clock string **in the
  * session's `time_zone`**, and stores that literal verbatim. The rendered
  * string is therefore correct only if the session zone matches the zone the
- * application writes and reads its dates in. This application sets no timezone
- * anywhere — no `date_default_timezone_set()`, no `SET time_zone`, no `.env`
- * key — so PHP and MySQL are expected to agree by both inheriting the host.
- * Where they do not, every converted value shifts permanently and silently, and
- * the shifted values are still well-formed, so no later check catches it.
- * {@see assertClockAlignment()} enforces the assumption before any ALTER runs.
+ * application writes and reads its dates in.
+ *
+ * That zone is `America/Los_Angeles`: users/init.php pins it on every web
+ * request, so it is the zone every stored value was written in. Do not assume
+ * PHP and MySQL agree merely by sharing a host — measured on production
+ * 2026-09-05, three clocks disagree: MySQL `SYSTEM` => MST (-7), web PHP
+ * America/Los_Angeles => PDT (-7), and CLI PHP America/New_York (-4). Phinx
+ * bootstraps only vendor/autoload.php, never init.php, so a migration's own
+ * ambient PHP clock is the CLI one and is NOT the clock that wrote the data.
+ *
+ * Where the session zone and the application zone differ, every converted value
+ * shifts permanently and silently, and the shifted values are still
+ * well-formed, so no later check catches it. {@see assertClockAlignment()}
+ * enforces the assumption — against {@see APPLICATION_TIMEZONE}, not against
+ * ambient PHP — before any ALTER runs.
  *
  * up() + down() are used instead of change() because this migration mixes
  * column-type changes with a one-time data repair, a corrective backfill, and
@@ -107,6 +117,18 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
     private const CLOCK_SKEW_TOLERANCE_SECONDS = 120;
 
     /**
+     * The timezone the application writes datetimes in.
+     *
+     * Must match `$timezone_string` in users/init.php, which pins every web
+     * request. Kept as a literal rather than read from init.php because Phinx
+     * does not bootstrap the application: requiring init.php here would pull in
+     * the full UserSpice stack (session, DB singleton, plugin loader) purely to
+     * read one string. If init.php's zone changes, change this with it — the
+     * clock guard is comparing against the wrong zone otherwise.
+     */
+    private const APPLICATION_TIMEZONE = 'America/Los_Angeles';
+
+    /**
      * The corrective backfill, extracted verbatim so the integration test can
      * execute this exact statement rather than duplicating the string.
      *
@@ -117,11 +139,13 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
      * Unconditional is deliberate, and each half matters:
      *
      * - It must **overwrite** the values 20260902104755 backfilled from
-     *   `mtime`. Measured against production, 93.7% of active cars carry an
-     *   `mtime` inside the last year — from routine fix-script maintenance, not
-     *   owner activity — so those inherited values make the registry read as
-     *   freshly-confirmed and would suppress ~94% of the verification email
-     *   this system exists to send, while logging successful cron runs nightly.
+     *   `mtime`. Measured against production 2026-09-05, 1410 of 1505 active
+     *   cars (93.7%) carry an `mtime` inside the last year — from routine
+     *   fix-script maintenance, not owner activity — so those inherited values
+     *   make the registry read as freshly-confirmed and would suppress ~94% of
+     *   the verification email this system exists to send, while logging
+     *   successful cron runs nightly. (A snapshot, not an invariant; the shape
+     *   of the argument holds regardless of the exact figure.)
      * - It must not be narrowed to `WHERE last_verified IS NULL` or
      *   `WHERE owner_last_updated IS NULL`. Any such guard leaves the skipped
      *   rows carrying the new column default — the migration's own run time —
@@ -132,7 +156,7 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
      * rewrites `mtime` to the migration's run time and destroys every real
      * modification timestamp in the table. Omitting the column from `SET` does
      * **not** suppress the clause; assigning it explicitly does. Precedent:
-     * 20260902104755:68-75.
+     * 20260902104755 (rationale at :57-62, statement at :71-73).
      */
     public const BACKFILL_SQL = 'UPDATE cars'
         . ' SET owner_last_updated = DATE_SUB(NOW(), INTERVAL 366 DAY), mtime = mtime'
@@ -144,6 +168,23 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
         // Must run before any ALTER: the conversion is irreversible in effect
         // (a shifted value is still well-formed and no later check detects it).
         $this->assertClockAlignment();
+
+        // --- 1a. Clear any NULL owner_last_updated before the NOT NULL ALTER
+        // MySQL does not coerce an existing NULL to the new DEFAULT; it aborts
+        // the whole statement with ERROR 1138 (Invalid use of NULL value).
+        // Verified against production 2026-09-05: 0 of 1593 rows are NULL, so
+        // this touches nothing today. It runs anyway because the corrective
+        // backfill in step 5 is scoped `WHERE solddate IS NULL` — a *sold* car
+        // that acquired a NULL between now and the deploy is repaired by no
+        // other step, and would abort the migration here, after the earlier
+        // DDL has already implicit-committed.
+        //
+        // `mtime = mtime` for the same reason as BACKFILL_SQL: suppress the
+        // ON UPDATE CURRENT_TIMESTAMP bump.
+        $this->execute(
+            'UPDATE cars SET owner_last_updated = COALESCE(owner_last_updated, mtime),'
+            . ' mtime = mtime WHERE owner_last_updated IS NULL'
+        );
 
         // --- 2. Convert the `cars` columns --------------------------------
         // owner_last_updated: NOT NULL with a CURRENT_TIMESTAMP default and
@@ -188,7 +229,8 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
         // @disable_triggers suppresses cars_update for this UPDATE; without it
         // the trigger fires once per active row, flooding cars_hist with bogus
         // 'UPDATE' entries for internal bookkeeping that is not a real edit —
-        // the project-wide escape hatch also used by bulk maintenance scripts.
+        // the project-wide escape hatch defined by ADR-003 and used by the
+        // other bulk-write migrations.
         $adapter = $this->getAdapter();
         $adapter->beginTransaction();
         $this->execute('SET @disable_triggers = 1');
@@ -294,7 +336,23 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
         $row = $this->fetchRow('SELECT NOW() AS db_now');
         $dbNow = is_array($row) ? (string)($row['db_now'] ?? '') : '';
 
-        self::assertClocksAligned($dbNow, date('Y-m-d H:i:s'));
+        // Compare MySQL against PHP evaluated in APPLICATION_TIMEZONE, NOT
+        // against ambient CLI PHP. The values being converted were written by
+        // web PHP, which users/init.php pins to that zone on every request;
+        // Phinx bootstraps only vendor/autoload.php, so CLI PHP here is
+        // whatever php.ini says and is irrelevant to the conversion.
+        //
+        // Measured on production 2026-09-05, all three disagree:
+        //   MySQL    SYSTEM => MST            (-7)  <- stores the values
+        //   web PHP  America/Los_Angeles PDT  (-7)  <- wrote the values
+        //   CLI PHP  America/New_York         (-4)  <- irrelevant
+        // Comparing CLI PHP would abort this deploy on a 3h skew that cannot
+        // affect the data, while a host with CLI PHP and MySQL both on UTC and
+        // web PHP still on LA would pass and shift every value by 7-8 hours.
+        $phpNow = (new \DateTimeImmutable('now', new \DateTimeZone(self::APPLICATION_TIMEZONE)))
+            ->format('Y-m-d H:i:s');
+
+        self::assertClocksAligned($dbNow, $phpNow);
     }
 
     /**
@@ -351,47 +409,38 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
      *
      * Thirteen `purchasedate` and two `solddate` values read `1999-06-00`,
      * `2001-00-00` and similar — legacy rows from owners who knew the year, and
-     * sometimes the month, but not the day. `cars` itself is clean; a prior
-     * repair already promoted those zero components to `01` in the live table,
-     * and these are the pre-repair audit snapshots that survived it.
+     * sometimes the month, but not the day. `cars` itself is clean (verified
+     * against production 2026-09-05: 0 partial dates in `cars`, 13 + 2 in
+     * `cars_hist`); these are audit snapshots of a state `cars` no longer holds.
      *
      * They must be repaired **before** the `cars_hist` ALTER. MySQL revalidates
      * the entire table during a rebuild, so columns this migration does not
-     * convert still abort it under the production `sql_mode`
+     * convert still abort it under a strict `sql_mode`
      * (`STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE`):
      *
      *     ERROR 1292 (22007): Incorrect date value: '1999-06-00'
      *                         for column 'purchasedate' at row 6475
      *
-     * `sql_mode` is relaxed for the duration because the predicate itself needs
-     * it: `DAY()`/`MONTH()` applied to a zero-component date is rejected under
-     * the strict mode, so the rows could not even be selected. The prior value
-     * is captured and restored rather than assumed. `cars_hist` has no UPDATE
-     * trigger of its own, but `@disable_triggers` is set for consistency with
-     * every other bulk write in this codebase.
+     * Production runs `NO_ENGINE_SUBSTITUTION`, which does not reject these, so
+     * the repair is a safeguard for strict-mode environments (CI, a future
+     * hardened prod) rather than something today's production requires.
+     *
+     * `sql_mode` is deliberately NOT relaxed here. An earlier revision did so,
+     * on the premise that `DAY()`/`MONTH()` on a zero-component date is
+     * rejected under strict mode — that is false. Verified under the full
+     * strict mode above: the SELECT returns both rows, and the repair UPDATE
+     * writes `1999-06-01` / `2001-01-01` without error. Relaxing the mode only
+     * opened a window in which subsequent writes ran unguarded. Do not
+     * reintroduce it.
+     *
+     * `cars_hist` has no UPDATE trigger of its own, but `@disable_triggers` is
+     * set for consistency with every other bulk write in this codebase.
      */
     private function normalizePartialHistoryDates(): void
     {
-        $row = $this->fetchRow('SELECT @@session.sql_mode AS sql_mode');
-        $originalSqlMode = is_array($row) ? (string)($row['sql_mode'] ?? '') : '';
-
-        // Fail closed rather than relaxed. If the mode could not be read, the
-        // finally below would "restore" sql_mode to '' — leaving every
-        // subsequent statement in this migration (the cars_hist ALTER, the
-        // backfill) running without STRICT_TRANS_TABLES/NO_ZERO_DATE, which is
-        // exactly the state this method's finally exists to prevent.
-        if ($originalSqlMode === '') {
-            throw new \RuntimeException(
-                'Refusing to relax sql_mode for the partial-date repair: could not read '
-                . '@@session.sql_mode, so the original value cannot be restored afterwards. '
-                . 'Every later statement in this migration would run unguarded.'
-            );
-        }
-
         $adapter = $this->getAdapter();
         $adapter->beginTransaction();
         $this->execute('SET @disable_triggers = 1');
-        $this->execute("SET SESSION sql_mode = ''");
 
         try {
             foreach (['purchasedate', 'solddate'] as $column) {
@@ -413,9 +462,6 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
             $adapter->rollbackTransaction();
             throw $e;
         } finally {
-            // Restore the caller's sql_mode even if a repair throws — the
-            // remaining statements in this migration must not run relaxed.
-            $this->execute(sprintf("SET SESSION sql_mode = '%s'", $originalSqlMode));
             $this->execute('SET @disable_triggers = NULL');
         }
     }

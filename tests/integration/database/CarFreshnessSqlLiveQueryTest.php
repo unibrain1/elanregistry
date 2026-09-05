@@ -172,4 +172,120 @@ final class CarFreshnessSqlLiveQueryTest extends IntegrationTestCase
             'error and return the eligible synthetic car'
         );
     }
+
+    // -------------------------------------------------------------------------
+    // The one-year boundary, in SQL
+    // -------------------------------------------------------------------------
+
+    /**
+     * Evaluate a datetime expression on the MySQL server and return the result.
+     *
+     * Fixtures for the boundary tests must be derived from MySQL's clock, not
+     * PHP's. `freshnessSql()` compares against MySQL's `NOW()`, and the two
+     * clocks are not guaranteed to agree — on the reference dev box PHP is UTC
+     * while MySQL is Pacific, 7 hours apart, which would swamp a 60-second
+     * boundary offset and make these tests flap for a reason unrelated to the
+     * behaviour under test.
+     */
+    private function mysqlDatetime(string $expression): string
+    {
+        $row = $this->db->query("SELECT {$expression} AS t")->first();
+
+        return (string) $row->t;
+    }
+
+    /**
+     * A car one minute inside the one-year window must read fresh.
+     *
+     * Together with its just-stale sibling this is what pins the interval to a
+     * year. Without them the window is asserted only as an exact SQL string, so
+     * retuning it (1 YEAR -> 18 MONTH, say) leaves every behavioural test green
+     * and the string assertions read as "this string changed" rather than "this
+     * behaviour is wrong" — inviting a maintainer to update them and ship a
+     * silently different verification window. That is the same shape of miss
+     * that let #1953 itself pass a green suite.
+     */
+    #[Group('fast')]
+    public function testFreshnessSqlMatchesCarJustInsideTheOneYearBoundary(): void
+    {
+        $carId = $this->createTestCar($this->testUserId, [
+            'last_verified'      => null,
+            'owner_last_updated' => $this->mysqlDatetime(
+                'DATE_ADD(NOW() - INTERVAL 1 YEAR, INTERVAL 60 SECOND)'
+            ),
+        ]);
+
+        $fresh  = CarRepository::freshnessSql('cars');
+        $result = $this->db->query("SELECT id FROM cars WHERE id = ? AND {$fresh}", [$carId]);
+
+        $this->assertFalse($result->error(), 'freshnessSql() must execute without a SQL error');
+        $this->assertSame(
+            1,
+            $result->count(),
+            'A car 60 seconds inside the one-year window must match freshnessSql(). '
+            . 'If this fails, the freshness interval is no longer one year.'
+        );
+    }
+
+    /**
+     * A car one minute outside the one-year window must read stale.
+     */
+    #[Group('fast')]
+    public function testFreshnessSqlExcludesCarJustOutsideTheOneYearBoundary(): void
+    {
+        $carId = $this->createTestCar($this->testUserId, [
+            'last_verified'      => null,
+            'owner_last_updated' => $this->mysqlDatetime(
+                'DATE_SUB(NOW() - INTERVAL 1 YEAR, INTERVAL 60 SECOND)'
+            ),
+        ]);
+
+        $fresh  = CarRepository::freshnessSql('cars');
+        $result = $this->db->query("SELECT id FROM cars WHERE id = ? AND {$fresh}", [$carId]);
+
+        $this->assertFalse($result->error(), 'freshnessSql() must execute without a SQL error');
+        $this->assertSame(
+            0,
+            $result->count(),
+            'A car 60 seconds outside the one-year window must not match freshnessSql(). '
+            . 'If this fails, the freshness interval is no longer one year.'
+        );
+    }
+
+    /**
+     * The same boundary via `last_verified`, the other operand of the OR.
+     *
+     * `owner_last_updated` alone would leave the verified-recently disjunct
+     * unpinned, so a retune of only that half would go unnoticed.
+     */
+    #[Group('fast')]
+    public function testFreshnessSqlAppliesTheSameBoundaryToLastVerified(): void
+    {
+        $justInside = $this->createTestCar($this->testUserId, [
+            'last_verified'      => $this->mysqlDatetime(
+                'DATE_ADD(NOW() - INTERVAL 1 YEAR, INTERVAL 60 SECOND)'
+            ),
+            'owner_last_updated' => $this->mysqlDatetime('NOW() - INTERVAL 5 YEAR'),
+        ]);
+
+        $justOutside = $this->createTestCar($this->testUserId, [
+            'last_verified'      => $this->mysqlDatetime(
+                'DATE_SUB(NOW() - INTERVAL 1 YEAR, INTERVAL 60 SECOND)'
+            ),
+            'owner_last_updated' => $this->mysqlDatetime('NOW() - INTERVAL 5 YEAR'),
+        ]);
+
+        $fresh = CarRepository::freshnessSql('cars');
+
+        $this->assertSame(
+            1,
+            $this->db->query("SELECT id FROM cars WHERE id = ? AND {$fresh}", [$justInside])->count(),
+            'A car verified 60 seconds inside the one-year window must match freshnessSql()'
+        );
+        $this->assertSame(
+            0,
+            $this->db->query("SELECT id FROM cars WHERE id = ? AND {$fresh}", [$justOutside])->count(),
+            'A car verified 60 seconds outside the one-year window must not match freshnessSql()'
+        );
+    }
 }

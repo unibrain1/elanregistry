@@ -335,8 +335,13 @@ class CarRepository
      * CLOCK CONSISTENCY: this fragment compares against MySQL's NOW(), while the
      * PHP-side equivalent isFresh() uses PHP's clock. Both must resolve to the
      * same timezone, or the two forms can disagree at the one-year boundary from
-     * clock skew alone. The application sets no timezone in either PHP or MySQL,
-     * so both inherit the host default and agree only while they share a host.
+     * clock skew alone. Sharing a host does NOT guarantee that: users/init.php
+     * pins PHP to `America/Los_Angeles` on every web request, while MySQL
+     * follows its own `time_zone` setting. They agree only when MySQL's resolved
+     * zone matches that one — which must be checked per environment, not
+     * assumed. (Production 2026-09-05: MySQL `SYSTEM` => MST (-7) and web PHP
+     * PDT (-7) agree, but MST does not observe DST and LA does, so they diverge
+     * by an hour from November to March.)
      *
      * @param string $alias Table alias to qualify the columns with. Developer-supplied,
      *                      never request-derived; validated as a SQL identifier before
@@ -386,8 +391,9 @@ class CarRepository
      * CLOCK CONSISTENCY: this method uses PHP's clock, while freshnessSql()
      * compares against MySQL's NOW(). Both must resolve to the same timezone, or
      * the two forms can disagree at the one-year boundary from clock skew alone.
-     * The application sets no timezone in either PHP or MySQL, so both inherit the
-     * host default and agree only while they share a host.
+     * Sharing a host does NOT guarantee that — see freshnessSql()'s note; PHP is
+     * pinned to `America/Los_Angeles` by users/init.php while MySQL follows its
+     * own `time_zone`.
      *
      * @param string|null $lastVerified      Datetime string, or null if never verified
      * @param string      $ownerLastUpdated  Datetime string (NOT NULL by schema)
@@ -434,10 +440,15 @@ class CarRepository
     /**
      * Parse a datetime string to a Unix timestamp, rejecting empty or malformed input.
      *
+     * Validates the calendar, not merely the shape: a well-formed but
+     * impossible date such as '2026-02-30 12:00:00' is rejected rather than
+     * silently rolled over to 2026-03-02.
+     *
      * @param string $value  Datetime string to parse
      * @param string $column Column name, for the exception message
      * @return int Unix timestamp
-     * @throws CarValidationException If $value is empty or unparseable
+     * @throws CarValidationException If $value is empty, malformed, or not a
+     *                                real calendar date
      */
     private static function parseTimestamp(string $value, string $column): int
     {
@@ -453,23 +464,38 @@ class CarRepository
         // returning a plausible timestamp for each. Any of those reaching here
         // means corrupt data or a caller bug, but strtotime() would silently
         // turn them into a confident true/false — the exact silent-wrong-answer
-        // this method throws to avoid. Both parameters come from a DATETIME
-        // column, so require that shape explicitly before parsing.
-        if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $value) !== 1) {
+        // this method throws to avoid.
+        //
+        // A regex shape check is NOT sufficient on its own. '2026-02-30
+        // 12:00:00' and '0000-00-00 00:00:00' both match a \d{4}-\d{2}-\d{2}
+        // pattern, and strtotime() silently rolls them over (to 2026-03-02 and
+        // -0001-11-30 respectively) rather than returning false — so a corrupt
+        // value would be reported FRESH and suppress the owner's verification
+        // email for a year. That is #1953's own defect on the PHP side.
+        //
+        // This is reachable: users/classes/DB.php sets `sql_mode = ''` on every
+        // application connection, so MySQL accepts and returns a zero-date in a
+        // DATETIME column. NOT NULL blocks NULL, not '0000-00-00 00:00:00'.
+        //
+        // createFromFormat() with a leading '!' resets unparsed fields and
+        // reports rollovers through getLastErrors(), which is what makes the
+        // calendar — not merely the shape — the thing being validated.
+        $normalized = str_replace('T', ' ', $value);
+        $parsed     = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $normalized);
+        $errors     = \DateTimeImmutable::getLastErrors();
+
+        if (
+            $parsed === false
+            || ($errors !== false
+                && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0))
+        ) {
             throw new CarValidationException(
                 "CarRepository::isFresh received a malformed {$column} value: '{$value}'. "
-                . 'Expected a Y-m-d H:i:s datetime string as stored by the column.'
+                . 'Expected a valid Y-m-d H:i:s datetime as stored by the column.'
             );
         }
 
-        $timestamp = strtotime($value);
-        if ($timestamp === false) {
-            throw new CarValidationException(
-                "CarRepository::isFresh received an unparseable {$column} value: '{$value}'."
-            );
-        }
-
-        return $timestamp;
+        return $parsed->getTimestamp();
     }
 
     /**
@@ -500,9 +526,10 @@ class CarRepository
         // solddate is a DATE column; under STRICT_TRANS_TABLES, comparing it to ''
         // is a hard SQL error (ERROR 1525: Incorrect DATE value), not a no-op — the
         // column has no empty-string state, only NULL. email similarly needs an
-        // explicit NULL check: `!= ''` alone is silently false (not true) for a
-        // NULL email under SQL's three-valued logic, which happens to be the
-        // desired exclusion but was previously undocumented as such.
+        // explicit NULL check: `!= ''` alone evaluates to UNKNOWN (not FALSE)
+        // for a NULL email under SQL's three-valued logic. UNKNOWN excludes the
+        // row from this WHERE just as FALSE would, so the effect is the desired
+        // one, but the mechanism is not the obvious one.
         $stale = self::stalenessSql('cars');
 
         $result = $this->db->query(
