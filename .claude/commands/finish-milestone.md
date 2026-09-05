@@ -239,7 +239,7 @@ step doesn't need to slow down a milestone where nothing moved.
 
 Steps 6, 7, and 8 below are three independent "does this need updating"
 assessments — none depends on another's output, and each touches a disjoint
-set of files (release notes, `wiki/`, `CLAUDE.md`). Launch their read/assess
+set of files (release notes, the wiki clone, `CLAUDE.md`). Launch their read/assess
 phases together (a single message with multiple Explore/Task calls: gather
 the `git diff --name-only main...milestone/$ARGUMENTS` file list once and
 hand it to all three, read the release notes file, review CLAUDE.md against
@@ -311,19 +311,28 @@ git diff --name-only main...milestone/$ARGUMENTS
 **Run wiki update if** changed files include: `usersc/classes/`, `database/*.sql` (schema
 changes), new user flows, new env variables, or changes to how UserSpice is integrated.
 
-If update is needed:
+If update is needed, the wiki is a separate git repo — its permanent local
+clone path is developer-specific, in `.claude.local.md`. Never clone it into
+this repo or a temporary location.
 
-1. Clone wiki repo if not already available
+1. Confirm the wiki clone path from `.claude.local.md`; `cd` into it, checkout
+   `master-upload`, and pull
 2. Read only the affected wiki pages (not all pages)
-3. Launch `technical-documentation-writer` agent (haiku) to update only those pages
-4. Save to `wiki/` directory; push to wiki repo manually after review
+3. Launch `technical-documentation-writer` agent (haiku) to update only those
+   pages, writing directly into the wiki clone
+4. Commit in the wiki clone on `master-upload`:
 
-Commit any wiki files:
+   ```bash
+   git -C <wiki-clone> add <file>.md
+   git -C <wiki-clone> commit -m "docs: update wiki pages for $ARGUMENTS milestone changes"
+   ```
 
-```bash
-git add wiki/
-git commit -m "docs: update wiki pages for $ARGUMENTS milestone changes"
-```
+5. Publish with the wiki repo's own `/publish-wiki` command (pushes
+   `master-upload`, fast-forwards `master`, pushes and verifies) — do not
+   push `master` directly
+
+This step never touches this repo's own git history — nothing about a wiki
+update is staged or committed here.
 
 ### Step 8: Update CLAUDE.md if needed
 
@@ -727,7 +736,8 @@ merges, tags, and publishes — it is not a place to discover or fix problems.
   triggered — re-triggered via deep-review label, now posted" / "ran but
   posted nothing — self-referential workflow-file change, requires merge to
   main first" / etc. — never omit this line
-- Remind: wiki/ files need to be manually pushed to the wiki repo
+- Remind: if wiki pages were updated, confirm they were published via
+  `/publish-wiki` in the wiki clone — this repo's PR does not carry them
 - Note as plain text (informational, not a runnable choice): "To re-run the
   deep review later, label the PR `deep-review` or comment `@claude
   deep-review`" and "Release notes are at
@@ -748,8 +758,10 @@ merges, tags, and publishes — it is not a place to discover or fix problems.
 - **Closing keywords are critical** — without them in the PR body, issues
   won't auto-close on merge
 - The PR MUST target `main`, not any other branch
-- Wiki updates go to `wiki/` directory — they must be manually pushed to the
-  separate wiki git repo
+- Wiki updates are made directly in the separate wiki git repo's permanent
+  local clone (path in `.claude.local.md`), on `master-upload`, and published
+  via that repo's `/publish-wiki` command — never staged or committed in
+  this repo
 - Do not push to any remote — this command only creates the PR on GitHub
 - If release notes still have WIP markers, flag this prominently before
   creating the PR
