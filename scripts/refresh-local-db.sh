@@ -314,18 +314,36 @@ EMAIL_MASKS = {
     ),
 }
 
-CREATE_TRIGGER_RE = re.compile(r'^CREATE TRIGGER `([^`]+)`')
+# mysqldump does not emit a bare `CREATE TRIGGER`: it wraps the statement in
+# version-gated comments, e.g.
+#   /*!50003 CREATE*/ /*!50017 DEFINER=`u`@`h`*/ /*!50003 TRIGGER `name` ...
+# Match the trigger name in either form.
+CREATE_TRIGGER_RE = re.compile(r'^(?:/\*!\d+ )?CREATE.*?TRIGGER[ ]+`([^`]+)`')
+
+# Production's trigger definer (`unibrain_registry`@`localhost`) does not exist
+# on a developer machine, and MySQL rejects the CREATE with error 1449. Strip
+# the clause so each trigger is created as whoever runs the import.
+DEFINER_RE = re.compile(r'/\*!5\d{4} DEFINER=`[^`]*`@`[^`]*`\*/ ?')
 
 def transform_buf(buf):
-    """Skip CREATE TABLE blocks; convert INSERT INTO → REPLACE INTO;
+    """Skip DROP TABLE and CREATE TABLE; convert INSERT INTO → REPLACE INTO;
     prepend DROP TRIGGER IF EXISTS before each CREATE TRIGGER.
 
     The local schema already matches production, so we only need to
     upsert data rows — REPLACE INTO overwrites existing rows and inserts new ones.
+
+    Dropping the `DROP TABLE IF EXISTS` lines is essential, not cosmetic: we
+    also skip the CREATE TABLE that follows, so letting a DROP through would
+    delete the local table and never recreate it, and the import would then
+    fail on the next `LOCK TABLES` for that table.
     """
     out = []
     in_create = False
     for line in buf:
+        if line.startswith('DROP TABLE '):
+            continue
+        if 'DEFINER=' in line:
+            line = DEFINER_RE.sub('', line)
         if line.startswith('CREATE TABLE '):
             in_create = True
             continue
@@ -337,7 +355,16 @@ def transform_buf(buf):
             line = 'REPLACE INTO ' + line[len('INSERT INTO '):]
         elif CREATE_TRIGGER_RE.match(line):
             m = CREATE_TRIGGER_RE.match(line)
-            out.append(f'DROP TRIGGER IF EXISTS `{m.group(1)}`;\n')
+            drop = f'DROP TRIGGER IF EXISTS `{m.group(1)}`;\n'
+            # The CREATE is preceded by `DELIMITER ;;`, after which `;` no
+            # longer terminates a statement — emit the DROP before that
+            # switch, otherwise it is swallowed into the trigger body.
+            for i in range(len(out) - 1, -1, -1):
+                if out[i].startswith('DELIMITER '):
+                    out.insert(i, drop)
+                    break
+            else:
+                out.append(drop)
         out.append(line)
     return out
 
@@ -352,11 +379,16 @@ def flush(buf, table):
 
     # Each REPLACE INTO is a multi-line statement; we need the index of the
     # first REPLACE INTO header and the last data row (ending with ');').
-    # Stop scanning at DELIMITER $$ so trigger bodies don't interfere.
+    #
+    # Stop at the first DELIMITER line: everything past it is trigger bodies,
+    # whose lines also end in ');'. Scanning into them would place the COMMIT
+    # inside a trigger body, which MySQL rejects with error 1422 ("Explicit or
+    # implicit commit is not allowed in stored function or trigger"). Match any
+    # DELIMITER, not `DELIMITER $$` specifically — mysqldump emits `;;`.
     first_replace = None
     last_data = None
     for i, line in enumerate(buf):
-        if line.rstrip() == 'DELIMITER $$':
+        if line.startswith('DELIMITER '):
             break
         if line.startswith('REPLACE INTO') and first_replace is None:
             first_replace = i
@@ -375,6 +407,15 @@ def flush(buf, table):
     sys.stdout.writelines(buf[last_data + 1:])  # triggers etc.
 
 sys.stdout.write(
+    # Save every session variable that mysqldump's own epilogue restores from.
+    # We emit our own preamble rather than the dump's, so without these saves
+    # the passed-through `SET X=@OLD_X` lines at the end resolve to NULL and
+    # error (MySQL 1231).
+    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE */;\n"
+    "/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;\n"
+    "/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS */;\n"
+    "/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS */;\n"
+    "/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES */;\n"
     "SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n"
     "SET time_zone = '+00:00';\n"
     "/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;\n"
