@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
  * missing-profile handling.
  *
  * Covers:
- * - usersc/user_settings.php (the try/catch around Owner::syncLocationToCars()/
+ * - usersc/user_settings.php (the try/catch around Owner::syncOwnerFieldsToCars()/
  *   getCarsOwned(), and the missing-$profiledetails log+exit branch)
  *
  * The page cannot be require()'d from PHPUnit for a full behavioral test: it
@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
  * branches are instead asserted against the file's source text.
  *
  * The throw condition itself — a DB/query failure surfacing as
- * OwnerDatabaseException from Owner::getCarsOwned()/syncLocationToCars() — is
+ * OwnerDatabaseException from Owner::getCarsOwned()/syncOwnerFieldsToCars() — is
  * already exercised against a stubbed DatabaseInterface in
  * tests/integration/OwnerReadMethodsDatabaseFailureTest.php; this test covers
  * only user_settings.php's handling of that exception once thrown.
@@ -69,7 +69,7 @@ final class UserSettingsWiringTest extends TestCase
     // =========================================================================
 
     /**
-     * A DB failure inside Owner::syncLocationToCars()/getCarsOwned() must be
+     * A DB failure inside Owner::syncOwnerFieldsToCars()/getCarsOwned() must be
      * caught, logged under LOG_CATEGORY_DATABASE_ERROR, and must add a
      * friendly message to $errors[] rather than let the exception propagate
      * and crash the page — the profile fields above this block may have
@@ -90,34 +90,39 @@ final class UserSettingsWiringTest extends TestCase
         $this->assertStringContainsString(
             'try {',
             $content,
-            'The car location sync call must be wrapped in a try block'
+            'The owner-field sync call must be wrapped in a try block'
         );
         $this->assertStringContainsString(
-            '$carsUpdated = $owner->syncLocationToCars();',
+            '$syncResult = $owner->syncOwnerFieldsToCars();',
             $content,
-            'The endpoint must call syncLocationToCars() inside the try block'
+            'The endpoint must call syncOwnerFieldsToCars() inside the try block'
         );
 
         // Isolate the catch block that immediately follows the sync call, so
         // assertions below can't accidentally match an unrelated catch block
         // elsewhere in the file (e.g. a future addition).
-        $tryStart = strpos($content, '$carsUpdated = $owner->syncLocationToCars();');
-        $this->assertIsInt($tryStart, 'Could not locate the syncLocationToCars() call site');
-        $catchBlock = substr($content, $tryStart, 1200);
+        $tryStart = strpos($content, '$syncResult = $owner->syncOwnerFieldsToCars();');
+        $this->assertIsInt($tryStart, 'Could not locate the syncOwnerFieldsToCars() call site');
+        $catchBlock = substr($content, $tryStart, 1800);
 
         $this->assertMatchesRegularExpression(
-            '/}\s*catch\s*\(\\\\?(ElanRegistry\\\\Exceptions\\\\)?OwnerDatabaseException\s+\$e\)\s*{/',
+            '/}\s*catch\s*\(\\\\?(ElanRegistry\\\\Exceptions\\\\)?OwnerDatabaseException\s*\|\s*\\\\?(ElanRegistry\\\\Exceptions\\\\)?CarDatabaseException\s+\$e\)\s*{/',
             $catchBlock,
-            'The car location sync call must be caught with OwnerDatabaseException specifically'
+            'The owner-field sync call must be caught with both OwnerDatabaseException AND '
+            . 'CarDatabaseException — they are siblings under ElanRegistryException, not '
+            . 'parent/child, so catching only one lets the other escape as an unlogged fatal '
+            . '(regression guard: this catch was OwnerDatabaseException-only until #1873 round '
+            . 'two, since syncOwnerFieldsToCars() can also propagate CarDatabaseException from '
+            . "CarRepository's updateCarForOwner())"
         );
 
         // Isolate just the body of this catch block (up to its own closing
         // brace) so the following assertions can't accidentally match
         // content from a later, unrelated block.
-        $catchBodyStart = strpos($catchBlock, 'OwnerDatabaseException $e) {');
-        $this->assertIsInt($catchBodyStart, 'Could not locate the OwnerDatabaseException catch body');
+        $catchBodyStart = strpos($catchBlock, 'OwnerDatabaseException | CarDatabaseException $e) {');
+        $this->assertIsInt($catchBodyStart, 'Could not locate the combined-catch body');
         $catchBodyEnd = strpos($catchBlock, "\n            }", $catchBodyStart);
-        $this->assertIsInt($catchBodyEnd, 'Could not locate the end of the OwnerDatabaseException catch body');
+        $this->assertIsInt($catchBodyEnd, 'Could not locate the end of the combined-catch body');
         $catchBody = substr($catchBlock, $catchBodyStart, $catchBodyEnd - $catchBodyStart);
 
         $this->assertStringContainsString(
@@ -249,6 +254,159 @@ final class UserSettingsWiringTest extends TestCase
             '/[\'"]vericode[\'"]\]\s*=\s*randomString\(\d+\)(?!\s*\))/i',
             $ownerClass,
             self::OWNER_CLASS_PATH . ' must not store a bare randomString() result unhashed (#1879)'
+        );
+    }
+
+    // =========================================================================
+    // user_settings.php — $profileFieldsChanged sync gating (source inspection)
+    // =========================================================================
+
+    /**
+     * The unconfirmed-email guard (#1873).
+     *
+     * `cars.email` is the address verification batches send to. When
+     * `email_act == 1`, user_settings.php writes only `email_new` — `users.email`
+     * is unchanged until the owner confirms via users/verify.php. Setting
+     * $profileFieldsChanged in that branch would push an UNCONFIRMED address onto
+     * every car the owner has.
+     *
+     * Only a comment enforces this today, and a mutation adding the flag to that
+     * branch survives the whole suite. This pins it by source inspection: the
+     * page cannot be included in a unit test (it executes on load and depends on
+     * UserSpice globals), which is why this file already inspects source text
+     * elsewhere.
+     */
+    public function testUnconfirmedEmailBranchDoesNotTriggerCarSync(): void
+    {
+        $content = $this->readEndpointSource('usersc/user_settings.php');
+
+        // Anchor on the `if` statement itself, not a bare 'email_act == 1'
+        // substring — the comment above the email_act == 0 branch mentions
+        // 'email_act == 1' by name, and matching that would extract the wrong
+        // branch entirely (and pass for the wrong reason).
+        $marker = 'if ($emailR->email_act == 1) {';
+        $branchStart = strpos($content, $marker);
+        $this->assertNotFalse($branchStart, 'user_settings.php must still branch on email_act == 1');
+
+        // Bound the window by BRACE BALANCING, not by matching an indented closing
+        // brace. An indentation-anchored delimiter encodes a nesting depth rather
+        // than a structural relationship: dedent this region by one level (a
+        // plausible refactor — the block sits four `if`s deep) and the delimiter
+        // matches an inner brace instead, silently truncating the body to roughly
+        // half. The assertions below would then still pass, against half a branch,
+        // and would keep passing even if the truncated-away half gained the flag.
+        // Brace balancing cannot truncate regardless of indentation.
+        $depth = 0;
+        $branchEnd = null;
+        for ($i = $branchStart, $len = strlen($content); $i < $len; $i++) {
+            if ($content[$i] === '{') {
+                $depth++;
+            } elseif ($content[$i] === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    $branchEnd = $i;
+                    break;
+                }
+            }
+        }
+        $this->assertNotNull($branchEnd, 'Could not brace-balance the end of the email_act == 1 branch');
+        $branchBody = substr($content, $branchStart, $branchEnd - $branchStart + 1);
+
+        // Anchor on content, not just length: this string is the last distinctive
+        // marker inside the branch, so its presence proves the body reaches the
+        // real closing brace rather than merely being long enough to look complete.
+        $this->assertStringContainsString(
+            'Verify Your Email',
+            $branchBody,
+            'The extracted email_act == 1 branch body does not reach the end of the '
+            . 'branch — the extraction is truncating, which would make the assertions '
+            . 'below vacuous'
+        );
+
+        $this->assertStringContainsString(
+            'email_new',
+            $branchBody,
+            'The email_act == 1 branch must still be the one that stages email_new'
+        );
+        $this->assertStringNotContainsString(
+            '$profileFieldsChanged = true;',
+            $branchBody,
+            'The email_act == 1 branch stages email_new only — users.email is unchanged '
+            . 'until the owner confirms, so it must NOT set $profileFieldsChanged or an '
+            . 'unconfirmed address would be synced onto every car (#1873)'
+        );
+    }
+
+    /**
+     * The sync must remain gated on $profileFieldsChanged, and the flag must be
+     * set by each branch that actually persists a synced owner-contact field.
+     *
+     * Mutations that drop a `$profileFieldsChanged = true;` (e.g. from the
+     * location block) silently stop syncing that field class — the exact defect
+     * #1873 was filed to fix — and no behavioral test catches it.
+     */
+    public function testSyncIsGatedOnProfileFieldsChangedFlag(): void
+    {
+        $content = $this->readEndpointSource('usersc/user_settings.php');
+
+        $this->assertMatchesRegularExpression(
+            '/if\s*\(\s*\$profileFieldsChanged\s*\)/',
+            $content,
+            'The car sync must stay gated on $profileFieldsChanged so a save that '
+            . 'persisted nothing does not push stale values onto the cars'
+        );
+
+        $this->assertStringContainsString(
+            'syncOwnerFieldsToCars()',
+            $content,
+            'user_settings.php must call syncOwnerFieldsToCars() (#1873)'
+        );
+
+        // fname, lname, location, website, and the confirmed-email branch each
+        // persist a synced column, so each must set the flag. The unconfirmed
+        // email branch must not — asserted separately above.
+        $this->assertSame(
+            5,
+            substr_count($content, '$profileFieldsChanged = true;'),
+            'Exactly five branches persist a synced owner-contact field (fname, lname, '
+            . 'location, website, confirmed email) and each must set $profileFieldsChanged. '
+            . 'A change here means either a sync trigger was dropped or the unconfirmed-email '
+            . 'branch gained one (#1873)'
+        );
+    }
+
+    /**
+     * The admin sync endpoint's catch ladder must stay ordered specific-to-general,
+     * ending in \Throwable (#1873).
+     *
+     * Three silent regressions this pins, none of which PHP reports as an error:
+     *  - narrowing the final catch back to \Exception would let a TypeError from
+     *    syncOwnerFieldsToCars()'s untyped $_data bundle escape, ending an AJAX
+     *    request as an uncaught fatal — HTML to the client instead of JSON, and no
+     *    row in `logs` at all
+     *  - moving \Throwable above the sibling OwnerDatabaseException|CarDatabaseException
+     *    clause would make that handler dead code, silently dropping its tailored
+     *    "some cars may already have been updated; retrying is safe" message
+     *  - dropping either sibling from the combined clause: they are siblings under
+     *    ElanRegistryException, not parent and child, so both must be named
+     */
+    public function testAdminSyncEndpointCatchLadderOrdering(): void
+    {
+        $content = $this->readEndpointSource('app/admin/includes/process-owner-sync-location.php');
+
+        preg_match_all('/catch\s*\(([^)]+?)\s*\$e\s*\)/', $content, $matches);
+        $caught = array_map('trim', $matches[1]);
+
+        $this->assertSame(
+            [
+                'LocationServiceException',
+                'AdminOperationException',
+                'OwnerDatabaseException | CarDatabaseException',
+                '\\Throwable',
+            ],
+            $caught,
+            'The catch ladder must run specific-to-general and end in \\Throwable. '
+            . 'PHP does not flag an unreachable catch, so a reordering here fails silently.'
         );
     }
 }

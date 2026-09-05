@@ -276,7 +276,8 @@ authentication and ElanRegistry business logic.
 **Key Features**:
 
 - Owner profile management
-- Location field management (city, state, country, lat, lon)
+- Owner-field sync to owned cars (`syncOwnerFieldsToCars()`: city, state,
+  country, lat, lon, fname, lname, website, email)
 - Profile quality scoring
 - Owner search functionality
 - Integration with UserSpice user system
@@ -342,9 +343,9 @@ any failure including a PHP `\Error`. Their post-write reload call is
 wrapped in its own local `try/catch (OwnerDatabaseException $e)` — a reload
 failure after a successful write is logged, not propagated.
 
-`syncLocationToCars()` lets `getCarsOwned()`'s exception propagate
+`syncOwnerFieldsToCars()` lets `getCarsOwned()`'s exception propagate
 uncaught by design — a DB failure should surface as a real exception, not
-collapse into "0 cars synced."
+collapse into a result that silently reports nothing as updated or failed.
 
 ### CarValidator
 

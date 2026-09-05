@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use ElanRegistry\DatabaseInterface;
 use ElanRegistry\Database\DbAdapter;
+use ElanRegistry\Owner;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -462,5 +464,23 @@ abstract class IntegrationTestCase extends TestCase
         }
 
         return (int) $result->first()->cnt;
+    }
+
+    /**
+     * Build an Owner backed by the given DatabaseInterface (typically a test
+     * proxy), with $_data populated via Reflection so no real find() query is
+     * needed against it.
+     *
+     * @param array<string, mixed> $data Owner data fields (id, fname, email, etc.)
+     */
+    protected function ownerWithLoadedData(DatabaseInterface $db, array $data): Owner
+    {
+        $owner = new Owner(null, $db);
+
+        $ref = new \ReflectionClass(Owner::class);
+        $dataProp = $ref->getProperty('_data');
+        $dataProp->setValue($owner, (object) $data);
+
+        return $owner;
     }
 }

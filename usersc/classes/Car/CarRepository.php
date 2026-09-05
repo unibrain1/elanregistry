@@ -159,6 +159,99 @@ class CarRepository
     }
 
     /**
+     * Update a car's fields, scoped to both the car ID and its current owner.
+     *
+     * Used by the owner-profile sync to copy owner-contact values onto the cars
+     * that owner holds. The `user_id` half of the WHERE clause is the point of
+     * the method: it prevents writing one owner's details onto a car that was
+     * transferred to somebody else after the caller took its list of car IDs.
+     *
+     * On database error, throws so that any enclosing transaction can roll back
+     * rather than commit over a partial state. It deliberately does NOT log —
+     * see the note below on why the exception is the durable record.
+     *
+     * IMPORTANT — the return is rows **changed**, not rows **matched**. PDO is not
+     * configured with MYSQL_ATTR_FOUND_ROWS, so MySQL reports only rows whose values
+     * actually differed: an UPDATE that rewrites identical values returns 0 even
+     * though it matched a row. A 0 return is therefore **ambiguous** between
+     * "the row matched but nothing needed to change" and "no row matched this
+     * id + user_id pair (the car is no longer owned by this user)".
+     *
+     * Disambiguating those two cases is the **caller's** responsibility: on a 0
+     * return, issue a follow-up ownership check
+     * (`SELECT id FROM cars WHERE id = ? AND user_id = ?`) — a row present means
+     * success with nothing to write, no row means the car left this owner. Do not
+     * treat 0 as failure on its own.
+     *
+     * This method writes no log row of its own. It is designed to be called inside
+     * a per-car transaction, and `logs` is InnoDB on the same connection, so any
+     * row logged here would be destroyed by the caller's rollback — erasing the
+     * diagnostic exactly when something has gone wrong. The exception message
+     * carries the full error string and is the durable record; callers MUST log
+     * it after their transaction has closed.
+     *
+     * @param int                  $carId  Car to update
+     * @param int                  $userId Owner the car must currently belong to
+     * @param array<string, mixed> $fields Column => value pairs to write; column names
+     *                                     are developer-supplied identifiers, never
+     *                                     user input
+     * @return int                 Rows changed by the UPDATE (0 when nothing differed
+     *                             *or* no row matched — see above)
+     * @throws CarDatabaseException If the UPDATE fails, or if $fields is empty —
+     *                              an empty write returning 0 is indistinguishable
+     *                              to the caller from a matched-but-unchanged row,
+     *                              so it would be reported as success having
+     *                              written nothing
+     */
+    public function updateCarForOwner(int $carId, int $userId, array $fields): int
+    {
+        // An empty SET clause is invalid SQL, and returning 0 here would collide with
+        // the ambiguous-zero contract above: the caller's ownership check would pass
+        // and the car would be reported as synchronized with nothing written.
+        if (empty($fields)) {
+            throw new CarDatabaseException(
+                "CarRepository::updateCarForOwner called with no fields (carId={$carId} userId={$userId}); "
+                . 'an empty write cannot be distinguished from a no-op by the caller.'
+            );
+        }
+
+        // Column names are interpolated, so they are validated against the same
+        // identifier pattern and backtick-quoting DB::_sanitizeColumnName() applies.
+        // That method is private to DB and absent from DatabaseInterface, so it
+        // cannot be reused here; the rule is duplicated rather than skipped.
+        $setClause = implode(', ', array_map(
+            static function (string $column): string {
+                if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,63}$/', $column)) {
+                    throw new CarDatabaseException("Invalid column name: '{$column}'");
+                }
+                return "`{$column}` = ?";
+            },
+            array_keys($fields)
+        ));
+
+        $this->db->query(
+            "UPDATE cars SET {$setClause} WHERE id = ? AND user_id = ?",
+            [...array_values($fields), $carId, $userId]
+        );
+
+        if ($this->db->error()) {
+            // Deliberately no logger() here. This method is designed to be called
+            // inside a per-car transaction (see Owner::syncOwnerFieldsToCars()), and
+            // `logs` is InnoDB on the same connection — a row written here is
+            // destroyed by the caller's rollback, erasing the diagnostic exactly
+            // when it is needed. The exception message carries the full error string
+            // and is the durable record; callers MUST log it after their transaction
+            // has closed. Matches Owner::carBelongsToOwner(), which does the same.
+            throw new CarDatabaseException(
+                "CarRepository::updateCarForOwner failed (carId={$carId} userId={$userId}): "
+                . $this->db->errorString()
+            );
+        }
+
+        return $this->db->count();
+    }
+
+    /**
      * Update the verification code for a car
      *
      * @param int $carId Car ID
