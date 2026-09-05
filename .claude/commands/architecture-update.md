@@ -120,7 +120,7 @@ For the wiki, ensure the following are true. For each:
 - If a section exists but is outdated or incomplete **as onboarding/concept
   content**, update it.
 - If a section contains falsifiable reference detail (schema, class/method
-  detail, page inventory, config keys, code samples meant to be copied).
+  detail, page inventory, config keys, code samples meant to be copied),
   **do not expand it.** Trim it to a short pointer and link to the owning
   `docs/development/*.md` file (or wiki architecture-overview page, if that's
   where the pointer already lives). If no repo doc currently owns that detail
