@@ -492,7 +492,10 @@ to provide a focused, testable data access layer wrapping the `cars`,
   to prevent SQL injection. Compares against MySQL's `NOW()`.
 - `stalenessSql(string $alias = 'cars'): string` - Static; returns
   `'NOT ' . freshnessSql($alias)` — the exact boolean negation of freshness.
-- `isFresh(?string $lastVerified, string $ownerLastUpdated): bool` - PHP
+- `isFresh(?string $lastVerified, string $ownerLastUpdated): bool` - **Not yet
+  called from production code** (only the SQL form is wired in, via
+  `findVerificationEligible()`); the send pipeline in v2.30.3 is the intended
+  first caller. PHP
   equivalent of `freshnessSql()` for in-code freshness checks, using PHP's clock
   where the SQL form uses MySQL's `NOW()`. Both clocks must resolve to the same
   timezone or the two forms can disagree at the one-year boundary from skew alone.

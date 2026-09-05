@@ -381,6 +381,14 @@ class CarRepository
     /**
      * PHP-side equivalent of freshnessSql() for a single car's timestamps.
      *
+     * NOT YET CALLED FROM PRODUCTION CODE, deliberately. Only the SQL form is
+     * wired in today, via findVerificationEligible(). This is the designated
+     * PHP-side counterpart for callers that hold a single car's timestamps
+     * already and would otherwise re-derive the rule by hand — the send
+     * pipeline in v2.30.3 is the intended first caller. It is kept rather than
+     * deferred so the rule has exactly one definition per language: a caller
+     * that reimplements "fresh" inline is how the #1953 defect returns.
+     *
      * Throws on a malformed or empty date string for either parameter rather than
      * returning a boolean. `owner_last_updated` is NOT NULL by schema and
      * `last_verified` is either NULL or a valid datetime, so a malformed value is
