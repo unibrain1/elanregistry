@@ -209,36 +209,7 @@ final class AdminOwnerManagementTest extends IntegrationTestCase
         $this->assertSame('Eugene', $row->city, 'City must be persisted to the profiles table');
     }
 
-    /**
-     * Happy path for owner-sync-location: Owner::syncLocationToCars()
-     * copies the owner's lat/lon to all owned cars and returns the count of
-     * cars updated.
-     *
-     * Validates the sync logic used by process-owner-sync-location.php.
-     */
-    public function testSyncLocationToCarsCopiesCoordinatesToOwnedCar(): void
-    {
-        $userId = $this->createTestUser();
-        $this->createTestProfile($userId, [
-            'city'    => 'Portland',
-            'state'   => 'Oregon',
-            'country' => 'United States',
-            'lat'     => 45.5231,
-            'lon'     => -122.6765,
-        ]);
-        $carId = $this->createTestCar($userId);
-
-        // Load owner with full profile data (lat/lon present)
-        $owner = new Owner($userId);
-        $this->assertNotNull($owner->data(), 'Owner must load successfully after profile creation');
-
-        $carsUpdated = $owner->syncLocationToCars();
-
-        $this->assertSame(1, $carsUpdated, 'syncLocationToCars() must update the one owned car');
-
-        $car = $this->db->query("SELECT lat, lon FROM cars WHERE id = ?", [$carId])->first();
-        $this->assertNotNull($car);
-        $this->assertEqualsWithDelta(45.5231, (float) $car->lat, 0.001, 'Car lat must match owner lat');
-        $this->assertEqualsWithDelta(-122.6765, (float) $car->lon, 0.001, 'Car lon must match owner lon');
-    }
+    // Happy path for owner-sync (formerly owner-sync-location) is now covered
+    // by the nine-field suite in OwnerSyncOwnerFieldsToCarsTest.php (#1873),
+    // which subsumes this test's single lat/lon assertion.
 }

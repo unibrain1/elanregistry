@@ -116,18 +116,24 @@ For the full workflow, see
 | `comments` | `mediumtext` | Additional notes and history |
 | `image` | `mediumtext` | Legacy image field (deprecated) |
 | `user_id` | `int` | Primary owner user ID |
-| `email`, `fname`, `lname` | `varchar(155)` | Owner contact info (synced) |
-| `join_date` | `datetime` | Owner join date (synced) |
+| `email`, `fname`, `lname` | `varchar(155)` | Owner contact info (synced as of v2.30.1) |
+| `join_date` | `datetime` | Owner join date (set at car creation only — never synced) |
 | `city`, `state`, `country` | `varchar(100)` | Owner location (synced, INDEXED) |
 | `lat`, `lon` | `float` | Geographic coordinates (synced) |
-| `website` | `varchar(100)` | Owner website (synced) |
+| `website` | `varchar(100)` | Owner website (synced as of v2.30.1) |
 | `owner_last_updated` | `datetime NULL` | Timestamp of owner's last action on this car (used for verification system) |
 | `vericode_sent_at` | `datetime NULL` | Timestamp when verification code was sent to owner |
 | `email_bounced` | `TINYINT(1) NOT NULL DEFAULT 0` | Flag indicating whether verification emails bounced. Set to `1` if email failed; `0` if deliverable or not yet tested. |
 
-**Note**: Owner-related fields (email, fname, lname, join_date, city, state,
-country, lat, lon, website) are denormalized for performance and are
-automatically synchronized from user profiles when user data changes.
+**Note**: Nine owner-related fields — `email`, `fname`, `lname`, `city`,
+`state`, `country`, `lat`, `lon`, `website` — are denormalized onto `cars`
+for performance and are kept current via `Owner::syncOwnerFieldsToCars()`,
+which runs whenever the owner edits their profile. Before v2.30.1, only the
+five location fields (`city`, `state`, `country`, `lat`, `lon`) synced this
+way; `email`, `fname`, `lname`, and `website` were written once at car
+creation (`website` was not even set then — it started `null`) and never
+refreshed. `join_date` is **not** in this sync and is still set only at car
+creation.
 
 #### `cars_hist` - Car audit trail
 | Column | Type | Description |

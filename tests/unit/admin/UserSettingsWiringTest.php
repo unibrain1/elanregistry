@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
  * missing-profile handling.
  *
  * Covers:
- * - usersc/user_settings.php (the try/catch around Owner::syncLocationToCars()/
+ * - usersc/user_settings.php (the try/catch around Owner::syncOwnerFieldsToCars()/
  *   getCarsOwned(), and the missing-$profiledetails log+exit branch)
  *
  * The page cannot be require()'d from PHPUnit for a full behavioral test: it
@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
  * branches are instead asserted against the file's source text.
  *
  * The throw condition itself — a DB/query failure surfacing as
- * OwnerDatabaseException from Owner::getCarsOwned()/syncLocationToCars() — is
+ * OwnerDatabaseException from Owner::getCarsOwned()/syncOwnerFieldsToCars() — is
  * already exercised against a stubbed DatabaseInterface in
  * tests/integration/OwnerReadMethodsDatabaseFailureTest.php; this test covers
  * only user_settings.php's handling of that exception once thrown.
@@ -69,7 +69,7 @@ final class UserSettingsWiringTest extends TestCase
     // =========================================================================
 
     /**
-     * A DB failure inside Owner::syncLocationToCars()/getCarsOwned() must be
+     * A DB failure inside Owner::syncOwnerFieldsToCars()/getCarsOwned() must be
      * caught, logged under LOG_CATEGORY_DATABASE_ERROR, and must add a
      * friendly message to $errors[] rather than let the exception propagate
      * and crash the page — the profile fields above this block may have
@@ -90,34 +90,39 @@ final class UserSettingsWiringTest extends TestCase
         $this->assertStringContainsString(
             'try {',
             $content,
-            'The car location sync call must be wrapped in a try block'
+            'The owner-field sync call must be wrapped in a try block'
         );
         $this->assertStringContainsString(
-            '$carsUpdated = $owner->syncLocationToCars();',
+            '$syncResult = $owner->syncOwnerFieldsToCars();',
             $content,
-            'The endpoint must call syncLocationToCars() inside the try block'
+            'The endpoint must call syncOwnerFieldsToCars() inside the try block'
         );
 
         // Isolate the catch block that immediately follows the sync call, so
         // assertions below can't accidentally match an unrelated catch block
         // elsewhere in the file (e.g. a future addition).
-        $tryStart = strpos($content, '$carsUpdated = $owner->syncLocationToCars();');
-        $this->assertIsInt($tryStart, 'Could not locate the syncLocationToCars() call site');
-        $catchBlock = substr($content, $tryStart, 1200);
+        $tryStart = strpos($content, '$syncResult = $owner->syncOwnerFieldsToCars();');
+        $this->assertIsInt($tryStart, 'Could not locate the syncOwnerFieldsToCars() call site');
+        $catchBlock = substr($content, $tryStart, 1800);
 
         $this->assertMatchesRegularExpression(
-            '/}\s*catch\s*\(\\\\?(ElanRegistry\\\\Exceptions\\\\)?OwnerDatabaseException\s+\$e\)\s*{/',
+            '/}\s*catch\s*\(\\\\?(ElanRegistry\\\\Exceptions\\\\)?OwnerDatabaseException\s*\|\s*\\\\?(ElanRegistry\\\\Exceptions\\\\)?CarDatabaseException\s+\$e\)\s*{/',
             $catchBlock,
-            'The car location sync call must be caught with OwnerDatabaseException specifically'
+            'The owner-field sync call must be caught with both OwnerDatabaseException AND '
+            . 'CarDatabaseException — they are siblings under ElanRegistryException, not '
+            . 'parent/child, so catching only one lets the other escape as an unlogged fatal '
+            . '(regression guard: this catch was OwnerDatabaseException-only until #1873 round '
+            . 'two, since syncOwnerFieldsToCars() can also propagate CarDatabaseException from '
+            . "CarRepository's updateCarForOwner())"
         );
 
         // Isolate just the body of this catch block (up to its own closing
         // brace) so the following assertions can't accidentally match
         // content from a later, unrelated block.
-        $catchBodyStart = strpos($catchBlock, 'OwnerDatabaseException $e) {');
-        $this->assertIsInt($catchBodyStart, 'Could not locate the OwnerDatabaseException catch body');
+        $catchBodyStart = strpos($catchBlock, 'OwnerDatabaseException | CarDatabaseException $e) {');
+        $this->assertIsInt($catchBodyStart, 'Could not locate the combined-catch body');
         $catchBodyEnd = strpos($catchBlock, "\n            }", $catchBodyStart);
-        $this->assertIsInt($catchBodyEnd, 'Could not locate the end of the OwnerDatabaseException catch body');
+        $this->assertIsInt($catchBodyEnd, 'Could not locate the end of the combined-catch body');
         $catchBody = substr($catchBlock, $catchBodyStart, $catchBodyEnd - $catchBodyStart);
 
         $this->assertStringContainsString(
