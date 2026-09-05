@@ -279,6 +279,51 @@ gh issue close NNN --repo elan-registry/registry \
 After closing, remove the secondary issues from the working issue list. The
 primary issue carries the full combined scope into Step 5.
 
+### Step 4.6: Offer a production data refresh
+
+Decide from the milestone's **content**, not the calendar, whether development
+on these issues would be more reliable against fresh production data. Weigh the
+issue list gathered in Step 4:
+
+**Suggest a refresh when the milestone involves:**
+
+- Schema or migration work — labels `component: database`, or any issue adding
+  a Phinx migration
+- Bulk data manipulation, merges, dedup, or repair scripts
+- Image handling — label `component: images` (needs real `userimages/` files
+  and the JSON `cars.image` shapes production actually contains)
+- Admin tooling over real records — label `component: admin`
+- Large refactors of data-access code — `refactor` or `tech-debt` touching
+  `usersc/classes/`, where stale or thin local data hides breakage
+- Anything whose acceptance criteria depend on realistic row counts,
+  distributions, or edge-case records
+
+**Skip silently when** the milestone is documentation, CI/workflow, styling, or
+copy work — fresh data changes nothing there. Do not prompt; continue to Step 5.
+
+When it is warranted, state the reason and ask:
+
+> "This milestone touches <reason — e.g. schema changes in #NNN and image
+> handling in #NNN>. Development will be more reliable against current
+> production data. Refresh the local database now? (~N minutes)"
+
+If the user declines, continue to Step 5 — do not re-ask.
+
+If the user agrees, run:
+
+```bash
+./scripts/refresh-local-db.sh --fetch
+```
+
+The script backs up the local database to `db-backups/` first, imports the
+registry tables, masks every email address to `dev.owner.{id}@elanregistry.local`,
+and verifies the masking before reporting success. Add `--skip-images` if only
+the database is needed; see `scripts/README.md` for the full option list.
+
+If the refresh fails, report the error and ask whether to continue the
+milestone with the existing local data rather than blocking — starting the
+milestone does not depend on it.
+
 ### Step 5: Recommend an issue order
 
 Launch the **senior-product-manager** agent to analyze all issues and
