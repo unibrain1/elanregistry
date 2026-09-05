@@ -8,6 +8,7 @@ require_once __DIR__ . '/../IntegrationTestCase.php';
 require_once __DIR__ . '/../../../database/migrations/20260905172137_convert_car_timestamps_to_datetime.php';
 
 use ElanRegistry\Car\CarRepository;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -696,5 +697,135 @@ final class CarVerificationTimestampMigrationTest extends IntegrationTestCase
         $this->db->query('SET @disable_triggers = 1');
         $this->db->query($sql, [$carId]);
         $this->db->query('SET @disable_triggers = NULL');
+    }
+
+    // -------------------------------------------------------------------------
+    // The partial-date repair (PARTIAL_DATE_REPAIR_SQL_TEMPLATE)
+    // -------------------------------------------------------------------------
+
+    /**
+     * The repair promotes an unknown day or month to `01`, keeping the year.
+     *
+     * Executes the migration's own statement against a scratch table shaped
+     * like `cars_hist`, so the real SQL is exercised rather than a paraphrase
+     * of it. A scratch table is used rather than a `cars_hist` fixture because
+     * these values cannot be inserted into the live audit table under the
+     * project's `sql_mode` without relaxing it, and because a stray audit row
+     * is not test-local state that tearDown can reliably reclaim.
+     *
+     * @param string $stored   The partial date as legacy data holds it
+     * @param string $expected What the repair must produce
+     */
+    #[Group('integration')]
+    #[Group('migration')]
+    #[DataProvider('partialDateRepairProvider')]
+    public function testPartialDateRepair_promotesUnknownComponentsToOne(
+        string $stored,
+        string $expected
+    ): void {
+        $actual = $this->runPartialDateRepairOnScratchTable($stored);
+
+        $this->assertSame(
+            $expected,
+            $actual,
+            "The partial-date repair must turn '{$stored}' into '{$expected}' — promoting an "
+            . 'unknown component to 01 while preserving every component that is known'
+        );
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function partialDateRepairProvider(): array
+    {
+        return [
+            'unknown day'           => ['1999-06-00', '1999-06-01'],
+            'unknown month and day' => ['2001-00-00', '2001-01-01'],
+            'earliest real row'     => ['1968-04-00', '1968-04-01'],
+            'december boundary'     => ['1977-12-00', '1977-12-01'],
+        ];
+    }
+
+    /**
+     * A zero-YEAR row must be left alone, not assigned a fabricated year.
+     *
+     * `MAKEDATE(0, 1)` does not error — it returns `2000-01-01`, because MySQL
+     * reads a bare `0` as a two-digit year. Without the `AND YEAR(col) > 0`
+     * guard the repair would silently invent a date 2000 years off, well-formed
+     * and permanently wrong, for a row that recorded nothing at all. Leaving it
+     * unmatched lets the subsequent ALTER reject it loudly instead.
+     *
+     * No such row exists in production today; this pins the guard so a future
+     * one is not silently fabricated.
+     */
+    #[Group('integration')]
+    #[Group('migration')]
+    public function testPartialDateRepair_leavesZeroYearRowUntouched(): void
+    {
+        $actual = $this->runPartialDateRepairOnScratchTable('0000-00-00');
+
+        $this->assertSame(
+            '0000-00-00',
+            $actual,
+            'A zero-year row must NOT be repaired: MAKEDATE(0,1) yields 2000-01-01, so '
+            . 'repairing it would invent a year rather than promote an unknown component. '
+            . 'It must survive unchanged so the ALTER can reject it loudly.'
+        );
+    }
+
+    /**
+     * A fully-valid date must not be touched by the repair.
+     *
+     * Guards the predicate itself: if it ever widened to match clean rows, the
+     * repair would rewrite real purchase dates to the first of the month.
+     */
+    #[Group('integration')]
+    #[Group('migration')]
+    public function testPartialDateRepair_leavesCompleteDateUntouched(): void
+    {
+        $actual = $this->runPartialDateRepairOnScratchTable('1985-12-25');
+
+        $this->assertSame(
+            '1985-12-25',
+            $actual,
+            'A complete date must be excluded by the repair predicate — matching it would '
+            . 'rewrite real purchase dates to the first of the month'
+        );
+    }
+
+    /**
+     * Runs the migration's real repair statement over a one-row scratch table
+     * and returns the resulting value.
+     *
+     * `sql_mode` is relaxed only to *insert* the fixture — legacy values like
+     * `1999-06-00` cannot otherwise be written — and restored before the repair
+     * runs, so the statement under test executes under the session's real mode.
+     */
+    private function runPartialDateRepairOnScratchTable(string $stored): string
+    {
+        $table = 'test_partial_date_repair';
+        $originalSqlMode = $this->db->query('SELECT @@session.sql_mode AS m')->first()->m;
+
+        try {
+            $this->db->query("DROP TABLE IF EXISTS {$table}");
+            $this->db->query("CREATE TABLE {$table} (id INT PRIMARY KEY, purchasedate DATE NULL)");
+
+            $this->db->query("SET SESSION sql_mode = ''");
+            $this->db->query("INSERT INTO {$table} (id, purchasedate) VALUES (1, ?)", [$stored]);
+            $this->db->query('SET SESSION sql_mode = ?', [$originalSqlMode]);
+
+            $sql = sprintf(
+                \ConvertCarTimestampsToDatetime::PARTIAL_DATE_REPAIR_SQL_TEMPLATE,
+                'purchasedate'
+            );
+            $this->db->query(str_replace('cars_hist', $table, $sql));
+
+            return (string) $this->db->query(
+                "SELECT CAST(purchasedate AS CHAR) AS d FROM {$table} WHERE id = 1"
+            )->first()->d;
+        } finally {
+            $this->db->query('SET SESSION sql_mode = ?', [$originalSqlMode]);
+            $this->db->query("DROP TABLE IF EXISTS {$table}");
+        }
     }
 }

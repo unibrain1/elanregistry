@@ -80,8 +80,9 @@ use Phinx\Migration\AbstractMigration;
  *    definition to an already-DATETIME column is a no-op ALTER, and applying it
  *    to a still-TIMESTAMP column completes the conversion. No `hasColumn()`
  *    guard is needed because no column is added or dropped.
- * 3. The partial-date repair is predicated on `DAY(...) = 0 OR MONTH(...) = 0`,
- *    which matches nothing once the rows are normalized.
+ * 3. The partial-date repair is predicated on
+ *    `(DAY(...) = 0 OR MONTH(...) = 0) AND YEAR(...) > 0`, which matches
+ *    nothing once the rows are normalized.
  * 4. The backfill is unconditional over active rows and idempotent in effect:
  *    re-running rewrites the same rows to a value derived from `NOW()`, which
  *    remains comfortably older than the one-year freshness boundary.
@@ -98,7 +99,10 @@ use Phinx\Migration\AbstractMigration;
  *   indistinguishable from a row that genuinely read `1999-06-01` all along.
  *   The repair loses no information (it promotes an unknown component to `01`,
  *   the convention already applied to the live `cars` table by a prior repair)
- *   and is correct to keep after a rollback.
+ *   and is correct to keep after a rollback. A zero-*year* row is deliberately
+ *   left unrepaired rather than promoted — see
+ *   {@see normalizePartialHistoryDates()} for why inventing a year is not the
+ *   same kind of operation as promoting a day.
  * - **The backfill.** The prior `owner_last_updated` values are overwritten in
  *   place and are not journaled anywhere, so there is nothing to restore. They
  *   were themselves wrong — copied from `mtime` by 20260902104755, which is the
@@ -178,6 +182,22 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
     public const NULL_REPAIR_SQL = 'UPDATE cars'
         . ' SET owner_last_updated = COALESCE(owner_last_updated, mtime), mtime = mtime'
         . ' WHERE owner_last_updated IS NULL';
+
+    /**
+     * The partial-date repair, as a sprintf template taking the column name.
+     *
+     * Exposed for the same reason as the two constants above: the integration
+     * test executes this exact statement rather than a copy that could drift.
+     * The column name is interpolated, not bound — it comes only from this
+     * class's own hardcoded ['purchasedate', 'solddate'] list, never from
+     * input. See {@see normalizePartialHistoryDates()} for the year guard and
+     * the parenthesization, both of which are load-bearing.
+     */
+    public const PARTIAL_DATE_REPAIR_SQL_TEMPLATE = 'UPDATE cars_hist'
+        . ' SET `%1$s` = MAKEDATE(YEAR(`%1$s`), 1)'
+        . ' + INTERVAL (GREATEST(MONTH(`%1$s`), 1) - 1) MONTH'
+        . ' WHERE (DAY(`%1$s`) = 0 OR MONTH(`%1$s`) = 0)'
+        . ' AND YEAR(`%1$s`) > 0';
 
     public function up(): void
     {
@@ -496,6 +516,27 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
      * opened a window in which subsequent writes ran unguarded. Do not
      * reintroduce it.
      *
+     * `AND YEAR(col) > 0` deliberately EXCLUDES a zero-year row such as
+     * `0000-00-00`. This repair promotes an *unknown* component to `01` while
+     * keeping what is known; a zero-year row knows nothing, and `MAKEDATE(0, 1)`
+     * does not error — it returns `2000-01-01`, because MySQL reads a bare `0`
+     * as a two-digit year (`0`=>2000, `69`=>2069, `70`=>1970). Repairing such a
+     * row would therefore invent a purchase date 2000 years off, indisputably
+     * well-formed and permanently wrong. Excluding it lets it reach the
+     * `cars_hist` ALTER and fail loudly (ERROR 1292) under a strict `sql_mode`,
+     * which is the correct outcome: a human decides what that date should be,
+     * not this migration.
+     *
+     * No such row exists today — verified against production 2026-09-05: all 15
+     * partial dates carry real years (1968-2010), and `cars` has none at all.
+     * The guard is for the row that has not arrived yet, and is reachable in
+     * principle because users/classes/DB.php sets `sql_mode = ''` on every
+     * application connection, so MySQL will accept and store a zero-date.
+     *
+     * The parentheses around the `DAY(...) = 0 OR MONTH(...) = 0` pair are
+     * load-bearing: `AND` binds tighter than `OR`, so without them the year
+     * guard would apply only to the `MONTH` half of the predicate.
+     *
      * `cars_hist` has no UPDATE trigger of its own, but `@disable_triggers` is
      * set for consistency with every other bulk write in this codebase.
      */
@@ -507,13 +548,7 @@ final class ConvertCarTimestampsToDatetime extends AbstractMigration
 
         try {
             foreach (['purchasedate', 'solddate'] as $column) {
-                $this->execute(sprintf(
-                    'UPDATE cars_hist'
-                    . ' SET `%1$s` = MAKEDATE(YEAR(`%1$s`), 1)'
-                    . ' + INTERVAL (GREATEST(MONTH(`%1$s`), 1) - 1) MONTH'
-                    . ' WHERE DAY(`%1$s`) = 0 OR MONTH(`%1$s`) = 0',
-                    $column
-                ));
+                $this->execute(sprintf(self::PARTIAL_DATE_REPAIR_SQL_TEMPLATE, $column));
             }
 
             // Commit inside the try: the next statement in up() is a DDL
