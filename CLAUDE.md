@@ -115,7 +115,8 @@ all other Cloudflare features work normally.
 - ADRs: `docs/development/adr/` — update ADR-018 when changing frontend
   dependencies (supersedes ADR-017, which supersedes ADR-015; Bootstrap
   source-map vendoring above is still ADR-015's territory), ADR-016 for nav
-  changes, ADR-007 for CSP changes
+  changes, ADR-007 for CSP changes, ADR-019 when adding or removing
+  CSRF/rate-limiting on public API endpoints
 
 **Template Customization Rules:**
 

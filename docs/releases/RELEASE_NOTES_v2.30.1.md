@@ -154,3 +154,9 @@ than something production requires — it was verified to run correctly under bo
 - [#1913](https://github.com/elan-registry/registry/issues/1913) — fix: cars-list DataTable never recovers from a stale/lost CSRF token
 - [#1931](https://github.com/elan-registry/registry/issues/1931) — test: integration bootstrap does not define ELAN_IMAGE_DIR — CarTransferTest fails standalone
 - [#1947](https://github.com/elan-registry/registry/pull/1947) — chore: refresh local dev data from production (developer tooling; no issue)
+
+## Retrospective
+
+- **What did we ship that nobody needed?** Nothing — every change addressed a confirmed need.
+- **What did we learn about this theme's audience?** Stale tests slow down development; tests must be kept current, and the same is true of documentation.
+- **What signal arrived during this milestone that we ignored?** None.
