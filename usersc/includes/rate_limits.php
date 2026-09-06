@@ -141,11 +141,19 @@ $rateLimits['diagnostics']['user_window'] = 300;
 $rateLimits['diagnostics']['total_max'] = 100;
 $rateLimits['diagnostics']['total_window'] = 300;
 
-$rateLimits['statistics_request']['ip_max'] = 50;
+// Public read-only endpoint (ADR-019): fires once per statistics tab (four
+// tabs) rather than per keystroke, so it needs less headroom than the list
+// endpoints below but the same Cloudflare-shared-bucket reasoning applies —
+// getRealIP() returns the edge address, so total_max is shared across every
+// visitor behind that node. The pre-ADR-019 sizing (50/25/100) was carried
+// over by mistake when CSRF was dropped from this endpoint in favor of rate
+// limiting alone; that left it under-sized relative to its sibling public
+// endpoints below, which were sized correctly in the same change.
+$rateLimits['statistics_request']['ip_max'] = 600;
 $rateLimits['statistics_request']['ip_window'] = 300;
-$rateLimits['statistics_request']['user_max'] = 25;
+$rateLimits['statistics_request']['user_max'] = 600;
 $rateLimits['statistics_request']['user_window'] = 300;
-$rateLimits['statistics_request']['total_max'] = 100;
+$rateLimits['statistics_request']['total_max'] = 5000;
 $rateLimits['statistics_request']['total_window'] = 300;
 
 // ip_max is PHP_INT_MAX by design: authenticated admin sessions are tracked

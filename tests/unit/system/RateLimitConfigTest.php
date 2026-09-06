@@ -207,6 +207,50 @@ final class RateLimitConfigTest extends TestCase
     }
 
     /**
+     * The 'statistics_request' rate-limit entry (issue #1951 / ADR-019) must be
+     * configured in usersc/includes/rate_limits.php — app/api/shared/statistics.php
+     * calls checkRateLimit('statistics_request', ...) in place of the CSRF check
+     * removed by ADR-019, and will silently no-op (fail open) if this key is
+     * missing or mistyped.
+     *
+     * This test exists because the pre-ADR-019 sizing (50/25/100) was carried
+     * over by mistake when CSRF was dropped from this endpoint: unlike its three
+     * sibling public-read keys (cars_list, factory_list, car_history), nothing
+     * pinned statistics_request's values, so the stale, too-low sizing survived
+     * undetected until a milestone-level review caught it.
+     */
+    public function testStatisticsRequestActionIsConfigured(): void
+    {
+        $projectRoot = dirname(__DIR__, 3);
+
+        /** @var array<string, array<string, int>> $rateLimits */
+        $rateLimits = [];
+        require $projectRoot . '/usersc/includes/rate_limits.php';
+
+        $this->assertIsArray($rateLimits);
+        $this->assertArrayHasKey(
+            'statistics_request',
+            $rateLimits,
+            'statistics_request must be configured in usersc/includes/rate_limits.php '
+                . '(the project override, which wholesale-replaces the framework defaults) — '
+                . 'app/api/shared/statistics.php calls checkRateLimit() with this action name and '
+                . 'will silently no-op if it is missing, per ADR-019 the endpoint carries no CSRF '
+                . 'check to fall back on.'
+        );
+        // Mirrors the project's actual active statistics_request limits
+        // (usersc/includes/rate_limits.php). Sized like car_history (fires
+        // once per statistics tab, not per keystroke) rather than the higher
+        // cars_list/factory_list ceiling. total_max is what actually governs
+        // since every draw is recorded as success=true.
+        $this->assertSame(600, $rateLimits['statistics_request']['ip_max']);
+        $this->assertSame(300, $rateLimits['statistics_request']['ip_window']);
+        $this->assertSame(600, $rateLimits['statistics_request']['user_max']);
+        $this->assertSame(300, $rateLimits['statistics_request']['user_window']);
+        $this->assertSame(5000, $rateLimits['statistics_request']['total_max']);
+        $this->assertSame(300, $rateLimits['statistics_request']['total_window']);
+    }
+
+    /**
      * Every ADR-019 endpoint's action string must match a configured key.
      *
      * The per-key tests above pin the *config* side only: they prove
