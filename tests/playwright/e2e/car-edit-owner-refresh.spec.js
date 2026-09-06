@@ -57,10 +57,22 @@ const { test, expect } = require('@playwright/test');
 const { CAR_ID_STANDARD } = require('../fixtures.js');
 
 test.describe('Car edit — real buildCarDetails() owner-column refresh (#1962)', () => {
-  // Skip unless running in the authenticated `logged-in` project — mirrors
-  // the guard used throughout tests/playwright/e2e/logged-in.spec.js.
+  // Skip unless running in the authenticated `logged-in` project AND real
+  // credentials are configured. The project-name check alone (the pattern
+  // mirrored from tests/playwright/e2e/logged-in.spec.js) is not sufficient:
+  // per playwright.config.js's own `hasCredentials` guard, when
+  // TEST_USERNAME/TEST_PASSWORD are unset, auth.setup.js skips cleanly with
+  // no storageState file — but the `logged-in` project itself still runs,
+  // unauthenticated, rather than being skipped (see CLAUDE.md's
+  // "Local Playwright tests" note). Without this check, this test's own
+  // preconditions (an authenticated fname on user_settings.php, an editable
+  // car) would fail rather than skip, misreporting a missing local
+  // credential as a real regression.
   test.beforeEach(async ({}, testInfo) => {
     if (testInfo.project.name !== 'logged-in') {
+      testInfo.skip();
+    }
+    if (!process.env.TEST_USERNAME || !process.env.TEST_PASSWORD) {
       testInfo.skip();
     }
   });
