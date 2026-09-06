@@ -392,6 +392,56 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
     }
 
     /**
+     * Regression test for a milestone-review finding (commit cb6b1745): the
+     * OWNER_SYNC history row's free-text `comments` must never embed the
+     * owner's name or location.
+     *
+     * app/api/cars/history.php returns cars_hist rows — including `comments`
+     * verbatim — to an unauthenticated caller (CSRF was dropped from that
+     * endpoint under ADR-019 in favor of rate limiting alone). Before
+     * cb6b1745, this comment was built as
+     * "...Name: {fname} {lname}, City: {city}, State: {state}, Country:
+     * {country}", so any anonymous request for a car's history could read
+     * that owner's last name and location — contradicting this same
+     * milestone's own privacy-policy update, which promises a member's last
+     * name stays non-public. The fix made the comment a fixed sentence with
+     * no owner data; this test pins that so the leak cannot silently
+     * reappear (e.g. if a future change reintroduces per-field detail into
+     * the comment for debugging convenience).
+     */
+    public function testOwnerSyncHistoryCommentCarriesNoOwnerIdentifyingData(): void
+    {
+        $userId = $this->createTestUser(['fname' => 'Distinctive', 'lname' => 'Surname']);
+        $this->createTestProfile($userId, [
+            'city'    => 'UnlikelyCityName',
+            'state'   => 'UnlikelyStateName',
+            'country' => 'UnlikelyCountryName',
+        ]);
+        $carId = $this->createTestCar($userId);
+
+        $owner = new Owner($userId);
+        $result = $owner->syncOwnerFieldsToCars();
+        $this->assertContains($carId, $result->updated);
+
+        $histRow = $this->db->query(
+            "SELECT comments FROM cars_hist WHERE car_id = ? AND operation = 'OWNER_SYNC'",
+            [$carId]
+        )->first();
+
+        $this->assertNotNull($histRow, 'An OWNER_SYNC history row must exist');
+        $this->assertSame(
+            'Car owner contact details synchronized with owner profile update.',
+            $histRow->comments,
+            'The OWNER_SYNC comment must be a fixed, non-identifying sentence — this endpoint '
+                . 'is served unauthenticated by app/api/cars/history.php'
+        );
+        $this->assertStringNotContainsString('Surname', $histRow->comments);
+        $this->assertStringNotContainsString('UnlikelyCityName', $histRow->comments);
+        $this->assertStringNotContainsString('UnlikelyStateName', $histRow->comments);
+        $this->assertStringNotContainsString('UnlikelyCountryName', $histRow->comments);
+    }
+
+    /**
      * A sync that updates one car and skips another (mid-sync ownership
      * change) reports both lists correctly, and the skip alone does not
      * make the result read as a failure.
