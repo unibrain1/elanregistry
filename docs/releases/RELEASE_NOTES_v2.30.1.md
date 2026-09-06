@@ -80,8 +80,17 @@ CLI PHP instead would abort the deploy on a 3-hour skew that cannot affect the d
 **Seasonal caveat:** MST does not observe DST but `America/Los_Angeles` does. From
 early November to mid-March the two diverge by one hour and the guard will correctly
 abort. If this migration must be re-run in that window — including during a
-partial-failure recovery — align the MySQL session zone with the application zone
-first; do not widen the tolerance.
+partial-failure recovery — the correct remedy is the opposite of what earlier text
+here said: the conversion must run under the zone MySQL has always stored these
+columns in — its own `SYSTEM` zone (MST) — since `MODIFY COLUMN ... DATETIME`
+renders each value in whatever zone the session is running under at the moment it
+runs, and every existing value was written by web PHP when it agreed with MySQL's
+zone (both read −7 in September). Setting the session to `America/Los_Angeles` in
+winter would render every value one hour off from how it has always been stored and
+displayed — the exact silent shift this guard exists to prevent. Do not change the
+MySQL session zone away from `SYSTEM`; if the guard aborts in this window, wait for
+the window to close or get a second review of the timezone reasoning before
+overriding it. Do not widen the tolerance either.
 
 Note for developers: this migration **cannot be run from a local MAMP machine** as
 currently configured — MAMP's PHP resolves to UTC while MySQL follows the host
@@ -97,6 +106,26 @@ visible there and nowhere else), the car details page, and the sitemap's `<lastm
 
 A discrepancy means the conversion ran under a mismatched clock: **stop and restore
 from the step 1 backup** rather than adjusting the display layer.
+
+### 5. Register new admin scripts' page permissions
+
+This release adds two new `securePage()`-gated admin scripts —
+`app/admin/scripts/fix/26-Register-Verify-Email-Sync-Hook.php` and
+`app/admin/scripts/maintenance/26-Reconcile-Owner-Fields.php`. Per CLAUDE.md,
+run `app/admin/scripts/maintenance/21-Fix-Page-Permissions.php` on test,
+verify, then run on prod — this scans all pages and corrects their permission
+entries in UserSpice's `pages` table. Step 6 depends on this having run first:
+`26-Register-Verify-Email-Sync-Hook.php` cannot be opened by an admin until
+its own page permission exists.
+
+### 6. Register the email-verification sync hook
+
+Confirming an email change (#1958) only syncs to the member's cars once this
+one-time, per-environment registration has run — skipping it leaves that fix
+silently inert. Run `app/admin/scripts/fix/26-Register-Verify-Email-Sync-Hook.php`
+on test, verify, then run on prod. See
+[DEPLOYMENT.md](../development/DEPLOYMENT.md#hooker-hook-registration) for
+full details, including manual verification steps.
 
 ### Pre-deployment rehearsal (already performed)
 
@@ -129,7 +158,7 @@ than something production requires — it was verified to run correctly under bo
 
 - **Saving a car now refreshes its owner details from your profile** ([#1962](https://github.com/elan-registry/registry/issues/1962)): Editing a car previously re-saved whatever owner name, email, and location were already stored on that record, so a car could keep contact details you had corrected long ago — and saving the car again would not fix it. Opening a car and saving it now brings those fields up to date from your profile. This complements #1873, which propagates changes when you edit your profile; together they close the two paths by which a car's owner details could drift out of date. Where an administrator or editor saves a car on someone else's behalf, the car keeps that member's details — never the staff member's.
 
-- **Your car's website now comes from your profile, not a per-car field** ([#1963](https://github.com/elan-registry/registry/issues/1963)): Previously, each car had its own website field, separate from the one in Account Settings — but #1873 already overwrote a car's website from your profile on every profile save, so a per-car value only ever survived until your next unrelated profile edit, silently. The per-car field is now removed entirely: set your website once, in Account Settings, and it applies to every car you own, refreshed the same way your name, email, and location already are (#1962). Clearing your profile website clears it on every car, matching how the other fields already behave.
+- **Your car's website now comes from your profile, not a per-car field** ([#1963](https://github.com/elan-registry/registry/issues/1963)): Previously, each car had its own website field, separate from the one in Account Settings — but #1873 already overwrote a car's website from your profile on every profile save, so a per-car value only ever survived until your next unrelated profile edit, silently. The per-car field is now removed entirely: set your website once, in Account Settings, and it applies to every car you own, refreshed the same way your name, email, and location already are (#1962). Clearing your profile website clears it on every car, matching how the other fields already behave. Your website is displayed to other members on the page for every car you own — the Account Settings field now says so.
 
 - **Car list and registry searches no longer fail after a session expires** ([#1913](https://github.com/elan-registry/registry/issues/1913)): The car list, factory records list, car history, and statistics panels previously returned a "Could not load" error after a session timed out or the browser was restarted, because the CSRF token embedded in the page became stale. Public read-only endpoints now use rate limiting instead of token checks, eliminating the stale-token failure path entirely.
 
@@ -139,21 +168,25 @@ than something production requires — it was verified to run correctly under bo
 
 - **Owner sync now covers every contact field, and reports partial failures honestly** ([#1873](https://github.com/elan-registry/registry/issues/1873)): The owner panel's sync action now pushes all nine owner-contact fields rather than location alone, and no longer refuses to run for owners without map coordinates — eight of the nine fields never needed them. Where it previously reported only a count, it now names the cars it could not update, and an owner with no cars is reported as such instead of as an error. Each car's update and its audit-history entry are written in a single transaction, so a car can no longer be modified without its matching history row.
 
+- **New reconciliation tool for pre-existing owner-field drift** ([#1961](https://github.com/elan-registry/registry/issues/1961)): This release's sync fixes prevent *new* drift going forward, but do nothing for cars that were already stale before deployment. Run `26-Reconcile-Owner-Fields.php`'s Analyze step on prod after deploying to see how much pre-existing drift exists, and review its website-conflict list (cars whose stored website differs from their owner's — likely legacy per-car values from before v2.30.1) before running Execute.
+
 ## Issues Resolved
 
 - [#1867](https://github.com/elan-registry/registry/issues/1867) — bug: car merge ("duplicate"/"new owner" admin action) never moves userimages/ files to the surviving car
 - [#1873](https://github.com/elan-registry/registry/issues/1873) — feat: sync all owner-contact fields (including email) to every car the owner has
 - [#1876](https://github.com/elan-registry/registry/issues/1876) — docs: update the privacy policy for Brevo, bounce data, cross-car sync, and retention
-- [#1953](https://github.com/elan-registry/registry/issues/1953) — bug: verification freshness test still falls back to cars.mtime — #1155's revision was never implemented
+- [#1913](https://github.com/elan-registry/registry/issues/1913) — fix: cars-list DataTable never recovers from a stale/lost CSRF token
+- [#1931](https://github.com/elan-registry/registry/issues/1931) — test: integration bootstrap does not define ELAN_IMAGE_DIR — CarTransferTest fails standalone
+- [#1940](https://github.com/elan-registry/registry/pull/1940) — chore: give every Claude command an explicit, deliberate model (developer tooling; no issue)
+- [#1945](https://github.com/elan-registry/registry/pull/1945) — chore: consolidate planning documents into gitignored docs/plans/ (developer tooling; no issue)
+- [#1947](https://github.com/elan-registry/registry/pull/1947) — chore: refresh local dev data from production (developer tooling; no issue)
+- [#1953](https://github.com/elan-registry/registry/issues/1953) — bug: verification freshness test still falls back to cars.mtime — #1155's revision was never implemented. As part of this fix the staleness window itself changed from two years to one; this release's backfill also sets every active car's `owner_last_updated` to 366 days ago, so the entire active registry (~1,505 cars) becomes eligible for verification the moment the send pipeline (v2.30.3) goes live — expected, not a bug, but worth knowing before that release ships.
 - [#1954](https://github.com/elan-registry/registry/issues/1954) — tech-debt: OwnerSyncResult conflates 'car no longer owned' with 'sync failed'
 - [#1958](https://github.com/elan-registry/registry/issues/1958) — bug: confirmed email change via users/verify.php never syncs to cars.email
 - [#1961](https://github.com/elan-registry/registry/issues/1961) — feat: reconciliation job to sync current owner information to the cars they own
 - [#1962](https://github.com/elan-registry/registry/issues/1962) — bug: editing a car does not refresh the owner-contact columns from the profile
-- [#1979](https://github.com/elan-registry/registry/issues/1979) — bug: Owner::syncOwnerFieldsToCars() can't distinguish a failed-to-load owner from zero owned cars
 - [#1963](https://github.com/elan-registry/registry/issues/1963) — feat: make website owner-level only — remove the per-car website field
-- [#1913](https://github.com/elan-registry/registry/issues/1913) — fix: cars-list DataTable never recovers from a stale/lost CSRF token
-- [#1931](https://github.com/elan-registry/registry/issues/1931) — test: integration bootstrap does not define ELAN_IMAGE_DIR — CarTransferTest fails standalone
-- [#1947](https://github.com/elan-registry/registry/pull/1947) — chore: refresh local dev data from production (developer tooling; no issue)
+- [#1979](https://github.com/elan-registry/registry/issues/1979) — bug: Owner::syncOwnerFieldsToCars() can't distinguish a failed-to-load owner from zero owned cars
 
 ## Retrospective
 

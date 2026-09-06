@@ -610,6 +610,7 @@ if ($userQ2->count() > 0) {
                         <div class="mb-3">
                             <label for="website">Website</label>
                             <input class='form-control' type='text' id='website' name='website' value='<?= htmlspecialchars($profiledetails->website ?? '', ENT_QUOTES, 'UTF-8') ?>' />
+                            <div class="form-text">Shown to other members on the page for every car you own.</div>
                         </div>
                         <!-- END Extend user_setttings.php with some PROFILE information -->
 

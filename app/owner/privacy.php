@@ -35,7 +35,7 @@ $policy = <<<'GUIDEHTML'
 <p>Your city, state, and country are also what lets other members browse cars by region.</p>
 <p>On the technical side, we log IP addresses for security, use a session cookie to keep you logged in, and keep system logs for debugging. Standard stuff.</p>
 <p>There's also an internal messaging system. If another registered user wants to contact you, the first message goes through our site so your email address stays hidden. After that you can take the conversation offsite if you both want to.</p>
-<p>Your name, email, location, and website are copied onto every car you own whenever your profile changes. Clearing a field clears it on every car too.</p>
+<p>Your name, email, location, and website are copied onto every car you own whenever your profile changes. Clearing a field clears it on every car too. Your website and first name appear on that car's page for other registered members to see; your last name, email, and exact location do not.</p>
 <h2><a id="what-we-do-with-it" href="#what-we-do-with-it" class="" aria-hidden="true" title="Permalink"></a>What we do with it</h2>
 <p>We use your information to run the registry, let users contact each other safely, power search and browsing, and keep the site secure.</p>
 <p>We use Brevo, a third-party email delivery service based in the EU, to send transactional email: password resets, contact messages, and transfer notifications. Brevo receives the recipient's email address and the content of that one message; it does not receive your other registry data. We use Brevo because there's no way to reliably deliver email without a processor like it.</p>
