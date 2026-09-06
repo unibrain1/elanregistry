@@ -149,7 +149,6 @@ function _verifyTurnstileToken(string $secret, string $token, string $ip): bool
     $result    = curl_exec($ch);
     $curlErrno = curl_errno($ch);
     $curlError = curl_error($ch);
-    curl_close($ch);
 
     if ($curlErrno || $result === false) {
         logger(0, LogCategories::LOG_CATEGORY_SYSTEM_ERROR, 'Turnstile cURL error: ' . $curlError);
