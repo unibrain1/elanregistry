@@ -20,6 +20,7 @@ remain unchanged — these classes extend and wrap them.
 | Admin-side car operations (merge, bulk actions) | `CarAdministrationService` | `usersc/classes/Car/CarAdministrationService.php` |
 | Back DataTables server-side car listings | `CarDataTablesService` | `usersc/classes/Car/CarDataTablesService.php` |
 | Verify/re-verify car ownership | `CarVerificationManager` | `usersc/classes/Car/CarVerificationManager.php` |
+| Build the home-page cycling car showcase pool | `CarShowcaseService` | `usersc/classes/Car/CarShowcaseService.php` |
 | Display car images, specs, carousels (no DB writes) | `CarView` | `usersc/classes/CarView.php` |
 | Load/update an owner's registry profile | `Owner` | `usersc/classes/Owner.php` |
 | Return a JSON response from an AJAX endpoint | `ApiResponse` | `usersc/classes/ApiResponse.php` |
