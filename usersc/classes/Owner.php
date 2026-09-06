@@ -752,7 +752,7 @@ class Owner
                 $historyFields['car_id']       = $carId;
                 $historyFields['user_id']      = $ownerId;
                 $historyFields['operation']    = 'OWNER_SYNC';
-                $historyFields['comments']     = "Car owner contact details synchronized with owner profile update. Name: {$this->_data->fname} {$this->_data->lname}, City: {$this->_data->city}, State: {$this->_data->state}, Country: {$this->_data->country}";
+                $historyFields['comments']     = "Car owner contact details synchronized with owner profile update.";
                 $historyFields['ctime']        = $syncTime;
                 $historyFields['model']        = $car->model ?? '';
                 $historyFields['series']       = $car->series ?? '';
