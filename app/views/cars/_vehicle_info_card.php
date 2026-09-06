@@ -1,6 +1,13 @@
 <?php
 if (count(get_included_files()) == 1) { die(); }
 
+// Callers set these before including this partial; default to null so
+// PHPStan (which analyzes this file in isolation) doesn't flag them as
+// possibly undefined, and so a future caller that forgets one degrades
+// gracefully rather than triggering an undefined-variable warning.
+$purchaseDate ??= null;
+$soldDate ??= null;
+
 $headingTag       = in_array($headingTag, ['h1','h2','h3','h4','h5','h6'], true) ? $headingTag : 'h3';
 $_cardHeaderClass = $headingTag === 'h4' ? ' card-header-er-l2' : '';
 $_headingClass    = $headingTag === 'h4' ? 'mb-0 card-header-er-l2-text' : 'mb-0';
