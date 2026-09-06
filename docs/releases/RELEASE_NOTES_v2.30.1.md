@@ -54,6 +54,8 @@ Keep that output. Step 4 compares against it.
 composer migrate
 ```
 
+The migration version is `20260905172137`. Verify it applied successfully on both test and prod (see step 4 below).
+
 The migration **aborts by design** if MySQL's `NOW()` differs by more than 120
 seconds from PHP evaluated in `America/Los_Angeles` — the zone `users/init.php`
 pins on every web request, and therefore the zone every stored value was written
