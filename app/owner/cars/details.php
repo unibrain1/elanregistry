@@ -227,6 +227,24 @@ if ($carSchemaJson === false) {
                                     echo !empty($location) ? htmlspecialchars(implode(', ', $location), ENT_QUOTES, 'UTF-8') : '<em class="text-muted">Location not specified</em>';
                                     ?>
                                 </dd>
+
+                                <?php
+                                // Website is owner-level (issue #1963) — cars.website mirrors the
+                                // owner's profile value, same http/https-only display rule as
+                                // usersc/account.php's profile header.
+                                $ownerWebsite    = $carData->website ?? '';
+                                $hasOwnerWebsite = !empty($ownerWebsite)
+                                    && in_array(strtolower((string)parse_url((string)$ownerWebsite, PHP_URL_SCHEME)), ['http', 'https'], true);
+                                if ($hasOwnerWebsite) { ?>
+                                <dt class="col-sm-4 text-muted">
+                                    <i class="fas fa-link text-primary"></i> Website
+                                </dt>
+                                <dd class="col-sm-8">
+                                    <a href="<?= htmlspecialchars($ownerWebsite, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer">
+                                        <?= htmlspecialchars($ownerWebsite, ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                </dd>
+                                <?php } ?>
                             </dl>
                             
                             <hr>

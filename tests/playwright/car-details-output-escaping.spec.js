@@ -72,7 +72,11 @@ test.describe('Car details — output escaping (issue #840)', () => {
     });
 
     test('website href does not contain unescaped quotes or javascript protocol', async ({ page }) => {
-        const websiteLinks = page.locator('a:has-text("Visit Website")');
+        // Website is owner-level (issue #1963) and now rendered in the Owner
+        // Information card as a plain link (its own URL as link text), not the
+        // "Visit Website" button that used to live in the vehicle info card's
+        // Ownership & History section.
+        const websiteLinks = page.locator('dl a[target="_blank"][rel="noopener noreferrer"]');
         const count = await websiteLinks.count();
 
         for (let i = 0; i < count; i++) {
