@@ -22,10 +22,8 @@ use ElanRegistry\LogCategories;
  * Registration is per-environment: this must be run once on test and once
  * on prod. Running it on one does not register the hook on the other.
  *
- * This is a one-time fix script (per CLAUDE.md conventions) even though the
- * underlying registerHooks() call happens to be idempotent — that safety
- * property allows a safe re-run, but the intended usage is a single run per
- * environment. See app/admin/scripts/fix/README.md for script conventions.
+ * Idempotent, but this is a one-time fix script per CLAUDE.md conventions,
+ * not a repeatable maintenance task. See app/admin/scripts/fix/README.md.
  */
 
 require_once '../../../../users/init.php';

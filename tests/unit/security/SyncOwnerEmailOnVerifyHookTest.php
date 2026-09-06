@@ -275,12 +275,7 @@ final class HookTestDb implements DatabaseInterface
 {
     public int $carLookups = 0;
 
-    /**
-     * Call counter, incremented by the constant-bodied methods below purely to
-     * satisfy the @phpstan-impure contract DatabaseInterface declares for them.
-     * Never read — carLookups is what the tests assert on. Same device as
-     * tests/integration/SyncOwnerEmailOnVerifyHookTest.php's stub.
-     */
+    // Unused; satisfies DatabaseInterface's @phpstan-impure contract. carLookups is what tests assert on.
     private int $calls = 0;
     private int $count = 0;
     /** @var array<int, object> */

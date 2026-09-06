@@ -10,82 +10,25 @@ use ElanRegistry\Owner;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Integration tests for Issue #1958: a confirmed email change via
- * users/verify.php's confirm-by-link flow wasn't syncing to cars.email.
+ * Integration tests for #1958 (confirmed email change via verify.php wasn't
+ * syncing to cars.email). Validates the DB-backed sync mechanics the hook
+ * (usersc/plugins/hooker/hooks/sync_owner_email_on_verify.php) depends on:
+ * a real database, a user whose email has just changed, syncOwnerFieldsToCars()
+ * updates every owned car, and the exceptions it can throw match the hook's
+ * catch clauses. Does not duplicate OwnerSyncOwnerFieldsToCarsTest.php
+ * (#1873, general nine-field behavior) — this pins the specific sequence
+ * #1958's hook relies on.
  *
- * The fix is usersc/plugins/hooker/hooks/sync_owner_email_on_verify.php, a
- * hooker plugin hook registered on the `verifySuccess` event. It is a plain
- * included script (not a class or function) that runs inside
- * users/verify.php's own scope, relying on a `global $verify` (a User
- * instance) already being set by that page.
- *
- * This suite is the DB-backed half of the hook's coverage. It validates the
- * sync mechanics the hook depends on against a real database: a fixture user
- * whose users.email has just changed (mirroring what users/verify.php does
- * immediately before firing the verifySuccess hooks — see verify.php's
- * `$verify->update(['email' => $verify->data()->email_new, ...])` call sites)
- * followed by syncOwnerFieldsToCars(), asserting cars.email updates for every
- * owned car, and that the two exception types the hook's catch clauses name
- * are the ones syncOwnerFieldsToCars() can actually throw.
- *
- * The hook FILE's own control flow — its run-once-per-request guard, its
- * OwnerSyncResult partial-failure logging, and which LogCategories constant
- * each catch branch uses — is covered separately and directly in
+ * The hook FILE's own control flow (run-once-per-request guard, partial-
+ * failure logging, log category per catch branch) is covered directly in
  * tests/unit/security/SyncOwnerEmailOnVerifyHookTest.php, which `require`s
- * the hook file itself with a stubbed `$verify` and a fake DatabaseInterface.
- * (An earlier version of this docblock claimed the hook could not be tested
- * as a black box, citing a CLAUDE.md rule that does not exist; that unit
- * suite disproves the claim. The hook needs no part of verify.php — only a
- * `$verify` global and an Owner.)
+ * the hook file itself.
  *
- * This does not duplicate OwnerSyncOwnerFieldsToCarsTest.php (#1873), which
- * already covers syncOwnerFieldsToCars()'s general nine-field behavior and
- * business rules at the Owner class level in detail. This file exists solely
- * to pin the specific sequence the hook relies on — a confirmed
- * users.email change followed by a sync — as the regression guard for #1958.
- *
- * The negative path (syncOwnerFieldsToCars() throwing) reuses the same
- * DatabaseInterface proxy pattern established in
- * OwnerSyncOwnerFieldsToCarsFailureTest.php (#1873) to force a genuine
- * per-car UPDATE failure.
- *
- * Manual/Playwright verification of the real confirm-by-link flow end to end
- * (clicking an actual emailed link) is documented, not automated.
- *
- * ---------------------------------------------------------------------------
- * MANUAL VERIFICATION STEPS (not automatable — see rationale below)
- * ---------------------------------------------------------------------------
- * No existing Playwright pattern drives UserSpice's email confirmation links
- * end-to-end (checked tests/playwright/ — the auto-auth pattern in
- * logged-in.spec.js authenticates via TEST_USERNAME/TEST_PASSWORD, it does
- * not retrieve or click emailed confirmation links). Per EMAIL_SYSTEM.md,
- * local outbound mail is captured via Mailtrap (not Mailhog/Mailpit), which
- * has no documented API/fixture hook in this repo for a Playwright test to
- * pull the confirmation link from programmatically. Forcing an automated
- * path here would mean either scraping Mailtrap's web UI (fragile, not worth
- * it for a one-off hook) or bypassing the real email step entirely (which
- * would stop testing the thing #1958 is actually about). So this is
- * documented as a manual check instead:
- *
- *   1. Ensure local Mailtrap SMTP credentials are configured (Admin →
- *      Settings → Email) per EMAIL_SYSTEM.md's "Local Development Testing"
- *      section.
- *   2. Log in as a test owner who owns at least one car.
- *   3. Go to Account Settings and change the email address. This stages
- *      email_new and sends a confirmation email (users.email is NOT changed
- *      yet at this point — confirm cars.email is still the OLD address).
- *   4. Open the Mailtrap inbox and retrieve the confirmation link from the
- *      captured email.
- *   5. Click the confirmation link (or paste its URL into a browser where
- *      the same session is logged in).
- *   6. Confirm the success page renders (proving verify.php reached the
- *      verifySuccess branch).
- *   7. Query the database directly: SELECT email FROM cars WHERE user_id =
- *      <test user id>; — confirm it now reflects the NEW address for every
- *      car the owner has.
- *   8. Check the `logs` table for any LOG_CATEGORY_DATABASE_ERROR row
- *      mentioning `sync_owner_email_on_verify` — there should be none on a
- *      successful run.
+ * Manual verification of the real confirm-by-link flow (clicking an actual
+ * emailed link) is not automatable — no Playwright pattern in this repo
+ * retrieves a Mailtrap-captured confirmation link — see
+ * docs/development/DEPLOYMENT.md's "Hooker Hook Registration" section for
+ * the manual verification steps.
  *
  * @see usersc/plugins/hooker/hooks/sync_owner_email_on_verify.php
  * @see usersc/classes/Owner.php Owner::syncOwnerFieldsToCars()
@@ -100,6 +43,17 @@ final class SyncOwnerEmailOnVerifyHookTest extends IntegrationTestCase
     {
         parent::setUp();
         $this->requireDatabase();
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->databaseConnected) {
+            // Cleans up the row inserted by
+            // testAdminScriptRecordCompletionRejectsUncastStringUserIdFromDbRow().
+            $this->db->query('DELETE FROM fix_script_runs WHERE script_name = ?', [basename(__FILE__)]);
+        }
+
+        parent::tearDown();
     }
 
     /**
@@ -302,38 +256,17 @@ final class SyncOwnerEmailOnVerifyHookTest extends IntegrationTestCase
     }
 
     /**
-     * Confirms the hook's second catch clause (\Throwable) is exercisable
-     * too: the comment on both the hook and its user_settings.php precedent
-     * explains that syncOwnerFieldsToCars() builds its field bundle from the
-     * Owner's untyped $_data properties, so a malformed value could surface
-     * as a TypeError-family Error rather than one of the two named
-     * application exception classes. PHP's Error hierarchy (TypeError et
-     * al.) does not extend Exception, which is exactly why the hook's second
-     * catch clause must be `\Throwable` and not `\Exception`.
-     *
-     * The real DB layer (users/classes/DB.php, via PDO::bindValue()) turns
-     * out to coerce a non-scalar bound parameter with only an "Array to
-     * string conversion" warning rather than throwing — confirmed by direct
-     * experimentation before writing this test — so a genuine \TypeError
-     * cannot be forced through that path with today's implementation. This
-     * test instead uses a minimal DatabaseInterface stub whose query() call
-     * throws a bare \TypeError directly, the same way
-     * OwnerSyncOwnerFieldsToCarsFailureTest's proxies simulate a
-     * CarDatabaseException-causing DB failure — proving the hook's
-     * \Throwable clause, not \Exception, is what is required to catch this
-     * class of failure, and that it is reachable through the exact call
-     * syncOwnerFieldsToCars() makes.
+     * Confirms the hook's second catch clause (\Throwable, not \Exception —
+     * see the hook's own comment for why) is reachable: a bare \TypeError
+     * from the DB layer propagates uncaught through syncOwnerFieldsToCars().
+     * The real DB layer coerces non-scalar bind params with a warning rather
+     * than throwing (confirmed by direct experimentation), so this uses a
+     * minimal DatabaseInterface stub that throws \TypeError directly instead.
      */
     public function testMalformedOwnerDataThrowsThrowableCatchableAsTheHookExpects(): void
     {
         $db = new class implements DatabaseInterface {
-            /**
-             * Call counter, incremented by every method below. Its only purpose
-             * is to give each otherwise-constant stub body a genuine side
-             * effect, matching the @phpstan-impure contract DatabaseInterface
-             * declares for these methods — this stub is never asked to report
-             * an accurate count anywhere in this test.
-             */
+            // Unused; satisfies DatabaseInterface's @phpstan-impure contract.
             private int $calls = 0;
 
             public function query(string $sql, array $params = []): self
@@ -454,5 +387,35 @@ final class SyncOwnerEmailOnVerifyHookTest extends IntegrationTestCase
             . "hook's second catch clause (\\Throwable, not \\Exception) exists for, since "
             . "PHP's Error hierarchy does not extend Exception"
         );
+    }
+
+    /**
+     * Regression test for the bug fixed in #1958's second commit: script 26
+     * originally passed $user->data()->id (a string, straight off a DB row)
+     * to admin_script_record_completion()'s `int $userId` parameter uncast.
+     * Under this file's declare(strict_types=1), that throws TypeError rather
+     * than coercing — confirmed here with a real DB-fetched id, not a
+     * hand-typed string literal, since the whole point is that a DB row's
+     * property is a string even when it looks like an integer.
+     */
+    public function testAdminScriptRecordCompletionRejectsUncastStringUserIdFromDbRow(): void
+    {
+        require_once __DIR__ . '/../../app/admin/includes/fix-script-core.php';
+
+        $userId = $this->createTestUser();
+        $row = $this->db->query('SELECT id FROM users WHERE id = ?', [$userId])->first();
+        $this->assertIsString($row->id, 'A DB row property must be a string here for this regression test to be meaningful');
+
+        $thrown = null;
+        try {
+            /** @phpstan-ignore-next-line argument.type — deliberately passing the unfixed shape to prove it throws */
+            admin_script_record_completion(__FILE__, $row->id);
+        } catch (\TypeError $e) {
+            $thrown = $e;
+        }
+        $this->assertNotNull($thrown, 'An uncast string id must throw TypeError under strict_types — this is the bug #1958 shipped once');
+
+        // The actual fix: casting avoids the TypeError.
+        admin_script_record_completion(__FILE__, (int) $row->id);
     }
 }

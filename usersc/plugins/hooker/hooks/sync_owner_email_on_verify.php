@@ -6,8 +6,10 @@
 //   * line 224 — the "already verified" re-display branch. Email has not
 //     changed, so the sync is a harmless no-op. That branch exit()s, so it
 //     never reaches the other two.
-//   * line 295 — inside the confirm branch, immediately after users.email is
-//     written from email_new. This is the fire that matters.
+//   * line 295 — fires unconditionally after every successful vericode
+//     confirmation, whether or not that confirmation actually changed
+//     users.email (the re-verify sub-branch doesn't touch email at all).
+//     Harmless either way since the sync is idempotent.
 //   * line 315 — the unconditional `if ($verify_success)` final-output block.
 //
 // 295 and 315 fire on the SAME request: the confirm branch sets

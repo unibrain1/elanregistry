@@ -467,8 +467,17 @@ Run `./scripts/update-version.sh` to generate VERSION file locally after creatin
   `app/admin/scripts/maintenance/`. Registration is idempotent (safe to re-run) but per-environment —
   running it on test does not register it on prod
 - **Required whenever:** This specific one-time deploy fix for #1958 — a
-  one-time fix script, not a repeatable maintenance task (contrast with Cron
-  Transport below, which is a general per-environment contract)
+  one-time fix script, not a repeatable maintenance task (contrast with the
+  Cron Transport contract, which is per-environment but repeatable)
+- **Manual verification** (no automated E2E exists — no Playwright pattern in
+  this repo retrieves a Mailtrap-captured confirmation link): log in as a
+  test owner with at least one car, change the account email (stages
+  `email_new`; `cars.email` should still show the OLD address at this
+  point), retrieve the confirmation link from the local Mailtrap inbox
+  (see [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md)), click it, confirm the success
+  page renders, then check `cars.email` reflects the NEW address for every
+  car the owner has and that no `LOG_CATEGORY_DATABASE_ERROR` row mentioning
+  `sync_owner_email_on_verify` was logged
 
 ### Cron Transport (UserSpice Cron Manager)
 
