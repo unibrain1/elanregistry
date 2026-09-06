@@ -150,9 +150,9 @@ $db = DB::getInstance();
                         logProgress('Hook registered', 'success');
 
                         // Log script completion
-                        admin_script_record_completion(__FILE__, $user->data()->id, 'logProgress');
+                        admin_script_record_completion(__FILE__, (int) $user->data()->id, 'logProgress');
 
-                        logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT,
+                        logger((int) $user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT,
                             'Script completed - registered verifySuccess hook: hooker/hooks/sync_owner_email_on_verify.php');
 
                         // Display summary
@@ -173,7 +173,7 @@ $db = DB::getInstance();
                         // otherwise escape this handler entirely, skipping both the
                         // FATAL ERROR output below and the logger() audit line.
                         logProgress('FATAL ERROR: ' . $e->getMessage(), 'error');
-                        logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, 'Fatal error: ' . $e->getMessage());
+                        logger((int) $user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT, 'Fatal error: ' . $e->getMessage());
                     }
 
                     ?></pre>
