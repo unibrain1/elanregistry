@@ -212,4 +212,45 @@ final class AdminOwnerManagementTest extends IntegrationTestCase
     // Happy path for owner-sync (formerly owner-sync-location) is now covered
     // by the nine-field suite in OwnerSyncOwnerFieldsToCarsTest.php (#1873),
     // which subsumes this test's single lat/lon assertion.
+
+    /**
+     * process-owner-update.php's actual sequence — Owner::update() followed by
+     * syncOwnerFieldsToCars() — must propagate the change to the owner's cars,
+     * not just the profiles table.
+     *
+     * process-owner-update.php cannot be exercised directly (every path ends
+     * in exit via ApiResponse::send()), so this test drives the same two
+     * calls the endpoint makes, in the same order, against a real car. Before
+     * this fix, the endpoint called only Owner::update() — an admin editing a
+     * member's profile here left every car stale until the owner separately
+     * triggered a sync, the one owner-contact-field write path this milestone
+     * otherwise missed (user_settings.php, the email-verification hook, car
+     * edit, and the standalone admin sync endpoint all already synced).
+     */
+    public function testAdminOwnerUpdateSequenceSyncsToOwnedCars(): void
+    {
+        $userId = $this->createTestUser(['fname' => 'Original']);
+        $this->createTestProfile($userId, ['city' => 'Salem']);
+        $carId = $this->createTestCar($userId, ['city' => 'Salem']);
+
+        // Mirrors process-owner-update.php: Owner::update() first, then
+        // syncOwnerFieldsToCars() on a freshly-reloaded Owner.
+        $owner = new Owner($userId);
+        $owner->update(['id' => $userId, 'fname' => 'AdminEdited', 'city' => 'Eugene']);
+        $owner = new Owner($userId);
+        $syncResult = $owner->syncOwnerFieldsToCars();
+
+        $this->assertTrue($syncResult->isCompleteSuccess());
+        $this->assertContains($carId, $syncResult->updated);
+
+        $car = $this->db->query("SELECT fname, city FROM cars WHERE id = ?", [$carId])->first();
+        $this->assertNotNull($car);
+        $this->assertSame(
+            'AdminEdited',
+            $car->fname,
+            "An admin editing a member's profile must propagate to the member's cars, "
+                . 'the same as every other owner-contact-field write path'
+        );
+        $this->assertSame('Eugene', $car->city);
+    }
 }
