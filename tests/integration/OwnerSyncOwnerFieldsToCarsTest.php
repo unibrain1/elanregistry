@@ -167,6 +167,56 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
     }
 
     /**
+     * An invalid profile website is skipped by the sync, leaving the car's
+     * existing website untouched, rather than writing it through and
+     * planting a value that would fail CarValidator on the car's next
+     * unrelated edit.
+     *
+     * CarRepository::updateCarForOwner() writes via raw SQL with no
+     * validation of its own, unlike Car::update() (the path
+     * OwnerContactRefresher::refresh() feeds, which already had this
+     * protection). Before this fix, syncOwnerFieldsToCars() had none:
+     * profile save, email verification, and admin sync could all write an
+     * invalid website straight onto every car the owner has, and the next
+     * time anyone tried to save one of those cars for any unrelated reason,
+     * CarValidator would reject the save because of a website value nobody
+     * involved in that edit ever touched.
+     *
+     * The other eight owner-contact fields must still sync normally — only
+     * the invalid field is dropped, not the whole car.
+     */
+    public function testInvalidWebsiteIsSkippedRatherThanWrittenThrough(): void
+    {
+        $userId = $this->createTestUser(['fname' => 'Original']);
+        $this->createTestProfile($userId, [
+            'city'    => 'Portland',
+            'website' => 'not-a-valid-url',
+        ]);
+        $carId = $this->createTestCar($userId, ['website' => 'https://existing.example.com']);
+
+        $owner = new Owner($userId);
+        $owner->update(['id' => $userId, 'fname' => 'Synced']);
+        $owner = new Owner($userId);
+
+        $result = $owner->syncOwnerFieldsToCars();
+        $this->assertTrue(
+            $result->isCompleteSuccess(),
+            'An invalid website must not fail the whole sync — it is dropped, not fatal'
+        );
+        $this->assertContains($carId, $result->updated);
+
+        $car = $this->db->query("SELECT fname, city, website FROM cars WHERE id = ?", [$carId])->first();
+        $this->assertNotNull($car);
+        $this->assertSame('Synced', $car->fname, 'The other eight fields must still sync normally');
+        $this->assertSame('Portland', $car->city);
+        $this->assertSame(
+            'https://existing.example.com',
+            $car->website,
+            "The car's existing website must survive untouched when the profile's website is invalid"
+        );
+    }
+
+    /**
      * Exactly one OWNER_SYNC row per car per call; total rows for a changed
      * car is 2 (trigger's operation='UPDATE' + application's operation='OWNER_SYNC').
      */

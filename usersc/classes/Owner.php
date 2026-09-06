@@ -692,6 +692,19 @@ class Owner
         $ownerFields = $this->ownerContactFields();
         $ownerFields['mtime'] = $syncTime;
 
+        // CarRepository::updateCarForOwner() writes this bundle via raw SQL with
+        // no validation, unlike Car::update()/Car::create() (the path
+        // OwnerContactRefresher::refresh() feeds). Writing an invalid website
+        // through here would not fail now, but would plant a value that blocks
+        // every future Car::update()/create() call for this owner's cars — an
+        // edit having nothing to do with the website field would still fail
+        // CarValidator on save. Drop the field rather than the whole sync;
+        // matches OwnerContactRefresher::refresh()'s "skip the field, not the
+        // car" behavior for the same input.
+        if (isset($ownerFields['website']) && !OwnerContactRefresher::isValidWebsite($ownerFields['website'])) {
+            unset($ownerFields['website']);
+        }
+
         $ownerId = (int) $this->_data->id;
         $repo = new CarRepository($this->_db);
         $updated = [];

@@ -127,10 +127,19 @@ class OwnerContactRefresher
      * (see CarValidator::validateAndSanitizeFields()) — null/empty is valid
      * (clears the field), anything else must be a well-formed http(s) URL.
      *
+     * Public: this is the canonical write-side validation rule (see
+     * {@see \ElanRegistry\OwnerView::websiteUrl()}'s docblock), and
+     * {@see \ElanRegistry\Owner::syncOwnerFieldsToCars()} reuses it to skip
+     * an invalid profile website the same way {@see refresh()} does, rather
+     * than writing it through to `CarRepository::updateCarForOwner()`'s raw
+     * SQL (which, unlike `Car::update()`, performs no validation at all) and
+     * planting a value that would then block every future
+     * `Car::update()`/`Car::create()` call for that owner's cars.
+     *
      * @param mixed $value
      * @return bool
      */
-    private static function isValidWebsite($value): bool
+    public static function isValidWebsite($value): bool
     {
         if ($value === null || $value === '') {
             return true;
