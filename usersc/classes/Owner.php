@@ -784,7 +784,24 @@ class Owner
                 // A failed ownership lookup or a DB-level UPDATE error is an
                 // infrastructure failure, not a per-car outcome — it must not be
                 // reported as "this car could not be updated". Propagate.
-                $repo->rollback();
+                //
+                // Guard the rollback itself: on a dropped connection ROLLBACK fails
+                // too, and an unguarded call would let PHP discard the original $e
+                // (it does not chain an exception thrown from inside a catch),
+                // replacing "the update failed because X" with "server has gone
+                // away" at exactly the moment an operator needs the real cause.
+                // Matches the pattern in database/migrations/
+                // 20260905172137_convert_car_timestamps_to_datetime.php.
+                try {
+                    $repo->rollback();
+                } catch (\Throwable $rollbackFailure) {
+                    throw new OwnerDatabaseException(
+                        "syncOwnerFieldsToCars: rollback failed at car ID {$carId} while handling: "
+                        . $e->getMessage() . ' (rollback error: ' . $rollbackFailure->getMessage() . ')',
+                        0,
+                        $e
+                    );
+                }
                 // Logged here, after the rollback, because propagating discards the
                 // OwnerSyncResult: the caller receives an exception and cannot report
                 // which cars already committed. Cars listed below are durable — each
@@ -799,7 +816,18 @@ class Owner
                 throw $e;
             } catch (\Throwable $e) {
                 // One bad car must not abandon the rest of the sync.
-                $repo->rollback();
+                //
+                // Guard the rollback itself, same reasoning as above: if it also
+                // throws, still bucket this car as failed rather than letting the
+                // rollback failure propagate and silently drop the car from every
+                // bucket (updated/failed/skipped) with no record of what happened.
+                try {
+                    $repo->rollback();
+                } catch (\Throwable $rollbackFailure) {
+                    logger($ownerId, LogCategories::LOG_CATEGORY_DATABASE_ERROR,
+                        "syncOwnerFieldsToCars: rollback failed at car ID {$carId} while handling: "
+                        . $e->getMessage() . ' (rollback error: ' . $rollbackFailure->getMessage() . ')');
+                }
                 $failed[] = $carId;
                 logger($ownerId, LogCategories::LOG_CATEGORY_OWNER_ACTIONS,
                     "syncOwnerFieldsToCars: sync failed for car ID {$carId}: " . $e->getMessage());
