@@ -145,6 +145,7 @@ than something production requires — it was verified to run correctly under bo
 - [#1958](https://github.com/elan-registry/registry/issues/1958) — bug: confirmed email change via users/verify.php never syncs to cars.email
 - WIP: [#1961](https://github.com/elan-registry/registry/issues/1961) — feat: reconciliation job to sync current owner information to the cars they own
 - [#1962](https://github.com/elan-registry/registry/issues/1962) — bug: editing a car does not refresh the owner-contact columns from the profile
+- [#1979](https://github.com/elan-registry/registry/issues/1979) — bug: Owner::syncOwnerFieldsToCars() can't distinguish a failed-to-load owner from zero owned cars
 - WIP: [#1963](https://github.com/elan-registry/registry/issues/1963) — feat: make website owner-level only — remove the per-car website field
 - [#1913](https://github.com/elan-registry/registry/issues/1913) — fix: cars-list DataTable never recovers from a stale/lost CSRF token
 - [#1931](https://github.com/elan-registry/registry/issues/1931) — test: integration bootstrap does not define ELAN_IMAGE_DIR — CarTransferTest fails standalone

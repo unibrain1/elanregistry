@@ -661,6 +661,30 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
     }
 
     /**
+     * Regression guard (distinct from the not-loaded-Owner case covered in
+     * OwnerSyncOwnerFieldsToCarsFailureTest): an Owner that loads
+     * successfully but owns zero cars must still return an empty,
+     * complete-success OwnerSyncResult — never throw. This is the case
+     * getCarsOwned() legitimately returns an empty array for a valid owner,
+     * as opposed to the Owner itself failing to load.
+     */
+    public function testOwnerWithNoCarsReturnsEmptyCompleteSuccessResult(): void
+    {
+        $userId = $this->createTestUser();
+        $this->createTestProfile($userId, ['lat' => 45.5231, 'lon' => -122.6765]);
+
+        $owner = new Owner($userId);
+        $this->assertNotNull($owner->data(), 'Precondition: Owner must load successfully');
+
+        $result = $owner->syncOwnerFieldsToCars();
+
+        $this->assertSame([], $result->updated);
+        $this->assertSame([], $result->failed);
+        $this->assertSame([], $result->skipped);
+        $this->assertTrue($result->isCompleteSuccess(), 'A successfully-loaded owner with zero cars must read as complete success');
+    }
+
+    /**
      * A DatabaseInterface proxy over the real connection that fails insert()
      * ONLY for the cars_hist row belonging to $failingCarId.
      *

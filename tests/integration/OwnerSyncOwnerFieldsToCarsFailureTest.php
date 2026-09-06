@@ -542,4 +542,32 @@ final class OwnerSyncOwnerFieldsToCarsFailureTest extends IntegrationTestCase
             'The aborted car must have no OWNER_SYNC history row — its transaction was rolled back'
         );
     }
+
+    /**
+     * An Owner constructed with a user ID whose row no longer exists (find()
+     * runs, queries the database, and returns false, so $this->_data stays
+     * null) must throw OwnerDatabaseException from syncOwnerFieldsToCars()
+     * rather than silently returning an empty, complete-success
+     * OwnerSyncResult. Silently succeeding here would hide a genuine
+     * precondition failure — the caller asked to sync a nonexistent owner —
+     * behind a result indistinguishable from "owner has zero cars".
+     *
+     * The user is created then deleted so find() actually executes its query
+     * and returns false for a real, once-valid ID — not merely skipped via
+     * the constructor's `if ($id)` guard, which a userId of 0 or null would
+     * trigger without ever calling find() at all.
+     */
+    public function testSyncOnNeverLoadedOwnerThrowsOwnerDatabaseException(): void
+    {
+        $userId = $this->createTestUser();
+        $this->db->delete('users', ['id', '=', $userId]);
+
+        $owner = new Owner($userId);
+        $this->assertNull($owner->data(), 'Precondition: Owner must have failed to load');
+
+        $this->expectException(OwnerDatabaseException::class);
+        $this->expectExceptionMessage('called on an Owner that failed to load');
+
+        $owner->syncOwnerFieldsToCars();
+    }
 }
