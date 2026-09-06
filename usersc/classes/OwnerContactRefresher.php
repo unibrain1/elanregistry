@@ -128,6 +128,7 @@ class OwnerContactRefresher
      * (clears the field), anything else must be a well-formed http(s) URL.
      *
      * @param mixed $value
+     * @return bool
      */
     private static function isValidWebsite($value): bool
     {
@@ -156,6 +157,9 @@ class OwnerContactRefresher
      * problem worth a log line, so the endpoint checks. Read the pair as
      * "ask if you want to say something about it", never as "guard required
      * or the merge will blank the car's columns".
+     *
+     * @param Owner $carOwner
+     * @return bool
      */
     public function hasLoadableOwner(Owner $carOwner): bool
     {
@@ -178,6 +182,9 @@ class OwnerContactRefresher
      * Returns `true` when the owner did not load — {@see hasLoadableOwner()}
      * already covers and logs that case, so this method has nothing to add
      * for it.
+     *
+     * @param Owner $carOwner
+     * @return bool
      */
     public function hasValidWebsite(Owner $carOwner): bool
     {

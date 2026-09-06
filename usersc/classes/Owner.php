@@ -851,8 +851,6 @@ class Owner
      * a row present means the car simply had nothing to change, no row means it
      * left this owner.
      *
-     * @param int $carId  Car to check
-     * @param int $userId Owner the car must currently belong to
      * Deliberately does no logging of its own: it runs inside the caller's per-car
      * transaction, and logger() writes through the same connection, so any row it
      * inserted would be destroyed by the rollback that follows. The thrown
@@ -868,6 +866,8 @@ class Owner
      * treated as non-errors, including places that never surface skips to the
      * user (e.g. usersc/user_settings.php).
      *
+     * @param int $carId  Car to check
+     * @param int $userId Owner the car must currently belong to
      * @return bool True if the car exists and belongs to this user
      * @throws OwnerDatabaseException If the query fails — the caller must not
      *         treat a failed lookup as proof the car changed hands
