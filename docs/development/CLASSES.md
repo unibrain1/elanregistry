@@ -979,16 +979,18 @@ class MyDomainClass {
     }
 
     // Create new record
+    // CSRF is validated by the caller (HTTP layer) before create() is called —
+    // do not validate it inside domain-class methods (see Car, Owner; #1519)
     public function create(array $fields): int {
         // Validation
-        // CSRF check
         // Database insert
         // Audit logging
         return $insertId;
     }
 
     // Update existing record
-    // CSRF is validated by the caller (HTTP layer) before update() is called
+    // CSRF is validated by the caller (HTTP layer) before update() is called —
+    // do not validate it inside domain-class methods (see Car, Owner; #1519)
     public function update(array $fields): bool {
         // Validation
         // Database update
