@@ -390,12 +390,17 @@ even when the production code is deleted.
 - Pure: returns a new array rather than mutating its argument
 - No globals, no exit paths, no logging — callable from a unit test with no
   database
-- Excludes `website` (still a per-car form field; #1963 makes it
-  owner-level and removes the carve-out)
+- All nine `ownerContactFields()` columns are refreshed, `website` included
+  (#1963 made `website` owner-level and removed the per-car form field, so
+  it no longer needs the carve-out this class previously had)
 - Never writes `mtime` or `owner_last_updated`
 - Returns the car details untouched when the owner failed to load, so a car
   with a dangling or null `user_id` keeps its existing contact data rather
   than being blanked with nulls
+- A profile `website` that would fail `CarValidator`'s validation is skipped
+  rather than merged, so an invalid legacy or #1961-bulk-promoted value
+  can't reach `Car::update()`/`Car::create()` and block the edit or add-car
+  flow with a `CarValidationException`
 
 **Methods**:
 
@@ -413,13 +418,22 @@ even when the production code is deleted.
   user; this class has neither) without duplicating the null test. Calling
   `refresh()` without checking this first is safe, not a bug — the only
   consequence is that the skip goes unlogged.
+- `hasValidWebsite(Owner $carOwner): bool` — Whether the owner's current
+  profile website would survive `refresh()` unskipped. Mirrors
+  `hasLoadableOwner()`'s split-out-for-logging pattern: `refresh()` silently
+  skips an invalid website with no log line, so callers check this first if
+  they want to log the skip. Returns `true` when the owner failed to load —
+  `hasLoadableOwner()` already covers and logs that case.
 
 **Persistence asymmetry** (easy to trip over): `syncOwnerFieldsToCars()`
 writes its bundle through `CarRepository::updateCarForOwner()`, which
 persists blanks — clearing your city there clears it on your cars. The edit
 path routes through `Car::update()`, whose `array_filter` drops `''`/`null`
 for any field not in `Car::CLEARABLE_FIELDS`, so blank owner values are
-silently no-ops here.
+silently no-ops here — **except `website`**, the one field of the nine that
+*is* in `CLEARABLE_FIELDS`, so it propagates a clear on both paths just like
+the sync path does. This is a deliberate, user-confirmed decision (#1963),
+not an oversight.
 
 ### CarValidator
 

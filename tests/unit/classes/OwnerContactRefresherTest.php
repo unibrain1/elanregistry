@@ -6,6 +6,7 @@ namespace Tests\Unit\Classes;
 
 use ElanRegistry\Owner;
 use ElanRegistry\OwnerContactRefresher;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -64,11 +65,13 @@ final class OwnerContactRefresherTest extends TestCase
     }
 
     /**
-     * The eight refreshable columns land on the car details.
-     *
-     * `website` is deliberately absent — see the dedicated test below.
+     * All nine refreshable columns land on the car details, `website`
+     * included (#1963 — the PER_CAR_FIELDS carve-out that used to exclude it
+     * is gone; see the dedicated clear-propagation test below for the one
+     * respect in which website still behaves differently from the other
+     * eight).
      */
-    public function testRefreshCopiesTheEightOwnerColumnsOntoCarDetails(): void
+    public function testRefreshCopiesAllNineOwnerColumnsOntoCarDetails(): void
     {
         $cardetails = [
             'id'      => 7,
@@ -81,6 +84,7 @@ final class OwnerContactRefresherTest extends TestCase
             'country' => 'stale-country',
             'lat'     => 1.0,
             'lon'     => 2.0,
+            'website' => 'https://stale-per-car-website.example.com',
         ];
 
         $result = (new OwnerContactRefresher())
@@ -94,14 +98,15 @@ final class OwnerContactRefresherTest extends TestCase
         $this->assertSame('member-country', $result['country']);
         $this->assertSame(51.5, $result['lat']);
         $this->assertSame(-0.12, $result['lon']);
+        $this->assertSame('https://member.example.com', $result['website']);
     }
 
     /**
-     * `website` must survive untouched: it is still a per-car form field
-     * (#1963 will make it owner-level). This is the test that fails if
-     * OwnerContactRefresher::PER_CAR_FIELDS stops excluding it.
+     * `website` must be OVERWRITTEN by the owner's profile value, same as the
+     * other eight columns (#1963 — this is the test that would fail if
+     * OwnerContactRefresher::PER_CAR_FIELDS were reintroduced to exclude it).
      */
-    public function testRefreshLeavesPerCarWebsiteUntouched(): void
+    public function testRefreshOverwritesPerCarWebsiteWithProfileWebsite(): void
     {
         $cardetails = ['user_id' => 42, 'website' => 'https://this-car.example.com'];
 
@@ -109,9 +114,9 @@ final class OwnerContactRefresherTest extends TestCase
             ->refresh($cardetails, $this->makeOwner($this->ownerData()));
 
         $this->assertSame(
-            'https://this-car.example.com',
+            'https://member.example.com',
             $result['website'],
-            "The car's own website must not be overwritten by the owner's profile website"
+            "The car's own website must be overwritten by the owner's current profile website"
         );
     }
 
@@ -185,6 +190,76 @@ final class OwnerContactRefresherTest extends TestCase
 
         $this->assertTrue($refresher->hasLoadableOwner($this->makeOwner($this->ownerData())));
         $this->assertFalse($refresher->hasLoadableOwner($this->makeOwner(null)));
+    }
+
+    /**
+     * hasValidWebsite() mirrors hasLoadableOwner()'s split-out-for-logging
+     * pattern (#1963/#1979): callers check it before calling refresh() so
+     * they can log the skip, since refresh() itself silently `continue`s past
+     * an invalid website without logging.
+     */
+    public function testHasValidWebsiteReturnsTrueForAWellFormedHttpsUrl(): void
+    {
+        $refresher = new OwnerContactRefresher();
+        $owner = $this->makeOwner($this->ownerData());
+
+        $this->assertTrue($refresher->hasValidWebsite($owner));
+    }
+
+    public function testHasValidWebsiteReturnsFalseForAnInvalidWebsite(): void
+    {
+        $refresher = new OwnerContactRefresher();
+
+        // Neither a well-formed URL nor an allowed scheme — same two failure
+        // modes exercised in
+        // CarEditOwnerColumnRefreshTest::testEditSkipsInvalidProfileWebsiteAndKeepsExistingCarWebsite().
+        $notAUrl = $this->makeOwner(array_merge($this->ownerData(), ['website' => 'not-a-url']));
+        $javascriptScheme = $this->makeOwner(array_merge($this->ownerData(), ['website' => 'javascript:alert(1)']));
+
+        $this->assertFalse($refresher->hasValidWebsite($notAUrl));
+        $this->assertFalse($refresher->hasValidWebsite($javascriptScheme));
+    }
+
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function emptyWebsiteProvider(): array
+    {
+        return [
+            'empty string' => [''],
+            'null'         => [null],
+        ];
+    }
+
+    #[DataProvider('emptyWebsiteProvider')]
+    public function testHasValidWebsiteReturnsTrueForEmptyOrNullWebsite(mixed $emptyValue): void
+    {
+        $refresher = new OwnerContactRefresher();
+        $owner = $this->makeOwner(array_merge($this->ownerData(), ['website' => $emptyValue]));
+
+        $this->assertTrue(
+            $refresher->hasValidWebsite($owner),
+            'An empty/null profile website is valid (it clears the field) — not merged as invalid'
+        );
+    }
+
+    /**
+     * Per the method's docblock: returns true when the owner did not load —
+     * hasLoadableOwner() already covers and logs that case, so this method
+     * has nothing to add for it. An unloadable owner must not ALSO be
+     * reported as having an invalid website.
+     */
+    public function testHasValidWebsiteReturnsTrueWhenOwnerFailedToLoad(): void
+    {
+        $refresher = new OwnerContactRefresher();
+        $owner = $this->makeOwner(null);
+
+        $this->assertFalse($refresher->hasLoadableOwner($owner), 'Precondition: the owner must fail to load');
+        $this->assertTrue(
+            $refresher->hasValidWebsite($owner),
+            'An unloadable owner must not be reported as having an invalid website — ' .
+            'hasLoadableOwner() already covers and logs that case'
+        );
     }
 
     /**

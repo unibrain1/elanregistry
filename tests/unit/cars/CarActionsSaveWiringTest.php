@@ -195,7 +195,7 @@ final class CarActionsSaveWiringTest extends TestCase
      *       call in the function — the invariant is ordering-dependent: it
      *       only holds because updateYear/updateModel/updateChassis/
      *       updateColor/updateEngine/updatePurchasedate/updateSolddate/
-     *       updateWebsite/updateComments (all of which read client input)
+     *       updateComments (all of which read client input)
      *       run AFTER the owner refresh, at the very end of the function.
      *       If the refresh were moved after those calls — or a future
      *       change let one of them write into `$cardetails['user_id']`
@@ -288,7 +288,7 @@ final class CarActionsSaveWiringTest extends TestCase
         // --- (b) Must run before any Input::raw() consumer call ---
         $inputConsumers = [
             'updateYear', 'updateModel', 'updateChassis', 'updateColor', 'updateEngine',
-            'updatePurchasedate', 'updateSolddate', 'updateWebsite', 'updateComments',
+            'updatePurchasedate', 'updateSolddate', 'updateComments',
         ];
         foreach ($inputConsumers as $consumer) {
             $callPos = strpos($functionBody, $consumer . '($cardetails');

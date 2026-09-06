@@ -68,6 +68,7 @@ $_subHeadingClass = $headingTag === 'h4' ? 'card-header-er-l4-text mb-2' : 'text
             </dd>
         </dl>
 
+        <?php if ($purchaseDate || $soldDate) { ?>
         <hr>
 
         <!-- Ownership & History -->
@@ -84,16 +85,8 @@ $_subHeadingClass = $headingTag === 'h4' ? 'card-header-er-l4-text mb-2' : 'text
             <dt class="col-sm-4 text-muted">Sold Date</dt>
             <dd class="col-sm-8"><?= $soldDate->format('F j, Y') ?></dd>
             <?php } ?>
-
-            <?php if (!empty($carData->website) && in_array(strtolower((string)parse_url($carData->website, PHP_URL_SCHEME)), ['http', 'https'], true)) { ?>
-            <dt class="col-sm-4 text-muted">Website</dt>
-            <dd class="col-sm-8">
-                <a href="<?= htmlspecialchars($carData->website, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-external-link-alt" aria-hidden="true"></i> Visit Website
-                </a>
-            </dd>
-            <?php } ?>
         </dl>
+        <?php } ?>
 
         <?php if (!empty($carData->comments)) { ?>
         <hr>
