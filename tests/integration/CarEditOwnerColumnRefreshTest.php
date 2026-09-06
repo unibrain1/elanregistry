@@ -703,6 +703,81 @@ final class CarEditOwnerColumnRefreshTest extends IntegrationTestCase
     }
 
     /**
+     * Case 4b (#1963/#1979 gap, add-car path): an owner whose profile website
+     * fails CarValidator's http(s)-URL validation must not block creating a
+     * brand-new car. Before the fix, the add-car (`else`) branch bypassed
+     * website validation entirely by hand-copying ownerContactFields() into
+     * $cardetails without running it through OwnerContactRefresher first —
+     * so an invalid profile website reached Car::create() unfiltered and
+     * threw CarValidationException, blocking the owner from adding ANY car
+     * at all. Now the add-car branch routes through the same
+     * hasValidWebsite()/refresh() pair as the edit branch, so the invalid
+     * value is skipped and the new car simply has no website (there is no
+     * "existing car website" to preserve here, unlike the edit-path case in
+     * testEditSkipsInvalidProfileWebsiteAndKeepsExistingCarWebsite() above —
+     * the owner has no existing car at all).
+     */
+    public function testNewCarPathSkipsInvalidProfileWebsiteAndDoesNotThrow(): void
+    {
+        $userId = $this->createTestUser([
+            'fname' => 'Brand',
+            'lname' => 'NewOwner',
+            'email' => 'brand-new-owner-badsite@example.com',
+        ]);
+        $this->createTestProfile($userId, [
+            'city'    => 'Bend',
+            'website' => 'not-a-url',
+        ]);
+
+        $owner = new Owner($userId);
+        $ownerData = $owner->data();
+        $this->assertNotNull($ownerData);
+
+        $refresher = new OwnerContactRefresher();
+        $this->assertFalse(
+            $refresher->hasValidWebsite($owner),
+            'Precondition: this test exercises an invalid profile website'
+        );
+
+        // Reproduce buildCarDetails()'s `else` (add-car) branch exactly as
+        // fixed: routed through OwnerContactRefresher::refresh() rather than
+        // a hand-copied ownerContactFields() loop, so the invalid website is
+        // skipped instead of reaching Car::create() and throwing.
+        $cardetails = [];
+        $cardetails = $refresher->refresh($cardetails, $owner);
+        $cardetails['user_id']   = $ownerData->id;
+        $cardetails['join_date'] = $ownerData->join_date;
+        $cardetails['year']      = 1970;
+        $cardetails['model']     = 'Elan';
+        $cardetails['series']    = 'S4';
+        $cardetails['variant']   = 'SE';
+        $cardetails['type']      = 'FHC';
+        $cardetails['chassis']   = 'NEWCHASSIS-BADSITE-01';
+        $cardetails['color']     = 'Green';
+
+        // The bug this test guards against: Car::create() used to throw
+        // CarValidationException here when the invalid website reached it
+        // unfiltered. createTestCar() calling Car::create() without throwing
+        // is itself part of what is under test — no try/catch is used here
+        // deliberately, so PHPUnit fails loudly (rather than a caught/ignored
+        // exception) if the regression reappears.
+        $carId = $this->createTestCar($userId, $cardetails);
+
+        $car = $this->db->query(
+            "SELECT user_id, city, website FROM cars WHERE id = ?",
+            [$carId]
+        )->first();
+        $this->assertNotNull($car);
+        $this->assertSame($userId, (int) $car->user_id);
+        $this->assertSame('Bend', $car->city, 'sanity: the refresh did populate other profile fields normally');
+        $this->assertTrue(
+            $car->website === null || $car->website === '',
+            'a new car must end up with a null/empty website when the profile website is invalid, ' .
+            'not the invalid value itself — got: ' . var_export($car->website, true)
+        );
+    }
+
+    /**
      * Case 5: an owner with empty city and null lat/lon produces a no-op for
      * those specific fields — Car::update() strips ''/null for any field
      * outside CLEARABLE_FIELDS (Car.php:43-45,241-247), and city/lat/lon are

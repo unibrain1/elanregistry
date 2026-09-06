@@ -32,12 +32,18 @@ namespace ElanRegistry;
  *
  * A profile `website` that would fail `CarValidator`'s validation (not a
  * well-formed http(s) URL) is skipped rather than merged — merging it would
- * reach `Car::update()` and throw `CarValidationException`, blocking every
- * future edit to every car this owner has, not just ones that touch
- * `website`. Legacy data and #1961's bulk-promoted orphan websites were
- * never run through the account-settings validator, so an invalid value can
- * genuinely exist on a profile. The car keeps its existing `website` in that
- * case, same as when the owner fails to load.
+ * reach `Car::update()`/`Car::create()` and throw `CarValidationException`,
+ * blocking every future edit (or the add-car flow) for every car this owner
+ * has, not just ones that touch `website`. Legacy data and #1961's
+ * bulk-promoted orphan websites were never run through the account-settings
+ * validator, so an invalid value can genuinely exist on a profile. On the
+ * edit path the car keeps its existing `website` in that case, same as when
+ * the owner fails to load; on the add-car path (no existing car row) the new
+ * car simply has no website until the profile's is fixed.
+ *
+ * Callers should check {@see hasValidWebsite()} before calling `refresh()`
+ * so they can log the skip — `refresh()` itself deliberately does not log,
+ * for the same reason `hasLoadableOwner()` does not (see below).
  *
  * @see \ElanRegistry\Owner::ownerContactFields() for the nine-column list
  * @see \ElanRegistry\Owner::syncOwnerFieldsToCars() the profile-save path,
@@ -154,5 +160,31 @@ class OwnerContactRefresher
     public function hasLoadableOwner(Owner $carOwner): bool
     {
         return $carOwner->data() !== null;
+    }
+
+    /**
+     * Whether the owner's current profile website would survive {@see refresh()}
+     * unskipped — i.e. whether it is empty/null or a well-formed http(s) URL.
+     *
+     * Split out for the same reason as {@see hasLoadableOwner()}: `refresh()`
+     * performs this check internally and silently `continue`s past an invalid
+     * website, so calling `refresh()` without checking this first is safe, not
+     * a bug. The only consequence of skipping this call is that the skip goes
+     * unlogged — and per the class docblock, legacy/#1961-promoted invalid
+     * profile websites are a real, ongoing condition worth a log line so it
+     * doesn't silently and permanently block that one field's refresh with no
+     * trace anywhere.
+     *
+     * Returns `true` when the owner did not load — {@see hasLoadableOwner()}
+     * already covers and logs that case, so this method has nothing to add
+     * for it.
+     */
+    public function hasValidWebsite(Owner $carOwner): bool
+    {
+        if (!$this->hasLoadableOwner($carOwner)) {
+            return true;
+        }
+
+        return self::isValidWebsite($carOwner->ownerContactFields()['website'] ?? null);
     }
 }

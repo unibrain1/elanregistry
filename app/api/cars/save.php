@@ -378,6 +378,11 @@ function buildCarDetails(array &$cardetails, array &$errors, ?int $carId = null)
             $carOwner = new Owner((int) $cardetails['user_id']);
             $refresher = new OwnerContactRefresher();
             if ($refresher->hasLoadableOwner($carOwner)) {
+                if (!$refresher->hasValidWebsite($carOwner)) {
+                    logger($user->data()->id, LogCategories::LOG_CATEGORY_OWNER_ERRORS,
+                        'buildCarDetails: Car ID ' . $carId . ' owner ' . (int) $cardetails['user_id']
+                        . ' has an invalid profile website; skipping website refresh on this car');
+                }
                 $cardetails = $refresher->refresh($cardetails, $carOwner);
             } else {
                 $ownerId = $cardetails['user_id'] !== null ? (int) $cardetails['user_id'] : null;
@@ -397,14 +402,20 @@ function buildCarDetails(array &$cardetails, array &$errors, ?int $carId = null)
         $owner = new Owner($ownerId);
         $ownerData = $owner->data();
 
-        /*  Add the User/profile information to the record. The nine
-            owner-contact columns come from the single canonical definition in
-            Owner::ownerContactFields(), the same set the edit path merges via
-            OwnerContactRefresher; user_id and join_date are outside that set
-            and are assigned explicitly. */
-        foreach ($owner->ownerContactFields() as $key => $value) {
-            $cardetails[$key] = $value;
+        /*  Add the User/profile information to the record. Routed through
+            OwnerContactRefresher — the same class the edit branch uses — so
+            an invalid profile website is skipped here too, rather than
+            reaching Car::create() and throwing CarValidationException for a
+            field this page no longer has an input for. user_id and
+            join_date are outside ownerContactFields()'s scope and are
+            assigned explicitly. */
+        $refresher = new OwnerContactRefresher();
+        if (!$refresher->hasValidWebsite($owner)) {
+            logger($ownerId, LogCategories::LOG_CATEGORY_OWNER_ERRORS,
+                'buildCarDetails: new car for owner ' . $ownerId
+                . ' has an invalid profile website; skipping website on this car');
         }
+        $cardetails = $refresher->refresh($cardetails, $owner);
         $cardetails['user_id']      = $ownerData->id;
         $cardetails['join_date']    = $ownerData->join_date;
 

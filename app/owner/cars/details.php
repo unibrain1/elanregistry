@@ -21,6 +21,7 @@ require_once $abs_us_root . $us_url_root . 'usersc/includes/elanregistry_prep.ph
 use ElanRegistry\Car\Car;
 use ElanRegistry\CarView;
 use ElanRegistry\LogCategories;
+use ElanRegistry\OwnerView;
 
 if (!securePage($php_self)) {
     die();
@@ -230,18 +231,17 @@ if ($carSchemaJson === false) {
 
                                 <?php
                                 // Website is owner-level (issue #1963) — cars.website mirrors the
-                                // owner's profile value, same http/https-only display rule as
+                                // owner's profile value. OwnerView::websiteUrl() is the single
+                                // shared http/https-display rule, also used by
                                 // usersc/account.php's profile header.
-                                $ownerWebsite    = $carData->website ?? '';
-                                $hasOwnerWebsite = !empty($ownerWebsite)
-                                    && in_array(strtolower((string)parse_url((string)$ownerWebsite, PHP_URL_SCHEME)), ['http', 'https'], true);
-                                if ($hasOwnerWebsite) { ?>
+                                $carWebsite = OwnerView::websiteUrl($carData->website ?? '');
+                                if ($carWebsite !== null) { ?>
                                 <dt class="col-sm-4 text-muted">
                                     <i class="fas fa-link text-primary"></i> Website
                                 </dt>
                                 <dd class="col-sm-8">
-                                    <a href="<?= htmlspecialchars($ownerWebsite, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer">
-                                        <?= htmlspecialchars($ownerWebsite, ENT_QUOTES, 'UTF-8') ?>
+                                    <a href="<?= htmlspecialchars($carWebsite, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer">
+                                        <?= htmlspecialchars($carWebsite, ENT_QUOTES, 'UTF-8') ?>
                                     </a>
                                 </dd>
                                 <?php } ?>

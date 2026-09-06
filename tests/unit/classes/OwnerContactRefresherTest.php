@@ -6,6 +6,7 @@ namespace Tests\Unit\Classes;
 
 use ElanRegistry\Owner;
 use ElanRegistry\OwnerContactRefresher;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -189,6 +190,76 @@ final class OwnerContactRefresherTest extends TestCase
 
         $this->assertTrue($refresher->hasLoadableOwner($this->makeOwner($this->ownerData())));
         $this->assertFalse($refresher->hasLoadableOwner($this->makeOwner(null)));
+    }
+
+    /**
+     * hasValidWebsite() mirrors hasLoadableOwner()'s split-out-for-logging
+     * pattern (#1963/#1979): callers check it before calling refresh() so
+     * they can log the skip, since refresh() itself silently `continue`s past
+     * an invalid website without logging.
+     */
+    public function testHasValidWebsiteReturnsTrueForAWellFormedHttpsUrl(): void
+    {
+        $refresher = new OwnerContactRefresher();
+        $owner = $this->makeOwner($this->ownerData());
+
+        $this->assertTrue($refresher->hasValidWebsite($owner));
+    }
+
+    public function testHasValidWebsiteReturnsFalseForAnInvalidWebsite(): void
+    {
+        $refresher = new OwnerContactRefresher();
+
+        // Neither a well-formed URL nor an allowed scheme — same two failure
+        // modes exercised in
+        // CarEditOwnerColumnRefreshTest::testEditSkipsInvalidProfileWebsiteAndKeepsExistingCarWebsite().
+        $notAUrl = $this->makeOwner(array_merge($this->ownerData(), ['website' => 'not-a-url']));
+        $javascriptScheme = $this->makeOwner(array_merge($this->ownerData(), ['website' => 'javascript:alert(1)']));
+
+        $this->assertFalse($refresher->hasValidWebsite($notAUrl));
+        $this->assertFalse($refresher->hasValidWebsite($javascriptScheme));
+    }
+
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function emptyWebsiteProvider(): array
+    {
+        return [
+            'empty string' => [''],
+            'null'         => [null],
+        ];
+    }
+
+    #[DataProvider('emptyWebsiteProvider')]
+    public function testHasValidWebsiteReturnsTrueForEmptyOrNullWebsite(mixed $emptyValue): void
+    {
+        $refresher = new OwnerContactRefresher();
+        $owner = $this->makeOwner(array_merge($this->ownerData(), ['website' => $emptyValue]));
+
+        $this->assertTrue(
+            $refresher->hasValidWebsite($owner),
+            'An empty/null profile website is valid (it clears the field) — not merged as invalid'
+        );
+    }
+
+    /**
+     * Per the method's docblock: returns true when the owner did not load —
+     * hasLoadableOwner() already covers and logs that case, so this method
+     * has nothing to add for it. An unloadable owner must not ALSO be
+     * reported as having an invalid website.
+     */
+    public function testHasValidWebsiteReturnsTrueWhenOwnerFailedToLoad(): void
+    {
+        $refresher = new OwnerContactRefresher();
+        $owner = $this->makeOwner(null);
+
+        $this->assertFalse($refresher->hasLoadableOwner($owner), 'Precondition: the owner must fail to load');
+        $this->assertTrue(
+            $refresher->hasValidWebsite($owner),
+            'An unloadable owner must not be reported as having an invalid website — ' .
+            'hasLoadableOwner() already covers and logs that case'
+        );
     }
 
     /**
