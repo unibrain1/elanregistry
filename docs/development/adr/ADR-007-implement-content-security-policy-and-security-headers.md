@@ -387,6 +387,7 @@ via HTTP response inspection.
 | 2026-05-06 | Remove Google Maps domains (`maps.googleapis.com`, `maps.gstatic.com`, `gstatic.com`, `ssl.gstatic.com`, `www.gstatic.com`) from CSP allowlist; add `https://tiles.versatiles.org` to `img-src` and `connect-src` for MapLibre GL JS tile fetches | v2.22.0 |
 | 2026-07-13 | Add `form-action 'self'` directive; remove `'unsafe-eval'` from `script-src` (grep-verified: no `eval()` or `new Function()` in first-party JS under `app/assets/js/`, `app/admin/assets/`, `usersc/js/`, or inline `<script>` blocks in customizer templates) | #1326 |
 | 2026-07-15 | Remove `'unsafe-inline'` from `script-src`; add per-request nonce (`'nonce-{$userspice_nonce}'`) generated in `security_headers.php`; add SHA-256 hashes for 5 static upstream scripts as belt-and-suspenders; wire nonce attributes to all data-island `<script>` blocks introduced in #1328 | #1328 |
+| 2026-09-06 | Correct stale "Cloudflare proxy is not in use" claim in WAF Alternatives section — the application is in fact proxied through Cloudflare (confirmed via DNS/header inspection) | #1543 |
 
 > **2026-04-27 (#405):** Removed the following domains from the CSP allowlist:
 >
@@ -692,6 +693,19 @@ headers at the infrastructure level, removing header management from PHP.
 
 - The application runs on shared hosting (A2 Hosting) without WAF capabilities.
 - Cloudflare proxy is not in use; the application connects directly to A2 Hosting.
+
+  > **2026-09-06:** This claim was incorrect even at ADR-write time and is
+  > retained here only as a historical record of the (mistaken) belief that
+  > informed the WAF-rejection decision above. The application's DNS is
+  > proxied through Cloudflare (orange-clouded) — confirmed via `cf-ray`,
+  > `cf-cache-status`, and Cloudflare-anycast resolved IPs — not DNS-only.
+  > The actual request path is client → Cloudflare edge → A2 Hosting origin.
+  > This does not change the WAF-rejection outcome itself: Cloudflare's
+  > *proxy* features (edge caching, DDoS mitigation) are in active use, but
+  > Cloudflare's separate WAF product tier is not enabled/configured, so the
+  > original rejection rationale (no WAF layer available) still holds for a
+  > different reason than stated. See #1543.
+
 - Adding a WAF layer introduces a new infrastructure dependency incompatible with
 
   the shared-hosting deployment model (ADR-001).
