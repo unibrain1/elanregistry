@@ -25,7 +25,7 @@ if (!securePage($php_self)) {
 
 $policy = <<<'GUIDEHTML'
 <h1><a id="privacy-policy" href="#privacy-policy" class="" aria-hidden="true" title="Permalink"></a>Privacy Policy</h1>
-<p><strong>Effective: May 6, 2026</strong></p>
+<p><strong>Effective: September 6, 2026</strong></p>
 <p>The Elan Registry is a community database for Lotus Elan cars, run by enthusiasts for enthusiasts. This page explains what information we collect, what we do with it, and what rights you have over your data.</p>
 <p>The short version: we collect what's needed to run the registry, we keep your personal details private, and you can change or delete your data at any time. If you decide to leave, we'll remove your personal information but may keep the car records themselves so the registry stays useful to the community.</p>
 <h2><a id="what-we-collect" href="#what-we-collect" class="" aria-hidden="true" title="Permalink"></a>What we collect</h2>
@@ -35,9 +35,13 @@ $policy = <<<'GUIDEHTML'
 <p>We ask for a city, state, and country so cars can be browsed by region, but we deliberately fuzz the location data so it isn't pinpoint accurate. Nobody needs to know exactly where your Elan lives.</p>
 <p>On the technical side, we log IP addresses for security, use a session cookie to keep you logged in, and keep system logs for debugging. Standard stuff.</p>
 <p>There's also an internal messaging system. If another registered user wants to contact you, the first message goes through our site so your email address stays hidden. After that you can take the conversation offsite if you both want to.</p>
+<p>If you own more than one car in the registry, your name, email, location, and website (when you've entered profile-level values for any of these) are kept in sync across every car you own — updating one automatically updates all of them.</p>
 <h2><a id="what-we-do-with-it" href="#what-we-do-with-it" class="" aria-hidden="true" title="Permalink"></a>What we do with it</h2>
 <p>We use your information to run the registry, let users contact each other safely, power search and browsing, and keep the site secure.</p>
-<p>What we don't do: sell your data, share it with third parties, show your last name or email publicly, track your exact location, or keep detailed browsing histories.</p>
+<p>We use Brevo, a third-party email delivery service based in the EU, to send transactional email — password resets, contact messages, transfer notifications, and car-verification requests. Brevo receives the recipient's email address and the content of that one message; it does not receive your other registry data. We use Brevo because there's no way to reliably deliver email without a processor like it.</p>
+<p>We keep a record of whether verification and other transactional emails to your address were delivered, bounced, or marked as spam, for as long as we need it to keep the registry's contact information accurate and to detect addresses that are no longer working. If your email address bounces or is marked as spam, that status is visible to registry administrators — not to other members or the public — so we can avoid repeatedly emailing an address that doesn't work.</p>
+<p>Every verification email includes a one-click link to stop receiving them — no login required. If your email is marked as spam-suppressed, you can turn verification emails back on yourself from Account Settings at any time. If your email bounced because the address itself no longer works, verification emails resume automatically as soon as you confirm a working email address — there's no separate switch to flip for that case.</p>
+<p>What we don't do: sell your data, show your last name or email publicly, track your exact location, or keep detailed browsing histories.</p>
 <h2><a id="security" href="#security" class="" aria-hidden="true" title="Permalink"></a>Security</h2>
 <p>Passwords are hashed. Personal information is hidden from other users. We apply security updates and monitor the site for issues. Nothing is ever 100% secure on the internet, but we take reasonable steps to protect what you've trusted us with.</p>
 <h2><a id="your-rights-under-gdpr" href="#your-rights-under-gdpr" class="" aria-hidden="true" title="Permalink"></a>Your rights under GDPR</h2>
@@ -52,7 +56,7 @@ $policy = <<<'GUIDEHTML'
 <h2><a id="updates" href="#updates" class="" aria-hidden="true" title="Permalink"></a>Updates</h2>
 <p>If we change this policy, we'll update the effective date at the top of the page and post the new version here. Anything significant, we'll announce to users.</p>
 <hr />
-<p><em>Last updated: May 6, 2026</em></p>
+<p><em>Last updated: September 6, 2026. This update adds disclosures about our email delivery provider, delivery-status tracking, and how your information is kept in sync across cars you own.</em></p>
 
 GUIDEHTML;
 ?>
