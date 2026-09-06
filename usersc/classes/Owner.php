@@ -642,13 +642,14 @@ class Owner
      * @return OwnerSyncResult Per-car outcome: the car IDs synchronized, those
      *         skipped because ownership changed mid-sync (not a failure), and
      *         those that were rolled back due to a real error
-     * @throws OwnerDatabaseException If getCarsOwned() fails to query — a DB
-     *         failure here must surface as a real exception, not silently
-     *         collapse into "0 cars synced" (#1505 PR B); if an ownership
-     *         lookup fails mid-loop, which is an infrastructure failure rather
-     *         than a per-car outcome; or if this method is called while an
-     *         outer transaction is already open, which would make every per-car
-     *         rollback a silent no-op
+     * @throws OwnerDatabaseException If this Owner failed to load (no user row
+     *         for this ID), since there is no owner data to sync onto any car;
+     *         if getCarsOwned() fails to query — a DB failure here must surface
+     *         as a real exception, not silently collapse into "0 cars synced"
+     *         (#1505 PR B); if an ownership lookup fails mid-loop, which is an
+     *         infrastructure failure rather than a per-car outcome; or if this
+     *         method is called while an outer transaction is already open,
+     *         which would make every per-car rollback a silent no-op
      * @throws CarDatabaseException If a per-car UPDATE fails at the DB level —
      *         propagated rather than recorded as a per-car failure, for the same
      *         reason as above
@@ -656,7 +657,10 @@ class Owner
     public function syncOwnerFieldsToCars(): OwnerSyncResult
     {
         if (!$this->_data) {
-            return new OwnerSyncResult();
+            throw new OwnerDatabaseException(
+                'Owner::syncOwnerFieldsToCars() called on an Owner that failed to load '
+                . '(no user row for this ID) — cannot sync fields that were never read.'
+            );
         }
 
         $ownedCars = $this->getCarsOwned();
