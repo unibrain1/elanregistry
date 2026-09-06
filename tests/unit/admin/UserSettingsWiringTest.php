@@ -103,7 +103,7 @@ final class UserSettingsWiringTest extends TestCase
         // elsewhere in the file (e.g. a future addition).
         $tryStart = strpos($content, '$syncResult = $owner->syncOwnerFieldsToCars();');
         $this->assertIsInt($tryStart, 'Could not locate the syncOwnerFieldsToCars() call site');
-        $catchBlock = substr($content, $tryStart, 1800);
+        $catchBlock = substr($content, $tryStart, 3000);
 
         $this->assertMatchesRegularExpression(
             '/}\s*catch\s*\(\\\\?(ElanRegistry\\\\Exceptions\\\\)?OwnerDatabaseException\s*\|\s*\\\\?(ElanRegistry\\\\Exceptions\\\\)?CarDatabaseException\s+\$e\)\s*{/',
@@ -407,6 +407,163 @@ final class UserSettingsWiringTest extends TestCase
             $caught,
             'The catch ladder must run specific-to-general and end in \\Throwable. '
             . 'PHP does not flag an unreachable catch, so a reordering here fails silently.'
+        );
+    }
+
+    // =========================================================================
+    // Skipped-vs-failed scoping of the partial-sync message (#1954)
+    // =========================================================================
+
+    /**
+     * Brace-balance forward from an opening `{` at or after $start, returning
+     * the index of its matching close brace.
+     *
+     * Indentation-anchored delimiters encode a nesting depth rather than a
+     * structural relationship, so a dedent silently truncates the extracted
+     * body and makes the assertions against it vacuous — see
+     * testUnconfirmedEmailBranchDoesNotTriggerCarSync() for the same reasoning.
+     *
+     * @param string $content Source text
+     * @param int    $start   Index of (or before) the block's opening brace
+     * @return int|null Index of the matching close brace, or null if unbalanced
+     */
+    private function matchingBraceEnd(string $content, int $start): ?int
+    {
+        $depth = 0;
+        $seenOpen = false;
+        for ($i = $start, $len = strlen($content); $i < $len; $i++) {
+            if ($content[$i] === '{') {
+                $depth++;
+                $seenOpen = true;
+            } elseif ($content[$i] === '}') {
+                $depth--;
+                if ($seenOpen && $depth === 0) {
+                    return $i;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The partial-sync error message must live only in the failure branch
+     * (#1954).
+     *
+     * A skip-only outcome keeps isCompleteSuccess() true, so it must take the
+     * $successes[] path. If the "Please contact support if this persists."
+     * message ever migrated into the isCompleteSuccess() true branch, an owner
+     * whose car merely changed hands mid-sync would be told to contact support
+     * about a non-error.
+     *
+     * The same sentence also appears in this file's two catch blocks, so the
+     * assertions are scoped by construction: only this if/else pair's two
+     * bodies are extracted, never the whole file.
+     */
+    public function testPartialSyncErrorMessageIsInsideCompleteSuccessElseBranch(): void
+    {
+        $content = $this->readEndpointSource(self::USER_SETTINGS_ENDPOINT);
+
+        $marker = 'if ($syncResult->isCompleteSuccess()) {';
+        $ifStart = strpos($content, $marker);
+        $this->assertNotFalse($ifStart, 'user_settings.php must still branch on isCompleteSuccess()');
+        $this->assertSame(
+            1,
+            substr_count($content, $marker),
+            'Expected exactly one isCompleteSuccess() branch; a second one would make the '
+            . 'anchor below ambiguous and the extraction target the wrong block'
+        );
+
+        $ifEnd = $this->matchingBraceEnd($content, $ifStart);
+        $this->assertNotNull($ifEnd, 'Could not brace-balance the end of the isCompleteSuccess() branch');
+        $ifBody = substr($content, $ifStart, $ifEnd - $ifStart + 1);
+
+        $elseStart = strpos($content, 'else {', $ifEnd);
+        $this->assertNotFalse($elseStart, 'The isCompleteSuccess() branch must be followed by an else branch');
+        $elseEnd = $this->matchingBraceEnd($content, $elseStart);
+        $this->assertNotNull($elseEnd, 'Could not brace-balance the end of the isCompleteSuccess() else branch');
+        $elseBody = substr($content, $elseStart, $elseEnd - $elseStart + 1);
+
+        // Anchor on content, not length: proves the extraction reached the real
+        // failure-reporting body rather than truncating early.
+        $this->assertStringContainsString(
+            '$errors[] = ',
+            $elseBody,
+            'The extracted else branch must be the one that reports the partial sync via $errors[]'
+        );
+        $this->assertStringContainsString(
+            'Please contact support if this persists.',
+            $elseBody,
+            'The partial-sync error message must live in the isCompleteSuccess() failure branch'
+        );
+
+        $this->assertStringContainsString(
+            '$successes[] = ',
+            $ifBody,
+            'The isCompleteSuccess() true branch must report success, not failure'
+        );
+        $this->assertStringNotContainsString(
+            'Please contact support if this persists.',
+            $ifBody,
+            'A skip-only outcome keeps isCompleteSuccess() true and must take the $successes[] '
+            . 'path — the "contact support" message must never appear in the success branch (#1954)'
+        );
+    }
+
+    /**
+     * The admin sync endpoint must return error(500) only for real failures,
+     * with skipped cars reported through the success path (#1954).
+     *
+     * A skip means the car left this owner mid-sync — expected behavior, not an
+     * error. The error(500) response therefore has to stay inside the
+     * !isCompleteSuccess() guard, and the informational skip reporting
+     * (->withData('cars_skipped', ...) and the success message) has to live
+     * after that guard closes. The success message itself is built by
+     * OwnerSyncResult::successMessage(), not inlined here — its skip-only
+     * wording ("No cars were synchronized." vs "...to 0 car(s).") is covered
+     * by runtime unit tests in OwnerSyncResultTest, since this endpoint calls
+     * send()/exit and cannot be included directly in PHPUnit.
+     */
+    public function testAdminSyncEndpointReportsSkipsOutsideTheErrorGuard(): void
+    {
+        $content = $this->readEndpointSource('app/admin/includes/process-owner-sync-location.php');
+
+        $marker = 'if (!$syncResult->isCompleteSuccess()) {';
+        $guardStart = strpos($content, $marker);
+        $this->assertNotFalse($guardStart, 'The endpoint must still guard its failure response on !isCompleteSuccess()');
+
+        $guardEnd = $this->matchingBraceEnd($content, $guardStart);
+        $this->assertNotNull($guardEnd, 'Could not brace-balance the end of the !isCompleteSuccess() guard');
+        $guardBody = substr($content, $guardStart, $guardEnd - $guardStart + 1);
+        $afterGuard = substr($content, $guardEnd + 1);
+
+        $this->assertStringContainsString(
+            'ApiResponse::error(',
+            $guardBody,
+            'The partial-sync failure response must be inside the !isCompleteSuccess() guard'
+        );
+        $this->assertStringContainsString(
+            '500',
+            $guardBody,
+            'The partial-sync failure response must be a 500, inside the guard'
+        );
+        $this->assertStringNotContainsString(
+            'ApiResponse::error(',
+            $afterGuard,
+            'Nothing after the guard may return a partial-sync error — a skip-only outcome '
+            . 'must not be reported as a failure (#1954)'
+        );
+
+        $this->assertStringContainsString(
+            '$syncResult->successMessage()',
+            $afterGuard,
+            'The success path after the guard must delegate its message to '
+            . 'OwnerSyncResult::successMessage(), which handles the skip-only wording (#1954)'
+        );
+        $this->assertStringContainsString(
+            "->withData('cars_skipped'",
+            $afterGuard,
+            'The success response must still carry the skipped car IDs for the caller'
         );
     }
 }

@@ -32,7 +32,9 @@ use PHPUnit\Framework\TestCase;
  *   * which LogCategories constant each failure branch uses.
  *   * that a partial OwnerSyncResult is logged at all: per-car failures come
  *     back through the return value, never as an exception, so the catch
- *     blocks cannot see them.
+ *     blocks cannot see them. A car skipped for no longer being owned is not
+ *     such a failure — it lands in `skipped`, which leaves isCompleteSuccess()
+ *     true, so it must not reach the partial-sync log branch (#1954).
  *   * that a missing/non-existent $verify returns silently.
  *
  * @see usersc/plugins/hooker/hooks/sync_owner_email_on_verify.php

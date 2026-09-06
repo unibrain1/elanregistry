@@ -392,7 +392,9 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
     }
 
     /**
-     * Partial success reports both updated and failed car-id lists.
+     * A sync that updates one car and skips another (mid-sync ownership
+     * change) reports both lists correctly, and the skip alone does not
+     * make the result read as a failure.
      *
      * Simulates the snapshot-vs-write race directly: seed Owner's private
      * `_carsOwned` cache (via Reflection) with two cars, then reassign one of
@@ -403,7 +405,7 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
      * scenario's logging/DB-proxy details in isolation; this test just
      * confirms the returned result carries both lists correctly in one call.
      */
-    public function testPartialSuccessReportsBothUpdatedAndFailedCarIds(): void
+    public function testPartialSyncReportsUpdatedAndSkippedCarIds(): void
     {
         $userId = $this->createTestUser();
         $this->createTestProfile($userId, ['lat' => 45.5231, 'lon' => -122.6765]);
@@ -426,8 +428,9 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
         $result = $owner->syncOwnerFieldsToCars();
 
         $this->assertSame([$carId1], $result->updated);
-        $this->assertSame([$carId2], $result->failed);
-        $this->assertFalse($result->isCompleteSuccess());
+        $this->assertSame([$carId2], $result->skipped, 'The reassigned car must appear in skipped, not failed');
+        $this->assertSame([], $result->failed, 'A mid-sync ownership change is not a failure');
+        $this->assertTrue($result->isCompleteSuccess(), 'A skip-only result must read as complete success');
     }
 
     /**
@@ -566,5 +569,183 @@ final class OwnerSyncOwnerFieldsToCarsTest extends IntegrationTestCase
         $mtimeAfterSync = (string) $this->db->query("SELECT mtime FROM cars WHERE id = ?", [$carId])->first()->mtime;
         $this->assertGreaterThan($staleMtime, $mtimeAfterSync, 'Precondition: the sync must actually bump mtime forward, or this is not exercising the intended branch');
         $this->assertSame(1, $this->countOwnerSyncHistoryRows($carId), 'A sync that changes mtime (even with all nine owner fields already matching) is not a no-op UPDATE and must write exactly one OWNER_SYNC row');
+    }
+
+    /**
+     * All three outcomes in a single sync call — the three-way distinction from
+     * issue #1954's acceptance criteria.
+     *
+     * Nothing else pins updated/skipped/failed as mutually exclusive buckets
+     * populated from ONE loop: each sibling suite covers only two of the three.
+     * This combines their techniques —
+     * testPartialSyncReportsUpdatedAndSkippedCarIds() above seeds Owner's
+     * private `_carsOwned` cache via Reflection to reproduce the
+     * snapshot-vs-write ownership race deterministically, and
+     * OwnerSyncOwnerFieldsToCarsRollbackTest::dbFailingHistoryInsert() proxies
+     * DatabaseInterface to fail the history insert. The proxy here fails
+     * SELECTIVELY (only the one car's cars_hist row) so the other two cars
+     * still travel their real code paths in the same call.
+     *
+     * failedCarsPhrase() must name only the failed car: reporting a skip as a
+     * failure is the exact defect #1954 addresses.
+     *
+     * @see OwnerSyncOwnerFieldsToCarsRollbackTest::dbFailingHistoryInsert()
+     */
+    public function testSingleSyncSortsUpdatedSkippedAndFailedIndependently(): void
+    {
+        $userId = $this->createTestUser();
+        $this->createTestProfile($userId, ['lat' => 45.5231, 'lon' => -122.6765]);
+
+        $carIdUpdated = $this->createTestCar($userId, ['city' => 'UpdatedCity', 'lat' => null, 'lon' => null]);
+        $carIdSkipped = $this->createTestCar($userId, ['city' => 'SkippedCity', 'lat' => null, 'lon' => null]);
+        $carIdFailed  = $this->createTestCar($userId, ['city' => 'FailedCity',  'lat' => null, 'lon' => null]);
+
+        // Snapshot all three rows BEFORE the reassignment below, so the seeded
+        // cache reflects what getCarsOwned() would have returned at snapshot time.
+        $carRowUpdated = $this->db->query("SELECT * FROM cars WHERE id = ?", [$carIdUpdated])->first();
+        $carRowSkipped = $this->db->query("SELECT * FROM cars WHERE id = ?", [$carIdSkipped])->first();
+        $carRowFailed  = $this->db->query("SELECT * FROM cars WHERE id = ?", [$carIdFailed])->first();
+
+        // Ownership changes mid-sync for exactly one car: the write-time check
+        // fails for it while the seeded snapshot still lists it.
+        $otherUserId = $this->createTestUser();
+        $this->db->query("UPDATE cars SET user_id = ? WHERE id = ?", [$otherUserId, $carIdSkipped]);
+
+        $db = $this->dbFailingHistoryInsertForCar($carIdFailed);
+        $owner = $this->ownerWithLoadedData($db, [
+            'id'      => $userId,
+            'fname'   => 'Three',
+            'lname'   => 'Way',
+            'email'   => 'threeway@example.com',
+            'city'    => 'NewCity',
+            'state'   => 'NewState',
+            'country' => 'New Country',
+            'lat'     => '45.5231',
+            'lon'     => '-122.6765',
+            'website' => 'https://example.com',
+        ]);
+
+        $ref = new \ReflectionClass(Owner::class);
+        $ref->getProperty('_carsOwned')->setValue($owner, [$carRowUpdated, $carRowSkipped, $carRowFailed]);
+
+        $result = $owner->syncOwnerFieldsToCars();
+
+        $this->assertSame([$carIdUpdated], $result->updated, 'Only the untouched, still-owned car may be reported as updated');
+        $this->assertSame([$carIdSkipped], $result->skipped, 'The reassigned car must be skipped, not failed');
+        $this->assertSame([$carIdFailed], $result->failed, 'The car whose history insert failed must be reported as failed');
+        $this->assertSame(3, $result->totalCount(), 'totalCount() must span all three buckets');
+        $this->assertFalse($result->isCompleteSuccess(), 'A real per-car failure must make the result read as incomplete');
+
+        // Exact phrase, not a substring probe: car IDs are auto-increment and
+        // one can be a substring of another in a shared test database.
+        $this->assertSame(
+            "Car {$carIdFailed} could not be updated.",
+            $result->failedCarsPhrase(),
+            'failedCarsPhrase() must name the failed car and only the failed car (#1954)'
+        );
+        $this->assertSame(
+            "Car {$carIdSkipped} no longer owned; not updated.",
+            $result->skippedCarsPhrase(),
+            'skippedCarsPhrase() must name the skipped car separately from the failed one'
+        );
+
+        // The three-way distinction made concrete at the row level.
+        $updatedRow = $this->db->query("SELECT city FROM cars WHERE id = ?", [$carIdUpdated])->first();
+        $this->assertSame('NewCity', $updatedRow->city, 'The updated car must hold the owner\'s new values');
+
+        $failedRow = $this->db->query("SELECT city FROM cars WHERE id = ?", [$carIdFailed])->first();
+        $this->assertSame('FailedCity', $failedRow->city, 'The failed car\'s transaction must have rolled back to its original values');
+
+        $skippedRow = $this->db->query("SELECT city FROM cars WHERE id = ?", [$carIdSkipped])->first();
+        $this->assertSame('SkippedCity', $skippedRow->city, 'The skipped car must not receive the previous owner\'s values');
+    }
+
+    /**
+     * A DatabaseInterface proxy over the real connection that fails insert()
+     * ONLY for the cars_hist row belonging to $failingCarId.
+     *
+     * OwnerSyncOwnerFieldsToCarsRollbackTest::dbFailingHistoryInsert() fails
+     * every insert, which cannot express a mixed outcome. CarRepository::
+     * insertHistory() passes the target car in $fields['car_id'], so keying on
+     * that lets one car fail while its siblings commit normally in the same
+     * sync call.
+     */
+    private function dbFailingHistoryInsertForCar(int $failingCarId): \ElanRegistry\DatabaseInterface
+    {
+        return new class ($this->db, $failingCarId) implements \ElanRegistry\DatabaseInterface {
+            public function __construct(
+                private \ElanRegistry\DatabaseInterface $real,
+                private int $failingCarId
+            ) {
+            }
+            public function query(string $sql, array $params = []): self
+            {
+                $this->real->query($sql, $params);
+                return $this;
+            }
+            public function get(string $table, array $where): self|false
+            {
+                return $this->real->get($table, $where) === false ? false : $this;
+            }
+            public function insert(string $table, array $fields = [], bool $update = false): bool
+            {
+                if ($table === 'cars_hist' && (int) ($fields['car_id'] ?? 0) === $this->failingCarId) {
+                    return false;
+                }
+                return $this->real->insert($table, $fields, $update);
+            }
+            public function update(string $table, array|int $id, array $fields): bool
+            {
+                return $this->real->update($table, $id, $fields);
+            }
+            public function delete(string $table, array|int $where): self|false
+            {
+                return $this->real->delete($table, $where) === false ? false : $this;
+            }
+            public function error(): bool
+            {
+                return $this->real->error();
+            }
+            public function errorString(): string
+            {
+                return $this->real->errorString();
+            }
+            public function errorInfo(): array
+            {
+                return $this->real->errorInfo();
+            }
+            public function count(): int
+            {
+                return $this->real->count();
+            }
+            public function first(bool $assoc = false): array|object
+            {
+                return $this->real->first($assoc);
+            }
+            public function results(bool $assoc = false): array
+            {
+                return $this->real->results($assoc);
+            }
+            public function lastId(): int
+            {
+                return $this->real->lastId();
+            }
+            public function beginTransaction(): bool
+            {
+                return $this->real->beginTransaction();
+            }
+            public function commit(): bool
+            {
+                return $this->real->commit();
+            }
+            public function rollBack(): bool
+            {
+                return $this->real->rollBack();
+            }
+            public function inTransaction(): bool
+            {
+                return $this->real->inTransaction();
+            }
+        };
     }
 }

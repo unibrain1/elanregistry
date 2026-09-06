@@ -473,18 +473,28 @@ if (!empty($_POST)) {
             try {
                 $owner = new Owner($userId);
                 $syncResult = $owner->syncOwnerFieldsToCars();
+                // Cars in $syncResult's skipped bucket (no longer owned by this user) are
+                // intentionally not reported here — there's nothing actionable for the
+                // owner, since the car isn't theirs anymore. isCompleteSuccess() already
+                // treats a skip-only outcome as success.
                 if ($syncResult->isCompleteSuccess()) {
                     if ($syncResult->updatedCount() > 0) {
                         $successes[] = "Owner details synchronized to {$syncResult->updatedCount()} car(s).";
                     }
                 } else {
-                    $errors[] = sprintf(
-                        'Owner details saved, but synchronized to only %d of %d car(s). %s '
-                        . 'Please contact support if this persists.',
+                    // totalCount() includes skipped cars, so the denominator can
+                    // exceed updated + failed. Name the skips too, or the count
+                    // reads as unexplained missing cars (#1954).
+                    $syncError = sprintf(
+                        'Owner details saved, but synchronized to only %d of %d car(s). %s',
                         $syncResult->updatedCount(),
                         $syncResult->totalCount(),
                         $syncResult->failedCarsPhrase()
                     );
+                    if ($syncResult->skippedCount() > 0) {
+                        $syncError .= ' ' . $syncResult->skippedCarsPhrase();
+                    }
+                    $errors[] = $syncError . ' Please contact support if this persists.';
                 }
             } catch (OwnerDatabaseException | CarDatabaseException $e) {
                 // CarDatabaseException is a sibling of OwnerDatabaseException, not a

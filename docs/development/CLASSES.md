@@ -343,9 +343,21 @@ any failure including a PHP `\Error`. Their post-write reload call is
 wrapped in its own local `try/catch (OwnerDatabaseException $e)` — a reload
 failure after a successful write is logged, not propagated.
 
-`syncOwnerFieldsToCars()` lets `getCarsOwned()`'s exception propagate
-uncaught by design — a DB failure should surface as a real exception, not
+`syncOwnerFieldsToCars()` returns an `OwnerSyncResult` value object with three
+outcome buckets: `updated` (write succeeded), `failed` (history insert or UPDATE
+failed at the DB level), and `skipped` (car no longer owned by this user at write
+time — ownership changed between the initial car list and the write; not a failure,
+expected behavior). `syncOwnerFieldsToCars()` lets `getCarsOwned()`'s exception
+propagate uncaught by design — a DB failure should surface as a real exception, not
 collapse into a result that silently reports nothing as updated or failed.
+`OwnerSyncResult::successMessage()`, currently called only by
+`process-owner-sync-location.php`, words a skip-only outcome
+(`updatedCount() === 0`) as "No cars were synchronized." rather than "...to 0
+car(s).", which would otherwise read as a failure. `usersc/user_settings.php`
+deliberately does not call it — it stays silent on a skip-only outcome since
+a car the owner no longer owns isn't actionable for them; this is intentional
+divergence, not drift. Callers with a real failure build their own message
+from `failedCarsPhrase()` instead.
 
 `ownerContactFields()` is the single definition of the nine denormalized
 owner-contact columns (`fname`, `lname`, `email` from `users`; `city`,

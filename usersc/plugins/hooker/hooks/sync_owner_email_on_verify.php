@@ -40,11 +40,14 @@ try {
     $result = (new \ElanRegistry\Owner($userId))->syncOwnerFieldsToCars();
 
     if (!$result->isCompleteSuccess()) {
-        // Per-car failures (the car left this owner mid-sync, a history insert
-        // failed and rolled back, any per-car \Throwable) come back through the
-        // return value, NOT as an exception — the catch blocks below never see
-        // them. Without this branch they would vanish entirely, since this hook
-        // surfaces nothing to the user.
+        // Per-car failures (a history insert failed and rolled back, any per-car
+        // \Throwable) come back through the return value, NOT as an exception —
+        // the catch blocks below never see them. Without this branch they would
+        // vanish entirely, since this hook surfaces nothing to the user.
+        //
+        // A car that left this owner mid-sync deliberately does NOT reach here:
+        // it lands in the result's `skipped` bucket, which isCompleteSuccess()
+        // treats as success — it is expected behavior, not an error (#1954).
         logger($userId, \ElanRegistry\LogCategories::LOG_CATEGORY_OWNER_ERRORS,
             "sync_owner_email_on_verify: partial sync for user {$userId} — "
             . "{$result->updatedCount()} of {$result->totalCount()} car(s) updated; "
