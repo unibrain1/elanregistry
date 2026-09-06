@@ -343,8 +343,12 @@ any failure including a PHP `\Error`. Their post-write reload call is
 wrapped in its own local `try/catch (OwnerDatabaseException $e)` — a reload
 failure after a successful write is logged, not propagated.
 
-`syncOwnerFieldsToCars()` lets `getCarsOwned()`'s exception propagate
-uncaught by design — a DB failure should surface as a real exception, not
+`syncOwnerFieldsToCars()` returns an `OwnerSyncResult` value object with three
+outcome buckets: `updated` (write succeeded), `failed` (history insert or UPDATE
+failed at the DB level), and `skipped` (car no longer owned by this user at write
+time — ownership changed between the initial car list and the write; not a failure,
+expected behavior). `syncOwnerFieldsToCars()` lets `getCarsOwned()`'s exception
+propagate uncaught by design — a DB failure should surface as a real exception, not
 collapse into a result that silently reports nothing as updated or failed.
 
 `ownerContactFields()` is the single definition of the nine denormalized

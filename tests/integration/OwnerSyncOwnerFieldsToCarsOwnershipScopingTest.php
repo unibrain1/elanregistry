@@ -15,7 +15,8 @@ use PHPUnit\Framework\Attributes\Group;
  * Scenario: a car present in the getCarsOwned() snapshot but no longer
  * owned by this user at write time (e.g. transferred to another owner
  * between the snapshot read and the per-car write) must NOT be overwritten,
- * must be reported in the result's `failed` list, and must be logged.
+ * must be reported in the result's `skipped` list (not `failed` — this is
+ * expected behavior, not an error), and must be logged.
  *
  * Reproduced deterministically rather than via real timing: the car is
  * reassigned to another user for real, up front. A DatabaseInterface proxy
@@ -147,7 +148,7 @@ final class OwnerSyncOwnerFieldsToCarsOwnershipScopingTest extends IntegrationTe
         };
     }
 
-    public function testCarNoLongerOwnedIsNotOverwrittenReportedFailedAndLogged(): void
+    public function testCarNoLongerOwnedIsNotOverwrittenAndSkippedAndLogged(): void
     {
         $userId = $this->createTestUser();
         $otherUserId = $this->createTestUser();
@@ -182,8 +183,9 @@ final class OwnerSyncOwnerFieldsToCarsOwnershipScopingTest extends IntegrationTe
         $result = $owner->syncOwnerFieldsToCars();
 
         $this->assertSame([], $result->updated, 'The reassigned car must not appear in updated');
-        $this->assertSame([$carId], $result->failed, 'The reassigned car must appear in failed');
-        $this->assertFalse($result->isCompleteSuccess());
+        $this->assertSame([$carId], $result->skipped, 'The reassigned car must appear in skipped, not failed');
+        $this->assertSame([], $result->failed, 'A mid-sync ownership change is not a failure');
+        $this->assertTrue($result->isCompleteSuccess(), 'A skip-only result must read as complete success');
 
         // The car's real, current values must NOT have been overwritten with
         // this (former) owner's data.

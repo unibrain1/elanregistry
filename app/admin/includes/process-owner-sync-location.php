@@ -47,17 +47,25 @@ try {
 
     if (!$syncResult->isCompleteSuccess()) {
         $failedList = implode(', ', $syncResult->failed);
+        // totalCount() includes skipped cars, so the denominator can exceed
+        // updated + failed. Name the skips too, or the count reads as
+        // unexplained missing cars (#1954).
+        $partialMessage = sprintf(
+            'Synchronized owner details to only %d of %d car(s). %s',
+            $syncResult->updatedCount(),
+            $syncResult->totalCount(),
+            $syncResult->failedCarsPhrase()
+        );
+        if ($syncResult->skippedCount() > 0) {
+            $partialMessage .= ' ' . $syncResult->skippedCarsPhrase();
+        }
         ApiResponse::error(
-            sprintf(
-                'Synchronized owner details to only %d of %d car(s). %s',
-                $syncResult->updatedCount(),
-                $syncResult->totalCount(),
-                $syncResult->failedCarsPhrase()
-            ),
+            $partialMessage,
             500
         )
             ->withData('cars_updated', $syncResult->updatedCount())
             ->withData('cars_failed', $syncResult->failed)
+            ->withData('cars_skipped', $syncResult->skipped)
             ->withLogging(
                 $user->data()->id,
                 LogCategories::LOG_CATEGORY_OWNER_ACTIONS,
@@ -74,8 +82,13 @@ try {
             ->send();
     }
 
-    ApiResponse::success("Successfully synchronized owner details to {$syncResult->updatedCount()} car(s).")
+    $message = "Successfully synchronized owner details to {$syncResult->updatedCount()} car(s).";
+    if ($syncResult->skippedCount() > 0) {
+        $message .= ' ' . $syncResult->skippedCarsPhrase();
+    }
+    ApiResponse::success($message)
         ->withData('cars_updated', $syncResult->updatedCount())
+        ->withData('cars_skipped', $syncResult->skipped)
         ->withLogging(
             $user->data()->id,
             LogCategories::LOG_CATEGORY_OWNER_ACTIONS,

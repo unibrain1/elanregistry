@@ -630,12 +630,18 @@ class Owner
      * onto each car in `getCarsOwned()`, plus an explicit `mtime`.
      *
      * Each car is written inside its own transaction, so one car's failure rolls
-     * back only that car and the loop continues. Per-car failures are collected
+     * back only that car and the loop continues. Per-car outcomes are collected
      * into the returned result rather than thrown; only a failure to read the
      * car list propagates as an exception.
      *
-     * @return OwnerSyncResult Per-car outcome: the car IDs synchronized and those
-     *         that were rolled back
+     * A car whose ownership changed between the initial car list snapshot and
+     * the write is reported as skipped, not failed — the previous owner's data
+     * was correctly not written, and this is expected behavior rather than an
+     * error.
+     *
+     * @return OwnerSyncResult Per-car outcome: the car IDs synchronized, those
+     *         skipped because ownership changed mid-sync (not a failure), and
+     *         those that were rolled back due to a real error
      * @throws OwnerDatabaseException If getCarsOwned() fails to query — a DB
      *         failure here must surface as a real exception, not silently
      *         collapse into "0 cars synced" (#1505 PR B); if an ownership
@@ -686,6 +692,7 @@ class Owner
         $repo = new CarRepository($this->_db);
         $updated = [];
         $failed = [];
+        $skipped = [];
 
         foreach ($ownedCars as $car) {
             $carId = (int) $car->id;
@@ -710,7 +717,7 @@ class Owner
                         // The car left this owner between the getCarsOwned() snapshot
                         // and this write. Do not write the previous owner's data anywhere.
                         $repo->rollback();
-                        $failed[] = $carId;
+                        $skipped[] = $carId;
                         logger($ownerId, LogCategories::LOG_CATEGORY_OWNER_ACTIONS,
                             "syncOwnerFieldsToCars: car ID {$carId} is no longer owned by user {$ownerId}; skipped");
                         continue;
@@ -795,7 +802,7 @@ class Owner
             }
         }
 
-        $result = new OwnerSyncResult($updated, $failed);
+        $result = new OwnerSyncResult($updated, $failed, $skipped);
 
         if ($result->updatedCount() > 0) {
             logger($ownerId, LogCategories::LOG_CATEGORY_OWNER_ACTIONS,
