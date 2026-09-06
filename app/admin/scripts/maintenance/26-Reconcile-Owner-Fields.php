@@ -29,7 +29,8 @@ use ElanRegistry\Owner;
  *   1. Analyze  — read-only aggregate drift counts per field, plus an
  *                 informational count of cars whose `user_id` points at a
  *                 user row that no longer exists.
- *   2. Details  — read-only, paginated per-car before/after values.
+ *   2. Details  — read-only per-car before/after values, fetched in full and
+ *                 paged/searched/sorted client-side by DataTables.
  *   3. Execute  — loops the distinct owners with drift and calls
  *                 `Owner::syncOwnerFieldsToCars()` for each.
  *
@@ -47,7 +48,19 @@ use ElanRegistry\Owner;
  *
  * Orphaned `user_id` cars are reported in the Analyze summary only. Repairing
  * them is out of scope for a contact-field sync job, and they are excluded
- * from the owner-ID list that drives Execute.
+ * from the owner-ID list that drives Execute. Cars parked on the `noowner`
+ * system account are excluded on the same basis: that account holds
+ * placeholder contact data, so every such car reads as "drifted" against it
+ * and a sync would overwrite the car's last-known real owner details with the
+ * placeholder.
+ *
+ * IMPORTANT — a car's own `website` is never overwritten with a different one.
+ * Unlike the other eight columns, `website` is not necessarily a fact about
+ * the owner: a car can carry its own dedicated page. Where a car holds a
+ * non-empty website that differs from its owner's, the sync would destroy it,
+ * so the whole owner is skipped for the run and flagged for manual review —
+ * `Owner::syncOwnerFieldsToCars()` is shared with the profile-save and
+ * sync-location callers and offers no per-field opt-out to use instead.
  *
  * KNOWN PERFORMANCE CHARACTERISTIC: the drift queries are full scans over
  * `cars JOIN users LEFT JOIN profiles` with a nine-clause OR predicate — no
@@ -83,11 +96,6 @@ if (!$db) {
 }
 
 $csrfToken = Token::generate();
-
-/**
- * Number of drifted cars returned per page by the Details step.
- */
-const RECONCILE_DETAILS_PAGE_SIZE = 50;
 
 /**
  * How many owners may fail in an unbroken row before the Execute loop treats
@@ -151,6 +159,111 @@ const RECONCILE_FROM_CLAUSE = 'FROM cars c '
  */
 const RECONCILE_STRING_FIELDS = ['email', 'fname', 'lname', 'city', 'state', 'country', 'website'];
 
+/**
+ * Username of the system account that cars are reassigned to when their real
+ * owner is deleted (including GDPR erasure). See `app/admin/index.php`'s
+ * reassignment path and DATABASE.md.
+ *
+ * Looked up by username rather than by ID: the row exists in every
+ * environment but its `id` does not match across them (83 on the dev DB, 1
+ * elsewhere), so a hardcoded ID would silently exclude the wrong account —
+ * or a real owner.
+ */
+const RECONCILE_NO_OWNER_USERNAME = 'noowner';
+
+if (!function_exists('findNoOwnerAccountId')) {
+    /**
+     * The `noowner` system account's user ID, or null if this environment has
+     * no such row.
+     *
+     * @param DatabaseInterface $db Database handle
+     * @return int|null
+     */
+    function findNoOwnerAccountId(DatabaseInterface $db): ?int
+    {
+        $result = $db->query('SELECT id FROM users WHERE username = ? LIMIT 1', [RECONCILE_NO_OWNER_USERNAME]);
+        if ($result->error()) {
+            // Fail safe rather than fatal: under-excluding leaves noowner cars
+            // visible in Analyze/Details, where an admin can still catch them,
+            // whereas throwing would block the entire maintenance tool over a
+            // lookup for an account that is optional to begin with.
+            return null;
+        }
+
+        $row = $result->first();
+
+        return is_object($row) ? (int) $row->id : null;
+    }
+}
+
+if (!function_exists('reconcileFromClause')) {
+    /**
+     * The shared FROM/JOIN/WHERE clause, with the `noowner` system account
+     * excluded.
+     *
+     * Cars reassigned to `noowner` are unowned in every sense that matters
+     * here: the account carries placeholder contact data ("No Owner",
+     * `noowner@invalid`) and no meaningful profile, so every such car reads as
+     * drifted against it, and syncing would overwrite the car's last-known
+     * real owner details with the placeholder. They are therefore excluded
+     * from drift detection exactly as orphaned `user_id` cars are — counted
+     * for information by {@see findNoOwnerAccountCarCount()}, never repaired.
+     *
+     * Every drift query resolves the ID itself via {@see findNoOwnerAccountId()}
+     * rather than taking it as an optional parameter: an omitted argument at any
+     * one of the five call sites would silently reinstate the overwrite bug this
+     * exists to prevent, and the lookup is a single primary-key-adjacent read on
+     * an indexed unique column.
+     *
+     * @param int|null $noOwnerId The `noowner` account's ID, or null if this
+     *                            environment has none (then nothing is excluded)
+     * @return string SQL fragment; the ID is cast to int before interpolation
+     *                and never originates from user input
+     */
+    function reconcileFromClause(?int $noOwnerId): string
+    {
+        return $noOwnerId === null
+            ? RECONCILE_FROM_CLAUSE
+            : RECONCILE_FROM_CLAUSE . ' AND c.user_id <> ' . (int) $noOwnerId;
+    }
+}
+
+if (!function_exists('findNoOwnerAccountCarCount')) {
+    /**
+     * Count cars parked on the `noowner` system account.
+     *
+     * Reported for information only, alongside the orphaned-`user_id` count —
+     * these cars are never repaired and never appear in
+     * {@see findOwnerIdsWithDrift()}.
+     *
+     * @param DatabaseInterface $db         Database handle
+     * @param int|null          $noOwnerId  The `noowner` account's ID, or null
+     *                                      if this environment has none
+     * @return int Number of cars owned by the system account; 0 when absent
+     * @throws \RuntimeException If the query fails — see
+     *         {@see findOwnerFieldDriftSummary()} for why an unchecked failure
+     *         here would silently read as "none".
+     */
+    function findNoOwnerAccountCarCount(DatabaseInterface $db, ?int $noOwnerId): int
+    {
+        if ($noOwnerId === null) {
+            return 0;
+        }
+
+        $result = $db->query('SELECT COUNT(*) AS no_owner FROM cars WHERE user_id = ?', [$noOwnerId]);
+        if ($result->error()) {
+            throw new \RuntimeException('No-owner account car count query failed: ' . $result->errorString());
+        }
+
+        $row = $result->first();
+        if (!is_object($row)) {
+            throw new \RuntimeException('No-owner account car count returned no aggregate row.');
+        }
+
+        return (int) $row->no_owner;
+    }
+}
+
 if (!function_exists('reconcileFieldMismatchExpression')) {
     /**
      * SQL boolean expression that is true when one field differs between the
@@ -160,6 +273,26 @@ if (!function_exists('reconcileFieldMismatchExpression')) {
      * other counts as drift, while NULL on both sides does not. String fields
      * pin the comparison to `cars`'s collation explicitly (see
      * RECONCILE_STRING_FIELDS) to avoid the collation-mismatch error above.
+     *
+     * `website` gets one further adjustment: `Owner::find()` (usersc/classes/Owner.php)
+     * normalizes a NULL `profiles.website` to `''` before `ownerContactFields()`
+     * ever reads it, so `syncOwnerFieldsToCars()` always writes `''` for an
+     * owner with no website — never NULL. But `cars.website` itself holds a mix
+     * of NULL and '' for "no value" too (both occur in real data — historical
+     * rows predating this normalization, direct inserts, etc.), and the two
+     * must be treated as equal on EITHER side, not just coalesced on the
+     * owner's: coalescing only the owner side would turn a genuine
+     * NULL-on-both-sides match (never drift) into a false NULL-vs-'' mismatch
+     * for every car whose own website happens to be NULL rather than ''.
+     * Coalescing both sides to '' here treats NULL and '' as the same "no
+     * website" value symmetrically, matching what a sync actually converges
+     * to (always '', never NULL) while not disturbing a car that already
+     * legitimately has NULL matching an owner's NULL. `city`/`state`/`country`
+     * get the identical NULL-to-'' normalization in `Owner::find()`, but are
+     * deliberately left un-coalesced here — missing location data is handled
+     * by a separate mechanism, not this script — and `email`/`fname`/`lname`/
+     * `lat`/`lon` are never normalized by `Owner::find()` at all, so no other
+     * field needs this treatment.
      *
      * @param string $field One of the keys of RECONCILE_OWNER_FIELDS
      * @return string SQL fragment; built entirely from this script's own
@@ -171,8 +304,14 @@ if (!function_exists('reconcileFieldMismatchExpression')) {
         $sourceExpr = in_array($field, RECONCILE_STRING_FIELDS, true)
             ? "{$sourceAlias}.{$field} COLLATE utf8mb4_unicode_ci"
             : "{$sourceAlias}.{$field}";
+        $carExpr = "c.{$field}";
 
-        return "NOT (c.{$field} <=> {$sourceExpr})";
+        if ($field === 'website') {
+            $sourceExpr = "COALESCE({$sourceExpr}, '')";
+            $carExpr = "COALESCE(c.{$field}, '')";
+        }
+
+        return "NOT ({$carExpr} <=> {$sourceExpr})";
     }
 }
 
@@ -194,6 +333,117 @@ if (!function_exists('reconcileDriftPredicate')) {
         }
 
         return '(' . implode(' OR ', $clauses) . ')';
+    }
+}
+
+if (!function_exists('reconcileWebsiteConflictPredicate')) {
+    /**
+     * SQL boolean expression that is true when a car's `website` would be
+     * DESTROYED rather than merely refreshed by a sync.
+     *
+     * Every other owner-contact column is a fact about the owner, so the
+     * owner's copy is authoritative by definition. `website` is not: a car can
+     * legitimately carry its own dedicated page (a build thread, a marque
+     * listing) that has nothing to do with the owner's personal site. Copying
+     * the owner's value over it is unrecoverable data loss, not a repair.
+     *
+     * A conflict therefore requires BOTH sides to hold a real, non-empty
+     * value that differ — a car with a real website and an owner with none
+     * has nothing worth protecting (the sync would only ever clear a blank
+     * to a blank, differing only in NULL vs. '' representation, never
+     * destroying real data), so that case is deliberately excluded here and
+     * synced normally like any other field.
+     *
+     * @return string SQL fragment; built entirely from this script's own
+     *                constants, never from user input
+     */
+    function reconcileWebsiteConflictPredicate(): string
+    {
+        return "(c.website IS NOT NULL AND c.website <> '' "
+            . "AND p.website IS NOT NULL AND p.website <> '' AND "
+            . reconcileFieldMismatchExpression('website') . ')';
+    }
+}
+
+if (!function_exists('findOwnerIdsWithWebsiteConflict')) {
+    /**
+     * The distinct owner IDs owning at least one car with a website conflict.
+     *
+     * The Execute step skips these owners ENTIRELY — not just the conflicted
+     * car. `Owner::syncOwnerFieldsToCars()` is a shared write path (the owner's
+     * own profile save and the admin sync-location action call it too) with no
+     * per-car or per-field exclusion mechanism, so the only way this job can
+     * decline to overwrite one column is to decline the whole owner. That
+     * delays the sync of that owner's other, uncontested fields until an admin
+     * resolves the conflict by hand — the deliberate trade for never silently
+     * destroying a car's own website.
+     *
+     * @param DatabaseInterface $db Database handle
+     * @return list<int> Owner (user) IDs, ascending. An empty list is a
+     *         legitimate success result (no conflicts anywhere), which is why
+     *         this function checks only `error()` and not row presence.
+     * @throws \RuntimeException If the query fails — see
+     *         {@see findOwnerFieldDriftSummary()}. An unchecked failure here
+     *         would read as "no conflicts" and let Execute overwrite exactly
+     *         the values this guard exists to protect.
+     */
+    function findOwnerIdsWithWebsiteConflict(DatabaseInterface $db): array
+    {
+        $sql = 'SELECT DISTINCT c.user_id ' . reconcileFromClause(findNoOwnerAccountId($db))
+            . ' AND ' . reconcileWebsiteConflictPredicate()
+            . ' ORDER BY c.user_id';
+
+        $result = $db->query($sql);
+        if ($result->error()) {
+            throw new \RuntimeException('Website conflict owner query failed: ' . $result->errorString());
+        }
+
+        $ownerIds = [];
+        foreach ($result->results() as $row) {
+            $ownerIds[] = (int) $row->user_id;
+        }
+
+        return $ownerIds;
+    }
+}
+
+if (!function_exists('findWebsiteConflictCars')) {
+    /**
+     * Every car with a website conflict, with both competing values.
+     *
+     * Unpaginated on purpose: this is a small, admin-reviewable exception list
+     * (a car must hold a non-empty website that differs from its owner's to
+     * qualify), and the Execute step needs the whole set in one pass to name
+     * the offending cars in its skip message.
+     *
+     * @param DatabaseInterface $db Database handle
+     * @return list<array{carId: int, ownerId: int, carWebsite: string, ownerWebsite: string|null}>
+     * @throws \RuntimeException If the query fails — see
+     *         {@see findOwnerIdsWithWebsiteConflict()}.
+     */
+    function findWebsiteConflictCars(DatabaseInterface $db): array
+    {
+        $sql = 'SELECT c.id AS car_id, c.user_id AS owner_id, c.website AS car_website, '
+            . 'p.website AS owner_website ' . reconcileFromClause(findNoOwnerAccountId($db))
+            . ' AND ' . reconcileWebsiteConflictPredicate()
+            . ' ORDER BY c.user_id, c.id';
+
+        $result = $db->query($sql);
+        if ($result->error()) {
+            throw new \RuntimeException('Website conflict car query failed: ' . $result->errorString());
+        }
+
+        $cars = [];
+        foreach ($result->results() as $row) {
+            $cars[] = [
+                'carId'        => (int) $row->car_id,
+                'ownerId'      => (int) $row->owner_id,
+                'carWebsite'   => (string) $row->car_website,
+                'ownerWebsite' => $row->owner_website === null ? null : (string) $row->owner_website,
+            ];
+        }
+
+        return $cars;
     }
 }
 
@@ -224,7 +474,7 @@ if (!function_exists('findOwnerFieldDriftSummary')) {
         $selects[] = "SUM({$predicate}) AS cars_with_drift";
         $selects[] = "COUNT(DISTINCT CASE WHEN {$predicate} THEN c.user_id END) AS owners_with_drift";
 
-        $sql = 'SELECT ' . implode(', ', $selects) . ' ' . RECONCILE_FROM_CLAUSE;
+        $sql = 'SELECT ' . implode(', ', $selects) . ' ' . reconcileFromClause(findNoOwnerAccountId($db));
 
         $result = $db->query($sql);
         if ($result->error()) {
@@ -303,7 +553,7 @@ if (!function_exists('findOwnerIdsWithDrift')) {
      */
     function findOwnerIdsWithDrift(DatabaseInterface $db): array
     {
-        $sql = 'SELECT DISTINCT c.user_id ' . RECONCILE_FROM_CLAUSE
+        $sql = 'SELECT DISTINCT c.user_id ' . reconcileFromClause(findNoOwnerAccountId($db))
             . ' AND ' . reconcileDriftPredicate()
             . ' ORDER BY c.user_id';
 
@@ -359,7 +609,7 @@ if (!function_exists('findDriftedCarDetails')) {
         $safeLimit = max(0, $limit);
         $safeOffset = max(0, $offset);
 
-        $sql = 'SELECT ' . implode(', ', $selects) . ' ' . RECONCILE_FROM_CLAUSE
+        $sql = 'SELECT ' . implode(', ', $selects) . ' ' . reconcileFromClause(findNoOwnerAccountId($db))
             . ' AND ' . reconcileDriftPredicate()
             . " ORDER BY c.user_id, c.id LIMIT {$safeLimit} OFFSET {$safeOffset}";
 
@@ -375,10 +625,29 @@ if (!function_exists('findDriftedCarDetails')) {
             foreach (array_keys(RECONCILE_OWNER_FIELDS) as $field) {
                 $carValue = $row->{'car_' . $field};
                 $ownerValue = $row->{'owner_' . $field};
+                // `website` is coalesced symmetrically on BOTH sides, the same
+                // way reconcileFieldMismatchExpression() does in SQL: a NULL
+                // profiles.website can never actually reach the car (Owner::find()
+                // normalizes it to '' before any sync writes it), so treating a
+                // NULL owner value as real NULL here would flag a pair the sync
+                // can never actually produce or resolve. But cars.website itself
+                // also holds a mix of NULL and '' for "no value" in real data —
+                // coalescing only the owner side would then turn a genuine
+                // NULL-matches-NULL car into a false NULL-vs-'' mismatch. Both
+                // sides are normalized to keep this pruning decision consistent
+                // with the SQL predicate that selected the row in the first
+                // place. city/state/country get the identical normalization in
+                // Owner::find() but are deliberately left un-coalesced —
+                // missing location data is handled elsewhere.
+                if ($field === 'website') {
+                    $carValue = $carValue ?? '';
+                    $ownerValue = $ownerValue ?? '';
+                }
                 // Both halves are needed: SQL NULL and '' stringify identically,
                 // so the string comparison alone would prune a NULL-vs-'' pair
                 // that the null-safe `<=>` predicate correctly counts as drift
-                // (the sync writes one or the other deliberately).
+                // (the sync writes one or the other deliberately) for every
+                // field except the website case just normalized above.
                 if ((string) $carValue === (string) $ownerValue && ($carValue === null) === ($ownerValue === null)) {
                     continue;
                 }
@@ -422,6 +691,13 @@ if ($method === 'POST' && isset($_POST['action'])) {
         try {
             $summary = findOwnerFieldDriftSummary(dbi());
             $orphanedCars = findOrphanedOwnerCarCount(dbi());
+            // Reported as a sibling count rather than folded into the summary's
+            // `fields` map: those nine are "cars this run will repair", and a
+            // conflict is the opposite — cars this run will deliberately refuse
+            // to touch, along with the rest of their owner's fleet.
+            $conflictCars = findWebsiteConflictCars(dbi());
+            $conflictOwnerIds = findOwnerIdsWithWebsiteConflict(dbi());
+            $noOwnerAccountCars = findNoOwnerAccountCarCount(dbi(), findNoOwnerAccountId(dbi()));
 
             $recordingWarning = null;
             if ($summary['carsWithDrift'] === 0) {
@@ -436,7 +712,9 @@ if ($method === 'POST' && isset($_POST['action'])) {
                 'carsWithDrift'    => $summary['carsWithDrift'],
                 'ownersWithDrift'  => $summary['ownersWithDrift'],
                 'orphanedCars'     => $orphanedCars,
-                'pageSize'         => RECONCILE_DETAILS_PAGE_SIZE,
+                'noOwnerAccountCars'    => $noOwnerAccountCars,
+                'websiteConflictCars'   => count($conflictCars),
+                'websiteConflictOwners' => count($conflictOwnerIds),
                 'recordingWarning' => $recordingWarning,
             ]);
         } catch (\Throwable $e) {
@@ -452,15 +730,39 @@ if ($method === 'POST' && isset($_POST['action'])) {
 
     if ($_POST['action'] === 'details') {
         try {
-            $offset = max(0, (int) ($_POST['offset'] ?? 0));
-            $details = findDriftedCarDetails(dbi(), RECONCILE_DETAILS_PAGE_SIZE, $offset);
+            // TRADE-OFF, chosen deliberately: this fetches EVERY drifted car in
+            // one response rather than a bounded page. The plan for #1961 called
+            // out the opposite — full-table drift can run to hundreds of cars
+            // (118 measured on the dev DB), and server-side chunking kept the
+            // response bounded. But pairing that chunking with DataTables' own
+            // client-side paging gave the admin two different "show me more"
+            // controls that did different things, which read as a bug. The fix
+            // is to make DataTables the single owner of paging/search/sort, and
+            // that requires handing it the complete result set.
+            //
+            // findDriftedCarDetails()'s (limit, offset) contract is unchanged —
+            // it is covered by pagination tests and used unpaginated only here,
+            // via a sentinel limit. Revisit if the fleet grows enough that this
+            // response or the client-side table becomes unwieldy.
+            $details = findDriftedCarDetails(dbi(), PHP_INT_MAX, 0);
+
+            // Flag the rows Execute will refuse to sync, so an admin reviewing
+            // this list before running Step 3 can see which cars are at risk
+            // and which owners will be held back entirely because of them.
+            $conflictCarIds = [];
+            $conflictOwnerIds = [];
+            foreach (findWebsiteConflictCars(dbi()) as $conflict) {
+                $conflictCarIds[$conflict['carId']] = true;
+                $conflictOwnerIds[$conflict['ownerId']] = true;
+            }
+            foreach ($details as $index => $row) {
+                $details[$index]['websiteConflict'] = isset($conflictCarIds[$row['carId']]);
+                $details[$index]['ownerSkipped'] = isset($conflictOwnerIds[$row['ownerId']]);
+            }
 
             echo json_encode([
-                'success'  => true,
-                'offset'   => $offset,
-                'pageSize' => RECONCILE_DETAILS_PAGE_SIZE,
-                'hasMore'  => count($details) === RECONCILE_DETAILS_PAGE_SIZE,
-                'cars'     => $details,
+                'success' => true,
+                'cars'    => $details,
             ]);
         } catch (\Throwable $e) {
             logger($user->data()->id, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,
@@ -504,7 +806,24 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                     background-color: #f8f9fa;
                     font-weight: 600;
                 }
+
+                /* The conflict flag must survive DataTables' striping, which
+                   paints alternate rows itself. */
+                #detailsTable tbody tr.reconcile-conflict-row > td {
+                    background-color: #fdf3f4;
+                }
+
+                /* Marks the first row of each car's group while the table is
+                   sorted by Car. Blanking the repeated Car/Owner cells alone
+                   leaves no cue where one car ends and the next begins — this
+                   rule draws that boundary. */
+                #detailsTable tbody tr.reconcile-group-start > td {
+                    border-top: 2px solid #adb5bd;
+                }
             </style>
+
+            <link rel="stylesheet" href="<?= htmlspecialchars($us_url_root, ENT_QUOTES, 'UTF-8') ?>usersc/css/datatables.min.css">
+            <script src="<?= htmlspecialchars($us_url_root, ENT_QUOTES, 'UTF-8') ?>usersc/js/datatables.min.js"></script>
 
             <!-- Initial Description Card -->
             <div class="row" id="descriptionSection">
@@ -533,7 +852,9 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                                 <ul class="mb-0">
                                     <li>Does not touch <code>owner_last_updated</code> — a mechanical refresh is not the owner confirming their car's data, so synced cars stay eligible for verification</li>
                                     <li>Does not repair cars whose <code>user_id</code> points at a user that no longer exists — those are reported for information only</li>
+                                    <li>Does not repair cars parked on the <code>noowner</code> system account — that account holds placeholder data, so syncing would overwrite each car's last-known real owner details. Also reported for information only</li>
                                     <li>Does not replace the save-time sync hooks; it is a backstop for drift those hooks missed</li>
+                                    <li>Does not overwrite a car's own <code>website</code> with a different one from the owner's profile — a car can legitimately have its own dedicated page. If any of an owner's cars has such a conflict, that <strong>whole owner is skipped</strong> for the run and flagged for manual review</li>
                                 </ul>
                             </div>
 
@@ -647,8 +968,6 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
             <script nonce="<?= htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
                 let processStarted = false;
-                let detailsOffset = 0;
-                let detailsLoading = false;
                 const CSRF_TOKEN = '<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>';
                 const FIELD_LABELS = {
                     email: 'Email',
@@ -774,8 +1093,22 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                             return;
                         }
 
+                        // Deliberately its own alert, not a row in the per-field
+                        // drift table: those nine counts are cars this run will
+                        // repair, while a conflict is a car it will refuse to
+                        // touch — along with everything else its owner holds.
+                        const conflictHtml = data.websiteConflictCars > 0
+                            ? `<div class="alert alert-danger"><h5><i class="fa fa-exclamation-triangle"></i> Website Conflicts — Owners Will Be Skipped</h5>
+                                   <p class="mb-0"><strong>${data.websiteConflictCars}</strong> car(s) across <strong>${data.websiteConflictOwners}</strong> owner(s) hold a website that differs from their owner's profile website. Syncing would destroy the car's own value, so <strong>every one of those owners is skipped entirely</strong> by Step 3 — including their other, correct fields. Resolve each conflict by hand, then re-run.</p>
+                               </div>`
+                            : '';
+
                         const orphanHtml = data.orphanedCars > 0
                             ? `<div class="alert alert-secondary"><i class="fa fa-unlink"></i> <strong>${data.orphanedCars}</strong> car(s) reference a user that no longer exists. These are reported for information only and are not repaired by this script.</div>`
+                            : '';
+
+                        const noOwnerHtml = data.noOwnerAccountCars > 0
+                            ? `<div class="alert alert-secondary"><i class="fa fa-user-times"></i> <strong>${data.noOwnerAccountCars}</strong> car(s) are parked on the <code>noowner</code> system account, which holds placeholder contact data rather than a real owner's. Syncing them would overwrite each car's last-known real owner details with that placeholder, so they are excluded from drift detection entirely — reported here for information only.</div>`
                             : '';
 
                         if (data.carsWithDrift === 0) {
@@ -787,7 +1120,9 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                                     <h4><i class="fa fa-check-circle"></i> No Owner Field Drift Found!</h4>
                                     <p>Every car's owner-contact columns already match their owner's current details.</p>
                                 </div>
+                                ${conflictHtml}
                                 ${orphanHtml}
+                                ${noOwnerHtml}
                                 ${recordingWarningHtml}
                                 <div class="text-center">
                                     <button data-action="returnToMenu" class="btn btn-outline-primary">
@@ -811,7 +1146,9 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                                 <h4><i class="fa fa-exclamation-triangle"></i> Drift Found</h4>
                                 <p class="mb-0"><strong>${data.carsWithDrift}</strong> car(s) across <strong>${data.ownersWithDrift}</strong> owner(s) differ from their owner's current details.</p>
                             </div>
+                            ${conflictHtml}
                             ${orphanHtml}
+                            ${noOwnerHtml}
                             <table class="table table-sm table-bordered reconcile-table">
                                 <thead><tr><th>Field</th><th>Column</th><th class="text-end">Cars Affected</th></tr></thead>
                                 <tbody>${rows}</tbody>
@@ -838,21 +1175,221 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
                 function showDetailedChanges() {
                     document.getElementById('detailsSection').style.display = 'block';
-                    detailsOffset = 0;
                     document.getElementById('detailedChanges').innerHTML = `
-                        <table class="table table-sm table-bordered reconcile-table mb-0">
+                        <table id="detailsTable" class="table table-striped table-hover table-sm reconcile-table w-100">
                             <thead><tr><th>Car</th><th>Owner</th><th>Field</th><th>Current Car Value</th><th>Owner's Value</th></tr></thead>
-                            <tbody id="detailsBody"></tbody>
+                            <tbody></tbody>
                         </table>
                     `;
                     document.getElementById('detailsFooter').innerHTML = '<i class="fa fa-spinner fa-spin fa-2x"></i>';
-                    loadMoreDetails();
+                    loadDetails();
                 }
 
-                function loadMoreDetails() {
-                    if (detailsLoading) return;
-                    detailsLoading = true;
+                /**
+                 * Flatten one fetched page of cars into one DataTables row per
+                 * (car, drifted field) pair.
+                 *
+                 * The pre-DataTables table grouped a car's fields under a single
+                 * rowspan'd cell. DataTables sorts, searches and paginates whole
+                 * <tr>s, so a real rowspan would be torn apart the first time a
+                 * column header was clicked. Each row therefore carries its own
+                 * copy of carId/ownerName, and the repeats are hidden at render
+                 * time instead — see applyCarGrouping().
+                 */
+                function flattenDetailRows(cars) {
+                    const rows = [];
+                    cars.forEach(car => {
+                        Object.keys(car.fields).forEach(field => {
+                            rows.push({
+                                carId: car.carId,
+                                ownerId: car.ownerId,
+                                ownerName: car.ownerName,
+                                field: field,
+                                fieldLabel: FIELD_LABELS[field] || field,
+                                carValue: car.fields[field].car,
+                                ownerValue: car.fields[field].owner,
+                                // Only the website pair is the conflicted one; the
+                                // owner's other rows are flagged as held back, not
+                                // as the conflict itself.
+                                isConflict: !!car.websiteConflict && field === 'website',
+                                ownerSkipped: !!car.ownerSkipped
+                            });
+                        });
+                    });
+                    return rows;
+                }
 
+                /**
+                 * Column index of the Car column, which grouping keys off.
+                 */
+                const DETAILS_CAR_COLUMN = 0;
+
+                /**
+                 * Whether the table is currently ordered by the Car column.
+                 *
+                 * The visual grouping below only makes sense while a car's rows
+                 * are adjacent, which is only guaranteed under this ordering. Sort
+                 * by any other column and grouping switches off entirely — every
+                 * Car/Owner cell shows its own value again — rather than blanking
+                 * cells whose "group" is one arbitrary row long.
+                 */
+                function isGroupedByCar(api) {
+                    const order = api.order();
+                    return Array.isArray(order) && order.length > 0
+                        && Array.isArray(order[0]) && order[0][0] === DETAILS_CAR_COLUMN;
+                }
+
+                /**
+                 * Full display-order HTML for a row's Car and Owner cells.
+                 *
+                 * Kept here rather than in the columns' `render` callbacks because
+                 * grouping has to be able to restore these cells, and DataTables
+                 * memoizes a row's rendered cells (settings.data[i].displayData) on
+                 * first render and reuses them for the life of the row — a `render`
+                 * that consulted neighbouring rows would compute once and then be
+                 * wrong after every re-sort. See applyCarGrouping().
+                 */
+                function carCellHtml(rowData) {
+                    return escapeHtml(rowData.carId);
+                }
+
+                function ownerCellHtml(rowData) {
+                    return escapeHtml(rowData.ownerName) +
+                        '<br/><small class="text-muted">#' + parseInt(rowData.ownerId, 10) + '</small>';
+                }
+
+                /**
+                 * Blank the Car/Owner cells of any row that merely repeats the car
+                 * named by the row above it, and mark the first row of each car
+                 * group so CSS can rule a line above it.
+                 *
+                 * Driven from `rowCallback`, which DataTables fires for every row on
+                 * every draw — including after a re-sort, a search, or a page change
+                 * — so the decision is always re-derived against the order actually
+                 * on screen. `createdRow` would not do: it fires once per row, when
+                 * its <tr> is first built, and rows are reused across draws.
+                 *
+                 * Grouping applies only while the table is sorted by Car. Under any
+                 * other order a car's rows are not adjacent, so there is no group to
+                 * collapse and every cell is restored to its full value.
+                 *
+                 * @param {HTMLTableRowElement} tr        The row's <tr>
+                 * @param {object}              rowData   That row's data object
+                 * @param {object}              api       The DataTables API instance
+                 * @param {number}              displayIndex Index within the current page
+                 */
+                function applyCarGrouping(tr, rowData, api, displayIndex) {
+                    // Cell lookup by index, not by :nth-child — Responsive can hide
+                    // columns, but it removes the <td> only after this callback, and
+                    // cells[] stays in column order regardless.
+                    const carCell = tr.cells[DETAILS_CAR_COLUMN];
+                    const ownerCell = tr.cells[DETAILS_CAR_COLUMN + 1];
+                    if (!carCell || !ownerCell) return;
+
+                    let continuesGroup = false;
+                    if (isGroupedByCar(api)) {
+                        // rows({page:'current'}) is in display order, so the
+                        // preceding row is simply the previous display index. The
+                        // first row of a page always starts a group: its
+                        // predecessor, if any, is not visible next to it.
+                        if (displayIndex > 0) {
+                            const previous = api.rows({ page: 'current' }).data()[displayIndex - 1];
+                            continuesGroup = !!previous && previous.carId === rowData.carId;
+                        }
+                    }
+
+                    carCell.innerHTML = continuesGroup ? '' : carCellHtml(rowData);
+                    ownerCell.innerHTML = continuesGroup ? '' : ownerCellHtml(rowData);
+                    tr.classList.toggle('reconcile-group-start', isGroupedByCar(api) && !continuesGroup);
+                }
+
+                /**
+                 * Build the DataTable over the complete result set.
+                 *
+                 * The whole set arrives in one fetch (see the `action=details`
+                 * handler), so DataTables owns paging, search and sort outright —
+                 * there is no second, server-side "show me more" control competing
+                 * with its own pager.
+                 */
+                function renderDetailsTable(rows) {
+                    if ($.fn.DataTable.isDataTable('#detailsTable')) {
+                        $('#detailsTable').DataTable().destroy();
+                        $('#detailsTable tbody').empty();
+                    }
+
+                    $('#detailsTable').DataTable({
+                        data: rows,
+                        fixedHeader: true,
+                        responsive: true,
+                        pageLength: 25,
+                        order: [[DETAILS_CAR_COLUMN, 'asc']],
+                        language: { emptyTable: 'No drifted cars to show.' },
+                        columns: [
+                            {
+                                data: 'carId',
+                                title: 'Car',
+                                // Sort/search/type calls must see the real value —
+                                // blanking is applied to the live cell in
+                                // rowCallback, never to the sortable data, or
+                                // ordering by Car would collapse to one key.
+                                render: function (data, type) {
+                                    return type === 'display' ? carCellHtml({ carId: data }) : data;
+                                }
+                            },
+                            {
+                                data: 'ownerName',
+                                title: 'Owner',
+                                render: function (data, type, row) {
+                                    return type === 'display' ? ownerCellHtml(row) : data;
+                                }
+                            },
+                            {
+                                data: 'fieldLabel',
+                                title: 'Field',
+                                render: function (data, type, row) {
+                                    if (type !== 'display') return data;
+                                    let html = escapeHtml(data);
+                                    if (row.isConflict) {
+                                        html += ' <span class="badge bg-danger" title="The car has its own website that differs from the owner\'s. Syncing would destroy it, so this owner is skipped entirely."><i class="fa fa-exclamation-triangle"></i> Conflict</span>';
+                                    } else if (row.ownerSkipped) {
+                                        html += ' <span class="badge bg-warning text-dark" title="Held back: another of this owner\'s cars has a website conflict.">Held back</span>';
+                                    }
+                                    return html;
+                                }
+                            },
+                            {
+                                data: 'carValue',
+                                title: "Current Car Value",
+                                render: function (data, type) {
+                                    return type === 'display' ? formatValue(data) : (data == null ? '' : data);
+                                }
+                            },
+                            {
+                                data: 'ownerValue',
+                                title: "Owner's Value",
+                                render: function (data, type) {
+                                    return type === 'display' ? formatValue(data) : (data == null ? '' : data);
+                                }
+                            }
+                        ],
+                        // rowCallback, not createdRow: createdRow fires once, when a
+                        // row's <tr> is first created, and DataTables reuses that
+                        // <tr> for the life of the table. Group boundaries depend on
+                        // which row happens to precede this one in the CURRENT
+                        // order, so they must be recomputed on every draw — which is
+                        // exactly when rowCallback fires.
+                        rowCallback: function (tr, rowData, displayIndex) {
+                            tr.classList.toggle('reconcile-conflict-row', !!rowData.isConflict);
+                            applyCarGrouping(tr, rowData, this.api(), displayIndex);
+                        }
+                    });
+                }
+
+                /**
+                 * Fetch every drifted car in one request and hand the complete set
+                 * to DataTables, which then owns paging, search and sort.
+                 */
+                function loadDetails() {
                     const footer = document.getElementById('detailsFooter');
                     footer.innerHTML = '<i class="fa fa-spinner fa-spin fa-2x"></i>';
 
@@ -861,54 +1398,27 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: 'action=details&offset=' + encodeURIComponent(detailsOffset)
-                            + '&csrf=' + encodeURIComponent(CSRF_TOKEN)
+                        body: 'action=details&csrf=' + encodeURIComponent(CSRF_TOKEN)
                     })
                     .then(response => response.json())
                     .then(data => {
-                        detailsLoading = false;
-
                         if (!data.success) {
                             footer.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(data.error)}</div>`;
                             return;
                         }
 
-                        const body = document.getElementById('detailsBody');
-                        let html = '';
-                        data.cars.forEach(car => {
-                            const fieldNames = Object.keys(car.fields);
-                            if (fieldNames.length === 0) return;
-                            fieldNames.forEach((field, index) => {
-                                const values = car.fields[field];
-                                html += '<tr>';
-                                if (index === 0) {
-                                    html += `<td rowspan="${fieldNames.length}">${car.carId}</td>`;
-                                    html += `<td rowspan="${fieldNames.length}">${escapeHtml(car.ownerName)}<br/><small class="text-muted">#${car.ownerId}</small></td>`;
-                                }
-                                html += `<td>${escapeHtml(FIELD_LABELS[field] || field)}</td>`;
-                                html += `<td>${formatValue(values.car)}</td>`;
-                                html += `<td>${formatValue(values.owner)}</td>`;
-                                html += '</tr>';
-                            });
-                        });
-                        body.insertAdjacentHTML('beforeend', html);
-
-                        detailsOffset += data.cars.length;
-
-                        const loadMoreHtml = data.hasMore
-                            ? `<button data-action="loadMoreDetails" class="btn btn-outline-primary mb-3">
-                                   <i class="fa fa-angle-double-down"></i> Load More (showing ${detailsOffset})
-                               </button><br/>`
-                            : `<p class="text-muted">Showing all ${detailsOffset} drifted car(s).</p>`;
+                        renderDetailsTable(flattenDetailRows(data.cars));
 
                         footer.innerHTML = `
-                            ${loadMoreHtml}
+                            <p class="text-muted">Showing all ${data.cars.length} drifted car(s).</p>
                             <div class="alert alert-info text-start">
                                 <h5><i class="fa fa-info-circle"></i> Next Steps:</h5>
                                 <ul class="mb-0">
                                     <li>Each affected owner's details are copied to every car they own</li>
                                     <li><code>owner_last_updated</code> is deliberately left unchanged</li>
                                     <li>Each car is written in its own transaction and audited in <code>cars_hist</code></li>
+                                    <li>Rows badged <span class="badge bg-danger">Conflict</span> are <strong>not</strong> synced — the car has its own website that differs from the owner's, and every car belonging to that owner is held back with it</li>
+                                    <li>While sorted by <strong>Car</strong>, each car's fields are grouped under a single Car/Owner heading; sorting by any other column shows those values on every row</li>
                                 </ul>
                             </div>
                             <button data-action="startProcessing" class="btn btn-success btn-lg">
@@ -920,7 +1430,6 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                         `;
                     })
                     .catch(error => {
-                        detailsLoading = false;
                         footer.innerHTML = `<div class="alert alert-danger mb-0">Failed to load details: ${escapeHtml(error.message)}</div>`;
                     });
                 }
@@ -950,7 +1459,6 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                     switch (btn.dataset.action) {
                         case 'startAnalysis': startAnalysis(); break;
                         case 'showDetailedChanges': showDetailedChanges(); break;
-                        case 'loadMoreDetails': loadMoreDetails(); break;
                         case 'abortProcess': abortProcess(); break;
                         case 'startProcessing': startProcessing(); break;
                         case 'returnToMenu':
@@ -1017,6 +1525,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                 $carsSkipped = 0;
                 $carsFailed = 0;
                 $ownerErrors = 0;
+                $ownersSkippedForConflict = 0;
                 $consecutiveOwnerErrors = 0;
                 // Initialized here as well as inside the try below, so a failure
                 // at the owner-ID fetch step still leaves it defined for the
@@ -1030,6 +1539,13 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                     $ownerIds = findOwnerIdsWithDrift(dbi());
                     $totalOwners = count($ownerIds);
 
+                    // Computed once, before the loop: a per-iteration query would
+                    // re-scan the whole fleet for every owner.
+                    $conflictsByOwner = [];
+                    foreach (findWebsiteConflictCars(dbi()) as $conflict) {
+                        $conflictsByOwner[$conflict['ownerId']][] = $conflict;
+                    }
+
                     if ($totalOwners === 0) {
                         outputMessage('✅ No drift found — nothing to reconcile.');
                     } else {
@@ -1041,6 +1557,39 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                     foreach ($ownerIds as $ownerId) {
                         $ownersScanned++;
                         $percentage = (int) round(($ownersScanned / max(1, $totalOwners)) * 100);
+
+                        // A website conflict holds back the WHOLE owner, not just
+                        // the conflicted car: syncOwnerFieldsToCars() writes all
+                        // nine fields to every car the owner holds and offers no
+                        // per-car or per-field opt-out, and it is shared with the
+                        // profile-save and sync-location callers, so it must not
+                        // grow one for this job's sake. Declining the owner delays
+                        // their other, correct fields until an admin resolves the
+                        // conflict — the deliberate trade for never destroying a
+                        // car's own website.
+                        if (isset($conflictsByOwner[$ownerId])) {
+                            $ownersSkippedForConflict++;
+
+                            foreach ($conflictsByOwner[$ownerId] as $conflict) {
+                                $ownerWebsite = $conflict['ownerWebsite'] ?? '(none)';
+                                if ($ownerWebsite === '') {
+                                    $ownerWebsite = '(empty)';
+                                }
+                                outputMessage(
+                                    "⚠️ Owner {$ownerId}: SKIPPED — car {$conflict['carId']} website conflict "
+                                    . "(car: '{$conflict['carWebsite']}', owner: '{$ownerWebsite}') needs manual review",
+                                    $percentage
+                                );
+                            }
+
+                            logger($actingUserId, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,
+                                "Owner field reconciliation: owner {$ownerId} skipped entirely — "
+                                . count($conflictsByOwner[$ownerId]) . ' car(s) have a website value that '
+                                . 'differs from the owner profile and would be overwritten. Car IDs: '
+                                . implode(', ', array_column($conflictsByOwner[$ownerId], 'carId')));
+
+                            continue;
+                        }
 
                         // NO outer transaction here: syncOwnerFieldsToCars() manages its own
                         // per-car transactions and throws if one is already open.
@@ -1100,12 +1649,14 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
                     outputMessage('');
                     outputMessage("Owners scanned: {$ownersScanned} | Cars updated: {$carsUpdated} | "
-                        . "Cars skipped: {$carsSkipped} | Cars failed: {$carsFailed} | Owner errors: {$ownerErrors}");
+                        . "Cars skipped: {$carsSkipped} | Cars failed: {$carsFailed} | Owner errors: {$ownerErrors} | "
+                        . "Owners held back by website conflict: {$ownersSkippedForConflict}");
 
                     logger($actingUserId, LogCategories::LOG_CATEGORY_DATABASE_MAINTENANCE,
                         "Owner field reconciliation completed — owners scanned: {$ownersScanned}, "
                         . "cars updated: {$carsUpdated}, cars skipped: {$carsSkipped}, "
-                        . "cars failed: {$carsFailed}, owner-level errors: {$ownerErrors}");
+                        . "cars failed: {$carsFailed}, owner-level errors: {$ownerErrors}, "
+                        . "owners skipped for website conflict: {$ownersSkippedForConflict}");
                 } catch (\Throwable $e) {
                     $scriptFailed = true;
                     outputMessage('❌ ERROR during reconciliation: ' . $e->getMessage());
@@ -1145,6 +1696,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                 <div class='col-sm-6'><strong>Cars Skipped:</strong> {$carsSkipped}</div>
                 <div class='col-sm-6'><strong>Cars Failed:</strong> {$carsFailed}</div>
                 <div class='col-sm-12'><strong>Owner-Level Errors:</strong> {$ownerErrors}</div>
+                <div class='col-sm-12'><strong>Owners Held Back (Website Conflict):</strong> {$ownersSkippedForConflict}</div>
             </div>
         ";
                     echo '<script nonce="' . htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8') . '">

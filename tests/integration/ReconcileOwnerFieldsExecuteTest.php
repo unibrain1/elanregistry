@@ -183,6 +183,143 @@ final class ReconcileOwnerFieldsExecuteTest extends IntegrationTestCase
     }
 
     /**
+     * The Execute loop with its website-conflict guard in place, mirroring the
+     * script: the conflicted-owner set is resolved once up front (never
+     * per-iteration), and a matching owner is skipped entirely — no
+     * syncOwnerFieldsToCars() call at all — rather than partially synced.
+     *
+     * @param list<int> $ownerIds
+     * @return array{updated:int, skipped:int, failed:int, ownersScanned:int, ownerErrors:int, ownersSkippedForConflict:int, perOwner: array<int, \ElanRegistry\OwnerSyncResult|null>}
+     */
+    private function runExecuteLoopSkippingConflicts(array $ownerIds): array
+    {
+        $conflictsByOwner = [];
+        foreach (findWebsiteConflictCars($this->db) as $conflict) {
+            $conflictsByOwner[$conflict['ownerId']][] = $conflict;
+        }
+
+        $ownersSkippedForConflict = 0;
+        $toSync = [];
+        foreach ($ownerIds as $ownerId) {
+            if (isset($conflictsByOwner[$ownerId])) {
+                $ownersSkippedForConflict++;
+                continue;
+            }
+            $toSync[] = $ownerId;
+        }
+
+        $totals = $this->runExecuteLoop($toSync);
+        // ownersScanned counts every owner the run considered, skips included,
+        // exactly as the script increments it before the conflict check.
+        $totals['ownersScanned'] = count($ownerIds);
+        $totals['ownersSkippedForConflict'] = $ownersSkippedForConflict;
+
+        return $totals;
+    }
+
+    /**
+     * A website conflict on ONE of an owner's cars holds back ALL of that
+     * owner's cars — and only that owner's.
+     *
+     * Owner::syncOwnerFieldsToCars() writes all nine fields to every car the
+     * owner holds, in one shared method that the profile-save and
+     * sync-location callers also use, with no per-car or per-field opt-out.
+     * Skipping the whole owner is therefore the only way this job can decline
+     * to overwrite one column. The cost — the owner's other, genuinely stale
+     * fields stay stale until an admin resolves the conflict — is what the
+     * second car in this fixture pins down.
+     */
+    public function testWebsiteConflictSkipsTheWholeOwnerButNotOtherOwners(): void
+    {
+        // Owner A: two cars. One has its own website that differs from the
+        // profile's (the conflict); the other has only a stale email.
+        $conflictOwnerId = $this->createTestUser([
+            'fname' => 'Conflict',
+            'lname' => 'Owner',
+            'email' => 'conflict-owner@example.com',
+        ]);
+        $this->createTestProfile($conflictOwnerId, [
+            'city'    => 'Portland',
+            'state'   => 'Oregon',
+            'country' => 'United States',
+            'website' => 'www.lotus-elan.net',
+        ]);
+        $conflictCarId = $this->createTestCar($conflictOwnerId, [
+            'email'   => 'stale-conflict@example.com',
+            'website' => 'https://www.myoldies.net',
+        ]);
+        $siblingCarId = $this->createTestCar($conflictOwnerId, [
+            'email'   => 'stale-sibling@example.com',
+            // Matches the profile, so this car has no conflict of its own —
+            // it is held back purely because its owner has one elsewhere.
+            'website' => 'www.lotus-elan.net',
+        ]);
+
+        // Owner B: ordinary drift, no conflict. Must still be repaired in the
+        // same run — a conflict is per-owner, not a global stop.
+        $cleanOwnerId = $this->createTestUser([
+            'fname' => 'Clean',
+            'lname' => 'Owner',
+            'email' => 'clean-owner@example.com',
+        ]);
+        $this->createTestProfile($cleanOwnerId, [
+            'city'    => 'Salem',
+            'state'   => 'Oregon',
+            'country' => 'United States',
+            'website' => '',
+        ]);
+        $cleanCarId = $this->createTestCar($cleanOwnerId, [
+            'email'   => 'stale-clean@example.com',
+            'website' => '',
+        ]);
+
+        $conflictOwnerIds = findOwnerIdsWithWebsiteConflict($this->db);
+        $this->assertContains($conflictOwnerId, $conflictOwnerIds);
+        $this->assertNotContains($cleanOwnerId, $conflictOwnerIds);
+
+        $workList = findOwnerIdsWithDrift($this->db);
+        $this->assertContains($conflictOwnerId, $workList, 'The conflicted owner is still discovered as drifted...');
+        $this->assertContains($cleanOwnerId, $workList);
+
+        $totals = $this->runExecuteLoopSkippingConflicts(
+            array_values(array_intersect($workList, [$conflictOwnerId, $cleanOwnerId]))
+        );
+
+        $this->assertSame(
+            1,
+            $totals['ownersSkippedForConflict'],
+            '...but is skipped at Execute time rather than synced'
+        );
+
+        $conflictCar = $this->db->query('SELECT email, website FROM cars WHERE id = ?', [$conflictCarId])->first();
+        $this->assertSame('https://www.myoldies.net', $conflictCar->website, 'The car\'s own website must survive the run');
+        $this->assertSame('stale-conflict@example.com', $conflictCar->email, 'The conflicted car must not be synced at all');
+
+        $siblingCar = $this->db->query('SELECT email FROM cars WHERE id = ?', [$siblingCarId])->first();
+        $this->assertSame(
+            'stale-sibling@example.com',
+            $siblingCar->email,
+            'The owner\'s OTHER car must be held back too — this is the whole-owner skip, and the cost of it'
+        );
+
+        $cleanCar = $this->db->query('SELECT email FROM cars WHERE id = ?', [$cleanCarId])->first();
+        $this->assertSame(
+            'clean-owner@example.com',
+            $cleanCar->email,
+            'An unrelated owner must still be repaired in the same run'
+        );
+
+        $this->assertSame(1, $totals['updated'], 'Only the clean owner\'s single car may be updated');
+        $this->assertSame(0, $totals['failed']);
+        $this->assertSame(
+            0,
+            $this->countOwnerSyncHistoryRows($conflictCarId),
+            'A skipped owner\'s cars must gain no OWNER_SYNC history rows'
+        );
+        $this->assertSame(0, $this->countOwnerSyncHistoryRows($siblingCarId));
+    }
+
+    /**
      * A single owner's infrastructure failure must not abort the run: the
      * owners after it in the work list still get repaired.
      *

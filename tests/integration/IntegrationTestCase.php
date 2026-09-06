@@ -516,12 +516,12 @@ abstract class IntegrationTestCase extends TestCase
             throw new \RuntimeException('Could not read ' . $scriptPath);
         }
 
-        // Isolate the slice from the RECONCILE_DETAILS_PAGE_SIZE constant (the
-        // first line of the testable, function_exists()-guarded region) up to
-        // (but not including) the "AJAX handlers" comment that starts the
-        // securePage()/CSRF/isAdmin()-gated request handling this must never
-        // execute.
-        $startMarker = 'const RECONCILE_DETAILS_PAGE_SIZE';
+        // Isolate the slice from the RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS
+        // constant (the first line of the testable, function_exists()-guarded
+        // region) up to (but not including) the "AJAX handlers" comment that
+        // starts the securePage()/CSRF/isAdmin()-gated request handling this
+        // must never execute.
+        $startMarker = 'const RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS';
         $endMarker = '// AJAX handlers';
 
         $startPos = strpos($source, $startMarker);

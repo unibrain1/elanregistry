@@ -398,6 +398,256 @@ final class ReconcileOwnerFieldsAnalyzeTest extends IntegrationTestCase
     }
 
     /**
+     * A car holding its own website, different from its owner's profile
+     * website, is a conflict: syncing would destroy the car's value rather
+     * than refresh it.
+     */
+    public function testCarWebsiteDifferingFromOwnersIsDetectedAsAConflict(): void
+    {
+        $userId = $this->createTestUser([
+            'fname' => 'Conflict',
+            'lname' => 'Owner',
+            'email' => 'conflict-owner@example.com',
+        ]);
+        $this->createTestProfile($userId, ['website' => 'www.lotus-elan.net']);
+        $carId = $this->createTestCar($userId, [
+            'fname'   => 'Conflict',
+            'lname'   => 'Owner',
+            'email'   => 'conflict-owner@example.com',
+            'city'    => 'Portland',
+            'state'   => 'Oregon',
+            'country' => 'United States',
+            'lat'     => 45.5231,
+            'lon'     => -122.6765,
+            // The scenario from the review that prompted this guard: both
+            // values are real sites, and neither is obviously the stale one.
+            'website' => 'https://www.myoldies.net',
+        ]);
+
+        $this->assertContains(
+            $userId,
+            findOwnerIdsWithWebsiteConflict(dbi()),
+            'An owner whose car holds a different website must be flagged for manual review'
+        );
+
+        $conflicts = findWebsiteConflictCars(dbi());
+        $matching = array_values(array_filter($conflicts, static fn ($row) => $row['carId'] === $carId));
+        $this->assertCount(1, $matching, 'The conflicted car must be reported exactly once');
+        $this->assertSame('https://www.myoldies.net', $matching[0]['carWebsite']);
+        $this->assertSame('www.lotus-elan.net', $matching[0]['ownerWebsite']);
+        $this->assertSame($userId, $matching[0]['ownerId']);
+    }
+
+    /**
+     * An empty owner website against a real car website is NOT a conflict:
+     * the owner has no website of their own to compete with the car's, so
+     * there is nothing worth protecting by holding the owner back — it syncs
+     * normally like any other field. (A car website is only ever protected
+     * when the owner's website is ALSO real and genuinely different — see
+     * testCarWebsiteDifferingFromOwnersIsDetectedAsAConflict().)
+     */
+    public function testEmptyOwnerWebsiteAgainstRealCarWebsiteIsNotAConflict(): void
+    {
+        $userId = $this->createTestUser([
+            'fname' => 'Blank',
+            'lname' => 'Profile',
+            'email' => 'blank-profile@example.com',
+        ]);
+        $this->createTestProfile($userId, ['website' => '']);
+        $carId = $this->createTestCar($userId, ['website' => 'https://carsite.example.com']);
+
+        $conflictCarIds = array_column(findWebsiteConflictCars(dbi()), 'carId');
+        $this->assertNotContains($carId, $conflictCarIds, 'An empty owner website has nothing to protect the car from');
+
+        $this->assertNotContains(
+            $userId,
+            findOwnerIdsWithWebsiteConflict(dbi()),
+            'An owner must not be held back when their own website is empty'
+        );
+
+        // ...and it is still ordinary drift, so it does get repaired.
+        $this->assertContains($userId, findOwnerIdsWithDrift(dbi()));
+    }
+
+    /**
+     * An empty car website is not a conflict — there is nothing to lose, so
+     * the owner's value syncs normally.
+     */
+    public function testEmptyCarWebsiteIsNotAConflict(): void
+    {
+        $userId = $this->createTestUser([
+            'fname' => 'Empty',
+            'lname' => 'CarSite',
+            'email' => 'empty-carsite@example.com',
+        ]);
+        $this->createTestProfile($userId, ['website' => 'https://owner.example.com']);
+        $carId = $this->createTestCar($userId, ['website' => '']);
+
+        $conflictCarIds = array_column(findWebsiteConflictCars(dbi()), 'carId');
+        $this->assertNotContains($carId, $conflictCarIds, 'A car with no website of its own has nothing to protect');
+
+        $this->assertNotContains(
+            $userId,
+            findOwnerIdsWithWebsiteConflict(dbi()),
+            'An owner must not be held back over a car that has no website to lose'
+        );
+
+        // ...and it is still ordinary drift, so it does get repaired.
+        $this->assertContains($userId, findOwnerIdsWithDrift(dbi()));
+    }
+
+    /**
+     * A car with a NULL website and an owner with a NULL website must never
+     * be reported as drift, even though `Owner::find()` (usersc/classes/Owner.php)
+     * normalizes a NULL `profiles.website` to '' before any sync ever writes
+     * it — meaning `syncOwnerFieldsToCars()` can only ever write '', never
+     * NULL, to `cars.website`. Comparing the car's raw value against the raw
+     * `profiles.website` without accounting for that normalization on BOTH
+     * sides created a permanent, unresolvable false-positive here: a car
+     * whose own website happens to be stored as NULL (not '') could never
+     * reach a state the null-safe `<=>` comparison would recognize as
+     * matching, because the fix that coalesces one side without the other
+     * turns a legitimate NULL-matches-NULL pair into a false NULL-vs-''
+     * mismatch. This regression was caught live against production-shaped
+     * data during #1961's review — not by this test suite, which is why it
+     * exists now.
+     */
+    public function testNullCarWebsiteAgainstNullOwnerWebsiteIsNotDrift(): void
+    {
+        $userId = $this->createTestUser([
+            'fname' => 'Null',
+            'lname' => 'BothSides',
+            'email' => 'null-both-sides@example.com',
+        ]);
+        $this->createTestProfile($userId, [
+            'city'    => 'Portland',
+            'state'   => 'Oregon',
+            'country' => 'United States',
+            'lat'     => null,
+            'lon'     => null,
+            'website' => null,
+        ]);
+        // createTestCar()'s own defaults omit fname/lname/email/city/state/
+        // country/lat/lon entirely, leaving them NULL — every field but
+        // website must be given explicitly here so the only thing under test
+        // is website, not incidental drift on fields this fixture didn't set
+        // (including lat/lon, whose createTestProfile() default is a real
+        // coordinate pair, not NULL).
+        $carId = $this->createTestCar($userId, [
+            'fname'   => 'Null',
+            'lname'   => 'BothSides',
+            'email'   => 'null-both-sides@example.com',
+            'city'    => 'Portland',
+            'state'   => 'Oregon',
+            'country' => 'United States',
+            'lat'     => null,
+            'lon'     => null,
+            'website' => null,
+        ]);
+
+        $this->assertNotContains(
+            $userId,
+            findOwnerIdsWithDrift(dbi()),
+            'A NULL car website matching a NULL owner website must not be reported as drift, and every other field matches too'
+        );
+
+        $details = $this->findAllDriftedCarDetails();
+        $matching = array_values(array_filter($details, static fn ($row) => $row['carId'] === $carId));
+        $this->assertCount(0, $matching, 'This car must not appear in the drifted-car detail list at all');
+    }
+
+    /**
+     * A car with a NULL website and an owner with an EMPTY STRING website
+     * (or vice versa) must also not be reported as drift on the website
+     * field — the two representations of "no website" are equivalent for
+     * this field regardless of which side holds which representation. Other
+     * fields are intentionally left drifted here so the assertion can target
+     * the website field specifically rather than relying on total-drift
+     * absence, which a NULL-website-only fixture cannot safely assert (every
+     * other field defaults to NULL on the car and a real value on the owner,
+     * which is itself drift unrelated to this test).
+     */
+    public function testNullCarWebsiteAgainstEmptyOwnerWebsiteIsNotDrift(): void
+    {
+        $userId = $this->createTestUser([
+            'fname' => 'Null',
+            'lname' => 'CarEmptyOwner',
+            'email' => 'null-car-empty-owner@example.com',
+        ]);
+        $this->createTestProfile($userId, ['website' => '']);
+        // fname/lname/email deliberately left off createTestCar() here — this
+        // car IS expected to show ordinary drift on those fields; the
+        // assertion below targets only the website field specifically.
+        $carId = $this->createTestCar($userId, ['website' => null]);
+
+        $details = $this->findAllDriftedCarDetails();
+        $matching = array_values(array_filter($details, static fn ($row) => $row['carId'] === $carId));
+        $this->assertCount(1, $matching, 'This car has ordinary drift on other fields and must still be reported');
+        $this->assertArrayNotHasKey(
+            'website',
+            $matching[0]['fields'],
+            'A NULL car website against an empty-string owner website must not be reported as a drifted field'
+        );
+    }
+
+    /**
+     * Cars parked on the `noowner` system account are excluded from drift
+     * detection entirely.
+     *
+     * That account holds placeholder contact data rather than a real owner's,
+     * so every car on it reads as drifted, and a sync would overwrite the
+     * car's last-known real owner details with the placeholder. It is a real
+     * positive user ID, so the shared clause's `c.user_id > 0` filter does not
+     * catch it — this test is the guard against that.
+     */
+    public function testNoOwnerAccountCarsAreExcludedFromDriftAndCountedSeparately(): void
+    {
+        $noOwnerId = findNoOwnerAccountId(dbi());
+        if ($noOwnerId === null) {
+            $this->markTestSkipped('This database has no `noowner` system account.');
+        }
+
+        $countBefore = findNoOwnerAccountCarCount(dbi(), $noOwnerId);
+        $summaryBefore = findOwnerFieldDriftSummary(dbi());
+
+        // Placeholder-versus-real data that would read as drift on any other
+        // owner: a real-looking email and city against the account's own
+        // "No Owner"/noowner@invalid placeholders.
+        $carId = $this->createTestCar($this->createTestUser(), [
+            'user_id' => $noOwnerId,
+            'email'   => 'last-known-real-owner@example.com',
+            'fname'   => 'Real',
+            'lname'   => 'Owner',
+            'city'    => 'Bristol',
+        ]);
+
+        $this->assertSame(
+            $countBefore + 1,
+            findNoOwnerAccountCarCount(dbi(), $noOwnerId),
+            'The system account\'s cars must be counted for the admin\'s information'
+        );
+
+        $this->assertNotContains(
+            $noOwnerId,
+            findOwnerIdsWithDrift(dbi()),
+            'The `noowner` system account must never appear in the drift-repair work list'
+        );
+
+        $this->assertNotContains(
+            $carId,
+            array_column($this->findAllDriftedCarDetails(), 'carId'),
+            'A car on the system account must not be listed as repairable drift'
+        );
+
+        $summaryAfter = findOwnerFieldDriftSummary(dbi());
+        $this->assertSame(
+            $summaryBefore['carsWithDrift'],
+            $summaryAfter['carsWithDrift'],
+            'A car on the system account must not inflate the aggregate drift count'
+        );
+    }
+
+    /**
      * A failed drift query must throw, not silently read as "zero drift".
      *
      * This project's DB::query() never throws on a failed statement — it
