@@ -68,6 +68,26 @@ final class OwnerSyncResultTest extends TestCase
         $this->assertSame(6, $result->totalCount());
     }
 
+    /**
+     * A skip-only outcome (every car left this owner mid-sync, nothing
+     * updated, nothing failed) must have totalCount() equal skippedCount()
+     * exactly — the boundary case behind process-owner-sync-location.php's
+     * "No cars were synchronized." wording (#1954). The integration-level
+     * version of this scenario lives in
+     * OwnerSyncOwnerFieldsToCarsOwnershipScopingTest, which already exercises
+     * a single-car, 100%-skipped sync end to end; this pins the numeric
+     * contract at the value-object level.
+     */
+    public function testTotalCount_SkipOnlyOutcome_EqualsSkippedCount(): void
+    {
+        $result = new OwnerSyncResult(updated: [], failed: [], skipped: [7]);
+
+        $this->assertSame(0, $result->updatedCount());
+        $this->assertSame(0, $result->failedCount());
+        $this->assertSame($result->skippedCount(), $result->totalCount());
+        $this->assertTrue($result->isCompleteSuccess());
+    }
+
     public function testIsCompleteSuccess_EmptyFailedWithNonEmptySkipped_ReturnsTrue(): void
     {
         // The behavior this whole issue is about: a skip-only outcome (car
@@ -90,5 +110,64 @@ final class OwnerSyncResultTest extends TestCase
         $result = new OwnerSyncResult(updated: [1], failed: [2], skipped: [3]);
 
         $this->assertFalse($result->isCompleteSuccess());
+    }
+
+    /**
+     * successMessage() is what process-owner-sync-location.php's success path
+     * actually calls at runtime — the endpoint itself calls send()/exit and
+     * cannot be included directly in PHPUnit (see AdminOwnerManagementTest's
+     * class docblock), so this is the closest runtime verification available
+     * of the exact wording an admin sees (#1954).
+     */
+    public function testSuccessMessage_AllUpdatedNoSkips_ReturnsPlainSuccessSentence(): void
+    {
+        $result = new OwnerSyncResult(updated: [1, 2, 3], failed: [], skipped: []);
+
+        $this->assertSame('Successfully synchronized owner details to 3 car(s).', $result->successMessage());
+    }
+
+    public function testSuccessMessage_UpdatedWithSkips_AppendsSkippedPhrase(): void
+    {
+        $result = new OwnerSyncResult(updated: [1], failed: [], skipped: [7]);
+
+        $this->assertSame(
+            'Successfully synchronized owner details to 1 car(s). Car 7 no longer owned; not updated.',
+            $result->successMessage()
+        );
+    }
+
+    /**
+     * The boundary case this method exists for: zero updated must not read
+     * as "synchronized ... to 0 car(s)." when the sync had nothing wrong with
+     * it — every car just changed hands before the write (#1954).
+     */
+    public function testSuccessMessage_SkipOnlyOutcome_ReadsAsNoCarsSynchronized(): void
+    {
+        $result = new OwnerSyncResult(updated: [], failed: [], skipped: [7, 8]);
+
+        $this->assertSame(
+            'No cars were synchronized. Cars 7, 8 no longer owned; not updated.',
+            $result->successMessage()
+        );
+    }
+
+    /**
+     * Pins the exact concatenated string produced by
+     * `failedCarsPhrase() . ' ' . skippedCarsPhrase()` — the pattern all three
+     * call sites (process-owner-sync-location.php x2, user_settings.php) build
+     * by hand when both buckets are non-empty. A single assertion here catches
+     * a spacing/ordering regression in either phrase without needing to
+     * duplicate it at each call site.
+     */
+    public function testFailedAndSkippedPhrasesConcatenateWithSingleSpace(): void
+    {
+        $result = new OwnerSyncResult(updated: [1], failed: [5], skipped: [12]);
+
+        $combined = $result->failedCarsPhrase() . ' ' . $result->skippedCarsPhrase();
+
+        $this->assertSame(
+            'Car 5 could not be updated. Car 12 no longer owned; not updated.',
+            $combined
+        );
     }
 }

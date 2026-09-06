@@ -827,6 +827,15 @@ class Owner
      * exception carries the full error string and is logged by the call sites'
      * handlers once the transaction has closed.
      *
+     * syncOwnerFieldsToCars()'s entire skipped-vs-failed split rests on this
+     * method throwing rather than returning false when the query itself fails —
+     * that is what lets a genuine DB error surface as a real exception instead
+     * of being silently absorbed into "skipped" as if it were an ownership
+     * change (#1954). Never weaken this to catch its own errors and return
+     * false; that would make a real failure invisible everywhere skips are
+     * treated as non-errors, including places that never surface skips to the
+     * user (e.g. usersc/user_settings.php).
+     *
      * @return bool True if the car exists and belongs to this user
      * @throws OwnerDatabaseException If the query fails — the caller must not
      *         treat a failed lookup as proof the car changed hands

@@ -89,13 +89,7 @@ final class OwnerSyncResult
      */
     public function failedCarsPhrase(): string
     {
-        if ($this->failed === []) {
-            return '';
-        }
-
-        $noun = count($this->failed) === 1 ? 'Car' : 'Cars';
-
-        return sprintf('%s %s could not be updated.', $noun, implode(', ', $this->failed));
+        return self::carsPhrase($this->failed, 'could not be updated.');
     }
 
     /**
@@ -111,13 +105,27 @@ final class OwnerSyncResult
      */
     public function skippedCarsPhrase(): string
     {
-        if ($this->skipped === []) {
+        return self::carsPhrase($this->skipped, 'no longer owned; not updated.');
+    }
+
+    /**
+     * Shared sentence-builder behind failedCarsPhrase() and skippedCarsPhrase(),
+     * so the two phrasings cannot drift apart in pluralization or punctuation
+     * if a third bucket is ever added.
+     *
+     * @param list<int> $carIds  Car IDs to name; an empty list yields ''
+     * @param string    $trailer Text following the noun/id-list, e.g. "could not be updated."
+     * @return string Empty string when $carIds is empty
+     */
+    private static function carsPhrase(array $carIds, string $trailer): string
+    {
+        if ($carIds === []) {
             return '';
         }
 
-        $noun = count($this->skipped) === 1 ? 'Car' : 'Cars';
+        $noun = count($carIds) === 1 ? 'Car' : 'Cars';
 
-        return sprintf('%s %s no longer owned; not updated.', $noun, implode(', ', $this->skipped));
+        return sprintf('%s %s %s', $noun, implode(', ', $carIds), $trailer);
     }
 
     /**
@@ -130,5 +138,43 @@ final class OwnerSyncResult
     public function isCompleteSuccess(): bool
     {
         return $this->failed === [];
+    }
+
+    /**
+     * Human-readable success message for a call site where
+     * {@see isCompleteSuccess()} is true (no real failures — updated and/or
+     * skipped cars only).
+     *
+     * A skip-only outcome (updatedCount() === 0) is worded as "No cars were
+     * synchronized." rather than "Successfully synchronized ... to 0 car(s)."
+     * — the latter reads as a failure to a reader even though nothing here
+     * needed updating (#1954). Currently called only by
+     * process-owner-sync-location.php; lives here rather than inline so that
+     * wording is unit-testable without exercising the AJAX endpoint, which
+     * calls send()/exit and cannot be included directly in PHPUnit.
+     *
+     * usersc/user_settings.php deliberately does NOT call this: it reports
+     * success only when updatedCount() > 0 and stays silent on a skip-only
+     * outcome, since a car the owner no longer owns isn't actionable for them
+     * (see the comment at that call site). That is intentionally different
+     * wording for a different audience, not drift to be reconciled here.
+     *
+     * Callers with a failure (isCompleteSuccess() === false) build their own
+     * message from {@see failedCarsPhrase()} — this method assumes success.
+     *
+     * @return string
+     */
+    public function successMessage(): string
+    {
+        if ($this->updatedCount() === 0) {
+            return trim('No cars were synchronized. ' . $this->skippedCarsPhrase());
+        }
+
+        $message = "Successfully synchronized owner details to {$this->updatedCount()} car(s).";
+        if ($this->skippedCount() > 0) {
+            $message .= ' ' . $this->skippedCarsPhrase();
+        }
+
+        return $message;
     }
 }

@@ -517,11 +517,12 @@ final class UserSettingsWiringTest extends TestCase
      * A skip means the car left this owner mid-sync — expected behavior, not an
      * error. The error(500) response therefore has to stay inside the
      * !isCompleteSuccess() guard, and the informational skip reporting
-     * (->withData('cars_skipped', ...) and the skippedCarsPhrase() message
-     * append) has to live after that guard closes. The guard's own message now
-     * also names skips (so the denominator is explained), which is why this
-     * asserts skip reporting EXISTS after the guard rather than that it is
-     * absent within it.
+     * (->withData('cars_skipped', ...) and the success message) has to live
+     * after that guard closes. The success message itself is built by
+     * OwnerSyncResult::successMessage(), not inlined here — its skip-only
+     * wording ("No cars were synchronized." vs "...to 0 car(s).") is covered
+     * by runtime unit tests in OwnerSyncResultTest, since this endpoint calls
+     * send()/exit and cannot be included directly in PHPUnit.
      */
     public function testAdminSyncEndpointReportsSkipsOutsideTheErrorGuard(): void
     {
@@ -554,15 +555,10 @@ final class UserSettingsWiringTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            '$syncResult->skippedCount() > 0',
+            '$syncResult->successMessage()',
             $afterGuard,
-            'The success path after the guard must branch on skippedCount() so a skip-only '
-            . 'outcome is still explained to the admin (#1954)'
-        );
-        $this->assertStringContainsString(
-            '$syncResult->skippedCarsPhrase()',
-            $afterGuard,
-            'The success path after the guard must name the skipped cars via skippedCarsPhrase()'
+            'The success path after the guard must delegate its message to '
+            . 'OwnerSyncResult::successMessage(), which handles the skip-only wording (#1954)'
         );
         $this->assertStringContainsString(
             "->withData('cars_skipped'",
