@@ -299,6 +299,14 @@ composer migrate:status   # list pending and applied migrations
 automatically via the post-receive hook. The manual steps above serve as a fallback if the hook needs to
 be bootstrapped on a fresh server.
 
+**Migrations vs. seeds — the hook only runs migrations.** `composer seed:run`
+(`vendor/bin/phinx seed:run` — see `PageRegistrationSeed`, `CarModelsSeed`,
+`ElanFactoryInfoSeed` under `database/seeds/`) and `scripts/provision-schema.sh`
+are **never** invoked by the post-receive hook. They are provisioning-only,
+run by hand when standing up a new environment. If you add a new seed and
+expect it to populate test/prod data, a push alone will not do it — run
+`composer seed:run` manually against that environment after deploying.
+
 **Trigger-rebuilding migrations:** A migration that drops and recreates triggers (as `20260902104755` —
 the first such migration executed live — does for the `cars` table) needs privileges beyond a normal
 schema change. Before pushing:

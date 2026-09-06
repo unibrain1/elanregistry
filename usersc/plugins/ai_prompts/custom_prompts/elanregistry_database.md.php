@@ -46,9 +46,9 @@ The shipped `where_to_look` prompt lists the core UserSpice tables (`users`, `gr
 |---|---|
 | `cars` | Primary car registry records |
 | `cars_hist` | Immutable audit trail — written by DB triggers, never by application code |
-| `car_images` | Image metadata and file associations per car |
 | `elan_factory_info` | Factory build data (chassis suffix lookup) |
-| `car_transfers` | Ownership transfer requests and history |
+| `car_models` | Lotus Elan model definitions and year ranges |
+| `car_transfer_requests` | Ownership transfer requests and history |
 | `profiles` | ElanRegistry owner profile data (extends UserSpice `users`) |
 | `plg_db_explainer_*` | DB Explainer plugin tables (schema metadata, not registry data) |
 

@@ -13,14 +13,21 @@ remain unchanged — these classes extend and wrap them.
 
 | Task | Class | Location |
 |---|---|---|
-| Load/create/update/delete a registered car | `Car` | `usersc/classes/Car.php` |
+| Load/create/update/delete a registered car | `Car` | `usersc/classes/Car/Car.php` |
+| Load car data for CRUD (repository layer used by `Car`) | `CarRepository` | `usersc/classes/Car/CarRepository.php` |
+| Validate car field data before create/update | `CarValidator` | `usersc/classes/Car/CarValidator.php` |
+| Decode/process the `cars.image` JSON column | `CarImageProcessor` | `usersc/classes/Car/CarImageProcessor.php` |
+| Admin-side car operations (merge, bulk actions) | `CarAdministrationService` | `usersc/classes/Car/CarAdministrationService.php` |
+| Back DataTables server-side car listings | `CarDataTablesService` | `usersc/classes/Car/CarDataTablesService.php` |
+| Verify/re-verify car ownership | `CarVerificationManager` | `usersc/classes/Car/CarVerificationManager.php` |
+| Build the home-page cycling car showcase pool | `CarShowcaseService` | `usersc/classes/Car/CarShowcaseService.php` |
 | Display car images, specs, carousels (no DB writes) | `CarView` | `usersc/classes/CarView.php` |
 | Load/update an owner's registry profile | `Owner` | `usersc/classes/Owner.php` |
 | Return a JSON response from an AJAX endpoint | `ApiResponse` | `usersc/classes/ApiResponse.php` |
 | Log an action or error to the audit trail | `logger()` + `LogCategories` | `usersc/classes/LogCategories.php` |
 | Validate a chassis/VIN format | `ChassisValidator` | `usersc/classes/ChassisValidator.php` |
 | Read POST data without HTML-encoding (for DB storage) | `ElanRegistry\Input` | `usersc/classes/Input.php` |
-| Look up factory reference data (models, colors) | `ElanRegistry\Reference\*` | `usersc/classes/ElanRegistry/Reference/` |
+| Look up factory reference data (models) | `ElanRegistry\Reference\*` | `usersc/classes/Reference/` |
 
 ---
 
@@ -28,13 +35,14 @@ remain unchanged — these classes extend and wrap them.
 
 ```
 ElanRegistry\             → usersc/classes/          (entity classes — full CRUD)
+ElanRegistry\Car\         → usersc/classes/Car/       (Car entity + its supporting services)
 ElanRegistry\Exceptions\  → usersc/classes/Exceptions/ (typed exceptions)
-ElanRegistry\Reference\   → usersc/classes/ElanRegistry/Reference/ (read-only reference data)
+ElanRegistry\Reference\   → usersc/classes/Reference/  (read-only reference data)
 ```
 
 Entity classes (`Car`, `Owner`) represent registry records with full CRUD.
-Reference classes (`CarModel`, `FactoryColor`, `FactoryInfo`) represent external authoritative
-data from Lotus — read-only, static methods only, no insert/update/delete.
+Reference classes (`CarModel`) represent external authoritative data from
+Lotus — read-only, static methods only, no insert/update/delete.
 
 ---
 
@@ -51,19 +59,24 @@ $data = $car->data();    // stdObject with all car columns
 // Create — CSRF is validated by the HTTP-layer caller (see save.php) before
 // create()/update() are invoked, not inside the Car class itself (#1519).
 // Do not pass a token/csrf field here.
+// Returns bool. Required fields: chassis, model, year. 'model' is a single
+// "series|variant|type" string validated against car_models — not separate
+// series/variant fields (see CarValidator::parseModel(), save.php). To get
+// the new car's id, read it via Car::data() or a fresh lookup, not from
+// create()'s return value.
 $car = new Car();
-$carId = $car->create([
-    'chassis'    => '26/0001',
-    'model_name' => 'S2',
-    'body_style' => 'DHC',
-    'body_color' => 'Red',
-    'user_id'    => $userId,
+$created = $car->create([
+    'chassis' => '26/0001',
+    'model'   => 'S4|FHC|36',   // series|variant|type — see car_models.model_value
+    'year'    => 1971,
+    'color'   => 'Red',
+    'user_id' => $userId,
 ]);
 
 // Update
 $car->update([
-    'id'         => $carId,
-    'body_color' => 'Blue',
+    'id'    => $carId,
+    'color' => 'Blue',
 ]);
 
 // Delete (hard delete; cars_hist trigger records the audit trail)
@@ -71,7 +84,7 @@ $car->delete('Reason for deletion', currentUserId());
 ```
 
 **Key database tables:** `cars` (primary), `cars_hist` (trigger-written audit trail),
-`car_images`, `elan_factory_info`.
+`elan_factory_info`.
 
 **Exception hierarchy** (all extend `CarException` in `ElanRegistry\Exceptions\`):
 
@@ -85,6 +98,7 @@ $car->delete('Reason for deletion', currentUserId());
 | `CarDeletionException` | 500 | Delete failed |
 | `CarMergeException` | 500 | Merge failed |
 | `CarTransferException` | 500 | Ownership transfer failed |
+| `CarConcurrentModificationException` | 500 | Compare-and-swap write rejected — row changed between read and write (extends `CarDatabaseException`) |
 
 ---
 
