@@ -14,12 +14,12 @@ aren't generic UserSpice.
 projectroot/
 ├── users/            # UserSpice core — never edit
 ├── usersc/           # UserSpice customizations — ElanRegistry classes, plugins, templates
-│   ├── classes/      # Custom PHP classes (Car, Owner, ApiResponse, ...)
+│   ├── classes/      # Custom PHP classes (Owner, ApiResponse, ...)
+│   │   └── Car/      # Car entity + supporting services (CarRepository, CarValidator, ...)
 │   ├── plugins/      # ai_prompts, db_explainer, and others
 │   ├── includes/     # server_globals.php, custom_functions.php, footer.php, ...
-│   └── templates/    # customizer/ child theme (bootstrap 5.3.3)
+│   └── templates/    # customizer/ child theme (Bootstrap 5.3.8)
 ├── app/              # ElanRegistry application pages
-│   ├── action/       # Form-submission handlers (non-AJAX mutations)
 │   ├── admin/        # Admin-only pages
 │   │   ├── assets/   # Admin JS/CSS source files
 │   │   ├── includes/ # Admin PHP includes and classes
@@ -59,17 +59,26 @@ $path = [
     'users/',
     'usersc/',
     'app/',
-    'app/admin/',
-    'app/admin/scripts/fix/',
-    'app/admin/scripts/maintenance/',
     'app/owner/',
     'app/owner/cars/',
     'app/owner/contact/',
     'app/owner/reports/',
     'app/api/contact/',      // contact endpoints call securePage()
+    'app/admin/',
+    'app/admin/includes/',
+    'app/admin/includes/system/',
+    'app/admin/scripts/fix/',
+    'app/admin/scripts/maintenance/',
+    'docs/',
+    'docs/guides/',
+    'docs/reference/',
+    'docs/stories/',
     // ... add 'your/new/directory/' here
 ];
 ```
+
+(See the live array in `z_us_root.php` for the current complete list — this
+example is illustrative, not exhaustive.)
 
 ---
 

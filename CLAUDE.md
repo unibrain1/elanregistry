@@ -228,7 +228,7 @@ Never use `$_SERVER` directly. Validated globals (`$php_self`, `$is_https`, `$ho
 
 - Use `software-developer` agent for changes spanning 3+ files or introducing new patterns. For targeted single-file fixes, edit directly.
 - Run `/security-review` when changes touch forms, SQL queries, auth, or user input
-- Fix any linting or type errors before considering the task complete (pre-commit hooks run PHPStan and phpcs automatically on staged files)
+- Fix any linting or type errors before considering the task complete (pre-commit hooks run PHPStan automatically on staged files)
 - Run appropriate test suites for modified functionality
 
 **PHPStan hygiene (fix-when-you-touch-it):** When modifying any PHP file in
