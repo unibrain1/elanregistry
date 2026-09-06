@@ -16,12 +16,15 @@ use ElanRegistry\Owner;
  * lname, city, state, country, lat, lon, website) and their authoritative
  * source in `users` / `profiles`.
  *
- * Those columns are normally kept fresh by save-time hooks (the owner's own
- * profile save in `usersc/user_settings.php`, and the admin's manual
- * sync-location action). Save-time hooks are inherently incomplete: historical
- * rows, direct DB edits, imports, and any future write site that forgets to
- * call the sync all drift silently and stay drifted. This script is the
- * backstop that finds and repairs that drift on demand — it is not a
+ * Those columns are normally kept fresh by every write path that touches an
+ * owner's contact fields: the owner's own profile save
+ * (`usersc/user_settings.php`), confirming an email change
+ * (`sync_owner_email_on_verify.php`), editing a car (`OwnerContactRefresher`),
+ * and two admin actions (the manual sync endpoint, and
+ * `process-owner-update.php`). Save-time sync is inherently incomplete:
+ * historical rows, direct DB edits, imports, and any future write site that
+ * forgets to call the sync all drift silently and stay drifted. This script
+ * is the backstop that finds and repairs that drift on demand — it is not a
  * substitute for fixing a write site that fails to sync.
  *
  * Three-step flow (Analyze → Details → Execute), mirroring
@@ -55,10 +58,15 @@ use ElanRegistry\Owner;
  * placeholder.
  *
  * IMPORTANT — a car's own `website` is never overwritten with a different one.
- * Unlike the other eight columns, `website` is not necessarily a fact about
- * the owner: a car can carry its own dedicated page. Where a car holds a
- * non-empty website that differs from its owner's, the sync would destroy it,
- * so the whole owner is skipped for the run and flagged for manual review —
+ * As of #1963, website is owner-level only, and every live sync path already
+ * overwrites it unconditionally — a differing per-car value found here is
+ * legacy data entered before that decision, not a value the product still
+ * treats as legitimately car-specific. This protection exists purely to avoid
+ * silently destroying old per-car pages that predate #1963 without a human
+ * looking at them first; it is not an ongoing product rule, and no new such
+ * conflicts are expected going forward. Where a car holds a non-empty website
+ * that differs from its owner's, the sync would destroy it, so the whole
+ * owner is skipped for the run and flagged for manual review —
  * `Owner::syncOwnerFieldsToCars()` is shared with the profile-save and
  * sync-location callers and offers no per-field opt-out to use instead.
  *
@@ -378,10 +386,13 @@ if (!function_exists('reconcileWebsiteConflictPredicate')) {
      * DESTROYED rather than merely refreshed by a sync.
      *
      * Every other owner-contact column is a fact about the owner, so the
-     * owner's copy is authoritative by definition. `website` is not: a car can
-     * legitimately carry its own dedicated page (a build thread, a marque
-     * listing) that has nothing to do with the owner's personal site. Copying
-     * the owner's value over it is unrecoverable data loss, not a repair.
+     * owner's copy is authoritative by definition. `website` predates #1963's
+     * decision that it is owner-level too — a car holding a differing value
+     * here is legacy data (a build thread, a marque listing) entered before
+     * that decision, not a value the product still treats as car-specific.
+     * Copying the owner's value over it is unrecoverable data loss, not a
+     * repair, which is why this predicate exists at all — not because the
+     * product still expects new conflicts of this kind going forward.
      *
      * A conflict therefore requires BOTH sides to hold a real, non-empty
      * value that differ — a car with a real website and an owner with none
@@ -890,7 +901,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                                     <li>Does not repair cars whose <code>user_id</code> points at a user that no longer exists — those are reported for information only</li>
                                     <li>Does not repair cars parked on the <code>noowner</code> system account — that account holds placeholder data, so syncing would overwrite each car's last-known real owner details. Also reported for information only</li>
                                     <li>Does not replace the save-time sync hooks; it is a backstop for drift those hooks missed</li>
-                                    <li>Does not overwrite a car's own <code>website</code> with a different one from the owner's profile — a car can legitimately have its own dedicated page. If any of an owner's cars has such a conflict, that <strong>whole owner is skipped</strong> for the run and flagged for manual review</li>
+                                    <li>Does not overwrite a car's own <code>website</code> with a different one from the owner's profile — a differing value here is legacy data entered before v2.30.1 made website owner-level only. If any of an owner's cars has such a conflict, that <strong>whole owner is skipped</strong> for the run and flagged for manual review</li>
                                 </ul>
                             </div>
 
@@ -1512,6 +1523,23 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
 
             <?php
             // STEP 3: Execute reconciliation
+            if ($method === 'POST' && isset($_POST['execute']) && !Token::check($_POST['csrf'] ?? '')) {
+                // Without this branch, a stale/expired token (the page was left open
+                // across a session boundary) fell through silently to whatever renders
+                // below — the admin sees no explanation for why nothing happened inside
+                // the hidden iframe. Matches the isAdmin() branch below's pattern for
+                // messaging a rejected execute attempt back to the parent page.
+                logger($user->data()->id, LogCategories::LOG_CATEGORY_SECURITY,
+                    'CSRF token check failed on owner field reconciliation execute form');
+                $nonce = htmlspecialchars($userspice_nonce ?? '', ENT_QUOTES, 'UTF-8');
+                $msg = json_encode('❌ Session expired. Please reload the page and try again.', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+                echo '<script nonce="' . $nonce . '">
+                    if (window.parent && window.parent.addLogMessage) { window.parent.addLogMessage(' . $msg . '); }
+                    else if (window.addLogMessage) { addLogMessage(' . $msg . '); }
+                </script>';
+                exit;
+            }
+
             if ($method === 'POST' && isset($_POST['execute']) && Token::check($_POST['csrf'] ?? '')) {
                 if (!isAdmin()) {
                     logger($user->data()->id, LogCategories::LOG_CATEGORY_SECURITY,
