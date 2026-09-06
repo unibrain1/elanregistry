@@ -349,7 +349,10 @@ failed at the DB level), and `skipped` (car no longer owned by this user at writ
 time — ownership changed between the initial car list and the write; not a failure,
 expected behavior). `syncOwnerFieldsToCars()` lets `getCarsOwned()`'s exception
 propagate uncaught by design — a DB failure should surface as a real exception, not
-collapse into a result that silently reports nothing as updated or failed.
+collapse into a result that silently reports nothing as updated or failed. It also
+throws `OwnerDatabaseException` immediately if the `Owner` itself never loaded (no
+user row for its ID) — this is a distinct precondition failure from "loaded but owns
+zero cars," which still returns an empty, complete-success `OwnerSyncResult` (#1979).
 `OwnerSyncResult::successMessage()`, currently called only by
 `process-owner-sync-location.php`, words a skip-only outcome
 (`updatedCount() === 0`) as "No cars were synchronized." rather than "...to 0
