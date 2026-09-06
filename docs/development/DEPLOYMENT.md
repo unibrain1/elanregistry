@@ -452,6 +452,24 @@ Run `./scripts/update-version.sh` to generate VERSION file locally after creatin
   permission entries in UserSpice's `pages` table
 - **Required whenever:** A new page, admin script, or route is added or renamed
 
+### Hooker Hook Registration
+
+- **Problem:** A new hooker plugin hook
+  (`usersc/plugins/hooker/hooks/sync_owner_email_on_verify.php`, fixing #1958 —
+  a confirmed email change via the verify-by-link flow wasn't syncing to
+  `cars.email`) needs to be registered in the `us_plugin_hooks` table before it
+  takes effect; a hook file alone does nothing until registered per environment
+- **Solution:** Run `app/admin/scripts/fix/26-Register-Verify-Email-Sync-Hook.php`
+  on test, verify, then run on prod — the same test-then-prod order as the Page
+  Permissions script above, though note the two live in different directories:
+  this one is a one-time script under `app/admin/scripts/fix/`, while
+  `21-Fix-Page-Permissions.php` is a repeatable one under
+  `app/admin/scripts/maintenance/`. Registration is idempotent (safe to re-run) but per-environment —
+  running it on test does not register it on prod
+- **Required whenever:** This specific one-time deploy fix for #1958 — a
+  one-time fix script, not a repeatable maintenance task (contrast with Cron
+  Transport below, which is a general per-environment contract)
+
 ### Cron Transport (UserSpice Cron Manager)
 
 UserSpice's Cron Manager (Admin → Settings → Cron Manager) only maintains the
