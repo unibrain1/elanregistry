@@ -10,8 +10,7 @@ from the profile on every edit path, and the privacy policy is brought in line
 with what the registry actually does with member data (Brevo, delivery
 telemetry, cross-car sync, retention). Two production defects ship alongside:
 the car-list CSRF stale-token failure and the admin merge action leaving
-`userimages/` files behind. The integration-test gate is decoupled from
-UserSpice so CI can run it.
+`userimages/` files behind.
 
 ## Required Actions BEFORE Deployment
 
@@ -140,7 +139,6 @@ than something production requires — it was verified to run correctly under bo
 
 ## Issues Resolved
 
-- WIP: [#1752](https://github.com/elan-registry/registry/issues/1752) — tech-debt: decouple integration test suite from UserSpice's DB::getInstance() so CI can run the integration gate
 - [#1867](https://github.com/elan-registry/registry/issues/1867) — bug: car merge ("duplicate"/"new owner" admin action) never moves userimages/ files to the surviving car
 - [#1873](https://github.com/elan-registry/registry/issues/1873) — feat: sync all owner-contact fields (including email) to every car the owner has
 - [#1876](https://github.com/elan-registry/registry/issues/1876) — docs: update the privacy policy for Brevo, bounce data, cross-car sync, and retention
