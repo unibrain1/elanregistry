@@ -68,6 +68,7 @@ $_subHeadingClass = $headingTag === 'h4' ? 'card-header-er-l4-text mb-2' : 'text
             </dd>
         </dl>
 
+        <?php if ($purchaseDate || $soldDate) { ?>
         <hr>
 
         <!-- Ownership & History -->
@@ -85,6 +86,7 @@ $_subHeadingClass = $headingTag === 'h4' ? 'card-header-er-l4-text mb-2' : 'text
             <dd class="col-sm-8"><?= $soldDate->format('F j, Y') ?></dd>
             <?php } ?>
         </dl>
+        <?php } ?>
 
         <?php if (!empty($carData->comments)) { ?>
         <hr>

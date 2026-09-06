@@ -93,13 +93,13 @@ parameters:
 		-
 			message: '#^Variable \$purchaseDate might not be defined\.$#'
 			identifier: variable.undefined
-			count: 1
+			count: 2
 			path: app/views/cars/_vehicle_info_card.php
 
 		-
 			message: '#^Variable \$soldDate might not be defined\.$#'
 			identifier: variable.undefined
-			count: 1
+			count: 2
 			path: app/views/cars/_vehicle_info_card.php
 
 		-
