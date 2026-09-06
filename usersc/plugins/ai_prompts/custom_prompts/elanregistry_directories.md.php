@@ -38,7 +38,7 @@ projectroot/
 │   │   ├── reports/  # Statistics and reporting pages
 │   │   └── privacy.php
 │   └── views/        # Reusable view partials
-├── docs/             # User-facing docs (guides/, reference/, stories/, admin/)
+├── docs/             # User-facing docs (guides/, reference/, stories/)
 ├── error/            # Branded HTTP error pages (403, 404, 500)
 └── z_us_root.php     # Path registry — must be updated for every new directory
 ```
@@ -137,7 +137,12 @@ Frontend libraries (Bootstrap, DataTables, etc.) are vendored to `usersc/js/` an
 ## Template customization constraints
 
 - `usersc/templates/customizer/` is **gitignored by UserSpice upstream** — never modify
-  files there. The only tracked exception is `file_nav_custom.php` (project-owned).
+  files there. Tracked exceptions (project-owned):
+  - `file_nav_custom.php`
+  - `navigation.php` (tracked because UserSpice's template loader requires it — do not edit)
+  - `assets/child_themes/elanregistry.php`
+  - `assets/child_themes/elanregistry-20260504123354.css`
+  - `assets/child_themes/dashboard.php`
 - To add to the footer: inject via JS in `usersc/includes/footer.php`.
 - To add to the nav: use `usersc/templates/customizer/file_nav_custom.php`.
 - To add `<head>` tags: use `usersc/includes/head_tags.php`.
