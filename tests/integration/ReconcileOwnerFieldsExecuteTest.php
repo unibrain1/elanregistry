@@ -682,4 +682,73 @@ final class ReconcileOwnerFieldsExecuteTest extends IntegrationTestCase
             'A repeat, no-op run must add zero new OWNER_SYNC rows'
         );
     }
+
+    /**
+     * The consecutive-owner-failure circuit breaker
+     * (RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS) fires at exactly the
+     * configured threshold, not one before or one after — this pure
+     * threshold comparison was previously untested (flagged in #1992's
+     * review), since it lived only as an inline `>=` comparison in the
+     * execute handler with no extracted, callable form.
+     *
+     * No database interaction needed: this is a pure function of an int.
+     */
+    public function testConsecutiveErrorCircuitBreakerFiresAtExactThreshold(): void
+    {
+        for ($i = 0; $i < RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS - 1; $i++) {
+            $this->assertFalse(
+                reconcileShouldAbortForConsecutiveErrors($i),
+                "Must not abort before the threshold is reached (at count {$i})"
+            );
+        }
+
+        $this->assertFalse(
+            reconcileShouldAbortForConsecutiveErrors(RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS - 1),
+            'Must not abort one short of the threshold'
+        );
+        $this->assertTrue(
+            reconcileShouldAbortForConsecutiveErrors(RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS),
+            'Must abort exactly at the threshold'
+        );
+        $this->assertTrue(
+            reconcileShouldAbortForConsecutiveErrors(RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS + 1),
+            'Must still abort past the threshold — the loop should never reach this in practice (it aborts as soon as the threshold is hit), but the comparison itself must not falsely reset'
+        );
+    }
+
+    /**
+     * An intervening success resets the consecutive-failure count back to
+     * zero — this is the counter-management half the pure threshold
+     * function above cannot cover on its own, since resetting is a loop
+     * responsibility, not the threshold check's. Reproduces the execute
+     * handler's exact counter discipline: increment-and-check on failure,
+     * reset to zero on success, so 4 failures + 1 success + 4 more failures
+     * (8 total, never 5 in an unbroken row) must NOT trip the breaker.
+     */
+    public function testConsecutiveErrorCountResetsOnAnInterveningSuccess(): void
+    {
+        $consecutiveErrors = 0;
+        $tripped = false;
+
+        // Simulate: fail, fail, fail, fail, SUCCEED (resets), fail, fail, fail, fail.
+        $outcomes = [false, false, false, false, true, false, false, false, false];
+
+        foreach ($outcomes as $succeeded) {
+            if ($succeeded) {
+                $consecutiveErrors = 0;
+                continue;
+            }
+
+            $consecutiveErrors++;
+            if (reconcileShouldAbortForConsecutiveErrors($consecutiveErrors)) {
+                $tripped = true;
+                break;
+            }
+        }
+
+        $this->assertFalse(
+            $tripped,
+            'A success partway through must reset the streak — 4+4 failures either side of one success must never reach the 5-in-a-row threshold'
+        );
+    }
 }

@@ -108,6 +108,29 @@ $csrfToken = Token::generate();
  */
 const RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS = 5;
 
+if (!function_exists('reconcileShouldAbortForConsecutiveErrors')) {
+    /**
+     * Whether the Execute loop should abort after this many consecutive
+     * per-owner infrastructure failures, rather than continuing to the next
+     * owner.
+     *
+     * Extracted as a pure function (no side effects, no DB access) purely so
+     * the threshold comparison itself — easy to get backwards or off-by-one
+     * in a future edit — is unit-testable without driving the whole
+     * `securePage()`-gated Execute page. The counter increment/reset around
+     * each owner still lives inline in the execute handler.
+     *
+     * @param int $consecutiveErrors Consecutive per-owner failures observed
+     *        so far, including the one just recorded
+     * @return bool True once `$consecutiveErrors` reaches
+     *         {@see RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS}
+     */
+    function reconcileShouldAbortForConsecutiveErrors(int $consecutiveErrors): bool
+    {
+        return $consecutiveErrors >= RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS;
+    }
+}
+
 /**
  * The nine denormalized owner-contact columns, mapped to the source table
  * alias that holds their authoritative value (`u` = users, `p` = profiles).
@@ -287,12 +310,25 @@ if (!function_exists('reconcileFieldMismatchExpression')) {
      * Coalescing both sides to '' here treats NULL and '' as the same "no
      * website" value symmetrically, matching what a sync actually converges
      * to (always '', never NULL) while not disturbing a car that already
-     * legitimately has NULL matching an owner's NULL. `city`/`state`/`country`
-     * get the identical NULL-to-'' normalization in `Owner::find()`, but are
-     * deliberately left un-coalesced here — missing location data is handled
-     * by a separate mechanism, not this script — and `email`/`fname`/`lname`/
-     * `lat`/`lon` are never normalized by `Owner::find()` at all, so no other
-     * field needs this treatment.
+     * legitimately has NULL matching an owner's NULL.
+     *
+     * `city`/`state`/`country` get the identical NULL-to-'' normalization in
+     * `Owner::find()`, and therefore have the exact same latent failure mode:
+     * an owner with no `profiles` row reads as `NULL` here and would show
+     * permanent, unresolvable drift against a car whose value is `''` after a
+     * sync, on every future run, for as long as that owner's profile stays
+     * incomplete. This is a DELIBERATE, CONFIRMED product decision to leave
+     * un-coalesced, not an oversight (an automated reviewer flagged this
+     * exact gap during #1961's review, and the decision to leave it was
+     * reconfirmed after the flag) — missing-location owners are meant to
+     * surface as visibly stuck here, pointing an admin at the dedicated
+     * "Owner Data Quality" tool
+     * (`app/admin/index.php?tab=owner-mgmt`, `app/admin/includes/tab-owner_mgmt.php`)
+     * that finds and lets an admin fix incomplete profiles directly, rather
+     * than have this script silently absorb the gap the way it now does for
+     * `website`. `email`/`fname`/`lname`/`lat`/`lon` are never normalized by
+     * `Owner::find()` at all, so no other field needs this treatment either
+     * way.
      *
      * @param string $field One of the keys of RECONCILE_OWNER_FIELDS
      * @return string SQL fragment; built entirely from this script's own
@@ -1635,7 +1671,7 @@ require_once $abs_us_root . $us_url_root . 'users/includes/template/prep.php';
                             logger($actingUserId, LogCategories::LOG_CATEGORY_FIX_SCRIPT_ERROR,
                                 "Owner field reconciliation failed for owner {$ownerId}: " . $e->getMessage());
 
-                            if ($consecutiveOwnerErrors >= RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS) {
+                            if (reconcileShouldAbortForConsecutiveErrors($consecutiveOwnerErrors)) {
                                 throw new \RuntimeException(
                                     RECONCILE_MAX_CONSECUTIVE_OWNER_ERRORS . ' consecutive owners failed to sync, which '
                                     . 'indicates a systemic fault rather than per-owner trouble — aborting rather than '
